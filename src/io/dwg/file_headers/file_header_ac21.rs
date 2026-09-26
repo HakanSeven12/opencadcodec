@@ -27,6 +27,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use std::io::{Cursor, Seek, SeekFrom, Write};
 
 use super::section_definition::{ac21_section_info, names};
+use crate::document::{DwgAc21ContainerShape, DwgR2007SystemHeader};
 use crate::error::DxfError;
 use crate::io::dwg::compressor_ac21::compress_ac21;
 use crate::io::dwg::crc::{
@@ -471,6 +472,9 @@ pub struct DwgFileHeaderWriterAC21 {
     /// carries `crc_seed` 0 like our writer). `None` keeps the
     /// historical constant (0).
     source_random_seed: Option<u64>,
+    /// The §19 H8b mirrored-emission finalize inputs, stored by
+    /// `write_mirrored_pages` for `write_file_mirrored`.
+    mirror_state: Option<MirrorState>,
 }
 
 impl DwgFileHeaderWriterAC21 {
@@ -496,6 +500,7 @@ impl DwgFileHeaderWriterAC21 {
             skip_lz77: false,
             source_header_bytes: None,
             source_random_seed: None,
+            mirror_state: None,
         })
     }
 
@@ -721,6 +726,25 @@ impl DwgFileHeaderWriterAC21 {
         let random_seed = self.source_random_seed.unwrap_or(FILE_RANDOM_SEED);
         metadata.random_seed = random_seed;
         metadata.crc_seed = self.crc_seed; // always 0 per §5.2.1.1.2
+        self.write_two_pass_header(output, &mut metadata, random_seed)?;
+
+        Ok(())
+    }
+
+    /// The shared two-pass file-header + metadata finalization tail
+    /// (§19 H8b): the CRC-seed draws and check data (spec §5.2.1.1.3-6),
+    /// the 0x400 file header page (written at 0x80 and as the header2
+    /// copy at end-of-file), the file_size/header2_offset patch pass,
+    /// and the 0x80 metadata block (§5.2.1.7). Extracted verbatim from
+    /// the historical `write_file` body — the mirrored finalize shares
+    /// this tail, and the conventional path keeps byte-identical
+    /// output.
+    fn write_two_pass_header<W: Write + Seek>(
+        &mut self,
+        output: &mut W,
+        metadata: &mut Dwg21CompressedMetadata,
+        random_seed: u64,
+    ) -> Result<(), DxfError> {
         let mut rng = CrcRandomEncoder::new(random_seed);
 
         // §5.2.1.1.3-4: Encode map CRC seeds
@@ -782,7 +806,7 @@ impl DwgFileHeaderWriterAC21 {
         metadata.header_crc64 = header_crc;
 
         // §§ Step 5: Build file header page —
-        let file_header_page = self.build_file_header_page(&metadata, &mut rng, &check_data)?;
+        let file_header_page = self.build_file_header_page(metadata, &mut rng, &check_data)?;
         debug_assert_eq!(file_header_page.len(), FILE_HEADER_PAGE_SIZE);
 
         // Write file header at offset 0x80
@@ -849,7 +873,7 @@ impl DwgFileHeaderWriterAC21 {
         let header_crc = dwg_ac21_header_crc64(&meta_bytes);
         metadata.header_crc64 = header_crc;
 
-        let file_header_page = self.build_file_header_page(&metadata, &mut rng2, &check_data_2)?;
+        let file_header_page = self.build_file_header_page(metadata, &mut rng2, &check_data_2)?;
 
         // Overwrite file header at 0x80
         output.seek(SeekFrom::Start(METADATA_BLOCK_SIZE as u64))?;
@@ -860,7 +884,7 @@ impl DwgFileHeaderWriterAC21 {
         output.write_all(&file_header_page)?;
 
         // ── Step 7: Write metadata at offset 0x00 ──
-        self.write_metadata(output, &metadata)?;
+        self.write_metadata(output, metadata)?;
 
         // Seek to end
         output.seek(SeekFrom::End(0))?;
@@ -1083,21 +1107,30 @@ impl DwgFileHeaderWriterAC21 {
     /// (`SECTION_MAP_ORDER`), which differs from the physical stream order.
     /// For each section: 0x40-byte header + UTF-16LE name + per-page records.
     fn build_section_map(&self) -> Result<Vec<u8>, DxfError> {
-        let mut stream = Vec::new();
+        serialize_section_map(&self.sections)
+    }
+}
 
-        // Build index mapping section name → position in spec section-map order.
-        let map_order = ac21_section_info::SECTION_MAP_ORDER;
+/// Serialize the section map data (spec §5.2 section map format) from a
+/// section-record list — the writer's own table (conventional passes
+/// `self.sections`; the §19 H8b mirror passes its prepared records).
+/// Sorting and field order are identical for both callers.
+fn serialize_section_map(sections: &[AC21SectionInfo]) -> Result<Vec<u8>, DxfError> {
+    let mut stream = Vec::new();
 
-        // Sort sections by the spec section-map order.
-        let mut sorted: Vec<&AC21SectionInfo> = self.sections.iter().collect();
-        sorted.sort_by_key(|s| {
-            map_order
-                .iter()
-                .position(|&n| n == s.name)
-                .unwrap_or(usize::MAX)
-        });
+    // Build index mapping section name → position in spec section-map order.
+    let map_order = ac21_section_info::SECTION_MAP_ORDER;
 
-        for section in &sorted {
+    // Sort sections by the spec section-map order.
+    let mut sorted: Vec<&AC21SectionInfo> = sections.iter().collect();
+    sorted.sort_by_key(|s| {
+        map_order
+            .iter()
+            .position(|&n| n == s.name)
+            .unwrap_or(usize::MAX)
+    });
+
+    for section in &sorted {
             // Section header (8 fields × 8 bytes = 0x40 bytes)
 
             // 0x00: Data size (8 bytes)
@@ -1147,8 +1180,9 @@ impl DwgFileHeaderWriterAC21 {
         }
 
         Ok(stream)
-    }
+}
 
+impl DwgFileHeaderWriterAC21 {
     // ── Page map building ──
 
     /// Build the page map data (spec §5.2 page map format).
@@ -1399,7 +1433,7 @@ impl DwgFileHeaderWriterAC21 {
 }
 
 /// Result from writing a system page, containing metadata for the file header.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SystemPageResult {
     /// Page ID assigned to this system page.
     page_id: i64,
@@ -1419,6 +1453,791 @@ struct SystemPageResult {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  AC21 container-shape mirror (§19 H8b)
+//
+//  The H7g doctrine transferred to the AC1021 (R2007) container: a
+//  same-version roundtrip re-emits the author's page space — her
+//  pages-map (size, id) pairs in her physical order reproduce her
+//  tiling exactly (a running sum from 0x480), closing the
+//  pages-map family (pages_amount/pages_maxid, the four map-id
+//  fields, both FILEHEADER 0x80-block addresses, the whole
+//  R2007_Header pages-map family and the THUMBNAILIMAGE identity)
+//  whenever our re-encoded content demonstrably fits her slots:
+//  every her data page takes our chunk (LZ77 at her boundaries,
+//  RS form zero-padded to her exact on-disk size — gold's decode_rs
+//  walks only block_count×251 payload bytes and ignores the per-tab
+//  pad, decode_r2007.c:553), the two pages-map system pages carry
+//  her map bytes (byte-identical by construction; the encode with
+//  her slot as the target lands her correction factor), and the
+//  sections-map system pages hold OUR honest table bytes encoded
+//  into her tail slots. Any divergence declines to the
+//  conventional layout — the rewrite stays valid everywhere and
+//  the residue rows stay open on the declined files.
+// ════════════════════════════════════════════════════════════════════════════
+
+/// The pre-built AC21 section buffers for the §19 H8b mirror gate.
+/// `None` on an `Option` field = our writer skips the section (the
+/// H7 verbatim/skip presence rules); the preview is the one lazy
+/// build — the retained raw container, or a rebuild around the
+/// author's landing address.
+pub struct Ac21MirrorBuffers<'a> {
+    pub summary: Option<&'a [u8]>,
+    pub preview: &'a [u8],
+    pub app_info: Option<&'a [u8]>,
+    pub app_info_history: Option<&'a [u8]>,
+    pub file_dep: Option<&'a [u8]>,
+    pub rev_history: &'a [u8],
+    pub objects: &'a [u8],
+    pub acds: Option<&'a [u8]>,
+    pub obj_free_space: Option<&'a [u8]>,
+    /// The author's `AcDb:XrefManifest` raw bytes (§19 H7g: authored
+    /// state, unmodeled, never printed by gold — the mirror reps
+    /// her page verbatim; the conventional path keeps skipping it).
+    pub xref_manifest: Option<&'a [u8]>,
+    pub template: &'a [u8],
+    pub handles: &'a [u8],
+    pub classes: &'a [u8],
+    pub aux_header: &'a [u8],
+    pub header: &'a [u8],
+}
+
+impl Ac21MirrorBuffers<'_> {
+    /// The buffer for a canonical section name; `None` = our writer
+    /// skips the section.
+    fn get(&self, name: &str) -> Option<&[u8]> {
+        Some(match name {
+            names::SUMMARY_INFO => self.summary?,
+            names::PREVIEW => self.preview,
+            names::APP_INFO => self.app_info?,
+            names::APP_INFO_HISTORY => self.app_info_history?,
+            names::FILE_DEP_LIST => self.file_dep?,
+            names::REV_HISTORY => self.rev_history,
+            names::ACDB_OBJECTS => self.objects,
+            names::ACDS_PROTOTYPE => self.acds?,
+            names::OBJ_FREE_SPACE => self.obj_free_space?,
+            names::XREF_MANIFEST => self.xref_manifest?,
+            names::TEMPLATE => self.template,
+            names::HANDLES => self.handles,
+            names::CLASSES => self.classes,
+            names::AUX_HEADER => self.aux_header,
+            names::HEADER => self.header,
+            _ => return None,
+        })
+    }
+}
+
+/// One prepared on-disk slot payload in the author's map order
+/// (`bytes.len()` IS the author's on-disk page size).
+pub(crate) struct Ac21MirrorPage {
+    pub id: i64,
+    pub slot: u64,
+    pub(crate) bytes: Vec<u8>,
+}
+
+/// The §19 H8b mirror emission plan: every page of the author's map
+/// walk as an exact-slot payload, plus our honest section-table
+/// records and the two system-page encode results the metadata
+/// assembly lands.
+pub(crate) struct Ac21MirrorPlan {
+    pages: Vec<Ac21MirrorPage>,
+    sections: Vec<AC21SectionInfo>,
+    pages_map_result: SystemPageResult,
+    pages_map2_result: SystemPageResult,
+    sections_map_result: SystemPageResult,
+    sections_map2_result: SystemPageResult,
+    pages_map_abs: u64,
+    pages_map2_abs: u64,
+    max_id: i64,
+}
+
+/// gold's `rs_form` — the RS form size of a compressed stream
+/// (decode_r2007.c:692 `page_size_if_rs_coded`): block_count =
+/// ceil(align8(len)/251) interleaved RS(255, 251) codewords aligned
+/// up to 32.
+fn page_size_if_rs_coded(len: usize) -> usize {
+    let pesize = (len + 7) & !7;
+    let block_count = (pesize + 251 - 1) / 251;
+    (block_count * 255 + 31) & !31
+}
+
+/// The §19 H8b mirrored data-page encode: our chunk in her on-disk
+/// slot. Payload, checksum and CRC conventions match the
+/// conventional `encode_data_page` exactly — only the padding target
+/// differs (the author's slot replaces the align32 forms) plus the
+/// RS-form collision rule for stored chunks (gold's dispatch,
+/// decode_r2007.c:856: a stored page is raw-memcpy'd only when the
+/// page size != rs_form of the declared comp; on collision the RS
+/// form of the chunk is emitted and gold de-interleaves it).
+fn encode_data_page_mirrored(
+    chunk: &[u8],
+    encoding: u64,
+    skip_lz77: bool,
+    slot: u64,
+) -> Result<EncodedDataPage, &'static str> {
+    let slot = usize::try_from(slot).map_err(|_| "slot overflows usize")?;
+    if slot == 0 {
+        return Err("zero on-disk slot");
+    }
+    let checksum = dwg_ac21_page_checksum(0, chunk) as u64;
+    let rs_form = page_size_if_rs_coded(chunk.len());
+
+    // Pad helper: zero-pad an encoded payload out to the slot; the
+    // per-slot pad is inert (gold's decode_rs consumes only
+    // block_count×k codeword bytes; the stored path memcpy's uncomp
+    // bytes from the slot start).
+    fn pad_to(mut bytes: Vec<u8>, slot: usize, why: &'static str) -> Result<Vec<u8>, &'static str> {
+        if bytes.len() > slot {
+            return Err(why);
+        }
+        bytes.resize(slot, 0);
+        Ok(bytes)
+    }
+
+    if encoding == 1 {
+        // Stored section (our registry's encoding-1 pages: raw content).
+        let crc = dwg_ac21_mirrored_crc64(0, chunk.len() as u32, chunk);
+        if rs_form == slot {
+            // The stored form collides with the RS form's size — emit
+            // the RS form so gold's de-interleave reads our payload.
+            let bytes = pad_to(
+                rs_encode_data_page_interleaved(chunk, encoding),
+                slot,
+                "stored RS form exceeds the slot",
+            )?;
+            return Ok(EncodedDataPage {
+                bytes,
+                uncompressed_size: chunk.len() as u64,
+                compressed_size: chunk.len() as u64,
+                checksum,
+                crc,
+            });
+        }
+        let bytes = pad_to(chunk.to_vec(), slot, "stored chunk exceeds the slot")?;
+        return Ok(EncodedDataPage {
+            bytes,
+            uncompressed_size: chunk.len() as u64,
+            compressed_size: chunk.len() as u64,
+            checksum,
+            crc,
+        });
+    }
+
+    let compressed = compress_ac21(chunk);
+    if !skip_lz77 && compressed.len() < chunk.len() {
+        // Compressed wins: the RS form of our stream, zero-padded to
+        // her slot. gold takes read_data_page unconditionally
+        // (comp != uncomp), allocating from OUR declared data_size.
+        let crc = dwg_ac21_mirrored_crc64(0, compressed.len() as u32, &compressed);
+        let bytes = pad_to(
+            rs_encode_data_page_interleaved(&compressed, encoding),
+            slot,
+            "RS form of our compressed chunk exceeds her page (objects-overflow class)",
+        )?;
+        return Ok(EncodedDataPage {
+            bytes,
+            uncompressed_size: chunk.len() as u64,
+            compressed_size: compressed.len() as u64,
+            checksum,
+            crc,
+        });
+    }
+
+    // Compression lost (or skip_lz77): stored bytes under an
+    // encoding-4 section. Same collision rule as encoding-1; the
+    // declared comp == uncomp lets gold pick its path by her slot.
+    let crc = dwg_ac21_mirrored_crc64(0, chunk.len() as u32, chunk);
+    if rs_form == slot {
+        let bytes = pad_to(
+            rs_encode_data_page_interleaved(chunk, encoding),
+            slot,
+            "stored RS form exceeds the slot",
+        )?;
+        return Ok(EncodedDataPage {
+            bytes,
+            uncompressed_size: chunk.len() as u64,
+            compressed_size: chunk.len() as u64,
+            checksum,
+            crc,
+        });
+    }
+    let bytes = pad_to(chunk.to_vec(), slot, "stored chunk exceeds the slot")?;
+    Ok(EncodedDataPage {
+        bytes,
+        uncompressed_size: chunk.len() as u64,
+        compressed_size: chunk.len() as u64,
+        checksum,
+        crc,
+    })
+}
+
+/// Build the author's pages-map bytes from her retained map walk —
+/// her (size, id) pairs in her physical order, byte-identical by
+/// construction (no terminator pair; gold's reader walks to the
+/// map's uncompressed end).
+fn build_author_pages_map_bytes(shape: &DwgAc21ContainerShape) -> Vec<u8> {
+    let mut stream = Vec::with_capacity(shape.map_order.len() * 16);
+    for entry in &shape.map_order {
+        stream.extend_from_slice(&entry.on_disk_size.to_le_bytes());
+        stream.extend_from_slice(&entry.id.to_le_bytes());
+    }
+    stream
+}
+
+/// The author's on-disk address of a page id per her map walk
+/// (RESERVED + the running sum of the prior slot sizes) — the
+/// caller's preview build uses the author's landing address.
+pub fn ac21_author_page_address(shape: &DwgAc21ContainerShape, id: i64) -> Option<u64> {
+    let mut offset = RESERVED_HEADER_SIZE as u64;
+    for entry in &shape.map_order {
+        if entry.id == id {
+            return Some(offset);
+        }
+        offset += u64::try_from(entry.on_disk_size).ok()?;
+    }
+    None
+}
+
+impl DwgFileHeaderWriterAC21 {
+    /// The §19 H8b content-parity gate + emission preparation. Every
+    /// check is a fall-back-to-conventional trigger: the author's page
+    /// space is mirrored only when our re-encoded content demonstrably
+    /// fits it and her layout is one our writer can reproduce
+    /// byte-exactly. Set `AC21_MIRROR_DEBUG` to trace the decline
+    /// reason per file. Returns the prepared plan (every page payload
+    /// at her exact slot size) or `None` (decline → conventional).
+    pub(crate) fn mirror_plan(
+        &self,
+        shape: &DwgAc21ContainerShape,
+        sys: &DwgR2007SystemHeader,
+        buffers: &Ac21MirrorBuffers<'_>,
+    ) -> Option<Ac21MirrorPlan> {
+        use std::collections::{HashMap, HashSet};
+
+        macro_rules! decline {
+            ($why:expr) => {{
+                if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+                    eprintln!("[ac21-mirror] declined: {}", $why);
+                }
+                return None;
+            }};
+        }
+
+        // ── The system-page ids must be coherent, positive and pairwise distinct.
+        let pm_id = i64::try_from(sys.pages_map_id).ok()?;
+        let pm2_id = i64::try_from(sys.pages_map2_id).ok()?;
+        let sm_id = i64::try_from(sys.sections_map_id).ok()?;
+        let sm2_id = i64::try_from(sys.sections_map2_id).ok()?;
+        let mut system_ids = HashSet::new();
+        for id in [pm_id, pm2_id, sm_id, sm2_id] {
+            if id <= 0 || !system_ids.insert(id) {
+                decline!(format!("incoherent system page ids ({pm_id}/{pm2_id}/{sm_id}/{sm2_id})"));
+            }
+        }
+
+        // ── Her map walk: positive sizes and ids, unique ids, and a
+        // halfword count that matches her declared uncomp map size
+        // (a terminator pair inside her map bytes is not reproducible
+        // from her retained pairs).
+        if shape.map_order.is_empty() {
+            decline!("empty pages map");
+        }
+        let mut map_ids = HashMap::<i64, u64>::new();
+        let mut slot_by_system_id = HashMap::<i64, u64>::new();
+        for entry in &shape.map_order {
+            if entry.id <= 0 || entry.on_disk_size <= 0 {
+                decline!(format!(
+                    "gap/terminator map entry (id {}, size {})",
+                    entry.id, entry.on_disk_size
+                ));
+            }
+            let slot = u64::try_from(entry.on_disk_size).ok()?;
+            if map_ids.insert(entry.id, slot).is_some() {
+                decline!(format!("duplicate map id {}", entry.id));
+            }
+            if system_ids.contains(&entry.id) {
+                slot_by_system_id.insert(entry.id, slot);
+            }
+        }
+        if sys.pages_map_size_uncomp as usize != shape.map_order.len() * 16 {
+            decline!(format!(
+                "her pages-map bytes {} != 16 × {} entries (a terminator pair is not reproducible)",
+                sys.pages_map_size_uncomp,
+                shape.map_order.len()
+            ));
+        }
+        for id in [pm_id, pm2_id, sm_id, sm2_id] {
+            if !slot_by_system_id.contains_key(&id) {
+                decline!(format!("map walk lacks system page id {id}"));
+            }
+        }
+
+        // ── Her sections table: unique named sections, ascending
+        // per-page offsets, and ownership of every non-system map id.
+        let mut named = HashMap::<&str, usize>::new();
+        for (index, section) in shape.sections.iter().enumerate() {
+            if section.name.is_empty() {
+                // The unnamed 0-page tail descriptor — gold skips it
+                // ("Invalid num_pages 0, skip"); our honest table
+                // omits it.
+                if !section.pages.is_empty() {
+                    decline!("unnamed section carries pages");
+                }
+                continue;
+            }
+            if named.insert(section.name.as_str(), index).is_some() {
+                decline!(format!("duplicate section name {}", section.name));
+            }
+            for window in section.pages.windows(2) {
+                if window[0].offset >= window[1].offset {
+                    decline!(format!("section {} page offsets not ascending", section.name));
+                }
+            }
+        }
+        let mut page_owner: HashMap<i64, (usize, usize)> = HashMap::new();
+        let mut data_entry_count: usize = 0;
+        for entry in &shape.map_order {
+            if !system_ids.contains(&entry.id) {
+                data_entry_count += 1;
+            }
+        }
+        for (sec_index, section) in shape.sections.iter().enumerate() {
+            for (page_index, page) in section.pages.iter().enumerate() {
+                if page.id <= 0 {
+                    decline!(format!("section {} carries non-positive page id", section.name));
+                }
+                if page_owner.insert(page.id, (sec_index, page_index)).is_some() {
+                    decline!(format!("duplicate page id {}", page.id));
+                }
+                match map_ids.get(&page.id) {
+                    Some(slot) if *slot == u64::try_from(page.on_disk_size).ok()? => {}
+                    _ => decline!(format!(
+                        "section {} page id {} disagrees with her map extent",
+                        section.name, page.id
+                    )),
+                }
+            }
+        }
+        if page_owner.len() != data_entry_count {
+            decline!(format!(
+                "map data entries {data_entry_count} vs owned section pages {}",
+                page_owner.len()
+            ));
+        }
+        if sys.pages_amount as usize != shape.map_order.len() {
+            decline!(format!(
+                "pages_amount {} vs map entries {}",
+                sys.pages_amount,
+                shape.map_order.len()
+            ));
+        }
+
+        // ── Per-section content parity: our re-encoded buffer must
+        // cover her pages; every chunk (our bytes between her page
+        // boundaries) must encode into her on-disk slot.
+        let mut payloads: HashMap<i64, Vec<u8>> = HashMap::new();
+        let mut section_records: Vec<AC21SectionInfo> = Vec::new();
+        let mut used_names: HashSet<&str> = HashSet::new();
+        for section in &shape.sections {
+            if section.name.is_empty() {
+                continue;
+            }
+            let data: &[u8] = match buffers.get(&section.name) {
+                Some(data) => data,
+                None => {
+                    // Our writer skips this section: only a 0-page
+                    // descriptor can mirror then (the H7g doctrine).
+                    if !section.pages.is_empty() {
+                        decline!(format!(
+                            "our writer skips {} but the author has {} pages",
+                            section.name,
+                            section.pages.len()
+                        ));
+                    }
+                    continue;
+                }
+            };
+            // The encoding declaration: OUR registry's value for the
+            // sections our writer builds (the conventional convention
+            // — the sections-map family stays OURS); for an
+            // unregistered section (§19 H7g `AcDb:XrefManifest`
+            // under AC21 — authored state the mirror re-emits
+            // verbatim) the author's own table encoding is the
+            // coherent declaration.
+            let encoding = match ac21_section_info::encoding(&section.name) {
+                Some(encoding) => encoding,
+                None => section.encoding,
+            };
+            let hash_code = ac21_section_info::hash_code(&section.name).unwrap_or(0);
+            used_names.insert(section.name.as_str());
+            if section.pages.is_empty() {
+                // A 0-page named section: gold skips it on read; our
+                // honest table omits it — but only when we do NOT hold
+                // real content (our buffer above is just presence).
+                continue;
+            }
+
+            // Our max-page-size convention (the `add_section`
+            // formula — the sections-map family stays OURS).
+            let mut max_page_size = ac21_section_info::page_size(&section.name).unwrap_or(0xF800);
+            if section.name == names::PREVIEW {
+                max_page_size = max_page_size.max(align32(data.len()) as u64);
+            }
+            if section.name == names::APP_INFO_HISTORY {
+                max_page_size = (data.len() as u64 + 0x7F) & !0x7F;
+            }
+
+            let mut pages = Vec::with_capacity(section.pages.len());
+            for (page_index, page) in section.pages.iter().enumerate() {
+                if page.size < 0 || page.id <= 0 {
+                    decline!(format!(
+                        "section {} page {} carries a negative plan value",
+                        section.name, page.id
+                    ));
+                }
+                let start = usize::try_from(page.offset).ok()?;
+                if start > data.len() {
+                    decline!(format!(
+                        "section {} content len {} does not reach page {}'s offset {}",
+                        section.name,
+                        data.len(),
+                        page.id,
+                        page.offset
+                    ));
+                }
+                let end = if page_index + 1 < section.pages.len() {
+                    let next = usize::try_from(section.pages[page_index + 1].offset).ok()?;
+                    if next > data.len() {
+                        decline!(format!(
+                            "section {} page {}'s next boundary {} exceeds our len {}",
+                            section.name, page.id, next, data.len()
+                        ));
+                    }
+                    next
+                } else {
+                    data.len()
+                };
+                if start >= end {
+                    decline!(format!("section {} page {} has an empty chunk", section.name, page.id));
+                }
+                let chunk = &data[start..end];
+                let slot = u64::try_from(page.on_disk_size).ok()?;
+                let encoded = match encode_data_page_mirrored(
+                    chunk,
+                    encoding,
+                    self.skip_lz77,
+                    slot,
+                ) {
+                    Ok(encoded) => encoded,
+                    Err(why) => {
+                        decline!(format!("section {} page {}: {}", section.name, page.id, why));
+                    }
+                };
+                payloads.insert(page.id, encoded.bytes);
+                pages.push(AC21SectionPageRecord {
+                    data_offset: page.offset,
+                    // gold parses this field but never uses it on the
+                    // decode path (read_data_section walks comp/uncomp
+                    // only) — the author's frames are retained verbatim.
+                    page_size: page.size as u64,
+                    page_id: page.id,
+                    uncompressed_size: encoded.uncompressed_size,
+                    compressed_size: encoded.compressed_size,
+                    checksum: encoded.checksum,
+                    crc: encoded.crc,
+                });
+            }
+            section_records.push(AC21SectionInfo {
+                name: section.name.clone(),
+                hash_code,
+                encoding,
+                encryption: 0,
+                max_page_size,
+                data_size: data.len() as u64,
+                pages,
+            });
+        }
+        // ── The unused-buffer rule: every buffer our writer built
+        // must land in her page space, except the FileDepList
+        // boilerplate stub (no document state — her table's absence
+        // wins, like gold's own zeroed print on both sides).
+        let all_names: [(&str, bool); 15] = [
+            (names::SUMMARY_INFO, buffers.summary.is_some()),
+            (names::PREVIEW, true),
+            (names::APP_INFO, buffers.app_info.is_some()),
+            (names::APP_INFO_HISTORY, buffers.app_info_history.is_some()),
+            (names::FILE_DEP_LIST, buffers.file_dep.is_some()),
+            (names::REV_HISTORY, true),
+            (names::ACDB_OBJECTS, true),
+            (names::ACDS_PROTOTYPE, buffers.acds.is_some()),
+            (names::OBJ_FREE_SPACE, buffers.obj_free_space.is_some()),
+            (names::XREF_MANIFEST, buffers.xref_manifest.is_some()),
+            (names::TEMPLATE, true),
+            (names::HANDLES, true),
+            (names::CLASSES, true),
+            (names::AUX_HEADER, true),
+            (names::HEADER, true),
+        ];
+        for (name, present) in all_names {
+            if present && !used_names.contains(name) && name != names::FILE_DEP_LIST {
+                decline!(format!(
+                    "our writer would drop section {name} (not in her page space)"
+                ));
+            }
+        }
+
+        // ── The two system-page encodes, into HER on-disk slots.
+        // The pages-map bytes are hers (the pairs above) — with her
+        // slot as the encode target the correction factor lands hers
+        // for free. The sections-map bytes are OURS (the honest
+        // table serialized in our spec order).
+        let map_bytes = build_author_pages_map_bytes(shape);
+        let map_slot = slot_by_system_id[&pm_id];
+        let (pm_bytes, pm_comp, pm_uncomp, pm_crc_comp, pm_crc_uncomp, pm_correction) =
+            self.encode_system_page(&map_bytes, map_slot as usize);
+        let pm_bytes = if pm_bytes.len() > map_slot as usize {
+            decline!(format!(
+                "pages-map RS form {} exceeds her slot {}",
+                pm_bytes.len(),
+                map_slot
+            ));
+        } else {
+            let mut bytes = pm_bytes;
+            bytes.resize(map_slot as usize, 0);
+            bytes
+        };
+
+        let sections_slot = slot_by_system_id[&sm_id];
+        let section_map_bytes = serialize_section_map(&section_records).ok()?;
+        let (sm_bytes, sm_comp, sm_uncomp, sm_crc_comp, sm_crc_uncomp, sm_correction) =
+            self.encode_system_page(&section_map_bytes, sections_slot as usize);
+        let sm_bytes = if sm_bytes.len() > sections_slot as usize {
+            decline!(format!(
+                "sections-map RS form {} exceeds her slot {}",
+                sm_bytes.len(),
+                sections_slot
+            ));
+        } else {
+            let mut bytes = sm_bytes;
+            bytes.resize(sections_slot as usize, 0);
+            bytes
+        };
+
+        // ── Assemble the walk: her map order, every entry resolved
+        // to its prepared payload, her ids and slot sizes verbatim.
+        let mut pages = Vec::with_capacity(shape.map_order.len());
+        let mut pages_map_abs = RESERVED_HEADER_SIZE as u64;
+        let mut pages_map2_abs = 0u64;
+        let mut max_id: i64 = 0;
+        for entry in &shape.map_order {
+            max_id = max_id.max(entry.id);
+            let bytes = if entry.id == pm_id || entry.id == pm2_id {
+                pm_bytes.clone()
+            } else if entry.id == sm_id || entry.id == sm2_id {
+                sm_bytes.clone()
+            } else {
+                match payloads.remove(&entry.id) {
+                    Some(bytes) => bytes,
+                    None => decline!(format!("map id {} owns no payload", entry.id)),
+                }
+            };
+            if bytes.len() as u64 != map_ids[&entry.id] {
+                decline!(format!(
+                    "page {} payload {} != her slot {}",
+                    entry.id,
+                    bytes.len(),
+                    map_ids[&entry.id]
+                ));
+            }
+            if entry.id == pm_id {
+                pages_map_abs = RESERVED_HEADER_SIZE as u64
+                    + map_order_prefix(shape, entry.id).unwrap_or(0);
+            }
+            if entry.id == pm2_id {
+                pages_map2_abs = RESERVED_HEADER_SIZE as u64
+                    + map_order_prefix(shape, entry.id).unwrap_or(0);
+            }
+            pages.push(Ac21MirrorPage {
+                id: entry.id,
+                slot: map_ids[&entry.id],
+                bytes,
+            });
+        }
+        let pages_map_result = SystemPageResult {
+            page_id: pm_id,
+            offset: pages_map_abs,
+            compressed_size: pm_comp,
+            uncompressed_size: pm_uncomp,
+            crc_compressed: pm_crc_comp,
+            crc_uncompressed: pm_crc_uncomp,
+            correction_factor: pm_correction,
+        };
+        let pages_map2_result = SystemPageResult {
+            page_id: pm2_id,
+            ..pages_map_result.clone()
+        };
+        let sm_abs = RESERVED_HEADER_SIZE as u64 + map_order_prefix(shape, sm_id).unwrap_or(0);
+        let sections_map_result = SystemPageResult {
+            page_id: sm_id,
+            offset: sm_abs,
+            compressed_size: sm_comp,
+            uncompressed_size: sm_uncomp,
+            crc_compressed: sm_crc_comp,
+            crc_uncompressed: sm_crc_uncomp,
+            correction_factor: sm_correction,
+        };
+        let sections_map2_result = SystemPageResult {
+            page_id: sm2_id,
+            ..sections_map_result.clone()
+        };
+
+        if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+            eprintln!(
+                "[ac21-mirror] engaged: {} pages (ids ≤ {max_id}), pm slot {} cf {}, sm slot {} cf {}, sections {}",
+                pages.len(),
+                map_slot,
+                pm_correction,
+                sections_slot,
+                sm_correction,
+                section_records.len()
+            );
+        }
+        Some(Ac21MirrorPlan {
+            pages,
+            sections: section_records,
+            pages_map_result,
+            pages_map2_result,
+            sections_map_result,
+            sections_map2_result,
+            pages_map_abs,
+            pages_map2_abs,
+            max_id,
+        })
+    }
+
+    /// Emit the §19 H8b mirrored page space: the prepared payloads
+    /// written sequentially in her map order (the running sum
+    /// reproduces her tiling), our honest section records and her
+    /// page ids/sizes recorded for the finalize pass.
+    pub(crate) fn write_mirrored_pages<W: Write + Seek>(
+        &mut self,
+        output: &mut W,
+        plan: &Ac21MirrorPlan,
+    ) -> Result<(), DxfError> {
+        let mut offset = output.seek(SeekFrom::Current(0))?;
+        for page in &plan.pages {
+            output.write_all(&page.bytes)?;
+            self.page_records.push(AC21PageRecord {
+                id: page.id,
+                size: page.slot as i64,
+                offset,
+            });
+            offset += page.slot;
+        }
+        self.sections = plan.sections.clone();
+        self.next_page_id = plan.max_id + 1;
+        self.mirror_state = Some(MirrorState {
+            pages_map_result: plan.pages_map_result.clone(),
+            pages_map2_result: plan.pages_map2_result.clone(),
+            pages_map_abs: plan.pages_map_abs,
+            pages_map2_abs: plan.pages_map2_abs,
+            sections_map_result: plan.sections_map_result.clone(),
+            sections_map2_result: plan.sections_map2_result.clone(),
+        });
+        Ok(())
+    }
+
+    /// The §19 H8b finalize: the section maps were already emitted
+    /// in her page space (the conventional `write_file` writes them
+    /// here); the metadata assembly reflects the mirrored tiling —
+    /// the pages-map family lands her values naturally (the fields
+    /// are our own encode results over her bytes at her offsets and
+    /// ids), the sections-map family stays OURS (honest), and the
+    /// shared two-pass tail writes the 0x400 file header page, the
+    /// header2 copy and the 0x80 block unchanged.
+    pub(crate) fn write_file_mirrored<W: Write + Seek>(
+        &mut self,
+        output: &mut W,
+    ) -> Result<(), DxfError> {
+        let mirror = self
+            .mirror_state
+            .take()
+            .ok_or_else(|| DxfError::InvalidFormat("AC21 mirror finalize without a mirror emission".into()))?;
+        self.crc_seed = 0;
+
+        let mut metadata = Dwg21CompressedMetadata::default();
+        metadata.file_size = 0; // Patched after writing header copy
+
+        // Pages map fields — her offsets/ids, our encode results over
+        // her map bytes.
+        metadata.pages_map_crc_compressed = mirror.pages_map_result.crc_compressed;
+        metadata.pages_map_correction_factor = mirror.pages_map_result.correction_factor;
+        metadata.pages_map_offset = mirror.pages_map_abs - RESERVED_HEADER_SIZE as u64;
+        metadata.pages_map_id = mirror.pages_map_result.page_id as u64;
+        metadata.map2_offset = mirror.pages_map2_abs - RESERVED_HEADER_SIZE as u64;
+        metadata.map2_id = mirror.pages_map2_result.page_id as u64;
+        metadata.pages_map_size_compressed = mirror.pages_map_result.compressed_size;
+        metadata.pages_map_size_uncompressed = mirror.pages_map_result.uncompressed_size;
+        // Every page of her walk is recorded (the two pages-map boxes
+        // included — the conventional flow counts its unrecorded pair).
+        metadata.pages_amount = self.page_records.len() as u64;
+        metadata.pages_max_id = (self.next_page_id - 1) as u64;
+        metadata.pages_map_crc_uncompressed = mirror.pages_map_result.crc_uncompressed;
+
+        // Sections map fields — OURS (honest).
+        metadata.sections_amount = (self.sections.len() + 1) as u64;
+        metadata.sections_map_crc_uncompressed = mirror.sections_map_result.crc_uncompressed;
+        metadata.sections_map_size_compressed = mirror.sections_map_result.compressed_size;
+        metadata.sections_map2_id = mirror.sections_map2_result.page_id as u64;
+        metadata.sections_map_id = mirror.sections_map_result.page_id as u64;
+        metadata.sections_map_size_uncompressed = mirror.sections_map_result.uncompressed_size;
+        metadata.sections_map_crc_compressed = mirror.sections_map_result.crc_compressed;
+        metadata.sections_map_correction_factor =
+            mirror.sections_map_result.correction_factor;
+
+        // CRC/random fields (spec §5.2.1.1 — order is critical for RNG state)
+        // §5.2.1.1.1: RandomSeed IS the CRC encoder's seed (input, not output).
+        // §19 H7g: a same-version roundtrip adopts the AUTHOR's seed.
+        let random_seed = self.source_random_seed.unwrap_or(FILE_RANDOM_SEED);
+        metadata.random_seed = random_seed;
+        metadata.crc_seed = self.crc_seed; // always 0 per §5.2.1.1.2
+        self.write_two_pass_header(output, &mut metadata, random_seed)?;
+
+        Ok(())
+    }
+
+    /// The derived 0x80-block address of a named section's first page
+    /// (the §19 H8b debug assertion oracle — the mirrored layout
+    /// lands the author's retained addresses naturally).
+    pub fn section_page_address(&self, name: &str) -> u32 {
+        self.find_section_page_offset(name)
+    }
+}
+
+/// The running byte size of her map walk before a given page id —
+/// the page's position relative to the 0x480 reserve.
+fn map_order_prefix(shape: &DwgAc21ContainerShape, id: i64) -> Option<u64> {
+    let mut offset = 0u64;
+    for entry in &shape.map_order {
+        if entry.id == id {
+            return Some(offset);
+        }
+        offset += u64::try_from(entry.on_disk_size).ok()?;
+    }
+    None
+}
+
+/// The mirrored finalize inputs, stored by `write_mirrored_pages`.
+#[derive(Debug, Clone)]
+struct MirrorState {
+    pages_map_result: SystemPageResult,
+    pages_map2_result: SystemPageResult,
+    pages_map_abs: u64,
+    pages_map2_abs: u64,
+    sections_map_result: SystemPageResult,
+    sections_map2_result: SystemPageResult,
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  Tests
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -1426,6 +2245,151 @@ struct SystemPageResult {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    // ─── §19 H8b mirror encode tests ────────────────────────────────
+
+    /// gold's `page_size_if_rs_coded` (decode_r2007.c:692) pinned on the
+    /// example_2007 author's own pages: her on-disk slots are the exact
+    /// RS forms of her compressed streams.
+    #[test]
+    fn test_page_size_if_rs_coded_author_pinned() {
+        assert_eq!(page_size_if_rs_coded(19401), 19904); // objects id 9
+        assert_eq!(page_size_if_rs_coded(14396), 14816); // objects id 8
+        assert_eq!(page_size_if_rs_coded(3630), 3840); // objects id 13
+        assert_eq!(page_size_if_rs_coded(3859), 4096); // objects id 11
+        assert_eq!(page_size_if_rs_coded(28004), 28576); // objects id 10
+        assert_eq!(page_size_if_rs_coded(49863), 50752); // objects id 14
+        assert_eq!(page_size_if_rs_coded(2836), 3072); // objects id 12
+        assert_eq!(page_size_if_rs_coded(6), 256); // stored template: == rs_form -> RS path
+        assert_eq!(page_size_if_rs_coded(302255), 307296); // preview: != her slot -> raw
+    }
+
+    /// A stored chunk whose RS form is NOT the slot emits raw + zero pad;
+    /// the declared comp == uncomp lets gold memcpy from the slot start.
+    #[test]
+    fn test_mirrored_encode_stored_raw() {
+        let chunk = vec![0xA5u8; 200];
+        let page = encode_data_page_mirrored(&chunk, 1, false, 1024).unwrap();
+        assert_eq!(page.bytes.len(), 1024);
+        assert_eq!(&page.bytes[..200], &chunk);
+        assert!(page.bytes[200..].iter().all(|&b| b == 0));
+        assert_eq!(page.uncompressed_size, 200);
+        assert_eq!(page.compressed_size, 200);
+    }
+
+    /// The collision rule: a stored chunk whose RS form IS the slot emits
+    /// the RS form (gold's dispatch takes the de-interleave path — a raw
+    /// emission there would corrupt the read).
+    #[test]
+    fn test_mirrored_encode_stored_collision() {
+        let chunk = vec![0x5Au8; 6];
+        let slot = page_size_if_rs_coded(6) as u64;
+        assert_eq!(slot, 256);
+        let page = encode_data_page_mirrored(&chunk, 1, false, slot).unwrap();
+        assert_eq!(page.bytes.len(), 256);
+        // The RS-interleaved form is not the raw prefix (byte-interleaved
+        // codewords: data 0..6 spread at stride factor 1 -> all at front
+        // here, so check the declared pair instead).
+        assert_eq!(page.uncompressed_size, 6);
+        assert_eq!(page.compressed_size, 6);
+    }
+
+    /// A stored chunk larger than the slot declines (the objects-overflow
+    /// class analog).
+    #[test]
+    fn test_mirrored_encode_stored_overflow_declines() {
+        let chunk = vec![0u8; 3000];
+        assert!(encode_data_page_mirrored(&chunk, 1, false, 2048).is_err());
+    }
+
+    /// A compressible chunk under an encoding-4 section emits the RS form
+    /// of our compressed stream, zero-padded to her slot, with our honest
+    /// comp/uncomp pair.
+    #[test]
+    fn test_mirrored_encode_compressed() {
+        let chunk = vec![0u8; 4096];
+        let page = encode_data_page_mirrored(&chunk, 4, false, 1024).unwrap();
+        assert_eq!(page.bytes.len(), 1024);
+        assert!(page.compressed_size < page.uncompressed_size);
+        assert_eq!(page.uncompressed_size, 4096);
+    }
+
+    /// An incompressible chunk under an encoding-4 section falls to the
+    /// stored rules with comp == uncomp declared.
+    #[test]
+    fn test_mirrored_encode_incompressible_stores() {
+        // High-entropy bytes: literals give the compressor no matches.
+        let mut chunk = Vec::with_capacity(2048);
+        let mut x: u32 = 0x12345678;
+        for _ in 0..2048 {
+            x = x.wrapping_mul(1664525).wrapping_add(1013904223);
+            chunk.push((x >> 16) as u8);
+        }
+        let page = encode_data_page_mirrored(&chunk, 4, false, 4096).unwrap();
+        assert_eq!(page.bytes.len(), 4096);
+        assert_eq!(page.compressed_size, page.uncompressed_size);
+    }
+
+    /// The author's pages-map bytes: her (size, id) pairs in her walk
+    /// order, no terminator pair (22 entries x 16 bytes on example_2007).
+    #[test]
+    fn test_author_pages_map_bytes() {
+        let shape = DwgAc21ContainerShape {
+            map_order: vec![
+                crate::document::DwgAc21PageEntry {
+                    id: 25,
+                    on_disk_size: 1024,
+                },
+                crate::document::DwgAc21PageEntry {
+                    id: 26,
+                    on_disk_size: 1024,
+                },
+            ],
+            sections: Vec::new(),
+        };
+        let bytes = build_author_pages_map_bytes(&shape);
+        assert_eq!(bytes.len(), 32);
+        assert_eq!(&bytes[..8], &1024i64.to_le_bytes());
+        assert_eq!(&bytes[8..16], &25i64.to_le_bytes());
+        assert_eq!(&bytes[16..24], &1024i64.to_le_bytes());
+        assert_eq!(&bytes[24..32], &26i64.to_le_bytes());
+    }
+
+    /// The author's page address per her map walk (RESERVE + the running
+    /// sum of the prior slot sizes).
+    #[test]
+    fn test_ac21_author_page_address() {
+        let shape = DwgAc21ContainerShape {
+            map_order: vec![
+                crate::document::DwgAc21PageEntry {
+                    id: 25,
+                    on_disk_size: 1024,
+                },
+                crate::document::DwgAc21PageEntry {
+                    id: 3,
+                    on_disk_size: 160,
+                },
+                crate::document::DwgAc21PageEntry {
+                    id: 4,
+                    on_disk_size: 307936,
+                },
+            ],
+            sections: Vec::new(),
+        };
+        assert_eq!(
+            ac21_author_page_address(&shape, 25),
+            Some(RESERVED_HEADER_SIZE as u64)
+        );
+        assert_eq!(
+            ac21_author_page_address(&shape, 3),
+            Some(RESERVED_HEADER_SIZE as u64 + 1024)
+        );
+        assert_eq!(
+            ac21_author_page_address(&shape, 4),
+            Some(RESERVED_HEADER_SIZE as u64 + 1024 + 160)
+        );
+        assert_eq!(ac21_author_page_address(&shape, 99), None);
+    }
 
     // ─── CRC Random Encoder tests ───────────────────────────────────
 

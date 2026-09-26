@@ -1932,9 +1932,17 @@ fn write_ac21_impl<W: Write + Seek>(
     // ── Phase 2: Prepare header (sync handles + correct HANDSEED) ──
     let corrected_header = prepare_header(document, &handle_map_u32, &extents);
 
-    // ── Sections in spec §5.1 stream order ──
-    // AC21 add_section looks up encoding/encryption/page_size automatically
-    // from ac21_section_info, so no page_size or compressed flag needed.
+    // ── The section buffers, all built up front (§19 H8b) ──
+    // The AC21 container-shape mirror gates on the content lengths and
+    // emits in the author's physical order, so every section is
+    // constructed before anything is written — the builders are pure,
+    // only `add_section` moves the output stream, so the conventional
+    // path below writes byte-identical output to the historical
+    // interleaved emission. The preview content is the one lazy
+    // section: its container embeds its own absolute data address, so
+    // it is built at emission time (her landing slot under the mirror,
+    // the current stream position on the conventional path).
+    let same_origin = document.dwg_source_version == Some(version);
 
     // SummaryInfo — the same presence-coupling gate as the AC18 writer
     // (§19 H7 review): skip the section when the original read carried
@@ -1945,9 +1953,189 @@ fn write_ac21_impl<W: Write + Seek>(
         .as_ref()
         .map(|fh| fh.summaryinfo_address != 0)
         .unwrap_or(true);
-    if summary_orig_present || document.summary_info != crate::document::SummaryInfo::default() {
-        let summary_data = build_summary_info(version, &document.summary_info);
-        fhw.add_section(output, section_names::SUMMARY_INFO, &summary_data)?;
+    let summary_section: Option<Vec<u8>> =
+        if summary_orig_present || document.summary_info == crate::document::SummaryInfo::default()
+        {
+            Some(build_summary_info(version, &document.summary_info))
+        } else {
+            None
+        };
+
+    // AppInfo (§19 H7: verbatim from the source on a same-version
+    // roundtrip; SKIPPED when the source had none — gold prints the
+    // section unconditionally, so the boilerplate would diverge there.
+    // Programmatic documents and version conversions keep the
+    // historical boilerplate.)
+    let app_info_section: Option<Vec<u8>> = if same_origin {
+        document.raw_app_info_data.as_deref().map(|raw| raw.to_vec())
+    } else {
+        Some(app_info_writer::write_app_info(version))
+    };
+
+    // AppInfoHistory (§19 H7: never written before this row — verbatim
+    // when the same-version source carried one, skipped otherwise.)
+    let app_info_history_section: Option<Vec<u8>> = if same_origin {
+        document
+            .raw_app_info_history_data
+            .as_deref()
+            .map(|raw| raw.to_vec())
+    } else {
+        None
+    };
+
+    // FileDepList
+    let file_dep_data = build_file_dep_list();
+
+    // RevHistory
+    let rev_history_data = build_rev_history();
+
+    // AcDsPrototype_1b (AC1027+ ACIS SAB storage)
+    let acds_section: Option<Vec<u8>> = if !sab_entries.is_empty()
+        || (same_origin && document.raw_acds_data.is_some())
+    {
+        Some(acds_data(document, version, &sab_entries).into_owned())
+    } else {
+        None
+    };
+
+    // ObjFreeSpace
+    // §19 H7e: verbatim from the same-version source (the author's
+    // pattern words / TDUPDATE / max constants); SKIPPED when the
+    // source had none (gold's zeroed print then matches on both
+    // sides); programmatic documents and conversions keep the rebuild.
+    let obj_free_space_section: Option<Vec<u8>> = if same_origin {
+        document
+            .raw_obj_free_space_data
+            .as_deref()
+            .map(|raw| raw.to_vec())
+    } else {
+        Some(build_obj_free_space(version, document, handle_map_u32.len()))
+    };
+
+    // Template
+    let template = build_template(&[], document.header.measurement)?;
+
+    // Handles (needs objects data for offsets)
+    let section_offset = fhw.handle_section_offset() as i32;
+    let handle_map_i64: Vec<(u64, i64)> =
+        handle_map_u32.iter().map(|&(h, o)| (h as u64, o as i64)).collect();
+    let handles_data = handle_writer::write_handles(&handle_map_i64, section_offset);
+
+    // Classes
+    let classes = reconciled_classes(document, &class_instance_counts, class_counts_complete);
+    let maint = document.maintenance_version;
+    let header_encoding =
+        crate::io::dxf::code_page::encoding_from_code_page(&document.header.code_page)
+            .unwrap_or(encoding_rs::WINDOWS_1252);
+    let classes_data =
+        classes_section_data(document, version, &classes, maint, header_encoding);
+
+    // AuxHeader (uses corrected HANDSEED)
+    let aux_data = aux_header_writer::write_aux_header(version, &corrected_header);
+
+    // Header (uses corrected HANDSEED)
+    let header_data = header_writer::write_header_with_encoding_opt(
+        version,
+        &corrected_header,
+        maint,
+        header_encoding,
+        document.dwg_header_raw.as_ref(),
+    );
+
+    // ── The §19 H8b container-shape mirror gate and emission ──
+    // One root closes three census families at once when it holds:
+    // the author's pages-map (size, id) pairs re-emitted in her
+    // physical order reproduce her tiling exactly (a running sum from
+    // 0x480), so the R2007_Header pages-map family, the FILEHEADER
+    // 0x80-block addresses and the THUMBNAILIMAGE identity land hers
+    // wherever our re-encoded content demonstrably fits her page
+    // slots. The gate falls back to the conventional layout on ANY
+    // divergence — a section our content does not fit, our-extra
+    // content with no page space, a terminator pair inside her map
+    // bytes, an over-slot RS form: the rewrite stays valid everywhere
+    // and the residue rows stay open on the files it declines.
+    let mirror_plan = match (
+        document.dwg_ac21_shape.as_ref(),
+        document.dwg_r2007_header.as_ref(),
+    ) {
+        (Some(shape), Some(sys)) if same_origin => {
+            // The preview bytes: the retained raw container re-emits
+            // verbatim at her address (its embedded image offsets are
+            // hers and stay the valid absolute addresses in the
+            // mirrored layout); a rebuild addresses her landing slot.
+            let her_preview_addr = shape
+                .sections
+                .iter()
+                .find(|sec| sec.name == section_names::PREVIEW)
+                .and_then(|sec| sec.pages.first())
+                .and_then(|page| {
+                    crate::io::dwg::file_headers::file_header_ac21::ac21_author_page_address(
+                        shape, page.id,
+                    )
+                })
+                .unwrap_or(0);
+            let preview_bytes: std::borrow::Cow<'_, [u8]> = match &document.preview {
+                Some(p) if !p.raw.is_empty() => std::borrow::Cow::from(&p.raw[..]),
+                p => std::borrow::Cow::Owned(crate::io::dwg::preview::build_preview(
+                    p.as_ref(),
+                    her_preview_addr,
+                )),
+            };
+            let buffers =
+                crate::io::dwg::file_headers::file_header_ac21::Ac21MirrorBuffers {
+                    summary: summary_section.as_deref(),
+                    preview: &preview_bytes,
+                    app_info: app_info_section.as_deref(),
+                    app_info_history: app_info_history_section.as_deref(),
+                    file_dep: Some(&file_dep_data),
+                    rev_history: &rev_history_data,
+                    objects: &obj_data,
+                    acds: acds_section.as_deref(),
+                    obj_free_space: obj_free_space_section.as_deref(),
+                    xref_manifest: document
+                        .raw_xref_manifest_data
+                        .as_deref()
+                        .map(|raw| &raw[..]),
+                    template: &template,
+                    handles: &handles_data,
+                    classes: &classes_data,
+                    aux_header: &aux_data,
+                    header: &header_data,
+                };
+            fhw.mirror_plan(shape, sys, &buffers)
+        }
+        _ => None,
+    };
+
+    if let Some(plan) = mirror_plan {
+        fhw.write_mirrored_pages(output, &plan)?;
+        fhw.write_file_mirrored(output)?;
+        // The §19 H8b debug oracle: the derived 0x80-block addresses
+        // must equal the retained author values under the mirrored
+        // layout (they land naturally — nothing is forced but the
+        // layout itself; AC21_MIRROR_DEBUG carries the trace).
+        if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+            if let Some(fh) = document.dwg_file_header.as_ref() {
+                eprintln!(
+                    "[ac21-mirror] 0x80 addresses — summaryinfo derived {} retained {}",
+                    fhw.section_page_address(section_names::SUMMARY_INFO),
+                    fh.summaryinfo_address
+                );
+                eprintln!(
+                    "[ac21-mirror] 0x80 addresses — thumbnail derived {} retained {}",
+                    fhw.section_page_address(section_names::PREVIEW),
+                    fh.thumbnail_address
+                );
+            }
+        }
+        return Ok(());
+    }
+
+    // ── Sections in spec §5.1 stream order (the conventional
+    // sequential layout — byte-identical to the historical emission
+    // for every non-mirrored file) ──
+    if let Some(summary_data) = &summary_section {
+        fhw.add_section(output, section_names::SUMMARY_INFO, summary_data)?;
     }
 
     // Preview
@@ -1959,94 +2147,25 @@ fn write_ac21_impl<W: Write + Seek>(
         crate::io::dwg::preview::build_preview(document.preview.as_ref(), preview_base);
     fhw.add_section(output, section_names::PREVIEW, &preview_data)?;
 
-    // AppInfo
-    // AppInfo (§19 H7: verbatim from the source on a same-version
-    // roundtrip; SKIPPED when the source had none — gold prints the
-    // section unconditionally, so the boilerplate would diverge there.
-    // Programmatic documents and version conversions keep the
-    // historical boilerplate.)
-    if document.dwg_source_version == Some(version) {
-        if let Some(raw) = document.raw_app_info_data.as_deref() {
-            fhw.add_section(output, section_names::APP_INFO, raw)?;
-        }
-    } else {
-        let app_info_data = app_info_writer::write_app_info(version);
-        fhw.add_section(output, section_names::APP_INFO, &app_info_data)?;
+    if let Some(app_info_data) = &app_info_section {
+        fhw.add_section(output, section_names::APP_INFO, app_info_data)?;
     }
-    // AppInfoHistory (§19 H7: never written before this row — verbatim
-    // when the same-version source carried one, skipped otherwise.)
-    if document.dwg_source_version == Some(version) {
-        if let Some(raw) = document.raw_app_info_history_data.as_deref() {
-            fhw.add_section(output, section_names::APP_INFO_HISTORY, raw)?;
-        }
+    if let Some(app_info_history_data) = &app_info_history_section {
+        fhw.add_section(output, section_names::APP_INFO_HISTORY, app_info_history_data)?;
     }
-
-    // FileDepList
-    let file_dep_data = build_file_dep_list();
     fhw.add_section(output, section_names::FILE_DEP_LIST, &file_dep_data)?;
-
-    // RevHistory
-    let rev_history_data = build_rev_history();
     fhw.add_section(output, section_names::REV_HISTORY, &rev_history_data)?;
-
-    // AcDbObjects (pre-computed)
     fhw.add_section(output, section_names::ACDB_OBJECTS, &obj_data)?;
-
-    // AcDsPrototype_1b (AC1027+ ACIS SAB storage)
-    if !sab_entries.is_empty()
-        || (document.dwg_source_version == Some(version) && document.raw_acds_data.is_some())
-    {
-        let acds_data = acds_data(document, version, &sab_entries);
-        fhw.add_section(output, section_names::ACDS_PROTOTYPE, &acds_data)?;
+    if let Some(data) = &acds_section {
+        fhw.add_section(output, section_names::ACDS_PROTOTYPE, data)?;
     }
-
-    // ObjFreeSpace
-    // §19 H7e: verbatim from the same-version source (the author's
-    // pattern words / TDUPDATE / max constants); SKIPPED when the
-    // source had none (gold's zeroed print then matches on both
-    // sides); programmatic documents and conversions keep the rebuild.
-    if document.dwg_source_version == Some(version) {
-        if let Some(raw) = document.raw_obj_free_space_data.clone() {
-            fhw.add_section(output, section_names::OBJ_FREE_SPACE, &raw)?;
-        }
-    } else {
-        let obj_free_space = build_obj_free_space(version, document, handle_map_u32.len());
-        fhw.add_section(output, section_names::OBJ_FREE_SPACE, &obj_free_space)?;
+    if let Some(data) = &obj_free_space_section {
+        fhw.add_section(output, section_names::OBJ_FREE_SPACE, data)?;
     }
-
-    // Template
-    let template = build_template(&[], document.header.measurement)?;
     fhw.add_section(output, section_names::TEMPLATE, &template)?;
-
-    // Handles (needs objects data for offsets)
-    let section_offset = fhw.handle_section_offset() as i32;
-    let handle_map_i64: Vec<(u64, i64)> =
-        handle_map_u32.iter().map(|&(h, o)| (h, o as i64)).collect();
-    let handles_data = handle_writer::write_handles(&handle_map_i64, section_offset);
     fhw.add_section(output, section_names::HANDLES, &handles_data)?;
-
-    // Classes
-    let classes = reconciled_classes(document, &class_instance_counts, class_counts_complete);
-    let maint = document.maintenance_version;
-    let header_encoding =
-        crate::io::dxf::code_page::encoding_from_code_page(&document.header.code_page)
-            .unwrap_or(encoding_rs::WINDOWS_1252);
-    let classes_data =
-        classes_section_data(document, version, &classes, maint, header_encoding);
     fhw.add_section(output, section_names::CLASSES, &classes_data)?;
-
-    // AuxHeader (uses corrected HANDSEED)
-    let aux_data = aux_header_writer::write_aux_header(version, &corrected_header);
     fhw.add_section(output, section_names::AUX_HEADER, &aux_data)?;
-
-    // Header (uses corrected HANDSEED)
-    let header_data = header_writer::write_header_with_encoding_opt(
-        version,
-        &corrected_header,
-        maint,
-        header_encoding,
-        document.dwg_header_raw.as_ref(),
-    );
     fhw.add_section(output, section_names::HEADER, &header_data)?;
 
     // ── Finalize: section map, page map, file header, metadata ──
