@@ -2063,6 +2063,80 @@ pub struct DwgR2007SystemHeader {
     pub header_crc: u64,
 }
 
+/// The §19 H8 container shape (the AC1021 family): the author's
+/// RS-chunk page space — the pages-map entries in her physical order
+/// (gold's `read_pages_map` accumulates the running offsets from
+/// 0x480 in exactly this order; the first two entries are the
+/// pages-map system pages, `pages_map_id`/`pages_map2_id` at
+/// 0x480/0x880, and the sections-map system pages sit at the tail),
+/// plus her per-section page plans in the sections-table order (the
+/// data pages' ids, per-page boundaries in the decompressed stream
+/// and the declared frame fields). Retained for the same-version
+/// roundtrip's AC21 container mirror — the H7g doctrine transferred
+/// to the R2007 container — where a rewrite that reproduces the
+/// author's page space also reproduces `pages_amount`/`pages_maxid`,
+/// the four map-id fields, both FILEHEADER 0x80-block addresses (the
+/// author's convention: the AcDb:Header page's offset and the
+/// AcDb:Preview page's offset) and the whole pages-map byte stream
+/// (the (size, id) pairs, sizes and order, are hers by
+/// construction — its CRCs follow for free). `None` on every
+/// non-AC1021 format.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21ContainerShape {
+    /// The pages-map entries in the author's physical order.
+    pub map_order: Vec<DwgAc21PageEntry>,
+    /// The sections in the author's sections-table order (every
+    /// descriptor, including 0-page ones).
+    pub sections: Vec<DwgAc21SectionShape>,
+}
+
+/// One author entry of the R2007-family pages map: (id, on-disk size)
+/// in the physical order the running offsets accumulate from 0x480.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21PageEntry {
+    /// The page id as written in the map.
+    pub id: i64,
+    /// The page's on-disk size as written in the map.
+    pub on_disk_size: i64,
+}
+
+/// One author section of the R2007-family sections table.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21SectionShape {
+    /// The section name (empty on the unnamed 0-page tail descriptor).
+    pub name: String,
+    /// The encoding code from the section record.
+    pub encoding: u64,
+    /// The section record's declared decompressed content length.
+    pub data_size: u64,
+    /// The per-page plan in the author's table order.
+    pub pages: Vec<DwgAc21SectionPageShape>,
+}
+
+/// One author page of a R2007-family section record: the start
+/// offset inside the decompressed section stream, the declared frame
+/// field, the pages-map id and the declared uncompressed chunk
+/// length, plus the page's physical extent from the pages map.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21SectionPageShape {
+    /// Start offset within the decompressed section stream.
+    pub offset: u64,
+    /// The record's frame field (equal to `uncomp_size` on every
+    /// full corpus page).
+    pub size: i64,
+    /// The pages-map id this record references.
+    pub id: i64,
+    /// The declared uncompressed chunk length.
+    pub uncomp_size: u64,
+    /// The page's on-disk size from the pages map — the physical
+    /// extent the mirror must reproduce.
+    pub on_disk_size: i64,
+}
+
 /// The R13–R2000 SecondHeader summary — gold's `SecondHeader` shape
 /// (§19 H2's fourth sub-row). The second header is a sentinel-located
 /// structure near the file end (gold: `bit_search_sentinel
@@ -2742,6 +2816,12 @@ pub struct CadDocument {
     /// when the write-time content-parity gate passes. Internal only.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) dwg_ac18_shape: Option<DwgAc18ContainerShape>,
+    /// The §19 H8 AC21 container shape: the AC1021 author's page
+    /// space (pages-map physical order + per-section page plans),
+    /// re-emitted on a same-version roundtrip when the H8
+    /// write-time content-parity gate passes. Internal only.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) dwg_ac21_shape: Option<DwgAc21ContainerShape>,
 
     // ── The §19 H4 metadata-block summaries (gold-JSON-shaped) ──
     /// `Template` (all versions): description + MEASUREMENT.
@@ -3045,6 +3125,7 @@ impl CadDocument {
             dwg_second_header: None,
             dwg_aux_header: None,
             dwg_ac18_shape: None,
+            dwg_ac21_shape: None,
             dwg_template: None,
             dwg_file_dep_list: None,
             dwg_rev_history: None,

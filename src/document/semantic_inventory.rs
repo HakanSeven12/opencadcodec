@@ -228,6 +228,7 @@ impl<'a> SemanticInventoryV1<'a> {
             view_rep_refs: _,
             section_view_reps: _,
             next_handle: _,
+            dwg_ac21_shape: _,
         } = self.document;
 
         visitor(SemanticPartV1::Header(header));

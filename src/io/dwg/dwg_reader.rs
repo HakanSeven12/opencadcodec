@@ -266,6 +266,14 @@ pub struct DwgFileHeaderInfo {
     /// from `read_section_map_ac18` (every descriptor, including the
     /// unnamed AcDs ones).
     pub ac18_section_shapes: Vec<crate::document::DwgAc18SectionShape>,
+
+    // ── The §19 H8 container-shape retention (AC1021 family) ──
+    /// The pages-map entries in the author's physical order, from
+    /// `read_page_map_ac21`.
+    pub ac21_map_order: Vec<crate::document::DwgAc21PageEntry>,
+    /// The composed AC21 container shape (built from the page-map
+    /// order and the section descriptors once both AC21 maps parse).
+    pub ac21_shape: Option<crate::document::DwgAc21ContainerShape>,
 }
 
 /// Information about a DWG section (from the section map).
@@ -1544,6 +1552,12 @@ impl<R: Read + Seek> DwgReader<R> {
                 header_crc: m.header_crc64,
             });
         }
+        // The §19 H8 AC21 container shape — set on AC1021-format
+        // files only (the pages map and the sections table both parse
+        // on that format; both stay empty on every other one).
+        if info.ac21_metadata.is_some() {
+            document.dwg_ac21_shape = info.ac21_shape.take();
+        }
         // The R13-R2000 structural pair (§19 H2's fourth and fifth
         // sub-rows): the sentinel-located SecondHeader and the
         // locator-addressed AuxHeader — both parsed during the AC15
@@ -2135,6 +2149,8 @@ impl<R: Read + Seek> DwgReader<R> {
             ac21_compressed_data_crc: None,
             page_records: HashMap::new(),
             section_descriptors: Vec::new(),
+            ac21_map_order: Vec::new(),
+            ac21_shape: None,
             section_locators: HashMap::new(),
             objects_base_offset: 0,
             is_ac18_format: false,
@@ -3206,6 +3222,44 @@ impl<R: Read + Seek> DwgReader<R> {
         // Step 7: Read section map
         self.read_section_map_ac21(info, &metadata)?;
 
+        // The §19 H8a container shape: compose the author's AC1021
+        // page space from the parsed maps — the sections-table order
+        // with each record's pages-map id resolved to its physical
+        // extent. Retained for the H8 same-version roundtrip mirror
+        // (the write gate falls back to the conventional layout when
+        // the re-encoded content does not fit the author's page
+        // space).
+        if !info.section_descriptors.is_empty() && !info.ac21_map_order.is_empty() {
+            let mut sections = Vec::with_capacity(info.section_descriptors.len());
+            for descriptor in &info.section_descriptors {
+                let mut pages = Vec::with_capacity(descriptor.pages.len());
+                for page in &descriptor.pages {
+                    let on_disk_size = info
+                        .page_records
+                        .get(&(page.page_number.unsigned_abs() as i32))
+                        .map(|&(_, size)| size)
+                        .unwrap_or(0);
+                    pages.push(crate::document::DwgAc21SectionPageShape {
+                        offset: page.offset,
+                        size: page.size,
+                        id: page.page_number,
+                        uncomp_size: page.decompressed_size,
+                        on_disk_size,
+                    });
+                }
+                sections.push(crate::document::DwgAc21SectionShape {
+                    name: descriptor.name.clone(),
+                    encoding: descriptor.encoding,
+                    data_size: descriptor.decompressed_size,
+                    pages,
+                });
+            }
+            info.ac21_shape = Some(crate::document::DwgAc21ContainerShape {
+                map_order: std::mem::take(&mut info.ac21_map_order),
+                sections,
+            });
+        }
+
         // Store metadata even if reads above fail (for diagnostics)
         info.ac21_metadata = Some(metadata.clone());
 
@@ -3244,6 +3298,10 @@ impl<R: Read + Seek> DwgReader<R> {
             let ind = id.unsigned_abs();
 
             info.page_records.insert(ind as i32, (offset, size));
+            info.ac21_map_order.push(crate::document::DwgAc21PageEntry {
+                id,
+                on_disk_size: size,
+            });
             offset += size;
         }
 
