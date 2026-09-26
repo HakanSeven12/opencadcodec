@@ -1,199 +1,182 @@
-# Zero-context prompt — the post-mirror halt: the write-target axis at 3,576 + the wall's residue map + the AC21 follow-ups
+# Zero-context prompt — the post-H8a halt: the AC21 container-mirror queue at 3,576
 
-> Campaign state 2026-09-26 (the halt after the H7g commit + its
-> review pass; the session ran the review → update → commit → push →
-> continue loop from the 5,584 halt through the container-shape
-> mirror landing). **The ACS/SH campaign is COMPLETE at 0/0: the
-> corpus stands at 280 files, read 0, write 0.** The §19 structure
-> READ axis is at ZERO gaps corpus-wide. The H7 write-target axis
-> fell **5,584 → 3,576** (H7g: the container-shape mirror —
-> R2004_Header 2,088 → 963, FILEHEADER 553 → 103, THUMBNAILIMAGE
-> 442 → 50, R2007_Header 966 → 925 via the AC21 random_seed mirror;
-> the review pass closed gh109_1's codepage leaf — the code-page
-> table conflations split). The §18 decoder-walk queue stays LANDED
-> (all three walks). The maintainer's fixture surface is EMPTY.
-> Read `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3 +
-> §18.5–18.7 in `IMPLEMENTATION.md` (§18.6 carries the full decode
-> record including the three walk landings), then §19.1–19.3 (the
-> structure campaign — §19.2's H7 row carries the H7a–H7g landings +
-> the wall's residue map), then this file top to bottom.
+> Campaign state 2026-09-26 (the halt after the H8a landing + this
+> halt-refresh; the session ran the review → update → commit → push →
+> continue loop from the 3,576 post-mirror halt). **The ACS/SH
+> campaign stays COMPLETE at 0/0: corpus 280 files, read 0, write 0,
+> read key-gap 0, write-target key-gap 3,576 (UNCHANGED — H8a is
+> read-inert).** The §19 structure READ axis stays at ZERO
+> corpus-wide. The H8b work (the AC21 container-shape WRITE mirror)
+> is fully scoped, machine-grounded, and ready to implement — its
+> complete emission contract lives in §19.2's "H8a" paragraph of
+> `IMPLEMENTATION.md` and is restated below. Read
+> `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3 + §18.5–18.7
+> in `IMPLEMENTATION.md` (§18.6 carries the full decode record), then
+> §19.1–19.3 (the structure campaign — §19.2's H7 row carries the
+> H7a–H7g landings + the wall's residue map, and §19.2's H8a
+> paragraph carries the AC21 mirror contract), then this file top to
+> bottom.
 
-## What this session established (the load-bearing facts)
+## What the last session established (the load-bearing facts)
 
-**H7g — the container-shape mirror (the AC18 family)**: the
-remaining owned rows reduced to ONE root, and the session proved
-the root CLOSES rather than walls: `numsections` (inner header
-@0x40) IS the page-map entry count, the four id fields (@0x28
-`last_section_id`, @0x50 `section_map_id`, @0x5C `section_info_id`,
-@0x60 `section_array_size`) follow the page space, and the
-FILEHEADER addresses are page-data positions (seeker + 0x20) — so a
-rewrite that reproduces the author's PAGE SPACE reproduces every
-count, id and address up to the file tail. Three measured author
-conventions were mirrored: (1) the per-descriptor maxdecomp page
-splits — the authors single-page the metadata sections at custom
-caps (example_2004: AppInfo 0x300, AppInfoHistory 0x580, Preview
-0x7C00, SummaryInfo 0x80; the author's tail page pads to the FULL
-maxdecomp frame: content 0x510 → frame 0x580) where the historical
-writer used the 0x80 SMALL_PAGE and 0x7400 conventions; (2) the
-box-id gap — the authors allocate the section-info and page-map box
-pages at data_count+3/+4 (example_2004: 24 data pages, boxes at
-27/28, ids 25/26 unused, numsections 26 counting only the entries)
-where the historical writer used +1/+2; (3) the physical order —
-the corpus authors lay the SummaryInfo page first at 0x100 (data at
-0x120 = `summaryinfo_address` 288) and the preview page second at
-0x1a0 (data at 0x1C0 = `thumbnail_address` 448), where the
-historical writer emitted header-first.
+**The review pass (the halt-state verification + the gold re-scan)**:
+the corpus re-ran clean (280 files 0/0, read key-gap 0, write-target
+3,576, per-key census matching the halt record exactly: HEADER
+138,021 @ 0/0, FILEHEADER write 103, R2004_Header 963, R2007_Header
+925), `cargo test --features serde` stayed green, and
+`gold-vs-silver` was verified PUSHED (remote `ls-remote` head ==
+local HEAD). The gold re-scan re-verified every standing anchor
+(LOFTEDSURFACE dwg2.spec:3984, LWPOLYLINE dwg.spec:5446,
+r2004_file_header.spec:41-53, decode.c:1432/1683, codepages.h dual
+pairs) and found ONE drift: `src/config.h.in` in the gold tree is
+modified as a tracked file (an `autoheader`/`autoreconf` run
+reformatted its quoting: `'foo'` → `` `foo' ``, "C89" → "C90",
+`<stddef.h>` → `<sys/types.h>` size_t comment). It is a
+generated-template drift, NOT a source-semantics change, and the
+oracle binary is untouched (programs/dwgread mtime Sep 15 20:57,
+md5 e01356f9e69839a61a5f4aa674ce53e5c recorded this session). DO
+NOT touch it (the read-only-oracle rule holds); treat as the new
+recorded state of the gold tree at `34f02f54`.
 
-**The mirror mechanics**: the reader retains
-`DwgAc18ContainerShape` on the document (`dwg_ac18_shape`,
-serde-skipped): per-descriptor [mapped + raw 64-byte name, content
-size, maxdecomp, compression code, (page id, start-offset) list],
-the page map's entries in physical order, and the three identity
-ids. `write_ac18` builds every section buffer up front (the
-builders are pure — the conventional path stays byte-identical),
-runs the `ac18_mirror_plan` content-parity gate (same-origin,
-numgaps 0, coherent ids, core sections present, per-section
-parity: our re-encoded content covers the author's last page offset
-within her capacity, ascending offsets, preview single-paged, our
-skipped sections must be the author's 0-page ones; entry count ==
-the author's numsections; a physical-order walk with contiguous
-section pages and the boxes last), then emits through
-`add_section_shaped` — OUR content chunked at the AUTHOR's per-page
-offsets, every page carrying the AUTHOR's page id, the tail padded
-to her frame, the raw name bytes into the descriptor table — in
-the author's physical order, with `set_mirror_ids` driving the
-0x50/0x5C/0x60 fields and the box page ids.
+**The AC21 container analysis (the H8b design — machine-verified on
+example_2007)**: gold's R2007 reader contracts are pinned from
+`decode_r2007.c` itself (the −v9 prose is misleading; trust the code):
+- `read_pages_map` (decode_r2007.c:1099): entries are (size RLL, id
+  RLL); the PHYSICAL OFFSETS ARE A RUNNING SUM from 0x480 in
+  map-listed order. The pages-map bytes are just (size, id) pairs.
+- `read_data_section` (:856 dispatch): comp != uncomp → `read_data_page`
+  ALWAYS (mandatory RS de-interleave: block_count = ceil(align8(comp)/
+  251), block_count×255 read, trailing pad ignored); comp == uncomp &&
+  page->size == rs_form(comp) → RS de-interleave of a STORED page;
+  else → raw memcpy of uncomp bytes from page->offset (slack ignored).
+- `rs_form(x)` = `align32(ceil(align8(x)/251)×255)` (decode_r2007.c:692).
+- The sections-table record (silver's `DwgSectionInfo`/
+  `DwgPageCrcInfo` parse order is gold-exact, verified by the 0/0
+  corpus): per section (data_size, max_size, encrypted, hashcode,
+  name_len, unknown, encoded, num_pages, UTF-16LE name), then per page
+  7×RLL (offset-in-decomp-stream, frame, id, decomp, comp, checksum,
+  crc). The −v9 "size" print = the FRAME field (== uncomp on full
+  pages); comp prints only in the section data's own logs.
+- The section-page ids are a CHOICE, not a structure: our writer's
+  section map keeps OUR honest 7-field values; only the PAGES-map
+  extent/id parity is load-bearing.
 
-**Two hard review edges**: (a) gold's descriptor parser
-bounds-checks `dec.byte + 8 + 6*4 + 64 >= dec.size` BEFORE every
-entry (decode.c read_R2004_section_info "out of range") — a
-mirrored table ending with a 0-page descriptor (the unnamed AcDs)
-exactly consumes the stream and fails the check (the historical
-tables always ended with a pages-bearing section whose own page
-records were the slack): the mirrored table stream carries +32
-bytes of tail slack. (b) The preview re-emits RETAINED-RAW when its
-actual landing equals the retained `thumbnail_address` (the prefix
-pages are size-faithful — the reader retains the whole preview
-container since H5c), else the container is rebuilt around OUR
-actual address (honest bytes; the row keeps its diff there).
+**The author's AC1021 layout (example_2007, machine-verified tiling —
+all deltas 0)**: [0x80 metadata block][0x400 file-header page
+@0x80][pages map page id 25 @0x480 (1024, correction
+7)][pages-map COPY id 26 @0x880 (1024)][data pages 3..20 in ID
+order: header-vars 160 @0xc80, preview 307,936 @0xd20 (comp
+303,104, uncomp 302,255), thumb-adjacent small pages, summary 1440
+@0x4c320, objects pages 8..14 (63,488/58,624/70,912/65,536/63,488/
+69,120/remainder — IRREGULAR capacities, not 0xF800), …][sections map
+id 21 (4864, correction 4) @0x6cb40][sections-map COPY id 22 (4864)
+@0x6de40][header2 0x480-byte region (file-header copy 0x400) at
+metadata-relative 453,824], file_size 456,000. pages_amount 22,
+pages_maxid 26 (ids 23/24 unused). 13 sections in table order
+([0] AppInfoHistory … [2] Preview id 4, [3] SummaryInfo id 6, [5]
+Objects 7 pages, [11] Header id 3 (78 bytes), [12] the unnamed
+0-page descriptor — gold "Invalid num_pages 0, skip"). The 0x80
+FILEHEADER identity: summaryinfo_address 3200 (0xc80 = the
+Header-vars page's offset), thumbnail_address 3360 (0xd20 = the
+Preview page's offset), r2004_header_address 128, codepage 30,
+dwg_version/app pair 33/29 — RETAIN the author's two addresses
+verbatim under the mirror (dwg_file_header_summary already holds
+them; they stay valid positions in the mirrored layout).
 
-**AcDb:XrefManifest**: the R2013+ authoring tables carry a section
-silver never modeled and gold never prints (no census row — the
-read axis stays 0 with it absent), but its page is part of the
-author's page space. Retained raw (`raw_xref_manifest_data`, the
-AppInfo/ObjFreeSpace doctrine) and emitted MIRROR-ONLY
-(Box_2013/Revolve_2018-class fixtures gated on it).
+**H8a — the reader retention (landed this session)**:
+`DwgAc21ContainerShape` on the document (`dwg_ac21_shape`, "
+serde-skipped): `map_order` (the pages-map (id, size) entries in her
+physical order, collected in `read_page_map_ac21`) + `sections` (per
+author descriptor: name, encoding, data_size + per-page (offset,
+frame, id, uncomp) with each id's on-disk size resolved from
+`page_records`; composed in `read_file_header_ac21` after both maps
+parse). Stored transfer-time beside `dwg_r2007_header` (gated on
+`ac21_metadata.is_some()`). Sites: src/document.rs (structs after
+`DwgR2007SystemHeader`), src/io/dwg/dwg_reader.rs (info fields +
+`read_file_header_ac21` + the read_page_map_ac21 collector + the
+transfer store), src/document/semantic_inventory.rs:166 (the
+exhaustive destructure lists `dwg_ac21_shape: _`).
 
-**The seven fallback files** (the gate declines; every decline
-falls back byte-identically — stash-verified on 2004/Arc
-(14→6, its read-gap 2 and the FileDepList mo are the halt-state
-values) and 2013/Arc (29→29)): the numgaps>0 authors (2013/Arc/
-Line/RAY — gap map entries plus the author's NEGATIVE
-tree-node-gap fields, an ODA convention the fallback conventionally
-zeroes), the objects-overflow files (2004/2010/2013 Constraints,
-2018 Dynblocks: our re-encoded objects exceed the author's page
-space — `len − last_offset > maxdecomp`; forcing the fit would trip
-gold's reassembly guard), and 2018/Leader (the author's real
-FileDepList content vs our 8-byte boilerplate — the PARALLEL
-session's row; closing their row re-engages these mirrors for
-free). `AC18_MIRROR_DEBUG=1` prints every per-file decline reason.
-
-**The AC21 companion**: `random_seed` mirrored from the retained
-`DwgR2007SystemHeader` (gated on the author's crc_seed == our 0).
-Decode-inert (gold only prints it in JSON — verified: the field
-appears only in the emitters), but it IS the CRC random encoder's
-seed (spec §5.2.1.1.1), so the derived draws
-(`sections_map_crc_seed`, `pages_map_crc_seed`, `crc_seed_encoded`)
-were the hoped bonus — they did NOT land: our CrcRandomEncoder's
-sequence diverges from the author's engine at the same seed +
-crc_seed (measured on example_2007: the first draw already
-differs). The 3-per-file derive family needs the author's
-MT-variant pinned bit-exactly (a §5.11 instrument; the table init,
-the padding-table consumption, and the draw order all differ
-somewhere — the follow-up).
-
-**The H7g review pass (2026-09-26, the code-page conflation fix)**:
-the review found gh109_1's single surviving FILEHEADER leaf was
-NOT an address but `codepage: gold=39 vs gold_rt=31` — a
-PRE-EXISTING conversion bug the mirror's address closures exposed:
-`dwg_code_page_name` mapped BOTH bytes 31 and 39 to "GB2312" (and
-22|38, 24|41, 25|40, 26|42 the same way for the 932/949/950/1361
-pairs) while `dwg_code_page_index` folded the names back onto the
-low byte — gold's enum (codepages.h) pins them apart (31 =
-CP_GB2312/EUC-CN where 39 = CP_ANSI_936/CP936-GBK, 22 DOS932 vs 38
-ANSI_932, 24 BIG5 vs 41 ANSI_950, 25 CP949 vs 40 ANSI_949, 26
-JOHAB vs 42 ANSI_1361), so the byte → model-string → byte
-roundtrip lost the author's distinction (the byte-39 author was
-re-emitted byte 31 — the rt CLAIMED a different codepage than its
-own strings' encoding family). The fix split the five dual arms in
-both tables (the codec families kept — the pairs are
-byte-compatible low-half: GBK encodes both names), added the
-`test_codepage_index_name_roundtrip` regression, and updated the
-issue55 GBK test's expectation to the identity-preserving
-"ANSI_936". gh109_1's FILEHEADER is 0 now; FILEHEADER 553 → 103;
-write-target 3,577 → 3,576.
-
-**Verification surfaces kept**: the layer-4 −v9 map comparison
-(example_2004: pages 1–5 byte-exact at the author's addresses —
-summary 160@0x100, preview 31,776@0x1a0, the verbatim AppInfo
-800@0x7dc0, AppInfoHistory 1,440@0x80e0, RevHistory 192@0x8680 —
-objects 13 pages both sides, the boxes at 27/28); the
-AC18_MIRROR_DEBUG trace; the stash-check fallback proof; the
-identity check.
+**H8b — the write mirror (THE next packet; emission contract)**:
+1. In `write_ac21_impl` (dwg_writer.rs:1872), after the section
+   buffers build, run `ac21_mirror_plan(document, buffers)`:
+   same-origin + shape present; per author section: our buffer of
+   that name exists and its len ≥ her last-page offset; per her page:
+   our chunk (our_buffer[her_off .. next_off]) compresses with
+   rs_form(our comp) ≤ her on-disk size (or comp == store-len within
+   the collision rule); our section-name set == her table's non-empty
+   names. Any fail → decline → conventional path (byte-identical
+   fallback — stash-verified doctrine from H7g).
+2. Emit sequentially from 0x480 in HER map_order: her first two
+   entries are the PAGES-MAP system pages → build the pages-map
+   bytes FIRST (her (size, id) pairs — byte-identical ⇒ encode with
+   her correction factor; it lands hers), write at 0x480/0x880 with
+   her sizes/ids; then her data pages in order (our chunk per page:
+   comp < chunk → RS form of our stream (block_count×255 ≤ her size)
+   + zero pad to her size; stored → rs_form(chunk) == her size ?
+   emit the RS form (comp == uncomp declared; gold de-interleaves it
+   correctly) : raw chunk + pad to her size); then the
+   sections-map/2 system pages at the tail (OUR honest map bytes
+   with per-page values (her offset, her frame, her id, OUR
+   uncomp/comp/checksum/crc — all fields in the silver writer's
+   existing 7-field order), encoded into HER on-disk sizes, ids
+   21/22).
+3. Metadata assembly (write_file): unchanged flows — under the
+   mirrored layout pages_map_offset/map2_offset/ids/amount/maxid
+   land her values naturally; the sections-map family stays OURS
+   (honest); force NOTHING except the 0x80 addresses (the retained
+   author values) + `set_mirror_ids`-style assertions under
+   AC21_MIRROR_DEBUG.
+4. Predicted closes (~−430): FILEHEADER 103 → 21 (AC1021 82 gone;
+   R2000 7 + fallback 14 stay), THUMBNAILIMAGE 50 → 0, R2007_Header
+   925 → ~450 (the pages-map family; the sections-map family + six
+   CRCs + file_size/header2 stay), leaving the MT-derive family
+   (3/file, the §5.11 instrument follow-up — see the standing AC21
+   companion notes in §19.2's H7g row).
+5. Decline classes expected (AC18-analogs): objects-overflow (the
+   2007 Constraints/Dynblocks-style files), the FileDepList
+   missing-content class (the parallel session's row re-engages them
+   for free), and any name-set mismatch.
 
 ## The remaining queue (3,576) — the wall's residue map
 
-**The AC18 residue is irreducible-by-design**: last_section_address,
-secondheader_address, section_map_address, crc32 (4 per engaged
-file, 225 files) — file-tail positions and the system CRC move with
-our content sizes; they cannot match without whole-file byte
-identity. The 7 fallback files keep their historical 9. The rows:
-
-- **R2007_Header 925**: the AC21 container mirror follow-up —
-  the page-space pair (pages_amount/pages_maxid + the four map-id
-  fields) + the layout/content-coupled families (offsets, sizes,
-  six CRCs, corrections) + the crc-seed derive family (the author's
-  MT-variant).
-- **FILEHEADER 103** (= AC1021 82 + R2000 7 + fallback 14) and
-  **THUMBNAILIMAGE 50**: the AC1021 side closes only
-  through the AC21 mirror (the RS-chunk page space); the R2000
-  seeker pair needs flat-layout parity.
+- **R2007_Header 925**: the H8b mirror column (the pages-map family,
+  ~12/file) + the content-coupled family (layout offsets, sizes,
+  six CRCs, corrections — irreducible without whole-file byte
+  identity) + the 3-per-file MT-derive family (§5.11).
+- **FILEHEADER 103** (= AC1021 82 + R2000 7 + fallback 14): the
+  AC1021 side closes through H8b; the R2000 seeker pair needs
+  flat-layout parity.
+- **THUMBNAILIMAGE 50**: closes through H8b (the preview page is a
+  single page; the content is retained-raw since H5c).
 - **FileDepList 1,055 + SecondHeader 386 + AuxHeader 94**: the
-  PARALLEL SESSION's rows (their untracked probes `h7_probe1.sh` /
-  `h7_rows.sh` sit in the repo root — not ours to commit). NOTE:
-  the FileDepList CONTENT class (2004/Arc 2 → gh109_1 75) declines
-  our container mirror on the same missing-content root — their
-  landing re-engages those mirrors for free.
-- **R2004_Header 963 = 4 × 225 + 9 × 7**: accepted residue.
+  PARALLEL SESSION's rows (untracked probes `h7_probe1.sh`/
+  `h7_rows.sh` in the repo root — not ours to commit).
+- **R2004_Header 963 = 4 × 225 + 9 × 7**: accepted AC18 residue.
 
-**Dead / no-path rows (do not re-litigate)**: `LoftD` (no settings
-path in the authoring release); the SH revolve option shorts;
-**BREP stays deferred** — only an external authentic
-`ACSH_BREP_CLASS` specimen re-opens it.
+**Dead / no-path rows (do not re-litigate)**: `LoftD`; the SH revolve
+option shorts; **BREP stays deferred** (external authentic
+ACSH_BREP_CLASS specimen required).
 
-## The standing facts (the decode authority is §18.6)
+## The standing facts
 
 - The four raw-retained SH tails decode to typed views with the
-  captured bits as the write authority (the Phase B write rule).
-  The hermetic suite stands at 20 tests + the module tests.
-- REVOLVE/SWEEP/EXTRUSION/LOFT closed as recorded; the loft
-  leading/inter-section regions, the sweep frame-block repeats, the
-  extrusion 64-bit payload, and the 32+n/32 closed form stay
-  verbatim-retained.
-- The corpus workdirs are STEM-KEYED: 280 files collapse to 196
-  unique stems (version-dir duplicates overwrite) — per-file
-  aggregations from the workdirs are partial views; the
+  captured bits as the write authority (Phase B). Hermetic suite:
+  20 tests + module tests, all green after H8a.
+- The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative.
-- **The generation identity is UNTOUCHED:
-  `40ab5d356cf05a71333ff208e1651daf`, 25,344 bytes (re-verified
-  twice after the H7g landing — programmatic documents keep the
-  conventional path).**
-- The gold tree is UNCHANGED at `34f02f54` (local build artifacts
-  only). The anchors re-verified: the LOFTEDSURFACE typed spec
-  `dwg2.spec:3984`, the LWPOLYLINE grammar `dwg.spec:5446`, the
-  container-parity fields `r2004_file_header.spec:41-53`, the
-  read_R2004_section_map/info decoders (decode.c:1432-1870), and
-  all H7d container-fix sites.
+- **The generation identity should be untouched by H8a
+  (`40ab5d356cf05a71333f208e1651daf`, 25,344 bytes — H8a changed no
+  writer path; re-verify per the README's "The zero-keeping workflow"
+  if H8b changes the writer).**
+- The gold tree sits at `34f02f54` with ONE tracked generated-file
+  drift (`src/config.h.in`, autoheader requote — recorded above; the
+  oracle binary is UNCHANGED and the freeze rule stands).
+- The anchors re-verified this session: the H7g set (dwg2.spec:3984,
+  dwg.spec:5446, r2004_file_header.spec:41-53, decode.c:1432-1870,
+  codepages.h) + the AC21 set (decode_r2007.c:692/:700-852/:856-:1099,
+  out_json.c:2339-2376, the Dwg_R2007_Header struct in include/dwg.h).
+- The parallel board showed NO peer posts at this halt (main-only).
 
 ## Environment (complete)
 
@@ -202,10 +185,10 @@ The repo lives in WSL. From Windows:
 Shell commands run via
 `wsl.exe -d Ubuntu-24.04 -- bash <script>` — write scripts with the
 write tool and run by absolute path (PowerShell quoting caveats:
-inline `&&`, `$var`, pipes, and multi-word grep alternations are
-all broken; ONE COMMAND PER LINE in script files; `sleep` is
-capped at 120 s — use the tracked background process for the
-corpus).
+inline `&&`, `$var`, pipes [with `\$`], nested quotes and multi-word
+grep alternations are all broken; ONE COMMAND PER LINE in script
+files; `sleep` is capped at 120 s — use the tracked background
+process for the corpus).
 
 ```bash
 # Environment (source this):
@@ -218,65 +201,51 @@ export GOLD_TESTDATA="$HOME/work/libredwg/test/test-data"
 
 ```bash
 # 1. Build gates
-cargo test --features serde          # 1593 passed / 0 failed at this halt
+cargo test --features serde          # green at this halt (all suites ok)
 cargo test --features gold-harness --test gold_roundtrip
 
-# 2. Family smokes (any sh_history fixture must stay 0/0)
+# 2. Family smokes (must stay 0/0)
 python3 tests/gold_harness/run_roundtrip.py \
     tests/gold_harness/tests/sh_history/<FIXTURE>.dwg /tmp/smoke
-# (the mirror classes: AC18 fixtures land at write-target 4 —
-#  the residue family; Box_2007 stays 25 until the AC21 mirror)
+# example_2007: use $GOLD_TESTDATA/example_2007.dwg
+# (AC18 fixtures at write-target 4; Box_2007/example_2007 at 25 until H8b)
 
-# 3. Full corpus (must stay 280 files 0/0; read key-gap 0;
-#    write-target key-gap 3,576 at this halt)
+# 3. Full corpus (280 files 0/0; read 0; write-target 3,576 at this halt)
 python3 tests/gold_harness/run_corpus.py
-# (the per-file mirror trace: AC18_MIRROR_DEBUG=1 in the env)
 
-# 4. Layer-4 byte-walk for any writer re-encode path
+# 4. Layer-4 byte-walk for writer re-encode paths
 target/debug/dump_section_bytes <file> <A> <N>
 ```
 
 ## Commit inventory (this halt — all PUSHED)
 
 ```
-<review> fix(dwg): the H7g review pass — the code-page conflation split (31|39, 22|38, 24|41, 25|40, 26|42) — gh109_1's FILEHEADER at zero (FILEHEADER 104 -> 103, the write-target 3,577 -> 3,576)
-<docs> docs(harness): the post-mirror halt refresh — the H7g landing, the 3,576 residue map, the AC21 follow-ups
-da716e6 fix(dwg): the H7g container-shape mirror — the author's page space reproduced at write (R2004_Header 2088 -> 963, FILEHEADER 553 -> 104, THUMBNAILIMAGE 442 -> 50, R2007_Header 966 -> 925)
-a22e95a <review> docs(harness)/fix(dwg): the 2026-09-26 review pass — the 0x15 unknown-byte mirror + the README identity re-record + the docs consistency replay
-10e9423 docs(harness): the halt refresh — the H7e/H7f landings, the container-parity wall, the three §18 walks landed
-74a75d2 feat(sh): the loft container and ExtrudeP polyline walks — the per-section fields and the kind-77 CALL body named (§18 walks 2 and 3)
-ade0de3 feat(sh): the post-corner singles walk — the sweep tail's record constant and width-coupled single named
-03134e7 fix(dwg): the FILEHEADER identity bytes from the source — the H7f maint/app row at 1204 -> 553
-dd7f854 fix(dwg): the ObjFreeSpace verbatim sections — the H7e write-target row at zero (2,453 + 30 @ 0/0)
-f9e4e06 docs(harness): the halt refresh — the H7 review + the H7c/H7d landings, the 8,718 queue, the container-fix knowledge
-... (the 2026-09-25/26 §19 arc below, oldest first: the plan-session
-docs, the H0 axis skeleton + day-one census, the H2 header rows, the
-H4 metadata rows, the H5 CLASSES landings, the H3 header landing, the
-H7a header splice, the H7a/H7b review pass, the H7b SummaryInfo, the
-H7c CLASSES verbatim, the H7d AppInfo/AppInfoHistory — the corpus
-held 280 files at 0/0 through every commit)
+<docs> docs(harness): the post-H8a halt refresh — the AC21 container-mirror
+       contract, the H8a reader retention, the gold-tree drift record
+<feat> feat(dwg): the H8a AC21 container reader retention — the AC1021
+       author's page space retained (write-target 3,576 unchanged; read-inert)
+16ee668 <review> ... (the prior halt series — see the previous NEXT_SESSION
+       inventories: the H7g container-shape mirror, the code-page conflation
+       split, the H7a-H7f landings, the §18 walks, the 2026-09-25/26 §19 arc)
 ```
 
 **PUSH STATE (2026-09-26)**: the `gold-vs-silver` branch is PUSHED
-through this halt (push after each landing per the maintainer's
-loop instruction: `git push origin gold-vs-silver`).
+through this halt; push after each landing per the maintainer's loop
+instruction (`git push origin gold-vs-silver`).
 
 **Session arc, for context**: the halt-state verification (corpus
-280 @ 0/0 at 5,584) → the gold container analysis (the −v9 map
-dumps: the author's page orders, the box-id gaps, the
-maxdecomp-per-descriptor tables) → the reader retention (the shape
-struct + the physical map order) → the writer mirror (the shaped
-emitter + the gate + the identity overrides) → the slack-edge fix
-(gold's descriptor bounds-check) → the XrefManifest retention (the
-R2013+ fixture gates) → the AC21 random_seed mirror + the derived-
-draws divergence analysis → the full corpus (−2,007, the counted
-fallbacks) → the stash-check fallback proofs → the identity
-verification → the halt refresh → THE REVIEW PASS: the gh109_1
-leaf audited (codepage, not an address — the stash-check against
-the halt build re-proved the fallback byte-identity and exposed
-the conflation's pre-existence), the code-page table rounds split
-with the regression test, the issue55 expectation updated to the
-identity-preserving name, and the full corpus re-run. The corpus
-held 280 @ 0/0 and the tests 1593/0 (1592 + the new roundtrip
-regression) through every step; the write-target key-gap fell
-5,584 → 3,577 → 3,576.
+280 @ 0/0 at 3,576, tests green, remote synced) → the gold src
+re-scan (anchors ✓, the config.h.in drift found and recorded) → the
+required reading (§F2, §18.5-18.7, §19.1-19.3) → the AC21
+container analysis (the −v9 page-space dump + gold decoder
+archaeology incl. the dispatch contract, rs_form, the system-page
+repeat factors, the metadata identities, the 0x80 convention — the
+−v9 prose cross-checked numerically: tiling exact) → H8a (the
+DwgAc21ContainerShape retention: structs, map-order collector,
+shape composition, transfer store, the semantic_inventory
+destructure fix) → gates (build green, hermetic green, the
+example_2007/Box_2007 smokes 0/0 at 25, corpus 280 @ 0/0 at 3,576)
+→ the halt refresh. The corpus held 280 @ 0/0 and the tests green
+through every step; the write-target key-gap stays 3,576 — the H8b
+landing is the next big move, and its whole emission contract is
+recorded in §19.2's H8a paragraph.

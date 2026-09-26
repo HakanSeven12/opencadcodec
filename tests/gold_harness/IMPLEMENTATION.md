@@ -5418,6 +5418,70 @@ Signature) — the parse side is further along than the emission side.
   declines the container mirror on the same missing-content root:
   closing the parallel row re-engages those mirrors for free).
 
+  **H8a — the AC21 container reader retention (2026-09-26, the
+  post-mirror-halt follow-up session)**: `DwgAc21ContainerShape`
+  (`document.dwg_ac21_shape`, serde-skipped) now retains the
+  author's AC1021 page space — the pages-map entries in her
+  PHYSICAL order (`map_order`: (id, on-disk size); gold's
+  `read_pages_map` accumulates the running offsets from 0x480 in
+  exactly this order) plus her sections table with per-page plans
+  (`sections`: name, encoding, data_size, and per page the
+  decompressed-stream offset, the declared frame field, the
+  pages-map id and the page's physical extent, resolved from
+  `page_records` in `read_file_header_ac21` after both maps parse;
+  the store into the document is the transfer-time block beside
+  `dwg_r2007_header`, gated on `info.ac21_metadata.is_some()`).
+  Read-inert by design: the censuses are untouched (write-target
+  3,576 unchanged; example_2007 and Box_2007 smokes hold 0/0 at
+  write-target 25). The H8b (write mirror) contract, pinned from
+  gold's own decoders this session (decode_r2007.c:700-852 +
+  :692): a compressed page (comp != uncomp) is ALWAYS
+  RS-de-interleaved — block_count = ceil(align8(comp)/251),
+  block_count×255 must fit the page's on-disk size, the trailing
+  pad is ignored; a stored page is raw-memcpy'd only when
+  page->size != rs_form(comp) (rs_form(x) = align32(ceil(align8(x)/
+  251)×255)). The per-page mirror emission: our chunk LZ77'd at her
+  boundaries — comp < chunk → emit the RS form of our stream
+  (block_count×255 ≤ her page size, else DECLINE) zero-padded to
+  her exact size; stored → if rs_form(chunk_len) collides with her
+  size, emit the RS form (declared comp == uncomp — gold takes the
+  same RS path and reads our payload), else the raw chunk padded to
+  her size. Sequential emission from 0x480 in her map order
+  reproduces every offset (a running sum — no seeks) and the
+  pages-map bytes go IDENTICAL (same (size, id) pairs, so its
+  comp/uncomp sizes, both CRCs and the correction factor land hers
+  for free, ~12 fields/file); the sections-map system pages (her
+  sections_map_id/2_id at the tail, her on-disk sizes) hold OUR
+  honest map bytes (their CRC/size/correction rows stay). The
+  0x80-block addresses are retained identity: stamp the author's
+  `summaryinfo_address`/`thumbnail_address` from
+  `dwg_file_header_summary` verbatim under the mirror (her
+  convention, observed on example_2007: the AcDb:Header page's
+  offset and the AcDb:Preview page's offset — under the mirror
+  they stay valid positions). Predicted closes: FILEHEADER AC1021
+  82, THUMBNAILIMAGE 50, and the R2007_Header pages-map family
+  (pages_amount/pages_maxid, the four map-id fields,
+  pages_map_offset/map2_offset, the pages-map size/CRC pairs,
+  pages_map_correction); the sections-map family, the six file
+  CRCs, file_size/header2_offset content-coupled rows and the
+  3-per-file MT-derive draws stay open. Decline classes mirror
+  the AC18 ones: objects-overflow (rs_form(our comp) over her page
+  extent) and the missing-content class (our len under her
+  last-page offset — the FileDepList boilerplate family; the
+  parallel session's content row re-engages those mirrors for
+  free). AC21_MIRROR_DEBUG carries the per-file decline trace.
+  Machine-verified model case (`example_2007`): boxes 25/26 at
+  0x480/0x880 (1024 each, corrections 7), data pages 3..20 in id
+  order (header-vars 160 @0xc80, preview 307,936 @0xd20 comp
+  303,104 uncomp 302,255, summary 1440 @0x4c320, …), the objects
+  section at 7 pages with irregular capacities (63,488/58,624/
+  70,912/65,536/63,488/69,120/remainder), sections-map boxes 21/22
+  (4864 each, correction 4) at the tail, header2 at 453,824
+  (relative), file_size 456,000, pages_amount 22, pages_maxid 26
+  (ids 23/24 unused), sections 13 with [12] the unnamed 0-page
+  descriptor (gold's "Invalid num_pages 0, skip" — the AC18
+  0-page edge again).
+
 ### 19.3 Standing rules for the campaign
 
 - Both axes' zero-keeping runs under the same gates: every packet lands
