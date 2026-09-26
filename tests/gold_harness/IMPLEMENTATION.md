@@ -5482,6 +5482,76 @@ Signature) — the parse side is further along than the emission side.
   descriptor (gold's "Invalid num_pages 0, skip" — the AC18
   0-page edge again).
 
+  **H8b — the AC21 container-shape write mirror (2026-09-26, the
+  post-H8b-halt packet; MACHINERY LANDED, ENGAGEMENT WAITS ON H8c)**:
+  the H7g doctrine transferred to the AC1021 container, in full.
+  Sites: `DwgFileHeaderWriterAC21::mirror_plan` (the content-parity
+  gate), `write_mirrored_pages` (the her-map-order emission),
+  `write_file_mirrored` + the shared `write_two_pass_header` tail
+  (extracted verbatim from the historical `write_file` — pure code
+  motion, stash-verified), `Ac21MirrorBuffers` (the up-front section
+  builders in the restructured `write_ac21_impl`, the one lazy
+  preview built at her landing address — the retained raw re-emits
+  verbatim), plus `serialize_section_map` extracted from
+  `build_section_map` for the pre-emission ours-honest table encode.
+  The gate: system-id coherence (her pages_map/pages_map2/
+  sections_map/sections_map2 ids, positive + distinct), her walk
+  sanity (positive sizes/ids, unique ids, TERMINATOR PAIRS caught by
+  the 16×n==her-uncomp cross-check), her table sanity (unique names,
+  ascending offsets, extent↔map agreement, owned-count parity),
+  per-section presence (our writer skips X but the author has N
+  pages → decline; our real content with no page space → decline;
+  the FileDepList STUB alone is droppable — no document state, gold
+  prints zeroed on both sides), and the per-page fit rules exactly
+  as contracted: comp<chunk → RS form of our stream zero-padded to
+  her slot (bc×255 ≤ slot else decline — `decode_rs` ignores the
+  tail and RS correction is commented out in gold, but the contract
+  keeps the full form inside the slot), stored → rs_form(chunk) ==
+  her size ? the RS form (gold de-interleaves it — the collision
+  rule) : raw+pad. The emission records our honest section table
+  (her offset/frame/id + OUR uncomp/comp/checksum/crc), her ids
+  everywhere, pages_amount = the full recorded walk (her 22 incl.
+  both pages-map boxes), maxid via next_page_id = her_max+1 —
+  everything in the metadata lands by derivation (the 0x80-block
+  addresses included: `find_section_page_offset` over the mirrored
+  page records reproduces the author's `summaryinfo_address`/
+  `thumbnail_address` — DEBUG-asserted, nothing forced). The
+  XrefManifest raw (§19 H7g, ungated R2004+ read retention) is
+  carried in the mirror buffers with HER table encoding for the
+  unregistered-name declaration (our registry omits it; the bytes
+  re-emit verbatim). **The engagement census at the halt: all 58
+  corpus AC1021 files gate, ZERO engage — 57 decline on an
+  `AcDb:AcDbObjects` window (our AC21 LZ77 encoder's ratio runs
+  1.16–1.87× the author's on those windows; her slots are the
+  EXACT rs_form of her comp — zero slack — measured: Box_2007
+  window 2 ours 22,836 vs her ~12,2xx; example_2007 window 2
+  16,725 vs ~14.4xx; circle.dwg 17,993 vs ~9.4xx; every
+  non-objects section fits on every file) and 1 gap entry
+  (ATMOS-DC22S: her map carries a real negative-id gap (−29,
+  768) — a new legit decline class). The residue therefore holds
+  3,576 — but the whole pages-map/FILEHEADER/THUMBNAIL column is
+  now gated LIVE: any file that fits re-emits her container
+  byte-exactly. ZERO-KEEPING: the conventional path is
+  stash-verified byte-identical (196/196 rewrites unchanged vs the
+  pre-H8b baseline), the generation identity re-verified twice
+  (40ab5d356cf05a71333f208e1651daf, 25,344 bytes), and 7 new
+  hermetic tests pin the author rs_form table (note
+  `rs_form(302255) = 307,296`), the stored/collision/overflow
+  rules and the map-byte/prefix walks — 42/42 module green.
+  **H8c (the next packet): the AC21 LZ77 encoder ratio parity** —
+  the ground truth is the author's on-disk comp streams (decode
+  her pages with the instrumented `decompressor_ac21` token dump
+  vs ours over the same decompressed content; suspects: the
+  8-byte literal-run minimum, greedy-vs-lazy matching, the
+  opcode class selection, the min-match thresholds); acceptance =
+  the engage census with `AC21_MIRROR_DEBUG` margins per page. The
+  oracle record correction landed in NEXT_SESSION: the prior halt's
+  md5 string matched no file — the true fingerprints are the 6,316-
+  byte libtool wrapper (8dad57211b78f42e7594ba6c211cc0e5) and the
+  .libs ELF (d852da1db0894b866e86042d4b26b91d, 230,232 bytes, both
+  mtime 2026-09-15 20:56:22), continuity proven BEHAVIORALLY (the
+  example_2007 page space reproduced bit-exact).
+
 ### 19.3 Standing rules for the campaign
 
 - Both axes' zero-keeping runs under the same gates: every packet lands
