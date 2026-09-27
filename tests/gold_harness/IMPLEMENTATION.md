@@ -5955,10 +5955,80 @@ Signature) — the parse side is further along than the emission side.
   the no-feature build now compiles and runs byte-identically.
   REMAINING conventional-arm work: the MT-variant pinning
   (§F2.G — the crc_seed draws; a deeper algorithmic study, not
-  attempted); the record-identity result should extend to the
+  attempted); ~~the record-identity result should extend to the
   other AC1021 corpus files the same way (circle's two form
   rules likely cover the class) — a future session's optional
-  measurement.
+  measurement~~ — **DONE, this row (H8h-ext) below**.
+
+  **H8h-ext — the AC1021 record-identity survey + four landed
+  form rules (2026-09-27; the named future-session measurement,
+  executed)**: the survey instrument is permanent:
+  `tests/gold_harness/record_identity_survey.py` (per file: the
+  DWG_NO_ECHO conventional rewrite + the AC21_DIFF_RAW_DIR
+  her/ours decompressed objects-stream dumps + the
+  DWG_RECORD_TRACE maps; then a byte-wise walk of every record
+  unit — her record bounded by ours, sizes verified equal,
+  divergences reported with the first differing byte). ONE
+  instrument bug found and fixed during the autopsy: the first
+  parser read the DWG modular short as 7-bit bytes — the MS is
+  **15 data bits per 16-bit LE word with bit 15 as the
+  continuation flag** (so a record unit = [MS words][size
+  span including the final pad byte][crc16 LE over MS..span];
+  the §19.4.C frame confirmed — the crate's own reader/writer
+  were always right, the survey tool was corrected). THE
+  MEASUREMENT (58 AC1021 files): the "circle's two rules cover
+  the class" hypothesis is FALSE — only 14/58 (the simple
+  ODA-authored named specimens) were at 100%; 423 divergent
+  records initial. THE TAXONOMY: (a) the author's **code-3
+  owner-class refs** where our writer used 4/5 (the
+  AcDbShHistory root's graph ref, the eval-graph node `evalexpr`,
+  and further stragglers in example_2007/ATMOS); (b) the
+  control-entries **author order + null deleted-slot tails**
+  (Box's BLOCK_CONTROL `entries[1]=(2.0.0) abs:0`, its
+  DIMSTYLE_CONTROL `[432 Standard, 311 Annotative, 27 ISO-25,
+  null]` vs our ascending 3-slot emission) — the sub-genus-B
+  26-vs-25 and the sub-genus-A +14 reorder; (c) the
+  SH-history DICTIONARY stub (`size 70 vs 17` — gold prints the
+  `ACAD_PARALLEL_BACKGROUND` item with a NULL target handle; our
+  emission drops it); (d) the 3DSOLID/ACIS record tail ref
+  (`her 06/64/03/19 vs our 08/84/04/21` — nibble-class/count
+  deltas inside the SAT record's handle stream); (e) the
+  assoc-pathparam/unknown-body classes on the M/CSurf stems; (f)
+  the fillet/chamfer UNKNOWN bodies (1463/1509 vs 28) and the
+  29-vs-27 class; (g) the gold-tree stragglers (VIEW_CONTROL
+  27/18/22-v-10 — the views not in our model's control emission;
+  Constraints 3E3 666-v-870; example_2007's marginal forms;
+  PolyLine3D 1C2 16-vs-17 reversed; ATMOS's 64 + 84: the ACAS
+  interior records and her controls). FOUR RULE-SETS LANDED:
+  (1) `AcDbShHistory.owner` graph ref: SoftPointer(4) →
+  **HardOwnership(3)** — gold prints `owner [3, ..]`
+  corpus-wide across every genus that has the record (the 2027
+  fixtures, the 2024-authored example_2007, ATMOS; verified —
+  the 14 clean files have NO SH-family records, so no genus
+  conflict); (2) the eval-graph node `evalexpr` ref:
+  HardPointer(5) → **HardOwnership(3)** — the same census (gold
+  prints `evalexpr [3, ..]` in all three genera); (3) the
+  **authored table-control entry slots** capture:
+  `document.table_control_entries` (`BTreeMap<control handle,
+  Vec<Handle>>`, serde-skipped, semantic-inventory-excluded —
+  the morehandles precedent — so the echo fingerprint is
+  untouched) captured at DWG read for BLOCK/LTYPE/DIMSTYLE
+  (entries verbatim: order + null tails; the LTYPE/RCu drains
+  matching the gold spec forms) and echoed by the writers under
+  a **same-universe gate** (`authored_control_entries` — the
+  captured non-null set must equal the live table's handles;
+  edited tables and DXF-built documents fall back to the model
+  iteration); (4) the survey tool itself. **MEASURED: 423 → 185
+  divergent records** (every fixture genus file at 2–3 residual
+  records; the 14 clean files unchanged at 100% — circle still
+  211/211). GATES: serde 1602/0, gold_roundtrip ok, issue80
+  7/0, the four family smokes 0/0, the full corpus 280 files
+  0/0/0/0, generation identity UNCHANGED
+  (`1a56bca0a56dff09511cec1659cfff1b`, 25,375 bytes — the
+  generator's programmatic documents never carry these fields;
+  verified with AND without `--features serde`). The residual
+  185 = classes (c)–(g) above — each a named, byte-level-scoped
+  future packet.
 
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
@@ -6027,7 +6097,15 @@ gold this campaign (the anchor note says so).
 - BD: '00' → raw f64; '01' → 1.0; '10' → 0.0; '11' → NaN.
 - MS/MC (modular short/char): 7-bit groups, the LOW chunk
   first in stream order, high bit 0 terminates; value is the
-  sum of (byte & 0x7F) << (7*i) over the chunks.
+  sum of (byte & 0x7F) << (7*i) over the chunks. CAREFUL — this
+  7-bit-group form is NOT the objects-section record-head size
+  field: that MS is **15 data bits per 16-bit LE word, bit 15 of
+  a word the continuation flag** (a record unit = [MS words]
+  [size span incl. the final pad byte] [crc16 LE over MS..span];
+  for circle obj%1 the MS bytes are `11 00` and the BS type 48
+  decodes cleanly only from byte 2 — the H8h-ext survey verified
+  the frame exhaustively via the crc16 window; the crate's
+  `write_modular_short_bytes` matches).
 - TV strings live in the R2007+ per-record string stream (see
   D), not inline in the data.
 - IN-TREE: every primitive is implemented in `bit_writer.rs`
