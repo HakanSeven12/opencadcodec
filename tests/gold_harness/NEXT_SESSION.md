@@ -277,7 +277,18 @@ WSL python) + libredwg `bits.c` (`bit_read_H`, the H-code table:
 - **FileDepList 1,055 + SecondHeader 386 + AuxHeader 94**: the
   PARALLEL SESSION's rows (untracked probes `h7_probe1.sh`/
   `h7_rows.sh` in the repo root — not ours to commit).
-- **R2004_Header 963 = 4 × 225 + 9 × 7**: accepted AC18 residue.
+- **R2004_Header 963 — RE-SCOPED (see the §19.2 record and the
+  zero-reachability audit below)**: the H7g AC18 mirror already
+  exists and closed −2,007 rows; this is its residue. Verified
+  anatomy: address/ID rows (`last_section_address`,
+  `secondheader_address`, `section_map_address`, `last_section_id`)
+  across 147 R2004+ files including the R2010/R2013/R2018
+  containers; the old "4 × 225 + 9 × 7" decomposition is stale.
+  Closes via the SAME raw-echo re-scope as H8d (the AC18 form of
+  the placement wall) + the AC18_MIRROR_DEBUG decline classes;
+  same gates, no new instruments, no custom examples. A
+  maintainer decision to spend the extension — now a measured
+  one.
 
 **Dead / no-path rows (do not re-litigate)**: `LoftD`; the SH revolve
 option shorts; **BREP stays deferred** (external authentic
@@ -306,29 +317,15 @@ Verified per family:
   automatically when the mirror engages (her container → her
   addresses). The R2000 pair is the same class for the flat
   layout (example_2000: gold=220 vs ours=557752). Bounded.
-- **R2004_Header 963 — the ONLY genuine scope decision, and its
-  row anatomy is now VERIFIED (2026-09-27 probe on the corpus
-  report)**: the rows are ADDRESS/ID fields —
-  `last_section_address` / `secondheader_address` /
-  `section_map_address` (+ `last_section_id`) — across **147
-  R2004+ files INCLUDING the R2010/R2013/R2018 containers**
-  (Box_2010/2013/2018 all carry the same class). The key covers
-  the whole AC18–AC28 container family. The rows close by the
-  SAME mechanism as the AC1021 address rows: a container mirror
-  (the H8a retention + H8b mirror arm + the objects raw-echo
-  re-scope), because the addresses are pure layout functions of
-  her container (incl. the objects section's size — the
-  placement wall applies to AC18 too, and the raw-echo re-scope
-  answers it the same way). The "4 × 225 + 9 × 7" decomposition
-  in the old halts is STALE — the fresh scan shows 147 files ×
-  3–4 address rows (~598 in the per-file read vs the census's
-  963 leaf count; the delta = array-leaf counting — the packet's
-  opening measurement reconciles it). Cost: a second
-  H8-scale campaign over the R2004/R2010/R2013/R2018 container
-  variants (our reader parses all of them — read axis 0/0 at
-  every version; retention is plumbing). No new instruments, no
-  custom examples; the corpus's 147 files are the surface.
-  Reversing the acceptance is a maintainer call.
+- **R2004_Header 963 — the row anatomy VERIFIED (see the §19.2
+  re-scope record for the full text)**: address/ID fields across
+  147 R2004+ files (including R2010/R2013/R2018); the H7g AC18
+  mirror already exists and this is its residue; the rows close
+  via the SAME raw-echo re-scope as H8d's placement wall (the
+  AC18 form) + the AC18_MIRROR_DEBUG decline classes; same
+  gates, no instruments or fixtures to add. Cost is an
+  EXTENSION of existing machinery (not a second from-scratch
+  campaign) — a measured maintainer decision.
 - **BREP is NOT in the 3,576** (a deferred row, separate) — the
   external-specimen ask does not gate this number.
 

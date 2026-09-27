@@ -5707,6 +5707,41 @@ Signature) — the parse side is further along than the emission side.
   closing the R2007_Header/FILEHEADER-AC1021/THUMBNAILIMAGE
   rows wholesale.
 
+  **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
+  probes — the accepted residue re-measured and re-scoped under
+  the gold-vs-silver mechanism)**: the H7g AC18 container-shape
+  mirror (above) EXISTS and already closed −2,007 rows; the 963
+  is its RESIDUE, not untouched territory. The fresh corpus-report
+  scan (per-file `struct_rt` reads) verifies the remaining rows'
+  anatomy: **address/ID fields — `last_section_address`,
+  `secondheader_address`, `section_map_address`, `last_section_id`
+  — spread over 147 R2004+ files, including the R2010/R2013/R2018
+  containers** (Box_2010/2013/2018 all carry the class; the key
+  family covers the whole AC18–AC28 container). THE OLD
+  "4 × 225 engaged + 7 × 9" DECOMPOSITION IS STALE: the scan
+  reads ~598 address rows across the 147 files vs the census's
+  963 leaf count — the delta is the page-map array leaves (the
+  per-page fields) plus counting-class differences; the packet's
+  opening measurement must reconcile the two views before any
+  work starts. RESOLVABILITY (the maintenance question answered):
+  the rows close by the SAME mechanism as the AC1021 address
+  rows — the existing H7g mirror machinery engaging the remaining
+  files, which requires (a) the AC18 mirror's objects fit — the
+  AC18 form of the H8d placement wall, answered by the SAME
+  raw-echo re-scope (retain her objects-section stream, echo it
+  in the mirror arm: her page space then reproduces every address
+  by construction); (b) the remaining `AC18_MIRROR_DEBUG` decline
+  classes enumerated per file and cleared (the seven fallback
+  files' trace is the starting map); (c) the R2010/R2013/R2018
+  container variants covered by the same retention+mirror
+  (the reader parses all of them — the read axis is 0/0 at every
+  version, so retention is plumbing). No new instruments, no
+  custom examples; the corpus's 147 files are the surface, and
+  the zero-keeping gates apply unchanged. STATUS: still a
+  maintainer decision whether to spend the extension — but no
+  longer an unmeasured unknown: the cost, the machinery, and the
+  row surface are all now on record.
+
 ### 19.3 Standing rules for the campaign
 
 - Both axes' zero-keeping runs under the same gates: every packet lands
