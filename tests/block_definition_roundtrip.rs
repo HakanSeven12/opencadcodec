@@ -79,3 +79,14 @@ fn the_dwg_block_marker_agrees_with_its_record_on_the_base_point() {
         "the marker and its record are two views of one definition"
     );
 }
+
+#[test]
+fn an_explicit_attribute_flag_survives_without_attribute_definitions() {
+    let mut doc = door("Synthetic block");
+    doc.block_records.get_mut("Door").unwrap().flags.has_attributes = true;
+    let saved = DwgReader::from_stream(Cursor::new(DwgWriter::write_to_vec(&doc).unwrap()))
+        .read()
+        .unwrap();
+    assert!(saved.block_records.get("Door").unwrap().flags.has_attributes);
+    assert_eq!(doc.entities().count(), saved.entities().count());
+}

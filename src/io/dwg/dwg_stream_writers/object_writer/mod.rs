@@ -2079,7 +2079,7 @@ impl<'a> DwgObjectWriter<'a> {
                 Some(EntityType::AttributeDefinition(_))
             )
         });
-        self.writer.write_bit(has_attributes);
+        self.writer.write_bit(record.flags.has_attributes || has_attributes);
         // Is xref
         self.writer.write_bit(record.flags.is_xref);
         // Is xref overlay
