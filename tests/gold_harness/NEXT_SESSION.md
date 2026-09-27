@@ -77,16 +77,27 @@ residual records** in five classes (below).
 
 ## The residual 32 (each a named, byte-level-scoped packet)
 
-- **The undocumented CALL_SUBCURVE bodies (7)**: ExtrudeCSurf/
-  ExtrudeM/RevolveM `2E6` (47/31/47 vs our 20), LoftCSurf/LoftM
-  `2E7`+`2EA` (55/63, 31/39 vs 20) — the ACDBASSOCEDGEACTIONPARAM
-  subcurve region after action_type (her ARC/LINE/ELLIPSE subcurve
-  fields; our modeled reader stops before them). **Gold's own spec
-  macro `CALL_SUBCURVE` is an EMPTY TODO stub** — the wire form must
-  be reverse-engineered from the specimens (the ODA PDF + the
-  per-action_type dissection; one specimen per type). The records:
-  her unknown_bits hex is captured in the -v9 walks (e.g. RevolveM
-  2E6: `AA85800000...0F01`).
+- **The undocumented CALL_SUBCURVE bodies (7)** — THE IN-FLIGHT
+  PACKET, dissection started (2026-09-27, the notes for the next
+  session): ExtrudeCSurf/ExtrudeM/RevolveM `2E6` (47/31/47 vs our
+  20), LoftCSurf/LoftM `2E7`+`2EA` (55/63, 31/39 vs 20) — the
+  ACDBASSOCEDGEACTIONPARAM subcurve region after action_type. The
+  concrete findings: (a) the frame math holds per record — span =
+  bitsize + hdlsize (ExtrudeCSurf 2E6: 331 + 45 = 376 = 47 bytes);
+  (b) our modeled reader parses the record through action_type
+  (main-stream bit 96 on ExtrudeCSurf: type 18 + bitsize 32 +
+  handle H 24 + eed 2 + reactors 2 + is_xdic 1 + is_r2013 2 +
+  dep_cv 2 + cv 2 + has_action 1 + action_type 10); (c) her
+  subcurve region = main bits 96..330 (234 bits): 56 zero bits,
+  then a BD candidate `2.000000000000001` (2.0 + 1 ulp — the
+  author's computed extrusion distance), then ~120 further bits
+  (the `054B4C0C16A2...` bytes in gold's unknown_bits print);
+  (d) gold's own spec macro `CALL_SUBCURVE` is an EMPTY TODO stub
+  — the wire form must be reverse-engineered from the specimens
+  (the ODA PDF's AcDbAssocSubcurveGeometry + the per-action_type
+  dissection: 11=ARC, 17=ELLIPSE, 19=LINE, 23=LINESEG3D, 42=NURB3D,
+  27=CURVE3D). The six specimens' hex is in the -v9 walks
+  (`DWG_NO_ECHO=1` + `$GOLD_DWGREAD -v9 <fixture>`).
 - **ATMOS (5 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
   h=77 96v40, h=352 25642v35 (a 25KB ACIS mass we emit as 35
   bytes), h=541 17v18; the 84 her-only = the broken-map orphans
@@ -208,14 +219,16 @@ cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
 cargo build --bin ac21_token_diff --features serde
 ```
 
-## Commit inventory (this halt)
+## Commit inventory (this halt — all PUSHED)
 
 ```
 53c9b11 <docs> the post-H8h-ext-2 halt refresh (the prior halt head)
-<feat> H8h-ext-3: the assoc ref codes (deps/params -> 3, assocdep ->
-       4), the Revolved trailing bit, the *Model_Space block xdic +
-       owned-object refs (49 -> 32; 42/58 at 100%)
-<docs> this halt refresh — the post-H8h-ext-3 record
+c3f28c3 <feat> H8h-ext-3: the assoc ref codes (deps/params -> 3,
+       assocdep -> 4), the Revolved trailing bit, the *Model_Space
+       block xdic + owned-object refs (49 -> 32; 42/58 at 100%)
+7585711 <docs> the post-H8h-ext-3 halt refresh
+<docs> the subcurve-packet handover notes (the in-flight dissection
+       state: the frame math, the bit-96 start, the BD candidate)
 ```
 
 **PUSH STATE (2026-09-27)**: push after each landing per the
