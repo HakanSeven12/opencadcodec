@@ -79,66 +79,68 @@ pub(crate) fn sab_fingerprint<'a>(
     fingerprint
 }
 
-/// §19 H8d/H8e: the identity hash guarding the objects-section raw
-/// echo — the sorted handle set of the DOCUMENT'S object universe
-/// (`document_object_handles` below), computed identically at read
-/// time (the post-build capture) and at write time (the gate): adds,
-/// deletes and renumberings change the set and fall the echo back to
-/// our own emission. Reader-skipped orphans — handles in the source's
-/// handles map that the builder never materialized, the author's
-/// edit-history residue (the ACIS-solids files' single orphan each,
-/// ATMOS's 84) — are outside the universe on BOTH sides, so an
-/// unedited document engages despite them. In-place field edits on an
-/// unchanged handle set are outside this identity fingerprint (the
-/// same limitation class as the classes fingerprint).
-pub(crate) fn objects_handle_set_fingerprint(handles: impl Iterator<Item = u64>) -> u64 {
+/// §19 H8g: the document-state hash guarding EVERY whole-file echo
+/// (the objects-stream echo, the AC21 compressed-page echo, the R2000
+/// and AC18-family whole-file echoes) — the sorted per-part hash of
+/// the semantic inventory's visit (the header variables, the ten
+/// tables' records, the classes, the entities with their ownership /
+/// extension-dictionary / reactor relationships, the objects, the
+/// summary info, the preview, the EED side channel) plus the ten
+/// table control handles and the retained metadata models (aux
+/// header, template, file-dep list, rev history). Computed
+/// identically at read time (the end-of-read capture, after every
+/// section has loaded) and at the write gates: ANY document edit —
+/// including the in-place field edits the handle-set fingerprints
+/// cannot see (the issue-80 layer rename) — changes a part's Debug
+/// projection and declines the echo. Per-part hashes are sorted
+/// before combining, so the HashMap iteration orders of the
+/// document's side channels do not perturb the result; reader-skipped
+/// orphans (handles in the source map the builder never materialized)
+/// are outside the visited parts on both sides, so an unedited
+/// document engages despite them. Residual limitation: non-public
+/// side-channel state outside the inventory and the metadata models
+/// is outside the hash (a false decline is always safe — the echo
+/// falls back to our own emission).
+pub(crate) fn document_state_fingerprint(document: &crate::document::CadDocument) -> u64 {
     use std::hash::{Hash, Hasher};
 
-    let mut sorted: Vec<u64> = handles.collect();
-    sorted.sort_unstable();
+    let mut part_hashes: Vec<u64> = Vec::new();
+    document
+        .semantic_inventory_v1()
+        .visit(|part| {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            format!("{:?}", part).hash(&mut hasher);
+            part_hashes.push(hasher.finish());
+        });
+    part_hashes.sort_unstable();
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    sorted.len().hash(&mut hasher);
-    for handle in sorted {
-        handle.hash(&mut hasher);
+    part_hashes.len().hash(&mut hasher);
+    for part_hash in part_hashes {
+        part_hash.hash(&mut hasher);
     }
+    // The ten table control handles (the inventory visits records
+    // only), in a fixed order.
+    for handle in [
+        document.layers.handle(),
+        document.line_types.handle(),
+        document.text_styles.handle(),
+        document.block_records.handle(),
+        document.dim_styles.handle(),
+        document.app_ids.handle(),
+        document.views.handle(),
+        document.vports.handle(),
+        document.ucss.handle(),
+        document.vx_table.handle(),
+    ] {
+        handle.value().hash(&mut hasher);
+    }
+    // The retained metadata models — plain summary structures, so
+    // their Debug projections are order-stable.
+    format!("{:?}", document.dwg_aux_header).hash(&mut hasher);
+    format!("{:?}", document.dwg_template).hash(&mut hasher);
+    format!("{:?}", document.dwg_file_dep_list).hash(&mut hasher);
+    format!("{:?}", document.dwg_rev_history).hash(&mut hasher);
     hasher.finish()
-}
-
-/// §19 H8e: the document's object universe — every handle the object
-/// writer's walk can emit: the entities, the objects map, and the ten
-/// tables' control + record handles. The objects-echo identity gate
-/// hashes this set on both sides (read-time capture post-build,
-/// write-time gate), so emission-side drops (orphan records the
-/// ownership walk never reaches) do not falsely decline an unedited
-/// document the way the emission-vs-source-map comparison did.
-pub(crate) fn document_object_handles(document: &crate::document::CadDocument) -> Vec<u64> {
-    let mut handles =
-        Vec::with_capacity(document.entities.len() + document.objects.len() + 64);
-    for entity in &document.entities {
-        handles.push(entity.common().handle.value());
-    }
-    for handle in document.objects.keys() {
-        handles.push(handle.value());
-    }
-    macro_rules! table_handles {
-        ($table:expr) => {{
-            handles.push($table.handle().value());
-            for record in $table.iter() {
-                handles.push(record.handle.value());
-            }
-        }};
-    }
-    table_handles!(document.layers);
-    table_handles!(document.line_types);
-    table_handles!(document.text_styles);
-    table_handles!(document.block_records);
-    table_handles!(document.dim_styles);
-    table_handles!(document.app_ids);
-    table_handles!(document.views);
-    table_handles!(document.vports);
-    table_handles!(document.ucss);
-    table_handles!(document.vx_table);
-    handles
 }
 
 /// §19 H7 CLASSES row: the state hash guarding the verbatim classes

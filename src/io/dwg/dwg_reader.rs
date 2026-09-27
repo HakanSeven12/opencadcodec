@@ -1726,20 +1726,16 @@ impl<R: Read + Seek> DwgReader<R> {
                          document.raw_acdb_objects_handles =
                              Some(std::sync::Arc::new(her_handles));
                      }
-                     // §19 H8e-2/H8f: her whole on-disk file (the header
-                     // blocks with their unknown-region bytes, her page
-                     // walk or flat section layout exactly as it sits)
-                     // for the compressed-page echo — the AC21 page
-                     // system and the R2000 flat container alike (the
-                     // write gates decide per format). A failed read just
-                     // leaves the echo unarmed.
-                     if info.ac21_metadata.is_some()
-                        || matches!(
-                            dxf_version,
-                            crate::types::DxfVersion::AC1012
-                                | crate::types::DxfVersion::AC1014
-                                | crate::types::DxfVersion::AC1015
-                        ) {
+                     // §19 H8e-2/H8f/H8g: her whole on-disk file (the
+                     // header blocks with their unknown-region bytes,
+                     // her page walk or flat section layout exactly
+                     // as it sits) for the whole-file echo — every
+                     // container family (the AC21 page system, the
+                     // AC18-family paged containers, the R2000 flat
+                     // container); the per-format write gates decide
+                     // engagement. A failed read just leaves the echo
+                     // unarmed.
+                     {
                          let saved = self.stream.seek(std::io::SeekFrom::Current(0)).ok();
                          if let Some(saved) = saved {
                              let probed = self
@@ -1782,28 +1778,6 @@ impl<R: Read + Seek> DwgReader<R> {
                             Some(visit) => builder.build_with_visitor_stats(&mut document, visit),
                             None => builder.build_with_stats(&mut document),
                         };
-                        // §19 H8e/H8f: the identity capture runs POST-BUILD,
-                        // over the document's object universe (entities +
-                        // objects + the tables' control/record handles) —
-                        // not the source's handles map. Reader-skipped
-                        // orphans (the author's edit-history residue —
-                        // e.g. the ACIS-solids files' single orphan,
-                        // ATMOS's 84) are outside the universe on both
-                        // sides, so an unedited document engages. Captured
-                        // for both echo-capable container families (the
-                        // AC21 page system and the R2000 flat container).
-                        if info.ac21_metadata.is_some()
-                        || matches!(
-                            dxf_version,
-                            crate::types::DxfVersion::AC1012
-                                | crate::types::DxfVersion::AC1014
-                                | crate::types::DxfVersion::AC1015
-                        ) {
-                            document.raw_acdb_objects_fingerprint =
-                                super::objects_handle_set_fingerprint(
-                                    super::document_object_handles(&document).into_iter(),
-                                );
-                        }
                         decoded_source_records = build_outcome.decoded_records;
                         skipped_source_records = build_outcome.skipped_records;
                         diagnostics.extend(build_outcome.diagnostics);
@@ -2134,6 +2108,14 @@ impl<R: Read + Seek> DwgReader<R> {
         // gate recomputes it and falls back to the sane encoding when
         // the class table or any class's census changed.
         document.raw_classes_fingerprint = super::classes_state_fingerprint(&document);
+
+        // §19 H8g: the document-state hash guarding every whole-file
+        // echo — captured at the END of the read (after every section
+        // has loaded: the objects, the metadata models, the preview),
+        // so the write gates compare the full state. Any edit between
+        // read and write — including in-place field edits the
+        // handle-set fingerprints cannot see — declines the echo.
+        document.dwg_state_fingerprint = super::document_state_fingerprint(&document);
 
         // Transfer reader notifications to the document so callers can
         // inspect them via `document.notifications`.

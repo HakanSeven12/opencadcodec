@@ -2948,17 +2948,18 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acdb_objects_handles: Option<Arc<Vec<(u64, i64)>>>,
 
-    /// The read-time identity hash guarding the objects echo above (the
-    /// classes-verbatim fingerprint doctrine): the hash of the
-    /// document's object universe — entities + objects + the tables'
-    /// control/record handles (`io::dwg::document_object_handles`) —
-    /// captured POST-BUILD at read time. The echo engages only when the
-    /// same universe hashes equal at the write gate: adds, deletes and
-    /// renumberings fall back to our own emission. Reader-skipped
-    /// orphans (handles in the source map the builder never
-    /// materialized) are outside the universe on both sides.
+    /// The read-time document-state hash guarding every whole-file
+    /// echo (§19 H8g — the objects-stream echo, the AC21
+    /// compressed-page echo, the R2000 and AC18-family whole-file
+    /// echoes): `io::dwg::document_state_fingerprint` — the sorted
+    /// per-part hash of the semantic inventory's visit plus the table
+    /// control handles and the retained metadata models — captured at
+    /// the END of the read (after every section has loaded). The echo
+    /// arms engage only when the same hash holds at the write gate:
+    /// ANY edit, including in-place field edits (the issue-80 layer
+    /// rename), falls back to our own emission.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) raw_acdb_objects_fingerprint: u64,
+    pub(crate) dwg_state_fingerprint: u64,
 
     /// §19 H8e-2: the author's whole on-disk file — her bytes from 0
     /// to EOF as one blob: the 0x80 metadata block (identity bytes +
@@ -3193,7 +3194,7 @@ impl CadDocument {
             raw_xref_manifest_data: None,
             raw_acdb_objects_data: None,
             raw_acdb_objects_handles: None,
-            raw_acdb_objects_fingerprint: 0,
+            dwg_state_fingerprint: 0,
             raw_ac21_tail: None,
             dwg_data_store_handles: HashSet::new(),
             dimstyle_morehandles: Vec::new(),

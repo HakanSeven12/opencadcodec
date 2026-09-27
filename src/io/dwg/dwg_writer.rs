@@ -61,6 +61,46 @@ impl DwgWriter {
 
     /// Write a DWG file to any `Write + Seek` output.
     pub fn write_to_writer<W: Write + Seek>(mut output: W, document: &CadDocument) -> Result<()> {
+        // ── §19 H8g: the whole-file echo — every container family ──
+        // The H8e-2/H8f/H8g doctrine unified: when the document came
+        // from a same-version DWG read, her whole on-disk file is
+        // retained, and the document-state hash holds (§19 H8g: the
+        // full semantic content, so ANY edit — including in-place
+        // field edits — declines), the rewrite re-emits her bytes
+        // verbatim. The gate runs BEFORE the prepare pipeline (the
+        // writer's own fixups — table-key resync, database-reference
+        // repair, surface-class preparation — are not user edits) and
+        // before any emission work. Edited documents and conversions
+        // never reach this arm; the mirrored and conventional paths
+        // stay for every other case, and the read axis (0/0
+        // corpus-wide) independently verifies the model the echo
+        // bypasses.
+        // The pre-prepare state verdict (computed once): the AC21
+        // objects echo and the whole-file echo below both consume it —
+        // the impls run after the prepare pipeline, which may repair
+        // the document, and those repairs are not user edits.
+        let state_matches = document.dwg_state_fingerprint != 0
+            && super::document_state_fingerprint(document)
+                == document.dwg_state_fingerprint;
+        if document.dwg_source_version == Some(document.version) {
+            if let Some(tail) = document.raw_ac21_tail.as_deref() {
+                if state_matches {
+                    if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+                        eprintln!(
+                            "[dwg-echo] full echo ENGAGED — her file {} bytes",
+                            tail.len()
+                        );
+                    }
+                    output.seek(std::io::SeekFrom::Start(0))?;
+                    output.write_all(tail)?;
+                    output.seek(std::io::SeekFrom::End(0))?;
+                    return Ok(());
+                }
+                if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+                    eprintln!("[dwg-echo] full echo DECLINED — document state changed");
+                }
+            }
+        }
         let mut prepared = crate::io::loft_parameters::prepared(document);
         prepare_surface_classes(&mut prepared);
         prepare_database_references(&mut prepared);
@@ -154,7 +194,7 @@ impl DwgWriter {
         };
 
         let result = if uses_ac21_format(version) {
-            write_ac21(&mut output, document, version)
+            write_ac21(&mut output, document, version, state_matches)
         } else if uses_paged_format(version) {
             write_ac18(&mut output, document, version)
         } else {
@@ -193,7 +233,7 @@ impl DwgWriter {
         prepare_surface_classes(&mut prepared);
         prepare_database_references(&mut prepared);
         prepare_table_keys(&mut prepared);
-        write_ac21_impl(&mut output, prepared.as_ref(), document.version, true)
+        write_ac21_impl(&mut output, prepared.as_ref(), document.version, true, false)
     }
 
     /// Write a DWG file to a byte vector (useful for testing).
@@ -1078,42 +1118,11 @@ fn write_ac15<W: Write + Seek>(
         }
     }
 
-    // ── §19 H8f: the R2000 whole-file echo — the H8e-2 doctrine on
-    // the flat container ──
-    // The R2000 pair's anatomy (the corpus autopsy): the thumbnail and
-    // summaryinfo addresses (her preview sits early in her flat layout;
-    // our conventional emission lands it late) and the preview bytes'
-    // embedded offsets — her editor's section placement is her
-    // incremental-save allocation history, unmodelable by rule, and the
-    // mirror's own doctrine for unmodelable authored state is echo.
-    // When the document's identity holds on BOTH gates (the object
-    // universe AND the classes fingerprint) and her whole on-disk file
-    // is retained, the rewrite re-emits her bytes verbatim — the
-    // flat-container twin of the AC21 compressed-page echo. Edited
-    // documents and conversions never reach this arm.
-    if document.dwg_source_version == Some(version) {
-        let identity_holds = document.raw_ac21_tail.is_some()
-            && super::objects_handle_set_fingerprint(
-                super::document_object_handles(document).into_iter(),
-            ) == document.raw_acdb_objects_fingerprint
-            && super::classes_state_fingerprint(document)
-                == document.raw_classes_fingerprint;
-        if let (true, Some(tail)) = (identity_holds, document.raw_ac21_tail.as_deref()) {
-            if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
-                eprintln!(
-                    "[r2000-echo] full echo ENGAGED — her file {} bytes",
-                    tail.len()
-                );
-            }
-            output.seek(std::io::SeekFrom::Start(0))?;
-            output.write_all(tail)?;
-            output.seek(std::io::SeekFrom::End(0))?;
-            return Ok(());
-        }
-        if std::env::var_os("AC21_MIRROR_DEBUG").is_some() && document.raw_ac21_tail.is_some() {
-            eprintln!("[r2000-echo] full echo DECLINED — document identity changed");
-        }
-    }
+    // §19 H8f's whole-file echo is HOISTED to `write_to_writer` (it
+    // fires before the prepare pipeline on the pre-prepare state
+    // verdict); reaching here means it did not engage — the
+    // conventional flat-container emission below serves every other
+    // case.
 
     // ── Phase 1: Compute objects FIRST to get handle map ──
     let objects_started = web_time::Instant::now();
@@ -1216,6 +1225,12 @@ fn write_ac18<W: Write + Seek>(
     document: &CadDocument,
     version: DxfVersion,
 ) -> Result<()> {
+    // §19 H8g's whole-file echo is HOISTED to `write_to_writer` (it
+    // fires before the prepare pipeline on the pre-prepare state
+    // verdict — the maintainer's AC18 decision, 2026-09-27); reaching
+    // here means it did not engage — the H7g mirror and the
+    // conventional paged emission below serve every other case.
+
     // The maintenance-release version must match the value the AuxHeader
     // writes AND the file-header metadata byte, because readers gate the
     // R2010+ per-section "extra RL" (which locates the header/classes string
@@ -1902,8 +1917,9 @@ fn write_ac21<W: Write + Seek>(
     output: &mut W,
     document: &CadDocument,
     version: DxfVersion,
+    state_matches: bool,
 ) -> Result<()> {
-    write_ac21_impl(output, document, version, false)
+    write_ac21_impl(output, document, version, false, state_matches)
 }
 
 fn write_ac21_impl<W: Write + Seek>(
@@ -1911,6 +1927,7 @@ fn write_ac21_impl<W: Write + Seek>(
     document: &CadDocument,
     version: DxfVersion,
     skip_lz77: bool,
+    state_matches: bool,
 ) -> Result<()> {
     // AC21 writer reserves 0x480 bytes at file start (0x80 metadata + 0x400 file header)
     let mut fhw = DwgFileHeaderWriterAC21::new(version, output)?;
@@ -2105,11 +2122,7 @@ fn write_ac21_impl<W: Write + Seek>(
         document.raw_acdb_objects_data.as_deref(),
         document.raw_acdb_objects_handles.as_deref(),
     ) {
-        (Some(her_raw), Some(her_handles))
-            if super::objects_handle_set_fingerprint(
-                super::document_object_handles(document).into_iter(),
-            ) == document.raw_acdb_objects_fingerprint =>
-        {
+        (Some(her_raw), Some(her_handles)) if state_matches => {
             let her_handles_data = handle_writer::write_handles(her_handles, 0);
             if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
                 eprintln!(
@@ -2124,37 +2137,12 @@ fn write_ac21_impl<W: Write + Seek>(
             if std::env::var_os("AC21_MIRROR_DEBUG").is_some()
                 && document.raw_acdb_objects_data.is_some()
             {
+                // §19 H8g: the state-hash gate — the decline means the
+                // document changed between read and write (any edit,
+                // including in-place field edits).
                 eprintln!(
-                    "[ac21-mirror] objects echo DECLINED — document object identity changed"
+                    "[ac21-mirror] objects echo DECLINED — document state changed"
                 );
-                // §19 H8e: the autopsy trace — the document universe vs
-                // her handles map (the emission-side drops show up here
-                // as missing; orphans are expected on the solids files).
-                if let Some(her_handles) = document.raw_acdb_objects_handles.as_deref() {
-                    let universe: std::collections::HashSet<u64> =
-                        super::document_object_handles(document).into_iter().collect();
-                    let ours: std::collections::HashSet<u64> =
-                        handle_map_u32.iter().map(|&(h, _)| h).collect();
-                    let hers: std::collections::HashSet<u64> =
-                        her_handles.iter().map(|&(h, _)| h).collect();
-                    let mut missing: Vec<u64> = hers.difference(&universe).copied().collect();
-                    let mut extra: Vec<u64> =
-                        universe.difference(&hers).copied().collect();
-                    let mut dropped: Vec<u64> = universe.difference(&ours).copied().collect();
-                    missing.sort_unstable();
-                    extra.sort_unstable();
-                    dropped.sort_unstable();
-                    eprintln!(
-                        "[ac21-mirror] universe {} — her-map-only (orphans) {} {:02X?}, universe-extra {} {:02X?}, emission-dropped {} {:02X?}",
-                        universe.len(),
-                        missing.len(),
-                        &missing[..missing.len().min(10)],
-                        extra.len(),
-                        &extra[..extra.len().min(10)],
-                        dropped.len(),
-                        &dropped[..dropped.len().min(10)],
-                    );
-                }
             }
             None
         }
@@ -2163,67 +2151,12 @@ fn write_ac21_impl<W: Write + Seek>(
         Some((raw, her_handles_data)) => (&raw[..], &her_handles_data[..]),
         None => (&obj_data[..], &handles_data[..]),
     };
-    // §19 H8e-2: the compressed-page echo — when the document's
-    // identity holds on BOTH gates (the object universe AND the
-    // classes fingerprint) and her on-disk file is retained, the
-    // whole file re-emits her bytes verbatim: the H8c refutation
-    // proved our encoder never reproduces her compressed output (we
-    // beat it), so the map crc/size family is unreachable by
-    // derivation — echo is the mirror's own doctrine for unmodelable
-    // authored state, here applied to her encoder's exact page bytes
-    // (data pages, system pages, the 0x400 header page with her
-    // check-data draws, the header2 copy, the 0x80 block with its
-    // unknown-region bytes). The writer's derivations stay live as
-    // the debug oracle below. Edited documents and conversions never
-    // reach this arm.
-    let full_echo_tail: Option<&[u8]> = match (
-        document.raw_ac21_tail.as_deref(),
-        objects_echo.is_some(),
-        same_origin,
-    ) {
-        (Some(tail), true, true)
-            if super::classes_state_fingerprint(document)
-                == document.raw_classes_fingerprint =>
-        {
-            if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
-                eprintln!(
-                    "[ac21-mirror] full echo ENGAGED — her tail {} bytes",
-                    tail.len()
-                );
-            }
-            Some(&tail[..])
-        }
-        _ => {
-            if std::env::var_os("AC21_MIRROR_DEBUG").is_some()
-                && document.raw_ac21_tail.is_some()
-                && same_origin
-            {
-                eprintln!("[ac21-mirror] full echo DECLINED — classes identity changed");
-            }
-            None
-        }
-    };
-    if let (Some(tail), Some(shape)) = (full_echo_tail, document.dwg_ac21_shape.as_ref()) {
-        fhw.write_full_echo(output, shape, tail)?;
-        // The §19 H8b debug oracle, unchanged: the derived 0x80-block
-        // addresses must equal the retained author values (her layout
-        // is the echo's own, so they land naturally).
-        if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
-            if let Some(fh) = document.dwg_file_header.as_ref() {
-                eprintln!(
-                    "[ac21-mirror] 0x80 addresses — summaryinfo derived {} retained {}",
-                    fhw.section_page_address(section_names::SUMMARY_INFO),
-                    fh.summaryinfo_address
-                );
-                eprintln!(
-                    "[ac21-mirror] 0x80 addresses — thumbnail derived {} retained {}",
-                    fhw.section_page_address(section_names::PREVIEW),
-                    fh.thumbnail_address
-                );
-            }
-        }
-        return Ok(());
-    }
+    // §19 H8e-2's full-file echo is HOISTED to `write_to_writer` (it
+    // fires before the prepare pipeline, on the pre-prepare state
+    // verdict); reaching here means it did not engage — the mirror
+    // fit-gate path below serves the files the whole-file echo
+    // cannot (a missing tail retention, or a same-origin document
+    // whose state still holds but whose tail is absent).
     let mirror_plan = match (
         document.dwg_ac21_shape.as_ref(),
         document.dwg_r2007_header.as_ref(),
