@@ -891,6 +891,29 @@ pub enum AssocSubcurveKind {
     Curve3d,
 }
 
+/// The ACDBASSOCEDGEACTIONPARAM subcurve geometry (§19 H8h-ext-4).
+///
+/// Undocumented in gold (its `CALL_SUBCURVE` spec macro is an empty TODO
+/// stub) and in the ODA PDF; reverse-engineered from the seven corpus
+/// specimens (all action_type 11 = ARC, the ExtrudeCSurf/ExtrudeM/
+/// RevolveM/LoftCSurf/LoftM fixtures): the region after `action_type` is
+/// exactly twelve BDs — center, normal, x-axis (three 3BD each), radius,
+/// start angle, end angle — each in the standard BD forms (0.0/1.0 as the
+/// 2-bit shorts, other values as the full 66-bit LE double). The
+/// specimens' centers and radii match their source CIRCLE entities
+/// exactly; all seven are full circles (start 0.0, end 2π) in the XY
+/// plane (normal (0,0,1), x-axis (1,0,0)).
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocArcSubcurve {
+    pub center: Vector3,
+    pub normal: Vector3,
+    pub x_axis: Vector3,
+    pub radius: f64,
+    pub start_angle: f64,
+    pub end_angle: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssocEdgeActionParam {
@@ -899,6 +922,12 @@ pub struct AssocEdgeActionParam {
     pub has_action: bool,
     pub action_type: i32,
     pub subcurve_kind: AssocSubcurveKind,
+    /// The subcurve geometry; populated by the DWG reader for the
+    /// attested ARC form (action_type 11), `None` otherwise and for
+    /// DXF-built documents (the writer then emits no subcurve region,
+    /// matching the pre-H8h-ext-4 emission).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve: Option<AssocArcSubcurve>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

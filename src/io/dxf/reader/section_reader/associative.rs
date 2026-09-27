@@ -1246,6 +1246,10 @@ impl<'a> SectionReader<'a> {
                     parameter: record.handle("AcDbAssocEdgeActionParam", 330, 0),
                     has_action: record.bool("AcDbAssocEdgeActionParam", 290, 0),
                     action_type,
+                    // §19 H8h-ext-4: the subcurve region is DWG-wire-only
+                    // state (reverse-engineered from the AC1021 specimens);
+                    // DXF documents carry no subcurve payload.
+                    subcurve: None,
                     subcurve_kind: match action_type {
                         11 => AssocSubcurveKind::Arc,
                         17 => AssocSubcurveKind::Ellipse,

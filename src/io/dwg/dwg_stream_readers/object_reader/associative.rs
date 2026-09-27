@@ -800,12 +800,32 @@ pub fn read_associative_data(
                 27 => AssocSubcurveKind::Curve3d,
                 _ => AssocSubcurveKind::None,
             };
+            // §19 H8h-ext-4: the subcurve geometry region after
+            // action_type — twelve BDs for the attested ARC form
+            // (center/normal/x-axis 3BDs, radius, start/end angles),
+            // reverse-engineered from the corpus specimens (see
+            // AssocArcSubcurve). Other action types have no corpus
+            // specimen; their region stays unread (the writer emits no
+            // subcurve for them, as before).
+            let subcurve = if action_type == 11 {
+                Some(AssocArcSubcurve {
+                    center: reader.read_3bit_double(),
+                    normal: reader.read_3bit_double(),
+                    x_axis: reader.read_3bit_double(),
+                    radius: reader.read_bit_double(),
+                    start_angle: reader.read_bit_double(),
+                    end_angle: reader.read_bit_double(),
+                })
+            } else {
+                None
+            };
             AssociativeData::EdgeActionParam(AssocEdgeActionParam {
                 single_dependency,
                 parameter,
                 has_action,
                 action_type,
                 subcurve_kind,
+                subcurve,
             })
         }
         "ASSOC2DCONSTRAINTGROUP" => {

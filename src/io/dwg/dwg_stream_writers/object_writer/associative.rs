@@ -489,9 +489,26 @@ impl<'a> DwgObjectWriter<'a> {
             }
             AssociativeData::EdgeActionParam(value) => {
                 self.write_assoc_single_dependency(&value.single_dependency);
-                self.write_assoc_handle(DwgReferenceType::HardOwnership, value.parameter);
+                // §19 H8h-ext-4: the author codes the param ref 4
+                // (SoftPointer) — the specimens' null params are (4.0.0)
+                // on her wire (gold's spec block declares 3, but the wire
+                // evidence is uniform across all seven records).
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, value.parameter);
                 self.writer.write_bit(value.has_action);
                 self.writer.write_bit_long(value.action_type);
+                // §19 H8h-ext-4: the subcurve geometry region — twelve BDs
+                // in the specimen-attested order (center, normal, x-axis,
+                // radius, start/end angles). Emitted only when the reader
+                // captured one (the attested ARC form); DXF-built records
+                // keep the pre-H8h-ext-4 emission.
+                if let Some(subcurve) = &value.subcurve {
+                    self.writer.write_3bit_double(subcurve.center);
+                    self.writer.write_3bit_double(subcurve.normal);
+                    self.writer.write_3bit_double(subcurve.x_axis);
+                    self.writer.write_bit_double(subcurve.radius);
+                    self.writer.write_bit_double(subcurve.start_angle);
+                    self.writer.write_bit_double(subcurve.end_angle);
+                }
             }
             AssociativeData::ConstraintGroup(value) => {
                 self.write_assoc_action(&value.action);
