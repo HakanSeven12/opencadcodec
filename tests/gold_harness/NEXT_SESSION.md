@@ -178,12 +178,17 @@ instrument, current-writer measurements):**
 EXACTLY (4:88, 8:38, 12:75, 10:5); **206/211 records
 BYTE-IDENTICAL** (from 6); stream totals IDENTICAL (199,139);
 smokes 0/0 (circle, example_2007, Box_2007). Remaining record
-rows — 5, all internals identical (bitsize/Hdlsize/string
-stream), divergences bit-level in 2 regions: obj 69 STYLE +
-obj 74 DIMSTYLE at +7 (the head: type/RL/handle region); obj 26
-+ 29 + 33 LAYOUTs at +225/+93/+93 (the handle-stream tail) —
-§8.1.6 autopsies (dump_section_bytes at the trace addresses)
-name the culprit fields.
+rows — 5, AUTOPSIED (the α-era dumps, byte-8 windows at the
+divergence): **the three LAYOUTs share ONE single-bit delta**
+(bit 2 of a handles-tail byte: her `0x94`/`0x14` vs our
+`0x90`/`0x10` at +227/+93/+93 — one common handle-form field,
+likely one fix for all three); **obj 69 STYLE + obj 74
+DIMSTYLE diverge beyond the head** (+7: her `0x12`/`0x52` vs
+our `0x11`/`0x50`, and the following 8-16 bytes differ broadly
+with IDENTICAL bitsize/positions — same-length different-form
+field patterns in the head/EED/name region: a spec-ordered
+field walk (the §8.1.6 recipe, bits.c semantics) names them;
+expect one or two form rules).
 
 **The corpus measured the α slice: R2007_Header 925→927 (+2,
 the coincidence-row mechanism — the 0xF_ lesson); read 0/0
