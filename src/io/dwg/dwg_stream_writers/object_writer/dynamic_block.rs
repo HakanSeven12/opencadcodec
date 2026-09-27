@@ -652,7 +652,7 @@ impl<'a> DwgObjectWriter<'a> {
                     self.writer.write_bit_long(node.edge_flags);
                     self.writer.write_bit_long(node.next_id);
                     self.writer
-                        .write_handle(DwgReferenceType::HardPointer, node.expression.value());
+                        .write_handle(DwgReferenceType::HardOwnership, node.expression.value());
                     for item in node.node_data {
                         self.writer.write_bit_long(item);
                     }
@@ -701,5 +701,35 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
         self.register_object(object.handle);
+    }
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::*;
+    use crate::{CadDocument, objects::{BlockEvaluationGraph, BlockEvaluationNode}, types::{DxfVersion, Handle}};
+    use crate::io::dwg::dwg_stream_readers::bit_reader::DwgBitReader;
+
+    #[test]
+    fn evaluation_graph_owns_its_expression_in_the_handle_stream() {
+        let doc = CadDocument::with_version(DxfVersion::AC1032);
+        let mut object = DynamicBlockObject::new("ACAD_EVALUATION_GRAPH", "AcDbEvalGraph");
+        object.handle = Handle::new(0x100);
+        object.owner = Handle::new(0x50);
+        object.data = DynamicBlockData::EvaluationGraph(BlockEvaluationGraph {
+            nodes: vec![BlockEvaluationNode { expression: Handle::new(0x1234), ..Default::default() }],
+            ..Default::default()
+        });
+        let mut writer = DwgObjectWriter::new(&doc).unwrap();
+        writer.write_dynamic_block(&object);
+        let offset = writer.handle_map.iter().find(|(h,_)| *h == 0x100).unwrap().1 as usize;
+        let mut reader = DwgBitReader::new(writer.output[offset..].to_vec(), writer.version, writer.dxf_version);
+        let bytes = reader.read_modular_short() as i64;
+        let handle_bits = reader.read_modular_char() as i64;
+        reader.set_position_in_bits(reader.position_in_bits() + bytes * 8 - handle_bits);
+        let mut kind = DwgReferenceType::Undefined;
+        assert_eq!(reader.read_handle_reference(0x100, &mut kind), 0x50);
+        assert_eq!(reader.read_handle_reference(0x100, &mut kind), 0x1234);
+        assert_eq!(kind, DwgReferenceType::HardOwnership);
     }
 }
