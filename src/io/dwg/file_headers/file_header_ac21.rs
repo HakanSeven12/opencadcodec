@@ -2205,6 +2205,90 @@ impl DwgFileHeaderWriterAC21 {
         Ok(())
     }
 
+    /// §19 H8e-2: the compressed-page echo — the author's on-disk
+    /// file re-emitted verbatim: the retained whole-file blob (her
+    /// 0x80 metadata block with its unknown-region bytes, the 0x400
+    /// file-header page with her check data and MT-derive draws,
+    /// every page of her map walk — data, system, gaps alike — at
+    /// her exact slot sizes with her RS coding, and her trailing
+    /// header2 copy) is written as one blob from offset 0. The
+    /// writer's own derivations stay live as the debug oracle (the
+    /// fhw state populated below drives the derived-vs-retained
+    /// address assertion at the call site). The combined identity
+    /// gate at the call site guards the echo; the mirrored and
+    /// conventional paths stay for every other case.
+    pub(crate) fn write_full_echo<W: Write + Seek>(
+        &mut self,
+        output: &mut W,
+        shape: &DwgAc21ContainerShape,
+        tail: &[u8],
+    ) -> Result<(), DxfError> {
+        // Her walk → the page records (running offsets from 0x480)
+        // and her named sections (the 0x80-block address derivation
+        // the debug oracle asserts). The section page records carry
+        // her declared frame fields; the encode-derived fields
+        // (comp/uncomp/checksum/crc) stay 0 — nothing consumes them
+        // on this path (the sections map is her bytes, in the tail).
+        let mut offset = RESERVED_HEADER_SIZE as u64;
+        for entry in &shape.map_order {
+            let slot = u64::try_from(entry.on_disk_size).map_err(|_| {
+                DxfError::InvalidFormat("negative slot in her map walk".into())
+            })?;
+            self.page_records.push(AC21PageRecord {
+                id: entry.id,
+                size: entry.on_disk_size,
+                offset,
+            });
+            offset = offset
+                .checked_add(slot)
+                .ok_or_else(|| DxfError::InvalidFormat("her map walk overflows".into()))?;
+        }
+        self.sections = shape
+            .sections
+            .iter()
+            .filter(|section| !section.name.is_empty() && !section.pages.is_empty())
+            .map(|section| AC21SectionInfo {
+                name: section.name.clone(),
+                hash_code: 0,
+                encoding: section.encoding,
+                encryption: 0,
+                max_page_size: 0,
+                data_size: section.data_size,
+                pages: section
+                    .pages
+                    .iter()
+                    .map(|page| AC21SectionPageRecord {
+                        data_offset: page.offset,
+                        page_size: page.size as u64,
+                        page_id: page.id,
+                        uncompressed_size: 0,
+                        compressed_size: 0,
+                        checksum: 0,
+                        crc: 0,
+                    })
+                    .collect(),
+            })
+            .collect();
+        self.next_page_id = shape.map_order.iter().map(|entry| entry.id).max().unwrap_or(0) + 1;
+
+        // The blob must cover her header blocks plus the whole walk
+        // (the header2 copy rides after it).
+        let minimum = offset + FILE_HEADER_PAGE_SIZE as u64;
+        if (tail.len() as u64) < minimum {
+            return Err(DxfError::InvalidFormat(format!(
+                "her file blob {} does not cover her walk {}",
+                tail.len(),
+                minimum
+            )));
+        }
+
+        // Her file, verbatim, from offset 0.
+        output.seek(SeekFrom::Start(0))?;
+        output.write_all(tail)?;
+        output.seek(SeekFrom::End(0))?;
+        Ok(())
+    }
+
     /// The derived 0x80-block address of a named section's first page
     /// (the §19 H8b debug assertion oracle — the mirrored layout
     /// lands the author's retained addresses naturally).

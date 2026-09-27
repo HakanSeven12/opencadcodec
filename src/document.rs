@@ -2960,6 +2960,25 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acdb_objects_fingerprint: u64,
 
+    /// §19 H8e-2: the author's whole on-disk file — her bytes from 0
+    /// to EOF as one blob: the 0x80 metadata block (identity bytes +
+    /// addresses + her unknown-region tail), the 0x400 file-header
+    /// page with her check data and MT-derive draws, every page of her
+    /// map walk (data pages, system pages, gap entries alike, each
+    /// exactly as it sits in the file, RS coding included) and her
+    /// trailing header2 copy. The compressed-page echo re-emits this
+    /// verbatim when the combined identity gate holds (the document
+    /// universe + the classes fingerprint — the same doctrine as the
+    /// objects echo, extended to the whole container: her encoder's
+    /// exact output is unmodelable by rule, the H8c refutation), so a
+    /// same-version roundtrip of an unedited document reproduces her
+    /// file byte-for-byte. Edited documents and conversions never take
+    /// this path (the gates fall back to the mirrored or conventional
+    /// emission); the writer's own derivations stay live as the
+    /// AC21_MIRROR_DEBUG oracle at the echo call site.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_ac21_tail: Option<Arc<Vec<u8>>>,
+
     /// Non-entity objects whose source record points into the AcDs data store.
     /// Retained for same-version saves together with the original section.
     /// Serialized (as a plain handle list) like the other DWG round-trip
@@ -3175,6 +3194,7 @@ impl CadDocument {
             raw_acdb_objects_data: None,
             raw_acdb_objects_handles: None,
             raw_acdb_objects_fingerprint: 0,
+            raw_ac21_tail: None,
             dwg_data_store_handles: HashSet::new(),
             dimstyle_morehandles: Vec::new(),
             section_view_style: None,

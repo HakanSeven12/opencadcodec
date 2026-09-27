@@ -225,6 +225,7 @@ impl<'a> SemanticInventoryV1<'a> {
             raw_acdb_objects_data: _,
             raw_acdb_objects_handles: _,
             raw_acdb_objects_fingerprint: _,
+            raw_ac21_tail: _,
             dwg_data_store_handles: _,
             dimstyle_morehandles: _,
             section_view_style: _,

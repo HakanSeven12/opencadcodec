@@ -1727,6 +1727,36 @@ impl<R: Read + Seek> DwgReader<R> {
                         her_handles.sort_by_key(|&(h, _)| h);
                         document.raw_acdb_objects_handles =
                             Some(std::sync::Arc::new(her_handles));
+                        // §19 H8e-2: her whole on-disk file (the 0x80
+                        // metadata block with her unknown-region bytes,
+                        // the 0x400 file-header page, her entire page
+                        // walk with the RS coding as it sits, the
+                        // header2 copy) for the compressed-page echo.
+                        // A failed read just leaves the echo unarmed.
+                        let saved = self.stream.seek(std::io::SeekFrom::Current(0)).ok();
+                        if let Some(saved) = saved {
+                            let probed = self
+                                .stream
+                                .seek(std::io::SeekFrom::End(0))
+                                .ok()
+                                .and_then(|len| {
+                                    if len > 0x80 {
+                                        self.stream
+                                            .seek(std::io::SeekFrom::Start(0))
+                                            .ok()
+                                            .map(|_| len)
+                                    } else {
+                                        None
+                                    }
+                                });
+                            if let Some(len) = probed {
+                                let mut tail = vec![0u8; len as usize];
+                                if self.stream.read_exact(&mut tail).is_ok() {
+                                    document.raw_ac21_tail = Some(std::sync::Arc::new(tail));
+                                }
+                            }
+                            let _ = self.stream.seek(std::io::SeekFrom::Start(saved));
+                        }
                     }
                     match crate::io::dwg::dwg_stream_readers::object_reader::DwgObjectReader::with_encoding(
                     objects_buf,

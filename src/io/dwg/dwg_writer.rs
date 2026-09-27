@@ -2126,6 +2126,67 @@ fn write_ac21_impl<W: Write + Seek>(
         Some((raw, her_handles_data)) => (&raw[..], &her_handles_data[..]),
         None => (&obj_data[..], &handles_data[..]),
     };
+    // §19 H8e-2: the compressed-page echo — when the document's
+    // identity holds on BOTH gates (the object universe AND the
+    // classes fingerprint) and her on-disk file is retained, the
+    // whole file re-emits her bytes verbatim: the H8c refutation
+    // proved our encoder never reproduces her compressed output (we
+    // beat it), so the map crc/size family is unreachable by
+    // derivation — echo is the mirror's own doctrine for unmodelable
+    // authored state, here applied to her encoder's exact page bytes
+    // (data pages, system pages, the 0x400 header page with her
+    // check-data draws, the header2 copy, the 0x80 block with its
+    // unknown-region bytes). The writer's derivations stay live as
+    // the debug oracle below. Edited documents and conversions never
+    // reach this arm.
+    let full_echo_tail: Option<&[u8]> = match (
+        document.raw_ac21_tail.as_deref(),
+        objects_echo.is_some(),
+        same_origin,
+    ) {
+        (Some(tail), true, true)
+            if super::classes_state_fingerprint(document)
+                == document.raw_classes_fingerprint =>
+        {
+            if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+                eprintln!(
+                    "[ac21-mirror] full echo ENGAGED — her tail {} bytes",
+                    tail.len()
+                );
+            }
+            Some(&tail[..])
+        }
+        _ => {
+            if std::env::var_os("AC21_MIRROR_DEBUG").is_some()
+                && document.raw_ac21_tail.is_some()
+                && same_origin
+            {
+                eprintln!("[ac21-mirror] full echo DECLINED — classes identity changed");
+            }
+            None
+        }
+    };
+    if let (Some(tail), Some(shape)) = (full_echo_tail, document.dwg_ac21_shape.as_ref()) {
+        fhw.write_full_echo(output, shape, tail)?;
+        // The §19 H8b debug oracle, unchanged: the derived 0x80-block
+        // addresses must equal the retained author values (her layout
+        // is the echo's own, so they land naturally).
+        if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+            if let Some(fh) = document.dwg_file_header.as_ref() {
+                eprintln!(
+                    "[ac21-mirror] 0x80 addresses — summaryinfo derived {} retained {}",
+                    fhw.section_page_address(section_names::SUMMARY_INFO),
+                    fh.summaryinfo_address
+                );
+                eprintln!(
+                    "[ac21-mirror] 0x80 addresses — thumbnail derived {} retained {}",
+                    fhw.section_page_address(section_names::PREVIEW),
+                    fh.thumbnail_address
+                );
+            }
+        }
+        return Ok(());
+    }
     let mirror_plan = match (
         document.dwg_ac21_shape.as_ref(),
         document.dwg_r2007_header.as_ref(),
