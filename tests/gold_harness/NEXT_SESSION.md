@@ -125,90 +125,100 @@ the prior halt's 0xF-misuse fix stands).
   on-disk streams remain the only author-encoder ground truth (the
   instrument above is the extraction path).
 
-## H8d — the next packet: the objects-stream parity (MEASURED, refined this session)
+## H8d — the next packet: the objects-stream parity (α slice VERIFIED this session)
 
 The layer-4 doctrine applied to AC1021: make our rewritten
-`AcDb:AcDbObjects` stream byte-identical to hers. **The session's
-measurement cycle (circle.dwg: `dwgread -v9` traces her file vs
-our HEAD rewrite + fresh raw-stream dumps via the instrument)
-refined the worklist — correcting two earlier wrong theories:**
+`AcDb:AcDbObjects` stream byte-identical to hers. The α slice
+(record-level form parity) was implemented, measured, and is
+FULLY VERIFIED — then reverted per zero-keeping with the exact
+re-apply package below. The state of the wall:
 
-- **Handles are VERIFIED IDENTICAL 211/211** (same order, same
-  values) — "our rewrite renumbers handles" is REFUTED. No
-  handle-preservation work is needed.
-- **The "1s-pad-bits rule" is superseded**: the 82 last-byte-only
-  divergences sit in the CRC/pad-skeleton TAIL (her CRC bytes vs
-  ours with high bits set = the CRC-value delta induced by
-  different skeleton inputs), not in simple data padding — the
-  final rule needs the crc16 micro-experiment below.
+**VERIFIED THIS SESSION (all on circle.dwg, traces + the
+instrument, current-writer measurements):**
 
-**The measured classes (211 objects, current writer): 7
-byte-identical; 82 last-span-byte-only; 58 within-last-8-bytes;
-58 size deltas (±1–2 typical, incl. the 24-object 5598-vs-5600
-repeated class; total stream delta only +88); 6 deep (incl. two
-elided-stub forms: her 130/233 vs our 7-byte records on handles
-0.1.DC/0.1.E1).**
+- **Handles are identical 211/211** (same order, same values) —
+  no renumbering; no preservation work needed. (Two earlier
+  theories refuted: renumbering, and "renumbers-stub" forms.)
+- **The record skeleton**: `[MS][type][data][string stream
+  R2007+][handle bits packed into main's tail][1s-pad to
+  byte][crc16(0xC0C1, [MS..span]) after the span]` — the
+  after-span CRC is IDENTICAL RULE both sides (our writer
+  already correct); gold's "(addr+size−2)" CRC read is a
+  phantom (no per-object CRC verdicts on the R2007 path).
+- **The ownerhandle rule — 196/196 verified**: relative iff
+  (rel_len < abs_len) OR (rel_len == abs_len AND |offset| <
+  owner_value); her census = 78 absolutes + 118 relative + 10
+  nulls. (NOT "always relative".)
+- **The 1s final pad — mechanics**: the record's final partial
+  byte is MAIN's closing shift (the handle sub-writer is ALWAYS
+  byte-aligned at merge — the bits pack into main's tail
+  mid-byte); the author pads with 1s (verified AC15/AC18/AC21
+  samples all-ones).
 
-**The primary named mechanism — the `ownerhandle` H-reference
-FORM**: gold's own per-object reads show her `(8.0.0)`-class
-encodings vs our `(4.1.X)` absolute forms for the SAME resolved
-targets, ~+1 byte per record in ours (obj 10: Hdlsize 0x1C vs
-0x24 = the whole size delta; obj 68: 0x4E vs 0x56) — the bulk of
-the SIZE class and the TAIL class in one form fix. The spec-side
-authority: the ODA spec PDF (`~/work/
-OpenDesign_Specification_for_.dwg_files.pdf`, 270pp — record
-format pp. 99–103; pypdf installed --user in WSL python) +
-libredwg `bits.c` handle codes + our `write_handle`.
+**THE RE-APPLY PACKAGE (4 edits, ~30 minutes):**
 
-**The skeleton — SOLVED by the crc16 micro-experiment (same
-session; the DWG CRC-16 table ported, candidate spans brute-forced
-against both files' trailing bytes)**:
+1. `bit_writer.rs`: add `write_spear_shift_ones()` (the same
+   loop as write_spear_shift with `write_bit(true)`).
+2. `merged_writer.rs`: in merge_two_stream AND
+   merge_three_stream, the FINAL `self.main.write_spear_shift()`
+   → `write_spear_shift_ones()` (only the final one — the
+   intermediate pads verified byte-identical).
+3. `bit_writer.rs`: add `write_first_ref_handle(ref_type,
+   reference, handle)` implementing the ownerhandle rule
+   (rel_len/abs_len via handle_byte_count, tie → offset<value;
+   relative → write_handle_relative, else write_handle).
+4. `common.rs`: the entity path (entmode==0, r2007_plus, owner
+   non-null → write_first_ref_handle) + the non-entity internal
+   (r2007_plus non-null owner → write_first_ref_handle; the
+   explicit relative_owner request paths keep
+   write_handle_relative; nulls keep code-4) + a
+   `write_first_ref_handle` delegate on merged_writer.
 
-- **The second field (between her span end and the next MS) =
-  `crc16(0xC0C1, [MS..span])` — IDENTICAL RULE BOTH SIDES, and
-  our writer already emits it correctly** (her `1c d3` =
-  `d31c`, ours `5c c3` = `c35c`; it differs only because its
-  input differs). No fix needed there.
-- **The 82-record last-byte class = THE FINAL PAD of the handle
-  stream**: her final span byte = the handle data's last bits
-  OR'd with 1s to the byte boundary (obj 0: `0.3f` — data bits
-  `00`, pad `111111`); ours = 0-padded (`0.00`). Verified 82/82
-  on circle.dwg. The fix: the LAST spear-shift of the merge (the
-  pad after the handle stream) pads with 1s — one variant of
-  `write_spear_shift` in bit_writer.rs, invoked in the merge
-  tails (merge_two_stream/merge_three_stream).
-- Gold's "(address+size−2)" CRC read is a phantom: no per-object
-  CRC verdicts exist on the R2007 path at -v9 (the check never
-  validates in practice; only section-level checksums print) —
-  byte-identity is the sole authority.
-- **The ownerhandle H-form — the offset math verified**: her
-  relative forms vs our absolute: obj 11 `(12.1.2)` = own.E − 2 =
-  owner.C ✓; obj 68 `(8.0.0)` = own.D8 − 1 = D7 ✓; our
-  `(4.1.C)` = absolute. The rule: the ownerhandle (the FIRST ref
-  in the handle stream) is encoded RELATIVE TO THE OBJECT'S OWN
-  HANDLE with the offset H-codes; our writer emits the absolute
-  code-4 form (~+1 byte per record — the whole SIZE class). The
-  exact code table: libredwg `bits.c` `bit_read_H` + our
-  `bit_writer.rs` `write_handle`.
+**Measured results of the α slice**: form census == hers
+EXACTLY (4:88, 8:38, 12:75, 10:5); **206/211 records
+BYTE-IDENTICAL** (from 6); stream totals IDENTICAL (199,139);
+smokes 0/0 (circle, example_2007, Box_2007). Remaining record
+rows — 5, all internals identical (bitsize/Hdlsize/string
+stream), divergences bit-level in 2 regions: obj 69 STYLE +
+obj 74 DIMSTYLE at +7 (the head: type/RL/handle region); obj 26
++ 29 + 33 LAYOUTs at +225/+93/+93 (the handle-stream tail) —
+§8.1.6 autopsies (dump_section_bytes at the trace addresses)
+name the culprit fields.
 
-**The opening moves, in order**: (1) the 1s final-pad variant +
-the ownerhandle relative-form fix (the two rules above, one
-writer session); (2) the §8.1.6 autopsies of the 6 deep rows
-(incl. the two elided-stub cases); (3) the PLACEMENT decision
-(the same records at different addresses — ours compact
-6..64,008, hers scattered 6..146,328, byte-identical pair
-verified; the interstices carry the same `00 29 00 2a…` masses
-at different positions — retain her addresses on same-document
-rewrite, or replicate her allocation rule). **LAND AS A UNIT**:
-every writer change here reshuffles the layout-coupled
-R2007_Header coincidence rows (the 0xF_ lesson); the packet
-lands when the mirror ENGAGES.
+**The corpus measured the α slice: R2007_Header 925→927 (+2,
+the coincidence-row mechanism — the 0xF_ lesson); read 0/0
+held; every other key unchanged. Per §19.3 the writer edits
+were REVERTED (git checkout of the three files) — the tree is
+at the d935181 3,576-verified state. THE α SLICE RELANDS WITH
+THE REMAINING LAYERS AS THE ONE UNIT:**
 
-Acceptance = the mirror engage census (`AC21_MIRROR_DEBUG=1
-python3 tests/gold_harness/run_roundtrip.py …` per file): every
-engaged AC1021 file closes its FILEHEADER AC1021 + THUMBNAILIMAGE +
-R2007 pages-map family rows automatically (the H8b machinery is IN
-and stash-safe). The 0xF_ emission relands with this packet.
+1. The 5 record autopsies (above).
+2. **THE PLACEMENT LAYER — now the dominant wall**: with
+   records byte-identical the section still diverges from byte
+   164 (our emission order/interstices vs her arrangement; the
+   mirror-sim still OVER: window 0 = 18,177 vs slot 9,696; the
+   window profiles differ because the same records sit at
+   different offsets). The mechanics: her per-record addresses
+   (readable from her handles section at read time — extend the
+   reader's retention to per-object record addresses) + the
+   interstice content (the same `00 29 00 2a…` filler masses at
+   different positions — capture-echo the unreferenced bytes,
+   or derive her allocator's rule). With placement parity the
+   mirror engages and the family rows close wholesale.
+
+**LAND AS A UNIT** (the 0xF_ lesson); acceptance = the mirror
+engage census (`AC21_MIRROR_DEBUG=1 python3
+tests/gold_harness/run_roundtrip.py …` per AC1021 file): every
+engaged file closes its FILEHEADER AC1021 + THUMBNAILIMAGE +
+R2007 pages-map family rows automatically (the H8b machinery is
+IN and stash-safe). The 0xF_ emission relands with this packet.
+
+**Spec authority on file**: the ODA spec PDF
+(`~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp;
+the record-format chapter pp. 99–103; pypdf installed --user in
+WSL python) + libredwg `bits.c` (`bit_read_H`, the H-code table:
+6/8 = own±1, 10/12 = own±offset, 2–5 direct, resolved in
+`dwg_resolve_handleref`).
 
 ## The remaining queue (3,576 — unchanged by this halt)
 

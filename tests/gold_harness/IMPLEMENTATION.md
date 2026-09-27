@@ -5676,16 +5676,36 @@ Signature) — the parse side is further along than the emission side.
   `(4.1.C)`) — the ownerhandle (first ref in the handle stream)
   is encoded RELATIVE TO THE OBJECT'S OWN HANDLE; the exact code
   tables: libredwg `bits.c` `bit_read_H` + our `bit_writer.rs`
-  `write_handle`. **The H8d opening moves**: (1) the 1s
-  final-pad + the ownerhandle relative-form (one writer
-  session); (2) the §8.1.6 autopsies of the 6 deep rows (incl.
-  two elided-stub cases: her 130/233 vs our 7-byte forms on
-  handles 0.1.DC/0.1.E1); (3) the placement decision
-  (retain-vs-replicate her addresses). **The packet lands as a
-  UNIT** (every writer change here reshuffles the
-  layout-coupled coincidence rows — the 0xF_ lesson), with
-  acceptance = the mirror engage census closing the
-  R2007_Header/FILEHEADER-AC1021/THUMBNAILIMAGE rows wholesale.
+  `write_handle`. **THE H8d α SLICE (same session — implemented,
+  measured, VERIFIED, then reverted per zero-keeping)**: the
+  ownerhandle rule solved and verified 196/196 (relative iff
+  rel_len < abs_len, or at equal length iff |offset| <
+  owner_value; her census = 78 absolutes + 118 relative + 10
+  nulls — NOT "always relative") + the 1s final pad (the
+  record's final partial byte is MAIN's closing shift — the
+  handle bits pack into main's tail mid-byte, the handle
+  sub-writer always byte-aligned at merge, verified by
+  instrumentation; her pads all-ones at AC15/AC18/AC21 alike).
+  MEASURED: form census == hers exactly (4:88, 8:38, 12:75,
+  10:5); **206/211 records byte-identical (from 6)**; stream
+  totals identical (199,139); smokes 0/0; the 5 remaining rows
+  named (obj 69 STYLE + 74 DIMSTYLE diverge at +7 in the head;
+  obj 26 + 29 + 33 LAYOUTs at +225/+93/+93 in the handle-tail —
+  all internals identical). The corpus: R2007_Header 925→927
+  (+2, the coincidence-row mechanism — the 0xF_ lesson), read
+  0/0 held, every other key unchanged → per §19.3 the writer
+  edits reverted; the tree at the d935181 3,576-verified
+  state; **the re-apply package (4 edits) + the remaining
+  layers (the 5 autopsies + THE PLACEMENT LAYER — with records
+  byte-identical the section still diverges from byte 164; the
+  mirror still OVER: window 0 18,177 vs slot 9,696; her
+  per-record addresses + the interstice filler need
+  retention-or-rule) are recorded in NEXT_SESSION.md's H8d
+  section. The packet lands as a UNIT** (every writer change
+  here reshuffles the layout-coupled coincidence rows — the
+  0xF_ lesson), with acceptance = the mirror engage census
+  closing the R2007_Header/FILEHEADER-AC1021/THUMBNAILIMAGE
+  rows wholesale.
 
 ### 19.3 Standing rules for the campaign
 
