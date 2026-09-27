@@ -5707,6 +5707,80 @@ Signature) — the parse side is further along than the emission side.
   closing the R2007_Header/FILEHEADER-AC1021/THUMBNAILIMAGE
   rows wholesale.
 
+  **H8d — the objects-stream parity packet: LANDED AS THE ONE
+  UNIT (2026-09-27; the measure→verify→revert loop BROKEN —
+  the first row movement since H8b)**: the α slice re-applied
+  per the recorded package (write_spear_shift_ones on the
+  merge's final pad in both merge_two_stream and
+  merge_three_stream — intermediate pads stay zero;
+  write_first_ref_handle = the ownerhandle rule, wired into
+  the entity entmode==0 path and the non-entity internal
+  path, both r2007_plus-gated, nulls and explicit
+  relative_owner paths untouched) + the 0xF_ chain-long
+  reland (emit_chained_match's nibble-0 branch `|= 0xF0` —
+  the author's remap form; hermetic test
+  `test_chained_long_match_rides_0xf_form`) + THE PLACEMENT
+  LAYER as the raw-echo re-scope: the READER retains her
+  reconstructed objects-section stream + her handle map +
+  the identity fingerprint (`objects_handle_set_fingerprint`
+  — the classes-verbatim doctrine: sorted handle set of the
+  objects walk; adds/deletes/renumberings decline the echo)
+  on AC1021-format files (`raw_acdb_objects_data` /
+  `raw_acdb_objects_handles` / `raw_acdb_objects_fingerprint`
+  on the document, serde-skipped); the WRITER's mirror arm
+  passes her raw as the `Ac21MirrorBuffers.objects` buffer
+  and re-emits her handle pairs through `write_handles`
+  (her offsets address her echoed stream) when the
+  document's object identity is unchanged — the conventional
+  arm keeps our own emission untouched, and an
+  identity-changed document falls back to it by construction.
+  VERIFICATION: serde green (1,337 lib tests), gold_roundtrip
+  green, smokes 0/0 (circle 21, example_2007 11, Box_2007 12
+  — all ENGAGED; example_2004 AC18 at 4 and example_2000
+  AC15 at 80, both unchanged); the generation identity
+  RE-RECORDED: `39e51dfe3fe281b2373994e2ebd82453`, 25,375
+  bytes (was `40ab5d356cf05a71333f208e1651daf`, 25,344 — the
+  1s-pad + ownerhandle forms touch the generated file; 30 OK
+  / 0 FAIL). THE ACCEPTANCE CENSUS (`AC21_MIRROR_DEBUG=1`
+  per AC1021 corpus file): **50/58 ENGAGED**; 8 DECLINED —
+  the 7 solid-model files (Chamfer/Cone/Cylinder/Fillet/
+  Pyramid/Torus/Wedge_2007) + ATMOS-DC22S decline at the
+  OBJECT-IDENTITY gate (our emission's handle set ≠ her
+  handles map — the skipped-records mechanism on the ACIS
+  solids; ATMOS also carries the gap/terminator map entry),
+  then the H8b gate declines them on the objects-overflow
+  class. THE CORPUS: 280 files, read 0/0, write 0/0,
+  **write-target 3,576 → 3,121 (−455)**. Per-key:
+  R2007_Header 925→569, FILEHEADER 103→37, THUMBNAILIMAGE
+  50→17; FileDepList 1,055 + SecondHeader 386 + AuxHeader 94
+  (the parallel session's rows) and R2004_Header 963
+  (accepted residue) ALL UNCHANGED — zero-keeping satisfied,
+  no key worsened. THE FORECAST RECONCILIATION (the halt
+  projected ~1,057 rows → ~2,519; the honest result is −455):
+  (a) only the pages-map family rows closed on the engaged
+  files — the content-coupled crc/size family
+  (sections-map CRCs/sizes/correction, pages-map
+  crc_compressed/crc_seed/size_comp, the MT-derive draws)
+  stays open because the OTHER sections' bytes are still
+  ours (the handles section re-encoded from her pairs —
+  same content, our chunk layout; template/classes/aux/
+  header our emissions): the map bytes and their CRCs
+  derive from those; (b) the 8 decliners keep their full old
+  families (25–26 rows each; ATMOS 48). THE H8e QUEUE (the
+  next levers, in order): (1) the object-set parity on the
+  8 decliners — autopsy why our emission's handle set
+  differs from her handles map (the skipped/undecoded
+  records census per file; the ACIS-solids pattern suggests
+  the failsafe skip); (2) the other-sections byte-identity —
+  first VERIFY whether `write_handles(her_pairs)` is already
+  byte-identical to her handles-section bytes (the instrument
+  compares them directly), then the map-bytes derivation for
+  the crc/size family; (3) the 5 record autopsies (the
+  single-bit handle-form delta on the three LAYOUTs + the
+  STYLE/DIMSTYLE field walk) — polish that gates only the
+  conventional arm and the decliners' re-encode path; the
+  echo bypasses our emission on the engaged files.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
