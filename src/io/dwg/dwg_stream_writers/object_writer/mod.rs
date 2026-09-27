@@ -1888,11 +1888,18 @@ impl<'a> DwgObjectWriter<'a> {
             let is_xref = br.flags.is_xref || br.flags.is_xref_overlay;
 
             // Keep only live entities directly owned by the block header.
+            // §19 H8h-ext-3: the owned list may also reference non-graphical
+            // records (the author's *Model_Space blocks in the SH fixtures own
+            // an ACDBASSOC* object gold prints as UNKNOWN_OBJ — her wire keeps
+            // the ref and the count). A handle is live when it resolves to an
+            // indexed entity OR to an object this writer will serialize.
             let live_handles: Vec<Handle> = br
                 .entity_handles
                 .iter()
                 .copied()
-                .filter(|h| self.document.entity_index.contains_key(h))
+                .filter(|h| {
+                    self.document.entity_index.contains_key(h) || self.is_writable_object(h)
+                })
                 .collect();
             let entity_handles_for_header = if is_xref {
                 Vec::new()
@@ -2094,12 +2101,18 @@ impl<'a> DwgObjectWriter<'a> {
 
     /// Write a BLOCK_HEADER (block record) object with explicit entity handles.
     fn write_block_header_with_handles(&mut self, record: &BlockRecord, entity_handles: &[Handle]) {
+        // §19 H8h-ext-3: the block record's extension-dictionary ref —
+        // captured at read into the document side map (already part of
+        // the semantic inventory); the author's *Model_Space blocks in
+        // the SH fixtures carry one (the 24-bit xdicobjhandle ref the
+        // stub emission dropped).
+        let block_xdic = self.document.xdic_by_handle.get(&record.handle).copied();
         self.write_common_non_entity_data(
             common::OBJ_BLOCK_HEADER,
             record.handle,
             self.document.block_records.handle(),
             &[],
-            &None,
+            &block_xdic,
         );
 
         // Entry name (DWG uses bare names without numeric suffixes)

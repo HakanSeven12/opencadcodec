@@ -119,7 +119,9 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.version);
         self.writer.write_bit_long(value.minor);
         self.writer.write_bit_long(value.dependencies.len() as i32);
-        self.write_assoc_handles(DwgReferenceType::SoftPointer, &value.dependencies);
+        // §19 H8h-ext-3: the author codes the pab dependency refs 3
+        // (gold census corpus-wide: deps {3: 27}, never 4/5).
+        self.write_assoc_handles(DwgReferenceType::HardOwnership, &value.dependencies);
         self.writer.write_bit_long(value.marker);
         self.writer.write_bit_long(value.values.len() as i32);
         if value.values.is_empty() {
@@ -140,7 +142,9 @@ impl<'a> DwgObjectWriter<'a> {
         // explicit (5,0) null form would make gold decode a real slot
         // ([5,0,0,0] handle-tuple print) and diverge from the orig pair.
         if value.surface_body.dependency.is_valid() {
-            self.write_assoc_handle(DwgReferenceType::HardPointer, value.surface_body.dependency);
+            // §19 H8h-ext-3: the author codes sab.assocdep 4 (SoftPointer)
+            // — gold census corpus-wide: assocdep {4: 23}, never 5.
+            self.write_assoc_handle(DwgReferenceType::SoftPointer, value.surface_body.dependency);
         }
         self.writer
             .write_bit(value.surface_body.is_semi_associative);
@@ -176,6 +180,13 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_bit_short(value.status);
                 self.writer.write_2raw_double(value.first_point);
                 self.writer.write_2raw_double(value.second_point);
+            }
+            // §19 H8h-ext-3: the author's REVOLVED body carries one
+            // trailing B(0) after class_version (the RevolveM wire: her
+            // main stream one bit longer, the extra '0' at the end; the
+            // only corpus specimen — no other Revolve file has the class).
+            AssocSurfaceActionKind::Revolved => {
+                self.writer.write_bit(false);
             }
             _ => {}
         }
@@ -243,7 +254,9 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_short(value.class_version);
         self.writer.write_bit_short(value.status);
         self.writer.write_bit_long(value.parameters.len() as i32);
-        self.write_assoc_handles(DwgReferenceType::SoftPointer, &value.parameters);
+        // §19 H8h-ext-3: the author codes the compound parameter refs 3
+        // (gold census corpus-wide: params {3: 41}, never 4/5).
+        self.write_assoc_handles(DwgReferenceType::HardOwnership, &value.parameters);
         if let Some(child) = &value.child_parameter {
             self.writer.write_bit_short(child.status);
             self.writer.write_bit_long(child.id);
