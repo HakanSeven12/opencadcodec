@@ -42,6 +42,15 @@ coordinates to walk against. Two harness instruments implement it:
   stream; format + type census in `acadrust::entities::proxy_graphics`), and
   with `--verify` asserts decode→encode byte-equality against the wire
   bytes.
+- `ac21_token_diff [--section NAME] [--our-rt FILE] FILE` — the AC1021
+  objects-layer differential (§19 H8c/H8d): extracts the author's on-disk
+  compressed streams per page (RS de-interleave, factor 1, RS(255,251)),
+  walks token sequences with a decoder-exact state machine (replay-validated
+  per page against `decompress_ac21`), mirror-sims our rewrite's stream
+  sliced at her window boundaries (the H8b gate rule per window:
+  `page_size_if_rs_coded` vs her slot), maps both streams' anatomy, and —
+  with `AC21_DIFF_RAW_DIR=dir` — dumps both reconstructed section streams
+  for record pair byte-study.
 
 The layer-4 campaign result it instrumented (closed 2026-09-21): silver's
 rewrite of `2018/Leader.dwg` reproduces the LEADER and MULTILEADER records
