@@ -1654,7 +1654,8 @@ impl DwgDocumentBuilder {
                     .is_some_and(|value| value.trim() == "2")
         });
         document.reserve_loaded_entities(pass2_records.len());
-        document.objects.reserve(pass2_records.len().min(16_384));
+        // Pass 2 also contains graphical entities. Reserve non-entity storage
+        // from decoded object batches below, rather than from all record handles.
 
         let source_version = document.version;
         let model_space_block_handle = document.header.model_space_block_handle;
