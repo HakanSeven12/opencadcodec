@@ -6080,6 +6080,61 @@ Signature) — the parse side is further along than the emission side.
   M, LoftCSurf/M, RevolveM) 24 — each still a named,
   byte-level-scoped packet.
 
+  **H8h-ext-3 — the assoc genus + the *Model_Space block
+  forms: 49 → 32 (2026-09-27, the continuation; the
+  assoc/pathparam genus + the 1F class)**: (1) **the
+  three assoc ref codes** — the gold -v9 walks name the
+  fields and the corpus census decides: `pab.deps` →
+  **HardOwnership(3)** (census {3: 27}, never 4/5; was
+  SoftPointer), the compound `parameters` →
+  **HardOwnership(3)** (census {3: 41}; was SoftPointer),
+  `sab.assocdep` → **SoftPointer(4)** (census {4: 23},
+  never 5; was HardPointer; the null case keeps the
+  is_valid() guard — the PLANESURFACE [0,0] form). (2)
+  **the Revolved body's trailing B(0)**: the RevolveM
+  2E3 bit-diff (a clean 1-bit shift from record bit 250)
+  proved her main stream one bit longer — one trailing
+  '0' after class_version; the only corpus specimen of
+  the class (no other Revolve file carries
+  ASSOCREVOLVEDSURFACEACTIONBODY); landed as a
+  Revolved-kind trailing bit. (3) **the *Model_Space
+  BLOCK_HEADER (the 1F class)** — two independent drops:
+  (a) the block's **xdicobjhandle** — the reader captures
+  every xdic into `document.xdic_by_handle` (the
+  normalizer's side-channel, already in the semantic
+  inventory) but the writer hardcoded `&None`; now the
+  block writer passes the side-map value (her fixtures:
+  (3.2.1CE), 24 bits); (b) the **owned-list live-filter**
+  — the caller filtered `entity_index.contains_key`, but
+  the author's owned lists can reference non-graphical
+  records (her entities[1] = 0x2DB, an ACDBASSOC* object
+  gold prints as UNKNOWN_OBJ — our reader models it as an
+  Unknown OBJECT with raw passthrough, so it IS
+  serialized); the filter now keeps indexed entities OR
+  writable objects (`is_writable_object`), so the count
+  and the refs match her wire (num_owned 2, two refs).
+  **MEASURED: 49 → 32 divergent; 42/58 files at 100%** —
+  ExtrudeCSurf 215/216, LoftCSurf 219/221, RevolveM
+  216/217, ExtrudeM 215/216 (each now holding ONLY the
+  undocumented-subcurve stubs, below); circle 211/211 and
+  Leader 245/245 held. GENERATION IDENTITY UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes,
+  feature-independent — the generator's programmatic
+  documents carry no block xdics, no assoc surface
+  bodies, no owned-object refs). GATES: serde 1602/0,
+  gold_roundtrip ok, issue80 7/0, four family smokes
+  0/0, corpus 280 files 0/0/0/0. THE RESIDUAL 32: the
+  **undocumented CALL_SUBCURVE bodies** (7 records:
+  ExtrudeCSurf/ExtrudeM/RevolveM 2E6, LoftCSurf/LoftM
+  2E7+2EA — the ACDBASSOCEDGEACTIONPARAM subcurve region;
+  gold's own spec macro is an EMPTY TODO STUB, so the
+  wire form must be reverse-engineered from the specimens
+  — a named future packet needing the ODA PDF + the
+  per-action_type dissection); ATMOS 5 + 84 her-only;
+  Constraints 3E3; PolyLine3D 1C2; example_2007's 9;
+  Chamfer/Fillet 4 (the UNKNOWN bodies + the 22v26/30);
+  the Loft 29-vs-27 ×5.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

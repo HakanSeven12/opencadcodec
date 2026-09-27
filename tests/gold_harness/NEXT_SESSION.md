@@ -1,60 +1,53 @@
-# Zero-context prompt — TARGET ZERO held; the conventional arm at 49 residual records (H8h-ext-2: the null-slot dictionary, the history_id code 3, the VIEW slots)
+# Zero-context prompt — TARGET ZERO held; the conventional arm at 32 residual records (H8h-ext-3: the assoc ref codes, the Revolved trailing bit, the *Model_Space block forms)
 
-> Campaign state 2026-09-27 (the halt after the H8h-ext-2 landing; the
-> session continued from the H8h-ext halt: the review → land → verify →
-> commit → push → continue loop, three more form-rule packets in ONE
-> landing. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280 files,
-> read-fidelity 0, write-fidelity 0, read key-gap 0, write-target 0.**
-> The ACS/SH campaign stays COMPLETE at 0/0. The §19 structure
-> campaign's READ axis stays ZERO corpus-wide. Read
-> `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3 + §18.5–18.7
-> in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's H8d–H8h-ext-2 rows
-> carry this arc's records), then this file top to bottom.
+> Campaign state 2026-09-27 (the halt after the H8h-ext-3 landing; the
+> session continued the loop from the H8h-ext-2 halt: review → land →
+> verify → commit → push. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280
+> files, read-fidelity 0, write-fidelity 0, read key-gap 0, write-target
+> 0** — verified after the landing). The ACS/SH campaign stays COMPLETE
+> at 0/0. The §19 structure campaign's READ axis stays ZERO
+> corpus-wide. Read `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3
+> + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's
+> H8d–H8h-ext-3 rows carry this arc's records), then this file top to
+> bottom.
 
-## The arc (2026-09-27, the continuation session — H8h-ext-2)
+## The arc (2026-09-27, the continuation session — H8h-ext-3)
 
-1. **Class (c) — the null-target dictionary items**: the
-   `write_dictionary` R2000+/same-version arm filtered
-   `!h.is_null() && is_writable_object(h)` — dropping the author's
-   placeholder slots (the fixtures' `ACAD_PARALLEL_BACKGROUND →
-   [2,0,0,0]` dictionaries: gold `numitems: 1`, ours 0). The silver
-   MODEL carried the entry (verified via the model dump) — the
-   writer's filter was the sole drop point; no test asserted the
-   drop (the filter predates the campaign). Fixed: keep null-target
-   items (a null target is authored state, not a dangling ref; the
-   enqueue guard already skips nulls; the down-conversion arm
-   untouched).
-2. **Class (d) — the 3DSOLID-family `history_id` ref code**: the
-   ExtrudeC record-tail autopsy (the corrected bit-walk + gold's
-   -v9: `layer: (5.1.10) abs:10 @2262.3` — the record-relative
-   positions INCLUDE the 2-byte MS; the layer ref matched) isolated
-   ref2: her `(3, 2, 02, E0)` — the history root 0x2E0 — vs our
-   `(4, 2, 02, E0)`. The gold census across the WHOLE corpus:
-   history_id `[3, ..]` **128/128** non-null, the nulls `[3,0,0,0]`
-   (the code-3-count-0 `30` byte) — never 4/5. Fixed:
-   HardOwnership at the three write sites (3DSOLID/REGION/BODY;
-   the Surface entity carries no history_id write — verified).
-3. **The VIEW_CONTROL authored slots**: Leader's view control
-   carries **16 null deleted slots** (gold: `num_entries: 16 [BL]`,
-   entries `(2.0.0)` × 16) — the same authored-slots disease as the
-   BLOCK/LTYPE/DIMSTYLE capture. Fixed: the pass-1 OBJ_VIEW_CONTROL
-   arm drains [BL count][refs] into `table_control_entries`; the
-   view writer call site applies the same-universe gate (the
-   all-null case passes: filtered captured set = empty live set).
-4. **Measured: 185 → 49 divergent records; 32/58 files at 100%.**
-   The whole extrude/revolve/polysolid/box/sphere/torus/union/
-   wedge/cone/cylinder named-specimen + solid genus is now FULLY
-   byte-identical (ExtrudeC 206/206, Box 207/207, Leader 245/245;
-   circle 211/211 held).
-5. **Generation identity RE-RECORDED**: `84374e73ddcf1d6143877c
-   4100b81e48`, 25,375 bytes — the null history_id form changed
-   (`40` → `30` bytes on the generated R2007+ 3DSOLID-family
-   records; same byte count, different nibble); identical WITHOUT
-   `--features serde`.
-6. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0,
-   four family smokes 0/0/0/0, the full corpus 280 files
-   0/0/0/0 — the echo arms untouched (the conventional arm serves
-   edited documents and conversions only).
+1. **The assoc/pathparam genus autopsy** — the gold -v9 walks named
+   the divergent refs: the ACTIONBODY's `pab.deps` (her `(3,2,2E5)`
+   code 3 vs our 4), `sab.assocdep` (her code 4 vs our 5), the
+   PATHPARAM's `params[0]` (her `(3,2,2E6)` code 3 vs our 4). The
+   corpus census decided genus-safety: deps {3: 27}, params {3: 41},
+   assocdep {4: 23} — no other code anywhere. Landed: HardOwnership
+   for deps and compound parameters, SoftPointer for assocdep (the
+   null case keeps the is_valid guard).
+2. **The Revolved trailing bit** — RevolveM's 2E3 bit-diff showed a
+   clean 1-bit shift from record bit 250: her main stream carries one
+   trailing '0' after class_version. The only corpus specimen of
+   ASSOCREVOLVEDSURFACEACTIONBODY (no other Revolve file has the
+   class). Landed as a Revolved-kind trailing B(0).
+3. **The *Model_Space BLOCK_HEADER (the 1F class)** — two
+   independent drops found by the byte autopsies: (a) her record
+   carries an xdicobjhandle (3.2.1CE) — our reader captures every
+   xdic into `document.xdic_by_handle` (the normalizer's
+   side-channel, already in the semantic inventory) but the block
+   writer hardcoded `&None`; (b) her owned list references a
+   non-graphical record (entities[1] = 0x2DB, an ACDBASSOC* object
+   gold prints as UNKNOWN_OBJ — our reader models it as an Unknown
+   OBJECT with raw passthrough) which the caller's live-filter
+   (entity_index only) dropped — num_owned 1 vs her 2, one ref
+   missing. Landed: the block writer passes the side-map xdic; the
+   live-filter keeps indexed entities OR writable objects.
+4. **Measured: 49 → 32 divergent records; 42/58 files at 100%.**
+   ExtrudeCSurf 215/216, LoftCSurf 219/221, RevolveM 216/217,
+   ExtrudeM 215/216 — each holding ONLY the undocumented-subcurve
+   stubs now. circle 211/211, Leader 245/245 held.
+5. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
+   family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0.
+   Generation identity UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
+   25,375 bytes, verified with AND without `--features serde` — the
+   generator's programmatic documents carry none of the touched
+   fields).
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -71,71 +64,66 @@ conversions, unchanged.
 `src/io/dwg/mod.rs`): the sorted per-part hash of the semantic
 inventory's visit plus the ten table control handles and the
 retained metadata models. Captured at the END of the read; compared
-BEFORE the prepare pipeline at the write entry. The
-`table_control_entries` capture is EXCLUDED from the fingerprint
-(the `dimstyle_morehandles` precedent) — wire-only state.
+BEFORE the prepare pipeline at the write entry. The wire-only
+captures (`table_control_entries`, `dimstyle_morehandles`) are
+EXCLUDED from the fingerprint; `xdic_by_handle` is INCLUDED (it was
+always part of the inventory).
 
 **The honest framing, extended**: for an unedited same-version
 roundtrip the DWG writer is a byte-copy gated on a full-content
-hash. The conventional arm — the only path these form rules affect
-— is now record-identical to the author's stream on 32 of the 58
-AC1021 corpus files (every named specimen and the whole
-solid-extrusion genus), with **49 named residual records** in six
-small classes (below).
+hash. The conventional arm is record-identical to the author's
+stream on 42 of the 58 AC1021 corpus files, with **32 named
+residual records** in five classes (below).
 
-## The residual 49 (each a named, byte-level-scoped packet)
+## The residual 32 (each a named, byte-level-scoped packet)
 
-- **The assoc/pathparam genus (24)**: ExtrudeCSurf/M (4 each),
-  LoftCSurf/M (6 each), RevolveM (4) — the
-  ASSOCPATHACTIONPARAM/LOFTED-surface family forms: the
-  `+82/+109 (her 32 vs our 42)` code-3-class refs, the
-  `+43/+47 (23v24)` and `+53v54` count nibbles, the `size XX vs
-  20` UNKNOWN-body stubs (our emission of the unmodeled assoc
-  records), the `1F 60v57/63v60` BLOCK_HEADER forms.
-- **The Loft 29-vs-27 class (5)**: Loft3/C/H/R/_ — her loft
-  UNKNOWN_OBJ record carries 2 bytes ours lacks.
-- **Fillet/Chamfer (4)**: the UNKNOWN bodies (`1509/1463 vs 28`)
-  + the `22 vs 26/30` records — her fillet/chamfer node's
-  unknown_bits mass.
-- **example_2007 (9)**: the marginal forms — `1F +10 (01v21)`,
-  `176 1726v1727` (ours +1), `1A9 +32 (a9va1)`, `37D 2269v2270`,
-  `392 +17 (32v42 — another code-3-class ref)`, `393 +27 (0cv10)`,
-  `396 91v85`, `430 +37 (27v28)`, +1 more.
-- **ATMOS (5 + 84 her-only)**: its controls `h=2 16v15`,
-  `h=3 20v15`, `h=77 96v40`, `h=352 25642v35` (a 25KB record we
-  emit as 35 bytes — an ACIS mass), `h=541 17v18` (ours +1); the
-  84 her-only = the broken-map orphans (pre-existing, documented).
-- **The singles**: Constraints `3E3` (666 vs 870); PolyLine3D
-  `1C2` (16 vs 17 — OURS longer).
+- **The undocumented CALL_SUBCURVE bodies (7)**: ExtrudeCSurf/
+  ExtrudeM/RevolveM `2E6` (47/31/47 vs our 20), LoftCSurf/LoftM
+  `2E7`+`2EA` (55/63, 31/39 vs 20) — the ACDBASSOCEDGEACTIONPARAM
+  subcurve region after action_type (her ARC/LINE/ELLIPSE subcurve
+  fields; our modeled reader stops before them). **Gold's own spec
+  macro `CALL_SUBCURVE` is an EMPTY TODO stub** — the wire form must
+  be reverse-engineered from the specimens (the ODA PDF + the
+  per-action_type dissection; one specimen per type). The records:
+  her unknown_bits hex is captured in the -v9 walks (e.g. RevolveM
+  2E6: `AA85800000...0F01`).
+- **ATMOS (5 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
+  h=77 96v40, h=352 25642v35 (a 25KB ACIS mass we emit as 35
+  bytes), h=541 17v18; the 84 her-only = the broken-map orphans
+  (pre-existing, documented).
+- **example_2007 (9)**: 1F +10 (01v21), 176 1726v1727, 1A9 +32
+  (a9va1), 37D 2269v2270, 392 +20 (42v52 — another assoc-dep-class
+  ref), 393 +30 (10v0c), 396 91v85, 430 +37 (27v28), +1 more.
+- **Chamfer/Fillet (4)**: the UNKNOWN bodies (1509/1463 vs 28) +
+  the 22v26/30 records.
+- **The Loft 29-vs-27 class (5)**: Loft3/C/H/R/_ (2DD/2DE/2E4/2EF).
+- **The singles**: Constraints `3E3` (666 vs 870); PolyLine3D `1C2`
+  (16 vs 17 — OURS longer).
 
 ## The remaining work (all optional — the target stays reached)
 
-- **The residual classes above** — each an autopsy → census →
-  rule → gates → re-survey packet in the H8h tradition; the
-  §19.2 H8h-ext/H8h-ext-2 rows carry the map and the method.
-- **The code-3 sweep**: example_2007's `h=392 +17 (32v42)` is
-  another author-code-3 ref — a census of gold's JSON ref codes
-  vs our writer's choices on the residual records extends the
-  landed rule family.
+- **The subcurve reverse-engineering packet** — the biggest named
+  class (7 records): decode her unknown_bits per action_type (11 =
+  ARC, 17 = ELLIPSE, 19 = LINE, ...) and complete the
+  ASSOCEDGEACTIONPARAM reader+writer. Needs the ODA spec PDF study;
+  the specimens' hex is in the -v9 walks.
+- **The other residual classes above** — each an autopsy → census →
+  rule → gates → re-survey packet in the H8h tradition.
 - **The MT-variant pinning (§F2.G)**: the crc_seed draws — NOT
-  attempted (a deep algorithmic study of gold's random.c MT
-  variant; the echo path never runs it for unedited roundtrips,
-  so it gates only edited-document re-emission quality, not
-  rows).
-- **The dead/no-path rows**: `LoftD`; the SH revolve option
-  shorts; **BREP stays deferred** (external authentic
-  ACSH_BREP_CLASS specimen required).
+  attempted (the echo path never runs it for unedited roundtrips).
+- **The dead/no-path rows**: `LoftD`; the SH revolve option shorts;
+  **BREP stays deferred** (external authentic ACSH_BREP_CLASS
+  specimen required).
 
 ## The standing facts
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (RE-RECORDED at H8h-ext-2 — the null history_id
-  form; was `1a56bca0…` from H8h through H8h-ext). The generator
-  builds and runs identically WITH or WITHOUT `--features serde`.
+  25,375 bytes (UNCHANGED through H8h-ext-3). The generator builds
+  and runs identically WITH or WITHOUT `--features serde`.
 - The record-identity state (the 58-file AC1021 survey,
-  `record_identity_survey.py`): **32 files at 100%, 49 divergent
+  `record_identity_survey.py`): **42 files at 100%, 32 divergent
   records, 84 her-only orphans (ATMOS's broken map)**. circle
   211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245.
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
@@ -148,13 +136,17 @@ small classes (below).
   `encode_r2007.c` exists — gold has no R2007 writer.
 - Spec authority on file: the ODA spec PDF
   (`~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp) +
-  libredwg `bits.c`.
+  libredwg `bits.c`. NOTE: gold's `CALL_SUBCURVE` spec macro is an
+  EMPTY TODO stub — the ASSOCEDGEACTIONPARAM subcurve wire is
+  undocumented there.
 - The hermetic suites: serde green (the 0xF_ test + issue80
   green), gold_roundtrip green, at every landing.
 - Autopsy tooling notes: gold's `-v9` `@byte.bit` positions are
   RECORD-relative (they INCLUDE the 2-byte MS head); the survey's
   merge-trace positions are SPAN-relative. The record-head MS is
-  15 data bits per 16-bit LE word (§19.4.A).
+  15 data bits per 16-bit LE word (§19.4.A). The `bitsize` RL =
+  main+text bits; the record span = bitsize + hdlsize (verified on
+  the 1F autopsy: 330 + 150 = 480 = 60 bytes).
 
 ## Environment (complete)
 
@@ -205,7 +197,7 @@ md5sum gen_all_entities_all_versions.dwg
 python3 tests/gold_harness/record_identity_survey.py \
     "$GOLD_TESTDATA"/2007/*.dwg "$GOLD_TESTDATA"/example_2007.dwg \
     tests/gold_harness/tests/sh_history/*_2007.dwg
-# current state: 32 files at 100%, 49 divergent records total
+# current state: 42 files at 100%, 32 divergent records total
 # circle 211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245
 
 # 5. The byte-identity check (the echo's acceptance, per family)
@@ -219,30 +211,33 @@ cargo build --bin ac21_token_diff --features serde
 ## Commit inventory (this halt)
 
 ```
-780fc37 <docs> the post-H8h-ext halt refresh (the prior halt head)
-<feat> H8h-ext-2: the null-slot dictionary, the history_id code 3,
-       the VIEW slots (185 -> 49; 32/58 at 100%; generation
-       identity re-recorded 84374e73..)
-<docs> this halt refresh — the post-H8h-ext-2 record
+53c9b11 <docs> the post-H8h-ext-2 halt refresh (the prior halt head)
+<feat> H8h-ext-3: the assoc ref codes (deps/params -> 3, assocdep ->
+       4), the Revolved trailing bit, the *Model_Space block xdic +
+       owned-object refs (49 -> 32; 42/58 at 100%)
+<docs> this halt refresh — the post-H8h-ext-3 record
 ```
 
 **PUSH STATE (2026-09-27)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the H8h-ext
-halt → the class-(c) autopsy (the model-vs-writer split: the model
-carried the null-target item; the writer's pre-campaign filter
-dropped it) → the class-(d) autopsy (the record-tail bit-walk,
-the gold -v9 record-relative lesson, the 128/128 code-3 census) →
-the VIEW_CONTROL discovery (Leader's 16 null slots — the
-authored-slots disease generalizes) → the three-rule landing →
+**Session arc, for context**: the continuation from the H8h-ext-2
+halt → the assoc-genus autopsies (the -v9 walks naming the ref
+fields; the corpus census deciding genus-safety: deps {3:27},
+params {3:41}, assocdep {4:23}) → the RevolveM bit-diff (the clean
+1-bit shift; the trailing B(0); the single-specimen caveat) → the
+1F autopsies (the bitsize+hdlsize frame identity 330+150=480; the
+xdic side-map discovery — the reader always captured it, the
+writer hardcoded None; the owned-list live-filter hole — her
+blocks own non-graphical records, our Unknown objects ARE
+serialized, the filter needed is_writable_object) → the landing →
 the gates (serde 1602/0, gold_roundtrip, issue80, family smokes,
-corpus 0/0/0/0) → the generation identity re-record
-(`84374e73…`, feature-independent) → the full survey (185 → 49;
-32/58 at 100%) → the docs (§19.2 H8h-ext-2 row; this halt
-record). **The maintainer's loop instruction — "repeat process
-until target = zero" — remains satisfied: the corpus is at zero
-on every axis; the conventional arm is record-identical on 32 of
-58 AC1021 files including every named specimen and the whole
-solid-extrusion genus, and the residual 49 records are named,
-byte-level-scoped packets in six classes.**
+corpus 0/0/0/0, generation identity unchanged and
+feature-independent) → the full survey (49 → 32; 42/58 at 100%) →
+the docs (§19.2 H8h-ext-3 row; this halt record). **The
+maintainer's loop instruction — "repeat process until target =
+zero" — remains satisfied: the corpus is at zero on every axis;
+the conventional arm is record-identical on 42 of 58 AC1021 files,
+and the residual 32 records are named, byte-level-scoped packets —
+the largest being the undocumented CALL_SUBCURVE bodies (gold's
+own spec macro is an empty TODO stub).**
