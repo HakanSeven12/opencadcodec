@@ -1468,9 +1468,13 @@ impl<'a> DwgObjectWriter<'a> {
             && self.document.dwg_source_version == Some(self.dxf_version);
         let entries: Vec<&(String, Handle)> = if self.version.r2000_plus() || preserve_source_schema
         {
+            // §19 H8h-ext class (c): keep null-target items — authored
+            // placeholder state (e.g. the fixtures' ACAD_PARALLEL_BACKGROUND
+            // slots, gold `items` printing [2,0,0,0]). A null target is not
+            // a dangling reference; it emits the [2,0] soft-owner wire form.
             dict.entries
                 .iter()
-                .filter(|(_, h)| !h.is_null() && self.is_writable_object(h))
+                .filter(|(_, h)| h.is_null() || self.is_writable_object(h))
                 .collect()
         } else {
             dict.entries

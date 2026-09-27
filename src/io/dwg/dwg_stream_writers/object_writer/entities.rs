@@ -5214,10 +5214,13 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         // 3DSOLID R2007+: history_id handle (NULL when its target is an
-        // elided SH class record).
+        // elided SH class record). §19 H8h-ext: the author codes this ref 3
+        // (HardOwnership) — the gold census across every genus prints
+        // history_id [3, ..] 128/128 non-null (the fixtures, example_2007,
+        // ATMOS); never 4/5.
         if self.version.r2007_plus() {
             let h = self.solid_history_handle_value(e.history_handle);
-            self.writer.write_handle(DwgReferenceType::SoftPointer, h);
+            self.writer.write_handle(DwgReferenceType::HardOwnership, h);
         }
 
         self.register_object(e.common.handle);
@@ -5252,7 +5255,8 @@ impl<'a> DwgObjectWriter<'a> {
 
         if self.version.r2007_plus() && !acds {
             let h = self.solid_history_handle_value(e.history_handle);
-            self.writer.write_handle(DwgReferenceType::SoftPointer, h);
+            // §19 H8h-ext: author wire code 3 (gold census 128/128).
+            self.writer.write_handle(DwgReferenceType::HardOwnership, h);
         }
         self.register_object(e.common.handle);
     }
@@ -5286,7 +5290,8 @@ impl<'a> DwgObjectWriter<'a> {
 
         if self.version.r2007_plus() && !acds {
             let h = self.solid_history_handle_value(e.history_handle);
-            self.writer.write_handle(DwgReferenceType::SoftPointer, h);
+            // §19 H8h-ext: author wire code 3 (gold census 128/128).
+            self.writer.write_handle(DwgReferenceType::HardOwnership, h);
         }
 
         self.register_object(e.common.handle);

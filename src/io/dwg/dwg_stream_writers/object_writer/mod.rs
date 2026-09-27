@@ -383,16 +383,20 @@ impl<'a> DwgObjectWriter<'a> {
         );
         self.write_text_style_control();
         self.write_ltype_control();
-        self.write_table_control(
-            self.document.views.handle(),
-            common::OBJ_VIEW_CONTROL,
-            &self
-                .document
-                .views
-                .iter()
-                .map(|v| v.handle)
-                .collect::<Vec<_>>(),
-        );
+        // §19 H8h-ext: the author's view-table slots echo verbatim (the
+        // Leader/Constraints/example_2007 genus carries 16 null deleted
+        // slots; gold prints entries [2,0,0,0] × num_entries).
+        {
+            let live: Vec<Handle> = self.document.views.iter().map(|v| v.handle).collect();
+            let entries = self
+                .authored_control_entries(self.document.views.handle(), &live)
+                .unwrap_or(live);
+            self.write_table_control(
+                self.document.views.handle(),
+                common::OBJ_VIEW_CONTROL,
+                &entries,
+            );
+        }
         self.write_table_control(
             self.document.ucss.handle(),
             common::OBJ_UCS_CONTROL,

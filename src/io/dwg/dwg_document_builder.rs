@@ -803,6 +803,20 @@ impl DwgDocumentBuilder {
                     OBJ_VIEW_CONTROL => {
                         document.views.set_handle(control_handle);
                         document.header.view_control_handle = control_handle;
+                        // §19 H8h-ext: capture the authored view-table slots
+                        // (num_entries is BL per the gold walk; the author's
+                        // files carry null deleted-slot tails that the live
+                        // table cannot know). Echoed under the
+                        // same-universe gate.
+                        let num_entries = reader.read_bit_long().max(0) as i32;
+                        let mut entries = Vec::new();
+                        for _ in 0..num_entries {
+                            let handle_value = reader.read_handle();
+                            entries.push(Handle::from(handle_value));
+                        }
+                        document
+                            .table_control_entries
+                            .insert(control_handle, entries);
                     }
                     OBJ_UCS_CONTROL => {
                         document.ucss.set_handle(control_handle);
