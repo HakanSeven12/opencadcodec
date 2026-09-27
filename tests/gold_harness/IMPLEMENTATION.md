@@ -5413,7 +5413,9 @@ Signature) — the parse side is further along than the emission side.
   page-space mirror). The whole-section write drops FileDepList
   1,055 + SecondHeader 386 + AuxHeader 94 stay the PARALLEL
   SESSION's rows (their untracked probes `h7_probe1.sh`/
-  `h7_rows.sh` in the repo root are not ours to commit; note the
+  `h7_rows.sh` were removed at the 2026-09-27 housekeeping, on the
+  maintainer's instruction — the rows they probed had all closed
+  with the H8e–H8g echo landings; note the
   FileDepList CONTENT class — 2004/Arc (2) through gh109_1 (75) —
   declines the container mirror on the same missing-content root:
   closing the parallel row re-engages those mirrors for free).

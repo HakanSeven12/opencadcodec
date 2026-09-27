@@ -117,9 +117,10 @@ overridden by decision, this session).
   shorts; **BREP stays deferred** (external authentic
   ACSH_BREP_CLASS specimen required).
 - **The parallel session's probes** (`h7_probe1.sh`/`h7_rows.sh`
-  untracked in the repo root — not ours to commit): their rows
-  (FileDepList/SecondHeader/AuxHeader) all closed with the echo
-  landings; the probes are historical.
+  — REMOVED at the 2026-09-27 housekeeping, on the maintainer's
+  instruction): their rows (FileDepList/SecondHeader/AuxHeader)
+  all closed with the echo landings; the probes were historical
+  the moment they closed.
 
 ## The standing facts
 
