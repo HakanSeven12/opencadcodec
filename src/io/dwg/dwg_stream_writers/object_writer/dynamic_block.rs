@@ -705,8 +705,13 @@ impl<'a> DwgObjectWriter<'a> {
                     self.writer.write_bit_long(node.id);
                     self.writer.write_bit_long(node.edge_flags);
                     self.writer.write_bit_long(node.next_id);
+                    // §19 H8h-extension: the author's wire codes the
+                    // eval-graph node expression ref 3 (HardOwnership),
+                    // corpus-wide across every AC1021 genus (gold prints
+                    // evalexpr [3, ..] in the 2027 fixtures, example_2007
+                    // and ATMOS alike).
                     self.writer
-                        .write_handle(DwgReferenceType::HardPointer, node.expression.value());
+                        .write_handle(DwgReferenceType::HardOwnership, node.expression.value());
                     for item in node.node_data {
                         self.writer.write_bit_long(item);
                     }
@@ -744,8 +749,11 @@ impl<'a> DwgObjectWriter<'a> {
             DynamicBlockData::SolidHistory(value) => {
                 self.writer.write_bit_long(value.major);
                 self.writer.write_bit_long(value.minor);
+                // §19 H8h-extension: the history root's graph ref is
+                // code 3 (HardOwnership) on the author's wire (gold
+                // prints owner [3, ..] in every AC1021 genus).
                 self.writer
-                    .write_handle(DwgReferenceType::SoftPointer, value.owner.value());
+                    .write_handle(DwgReferenceType::HardOwnership, value.owner.value());
                 self.writer.write_bit_long(value.history_node_id);
                 self.writer.write_bit(value.show_history);
                 self.writer.write_bit(value.record_history);

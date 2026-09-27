@@ -601,10 +601,12 @@ impl DwgDocumentBuilder {
             VPort(u64, tables::VPortData),
             AppId(u64, tables::AppIdData),
             Vx(u64, tables::VxTableRecordData),
-            /// BLOCK_CONTROL hard-owner refs: (model_space_handle, paper_space_handle).
-            /// These are the authoritative active model/paper space designation —
-            /// the file header's block handles are unreliable on some versions.
-            BlockControl(u64, u64),
+            /// BLOCK_CONTROL parsed refs: (model_space_handle, paper_space_handle,
+            /// entry_handles). The model/paper pair is the authoritative active
+            /// model/paper space designation — the file header's block handles are
+            /// unreliable on some versions. The entries ride for the §19 H8h-extension
+            /// capture (the author's order plus null deleted-slot tails).
+            BlockControl(u64, u64, Vec<u64>),
             VxControl(Vec<u64>),
         }
         let mut parsed_entries: Vec<ParsedEntry> = Vec::new();
@@ -781,6 +783,22 @@ impl DwgDocumentBuilder {
                     OBJ_LTYPE_CONTROL => {
                         document.line_types.set_handle(control_handle);
                         document.header.linetype_control_handle = control_handle;
+                        // §19 H8h-extension: capture the authored entry slots
+                        // (dwg.spec LTYPE_CONTROL entries HANDLE_VECTOR — the
+                        // author's order plus null deleted-slot tails), then the
+                        // by-block/by-layer trailing refs. Echoed by the writer
+                        // under a same-universe gate.
+                        let num_entries = reader.read_bit_short().max(0) as i32;
+                        let mut entries = Vec::new();
+                        for _ in 0..num_entries {
+                            let handle_value = reader.read_handle();
+                            entries.push(Handle::from(handle_value));
+                        }
+                        let _by_block = reader.read_handle();
+                        let _by_layer = reader.read_handle();
+                        document
+                            .table_control_entries
+                            .insert(control_handle, entries);
                     }
                     OBJ_VIEW_CONTROL => {
                         document.views.set_handle(control_handle);
@@ -808,15 +826,23 @@ impl DwgDocumentBuilder {
                         // vector, by that many code-5 handles in the
                         // handle stream. Capture the vector verbatim for
                         // the writer echo and the harness emission.
+                        // §19 H8h-extension: the entries vector itself is
+                        // captured too (order + null deleted-slot tails),
+                        // keyed by the control handle.
                         if self.obj_reader.version().r2000_plus() {
                             let num_entries = reader.read_bit_short().max(0) as i32;
                             let num_morehandles = reader.read_byte() as i32;
+                            let mut entries = Vec::new();
                             if num_entries > 0 {
                                 for _ in 0..num_entries {
-                                    let _ =
-                                        reader.read_handle_reference(obj_handle);
+                                    let handle_value =
+                                        reader.read_handle_reference(obj_handle).0;
+                                    entries.push(Handle::from(handle_value));
                                 }
                             }
+                            document
+                                .table_control_entries
+                                .insert(control_handle, entries);
                             if num_morehandles > 0 {
                                 for _ in 0..num_morehandles {
                                     let (value, _kind) =
@@ -876,10 +902,13 @@ impl DwgDocumentBuilder {
                             // Capture the authoritative *Model_Space / *Paper_Space
                             // designation (hard-owner refs) so block-name dedup can
                             // keep the canonical names on the correct records.
+                            // The entries vector rides for the §19 H8h-extension
+                            // authored-slots capture (order + null tails).
                             let data = tables::read_block_control(&mut reader);
                             Some(ParsedEntry::BlockControl(
                                 data.model_space_handle,
                                 data.paper_space_handle,
+                                data.entry_handles,
                             ))
                         }
                         OBJ_STYLE => {
@@ -961,7 +990,7 @@ impl DwgDocumentBuilder {
                             ParsedEntry::VPort(_, _) => {}
                             ParsedEntry::AppId(_, _) => {}
                             ParsedEntry::Vx(_, _) => {}
-                            ParsedEntry::BlockControl(m, p) => {
+                            ParsedEntry::BlockControl(m, p, entries) => {
                                 // Seed the authoritative active model/paper space
                                 // handles (used by the block-name dedup below).
                                 if *m != 0 {
@@ -969,6 +998,16 @@ impl DwgDocumentBuilder {
                                 }
                                 if *p != 0 {
                                     document.header.paper_space_block_handle = Handle::from(*p);
+                                }
+                                // §19 H8h-extension: capture the authored entry
+                                // slots (order + null deleted-slot tails) keyed by
+                                // the control handle.
+                                let control = document.block_records.handle();
+                                if !control.is_null() {
+                                    document.table_control_entries.insert(
+                                        control,
+                                        entries.iter().copied().map(Handle::from).collect(),
+                                    );
                                 }
                             }
                             ParsedEntry::VxControl(handles) => {

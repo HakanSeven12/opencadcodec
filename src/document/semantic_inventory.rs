@@ -228,6 +228,7 @@ impl<'a> SemanticInventoryV1<'a> {
             raw_ac21_tail: _,
             dwg_data_store_handles: _,
             dimstyle_morehandles: _,
+            table_control_entries: _,
             section_view_style: _,
             view_rep_refs: _,
             section_view_reps: _,

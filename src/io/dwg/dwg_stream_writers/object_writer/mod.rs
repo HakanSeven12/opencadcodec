@@ -518,6 +518,38 @@ impl<'a> DwgObjectWriter<'a> {
     // ── Table control writers ───────────────────────────────────────
 
     /// Generic table control object: type code, count, soft-owner handles.
+    /// §19 H8h-extension: the authored entry slots of a table control —
+    /// the vector captured at DWG read (the author's order plus any null
+    /// deleted-slot tails), echoed only under a same-universe gate: the
+    /// captured non-null set must equal the live table's handles. Edited
+    /// tables and DXF-built documents fall back to `None` (the caller
+    /// re-derives the entries from the model).
+    fn authored_control_entries(
+        &self,
+        control: Handle,
+        live: &[Handle],
+    ) -> Option<Vec<Handle>> {
+        let captured = self.document.table_control_entries.get(&control)?;
+        if captured.is_empty() {
+            return None;
+        }
+        let mut captured_set: Vec<u64> = captured
+            .iter()
+            .filter(|h| !h.is_null())
+            .map(|h| h.value())
+            .collect();
+        let mut live_set: Vec<u64> = live.iter().map(|h| h.value()).collect();
+        captured_set.sort_unstable();
+        live_set.sort_unstable();
+        captured_set.dedup();
+        live_set.dedup();
+        if captured_set == live_set {
+            Some(captured.clone())
+        } else {
+            None
+        }
+    }
+
     fn write_table_control(
         &mut self,
         table_handle: Handle,
@@ -568,9 +600,12 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         // Count excludes model/paper space
-        self.writer.write_bit_long(regular.len() as i32);
+        let entries = self
+            .authored_control_entries(table_handle, &regular)
+            .unwrap_or(regular);
+        self.writer.write_bit_long(entries.len() as i32);
 
-        for h in &regular {
+        for h in &entries {
             self.writer
                 .write_handle(DwgReferenceType::SoftOwnership, h.value());
         }
@@ -619,8 +654,11 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        self.writer.write_bit_long(regular.len() as i32);
-        for h in &regular {
+        let entries = self
+            .authored_control_entries(table_handle, &regular)
+            .unwrap_or(regular);
+        self.writer.write_bit_long(entries.len() as i32);
+        for h in &entries {
             self.writer
                 .write_handle(DwgReferenceType::SoftOwnership, h.value());
         }
@@ -646,7 +684,12 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
         );
 
-        self.writer.write_bit_long(handles.len() as i32);
+        // §19 H8h-extension: emit the authored entry slots (order plus
+        // null deleted-slot tails) under the same-universe gate.
+        let entries = self
+            .authored_control_entries(table_handle, &handles)
+            .unwrap_or(handles);
+        self.writer.write_bit_long(entries.len() as i32);
 
         // Gold dwg.spec 4177: the R2000+ record carries one raw RCu byte —
         // num_morehandles, "additional hard handles, undocumented" — whose
@@ -657,7 +700,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_byte(morehandles.len() as u8);
         }
 
-        for h in &handles {
+        for h in &entries {
             self.writer
                 .write_handle(DwgReferenceType::SoftOwnership, h.value());
         }

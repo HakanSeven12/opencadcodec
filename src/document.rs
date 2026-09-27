@@ -2997,6 +2997,21 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(default))]
     pub dimstyle_morehandles: Vec<Handle>,
 
+    /// Authored table-control entry slots (§19 H8h-extension): the
+    /// entries vectors of the BLOCK/LTYPE/DIMSTYLE controls, captured
+    /// verbatim from the source DWG — the author's order plus any null
+    /// deleted-slot tails (gold dwg.spec `entries` HANDLE_VECTOR; the
+    /// H8h-extension survey showed the AutoCAD authors leave trailing
+    /// `(2.0.0)` slots that re-derivation from the live table cannot
+    /// know). Keyed by the control object's handle. The DWG writers echo
+    /// a captured vector only under a same-universe gate — its non-null
+    /// set must equal the current table's handles, so a table edited
+    /// after the read falls back to the model iteration. Wire-only
+    /// state: not serialized, excluded from the semantic inventory.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub table_control_entries:
+        std::collections::BTreeMap<Handle, Vec<Handle>>,
+
     /// Section-view style (`AcDbSectionViewStyle`) display fields, decoded from
     /// the DWG for rendering section marks (arrow size, label height, …). A file
     /// normally has one; the first decoded is kept. `None` for new/DXF documents
@@ -3198,6 +3213,7 @@ impl CadDocument {
             raw_ac21_tail: None,
             dwg_data_store_handles: HashSet::new(),
             dimstyle_morehandles: Vec::new(),
+            table_control_entries: std::collections::BTreeMap::new(),
             section_view_style: None,
             view_rep_refs: std::collections::HashMap::new(),
             section_view_reps: Vec::new(),
