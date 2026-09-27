@@ -6135,6 +6135,50 @@ Signature) — the parse side is further along than the emission side.
   Chamfer/Fillet 4 (the UNKNOWN bodies + the 22v26/30);
   the Loft 29-vs-27 ×5.
 
+  **H8h-ext-4 — the CALL_SUBCURVE bodies reverse-engineered:
+  32 → 25 (2026-09-27, the continuation; the biggest named class
+  closed)**: the subcurve wire — unknown to gold (its `CALL_SUBCURVE`
+  spec macro an empty TODO stub in every commit that ever touched
+  it) and to the ODA PDF (zero hits for any ACDBASSOC term) — was
+  cracked from the seven corpus specimens. THE METHOD: a
+  temporary reader trace (`DWG_SUBCURVE_TRACE`) printed the
+  main-stream position after `action_type` and the main end per
+  record (all seven: action_type 11 = ARC, region = span bits
+  96..main_end); the regions were extracted and walked as standard
+  BD sequences — **every region walks EXACTLY as twelve BDs**:
+  center (3BD), normal (3BD), x-axis (3BD), radius (BD),
+  start_angle (BD), end_angle (BD) — the standard BD forms
+  (0.0/1.0 as the 2-bit shorts, other values as the full 66-bit
+  LE double). The specimens' centers and radii match their source
+  CIRCLE entities exactly (ExtrudeCSurf (2,3,0) r=1; RevolveM
+  (2,0,0) r=0.8; LoftCSurf (3,4,0)/(3,4,7) r=1.5; the M-stems at
+  the origin r=1); all seven are full circles (start 0.0, end 2π,
+  the `18 2D 44 54 FB 21 19 40` LE tail) in the XY plane (normal
+  (0,0,1), x-axis (1,0,0)). THE LANDING: (1) the model —
+  `AssocArcSubcurve` (center/normal/x_axis/radius/start_angle/
+  end_angle) + `AssocEdgeActionParam.subcurve: Option<…>`
+  (serde-default; None for DXF-built documents and the
+  unattested action types); (2) the reader — the twelve BDs
+  after action_type for the attested ARC form; (3) the writer —
+  the twelve BDs emitted when captured, plus the `param` ref
+  code fix: the author writes the null param as **(4.0.0)**
+  (SoftPointer) — the wire evidence uniform across all seven
+  records, overriding gold's spec declaration of 3 (the
+  HardOwnership emission produced the 2-bit tail delta the
+  first survey pass showed). **MEASURED: 32 → 25 divergent; 47/58
+  files at 100%** — ExtrudeCSurf 216/216, ExtrudeM 216/216,
+  RevolveM 217/217, LoftCSurf 221/221, LoftM 221/221; circle
+  211/211 held. GATES: serde 1602/0, gold_roundtrip ok,
+  issue80 7/0, four family smokes 0/0, corpus 280 files
+  0/0/0/0, generation identity UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes,
+  feature-independent — the generator emits no EDGEACTIONPARAM
+  records). THE RESIDUAL 25: ATMOS 5 + 84 her-only;
+  example_2007's 9 marginal forms; Chamfer/Fillet 4 (the
+  UNKNOWN bodies + the 22v26/30); the Loft 29-vs-27 ×5;
+  Constraints 3E3; PolyLine3D 1C2 — the same named classes as
+  the H8h-ext-3 halt minus the subcurve records.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

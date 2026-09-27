@@ -1,53 +1,56 @@
-# Zero-context prompt — TARGET ZERO held; the conventional arm at 32 residual records (H8h-ext-3: the assoc ref codes, the Revolved trailing bit, the *Model_Space block forms)
+# Zero-context prompt — TARGET ZERO held; the conventional arm at 25 residual records (H8h-ext-4: the CALL_SUBCURVE bodies reverse-engineered from the specimens)
 
-> Campaign state 2026-09-27 (the halt after the H8h-ext-3 landing; the
-> session continued the loop from the H8h-ext-2 halt: review → land →
+> Campaign state 2026-09-27 (the halt after the H8h-ext-4 landing; the
+> session continued the loop from the H8h-ext-3 halt: review → land →
 > verify → commit → push. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280
 > files, read-fidelity 0, write-fidelity 0, read key-gap 0, write-target
 > 0** — verified after the landing). The ACS/SH campaign stays COMPLETE
 > at 0/0. The §19 structure campaign's READ axis stays ZERO
 > corpus-wide. Read `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3
 > + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's
-> H8d–H8h-ext-3 rows carry this arc's records), then this file top to
+> H8d–H8h-ext-4 rows carry this arc's records), then this file top to
 > bottom.
 
-## The arc (2026-09-27, the continuation session — H8h-ext-3)
+## The arc (2026-09-27, the continuation session — H8h-ext-4)
 
-1. **The assoc/pathparam genus autopsy** — the gold -v9 walks named
-   the divergent refs: the ACTIONBODY's `pab.deps` (her `(3,2,2E5)`
-   code 3 vs our 4), `sab.assocdep` (her code 4 vs our 5), the
-   PATHPARAM's `params[0]` (her `(3,2,2E6)` code 3 vs our 4). The
-   corpus census decided genus-safety: deps {3: 27}, params {3: 41},
-   assocdep {4: 23} — no other code anywhere. Landed: HardOwnership
-   for deps and compound parameters, SoftPointer for assocdep (the
-   null case keeps the is_valid guard).
-2. **The Revolved trailing bit** — RevolveM's 2E3 bit-diff showed a
-   clean 1-bit shift from record bit 250: her main stream carries one
-   trailing '0' after class_version. The only corpus specimen of
-   ASSOCREVOLVEDSURFACEACTIONBODY (no other Revolve file has the
-   class). Landed as a Revolved-kind trailing B(0).
-3. **The *Model_Space BLOCK_HEADER (the 1F class)** — two
-   independent drops found by the byte autopsies: (a) her record
-   carries an xdicobjhandle (3.2.1CE) — our reader captures every
-   xdic into `document.xdic_by_handle` (the normalizer's
-   side-channel, already in the semantic inventory) but the block
-   writer hardcoded `&None`; (b) her owned list references a
-   non-graphical record (entities[1] = 0x2DB, an ACDBASSOC* object
-   gold prints as UNKNOWN_OBJ — our reader models it as an Unknown
-   OBJECT with raw passthrough) which the caller's live-filter
-   (entity_index only) dropped — num_owned 1 vs her 2, one ref
-   missing. Landed: the block writer passes the side-map xdic; the
-   live-filter keeps indexed entities OR writable objects.
-4. **Measured: 49 → 32 divergent records; 42/58 files at 100%.**
-   ExtrudeCSurf 215/216, LoftCSurf 219/221, RevolveM 216/217,
-   ExtrudeM 215/216 — each holding ONLY the undocumented-subcurve
-   stubs now. circle 211/211, Leader 245/245 held.
+1. **The authority closure** (the hints session, committed `cc1a6c8`):
+   the subcurve wire is unknown to BOTH authorities — libredwg's full
+   history (5 commits touch SUBCURVE, none implementing; `subent` a
+   bare placeholder; the frozen HEAD parks the region in unknown_bits)
+   and the ODA PDF (zero hits for any ACDBASSOC term). The corpus
+   specimens are the only authority.
+2. **The dissection**: a temporary reader trace
+   (`DWG_SUBCURVE_TRACE`) printed the main-stream position after
+   `action_type` and the main end per record — all seven records are
+   action_type 11 (ARC), region = span bits 96..main_end (88–344
+   bits). The region sizes are all ≡ 24 (mod 64) — the first hint of
+   the BD structure. Walking each region as a sequence of standard
+   BDs (2-bit prefix; 00 = full 66-bit LE double; 01 = 1.0; 10 = 0.0):
+   **every region walks EXACTLY as twelve BDs** — center (3BD),
+   normal (3BD), x-axis (3BD), radius (BD), start_angle (BD),
+   end_angle (BD). The values match the fixtures' known geometry
+   exactly (centers and radii = the source CIRCLEs; all seven are
+   full circles: start 0.0, end 2π — the `18 2D 44 54 FB 21 19 40`
+   LE tail; normal (0,0,1), x-axis (1,0,0)).
+3. **The landing**: the `AssocArcSubcurve` model (serde-default
+   Option on `AssocEdgeActionParam`); the reader parses the twelve
+   BDs after action_type (the attested ARC form; other action types
+   have no specimens and stay unread); the writer emits them when
+   captured. PLUS the `param` ref code fix: the first survey pass
+   after the subcurve landing showed a 2-bit tail delta — the
+   handle-stream decode proved her null param = **(4.0.0)**
+   (SoftPointer) where our writer emitted (3.0.0) (HardOwnership);
+   the wire evidence is uniform across all seven records,
+   overriding gold's spec declaration of 3.
+4. **Measured: 32 → 25 divergent records; 47/58 files at 100%.**
+   ExtrudeCSurf 216/216, ExtrudeM 216/216, RevolveM 217/217,
+   LoftCSurf 221/221, LoftM 221/221 — the whole assoc genus closed.
+   circle 211/211 held.
 5. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
    family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0.
    Generation identity UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
    25,375 bytes, verified with AND without `--features serde` — the
-   generator's programmatic documents carry none of the touched
-   fields).
+   generator emits no EDGEACTIONPARAM records).
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -66,74 +69,42 @@ inventory's visit plus the ten table control handles and the
 retained metadata models. Captured at the END of the read; compared
 BEFORE the prepare pipeline at the write entry. The wire-only
 captures (`table_control_entries`, `dimstyle_morehandles`) are
-EXCLUDED from the fingerprint; `xdic_by_handle` is INCLUDED (it was
-always part of the inventory).
+EXCLUDED from the fingerprint; `xdic_by_handle` and the modeled
+subcurve fields are INCLUDED (real geometry — an edit declines the
+echo).
 
 **The honest framing, extended**: for an unedited same-version
 roundtrip the DWG writer is a byte-copy gated on a full-content
 hash. The conventional arm is record-identical to the author's
-stream on 42 of the 58 AC1021 corpus files, with **32 named
-residual records** in five classes (below).
+stream on 47 of the 58 AC1021 corpus files, with **25 named
+residual records** in six classes (below).
 
-## The residual 32 (each a named, byte-level-scoped packet)
+## The residual 25 (each a named, byte-level-scoped packet)
 
-- **The undocumented CALL_SUBCURVE bodies (7)** — THE IN-FLIGHT
-  PACKET, dissection started (2026-09-27, the notes for the next
-  session): ExtrudeCSurf/ExtrudeM/RevolveM `2E6` (47/31/47 vs our
-  20), LoftCSurf/LoftM `2E7`+`2EA` (55/63, 31/39 vs 20) — the
-  ACDBASSOCEDGEACTIONPARAM subcurve region after action_type. The
-  concrete findings: (a) the frame math holds per record — span =
-  bitsize + hdlsize (ExtrudeCSurf 2E6: 331 + 45 = 376 = 47 bytes);
-  (b) our modeled reader parses the record through action_type
-  (main-stream bit 96 on ExtrudeCSurf: type 18 + bitsize 32 +
-  handle H 24 + eed 2 + reactors 2 + is_xdic 1 + is_r2013 2 +
-  dep_cv 2 + cv 2 + has_action 1 + action_type 10); (c) her
-  subcurve region = main bits 96..330 (234 bits): 56 zero bits,
-  then a BD candidate `2.000000000000001` (2.0 + 1 ulp — the
-  author's computed extrusion distance), then ~120 further bits
-  (the `054B4C0C16A2...` bytes in gold's unknown_bits print);
-  (d) **the authority search is CLOSED (2026-09-27, the hints session)**:
-  the subcurve wire is unknown to BOTH authorities — libredwg's full
-  history (`git log --all -S "SUBCURVE"`: 5 commits, none
-  implementing; `CALL_SUBCURVE` an empty TODO stub in every one;
-  `subent` a bare `BITCODE_H` placeholder guess never populated; no
-  DXF import/export; no API section; the frozen HEAD `34f02f54` is
-  newer than the 2020 WIP line and still parks the region in
-  unknown_bits) and the ODA PDF (270pp via pypdf: ZERO hits for
-  Subcurve/EdgeActionParam/AcDbAssoc/ActionParam/action_type — the
-  ACDBASSOC* classes are undocumented 2008+ classes; the lone
-  "ASSOC" occurrence is the DIMASSOC header variable). THE
-  SPECIMENS ARE THE ONLY AUTHORITY. Framing: the subcurve types
-  are ARC/ELLIPSE/LINE geometry, so the region likely embeds those
-  entities' geometric fields (center/radius/angles for ARC) in the
-  PDF's documented BD/3BD forms — the 56-zero-bits + BD(2.0+1ulp)
-  head is consistent with a flag/count region then the radius.
-  Method: extract all 7 records' subcurve regions, group by
-  action_type, align within a group, decode the varying fields
-  against the fixtures' known geometry (gold's JSON prints the
-  source CIRCLEs' centers/radii).
+- **example_2007 (9)**: 1F +10 (01v21), 176 1726v1727, 1A9 +32
+  (a9va1), 37D 2269v2270, 392 +20 (42v52 — another assoc-dep-class
+  ref), 393 +30 (10v0c), 396 91v85, 430 +37 (27v28), +1 more.
 - **ATMOS (5 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
   h=77 96v40, h=352 25642v35 (a 25KB ACIS mass we emit as 35
   bytes), h=541 17v18; the 84 her-only = the broken-map orphans
   (pre-existing, documented).
-- **example_2007 (9)**: 1F +10 (01v21), 176 1726v1727, 1A9 +32
-  (a9va1), 37D 2269v2270, 392 +20 (42v52 — another assoc-dep-class
-  ref), 393 +30 (10v0c), 396 91v85, 430 +37 (27v28), +1 more.
 - **Chamfer/Fillet (4)**: the UNKNOWN bodies (1509/1463 vs 28) +
-  the 22v26/30 records.
-- **The Loft 29-vs-27 class (5)**: Loft3/C/H/R/_ (2DD/2DE/2E4/2EF).
+  the 22v26/30 records (the fillet/chamfer node's unknown_bits
+  mass).
+- **The Loft 29-vs-27 class (5)**: Loft3/C/H/R/_ (2DD/2DE/2E4/2EF)
+  — her loft UNKNOWN_OBJ record carries 2 bytes ours lacks.
 - **The singles**: Constraints `3E3` (666 vs 870); PolyLine3D `1C2`
   (16 vs 17 — OURS longer).
 
 ## The remaining work (all optional — the target stays reached)
 
-- **The subcurve reverse-engineering packet** — the biggest named
-  class (7 records): decode her unknown_bits per action_type (11 =
-  ARC, 17 = ELLIPSE, 19 = LINE, ...) and complete the
-  ASSOCEDGEACTIONPARAM reader+writer. Needs the ODA spec PDF study;
-  the specimens' hex is in the -v9 walks.
-- **The other residual classes above** — each an autopsy → census →
-  rule → gates → re-survey packet in the H8h tradition.
+- **The residual classes above** — each an autopsy → census →
+  rule → gates → re-survey packet in the H8h tradition; the
+  §19.2 H8h-ext-4 row carries the map and the method.
+- **The unattested subcurve action types** (17=ELLIPSE, 19=LINE,
+  23=LINESEG3D, 42=NURB3D, 27=CURVE3D): no corpus specimens — the
+  twelve-BD ARC form is the only attested layout; a future
+  authentic specimen extends the match arm.
 - **The MT-variant pinning (§F2.G)**: the crc_seed draws — NOT
   attempted (the echo path never runs it for unedited roundtrips).
 - **The dead/no-path rows**: `LoftD`; the SH revolve option shorts;
@@ -145,12 +116,13 @@ residual records** in five classes (below).
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (UNCHANGED through H8h-ext-3). The generator builds
+  25,375 bytes (UNCHANGED through H8h-ext-4). The generator builds
   and runs identically WITH or WITHOUT `--features serde`.
 - The record-identity state (the 58-file AC1021 survey,
-  `record_identity_survey.py`): **42 files at 100%, 32 divergent
+  `record_identity_survey.py`): **47 files at 100%, 25 divergent
   records, 84 her-only orphans (ATMOS's broken map)**. circle
-  211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245.
+  211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245;
+  ExtrudeCSurf 216/216; LoftCSurf 221/221.
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
   generated-file drift (`src/config.h.in`, autoheader requote) —
   the freeze rule stands. Oracle fingerprints unchanged: the
@@ -161,17 +133,20 @@ residual records** in five classes (below).
   `encode_r2007.c` exists — gold has no R2007 writer.
 - Spec authority on file: the ODA spec PDF
   (`~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp) +
-  libredwg `bits.c`. NOTE: gold's `CALL_SUBCURVE` spec macro is an
-  EMPTY TODO stub — the ASSOCEDGEACTIONPARAM subcurve wire is
-  undocumented there.
+  libredwg `bits.c`. NEITHER documents the ACDBASSOC* classes or
+  the subcurve wire (the authority closure, commit `cc1a6c8`).
 - The hermetic suites: serde green (the 0xF_ test + issue80
   green), gold_roundtrip green, at every landing.
 - Autopsy tooling notes: gold's `-v9` `@byte.bit` positions are
   RECORD-relative (they INCLUDE the 2-byte MS head); the survey's
   merge-trace positions are SPAN-relative. The record-head MS is
   15 data bits per 16-bit LE word (§19.4.A). The `bitsize` RL =
-  main+text bits; the record span = bitsize + hdlsize (verified on
-  the 1F autopsy: 330 + 150 = 480 = 60 bytes).
+  main+text bits = the handle-stream start (R2007); the record
+  span = bitsize + hdlsize + pad. The BD forms: 00 = full 66-bit
+  LE double, 01 = 1.0, 10 = 0.0 (the author uses the shorts —
+  our writer matches). The subcurve dissection recipe: the
+  `DWG_SUBCURVE_TRACE` reader trace (removed after the landing —
+  re-add at the EDGEACTIONPARAM arm if a new action type appears).
 
 ## Environment (complete)
 
@@ -222,8 +197,8 @@ md5sum gen_all_entities_all_versions.dwg
 python3 tests/gold_harness/record_identity_survey.py \
     "$GOLD_TESTDATA"/2007/*.dwg "$GOLD_TESTDATA"/example_2007.dwg \
     tests/gold_harness/tests/sh_history/*_2007.dwg
-# current state: 42 files at 100%, 32 divergent records total
-# circle 211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245
+# current state: 47 files at 100%, 25 divergent records total
+# circle 211/211; ExtrudeCSurf 216/216; LoftCSurf 221/221
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -233,38 +208,31 @@ cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
 cargo build --bin ac21_token_diff --features serde
 ```
 
-## Commit inventory (this halt — all PUSHED)
+## Commit inventory (this halt)
 
 ```
-53c9b11 <docs> the post-H8h-ext-2 halt refresh (the prior halt head)
-c3f28c3 <feat> H8h-ext-3: the assoc ref codes (deps/params -> 3,
-       assocdep -> 4), the Revolved trailing bit, the *Model_Space
-       block xdic + owned-object refs (49 -> 32; 42/58 at 100%)
-7585711 <docs> the post-H8h-ext-3 halt refresh
-<docs> the subcurve-packet handover notes (the in-flight dissection
-       state: the frame math, the bit-96 start, the BD candidate)
+cc1a6c8 <docs> the subcurve authority-search closure (the prior halt head)
+<feat> H8h-ext-4: the CALL_SUBCURVE bodies reverse-engineered — the
+       twelve-BD ARC form (center/normal/x-axis/radius/angles) +
+       the param ref code 4 (32 -> 25; 47/58 at 100%)
+<docs> this halt refresh — the post-H8h-ext-4 record
 ```
 
 **PUSH STATE (2026-09-27)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the H8h-ext-2
-halt → the assoc-genus autopsies (the -v9 walks naming the ref
-fields; the corpus census deciding genus-safety: deps {3:27},
-params {3:41}, assocdep {4:23}) → the RevolveM bit-diff (the clean
-1-bit shift; the trailing B(0); the single-specimen caveat) → the
-1F autopsies (the bitsize+hdlsize frame identity 330+150=480; the
-xdic side-map discovery — the reader always captured it, the
-writer hardcoded None; the owned-list live-filter hole — her
-blocks own non-graphical records, our Unknown objects ARE
-serialized, the filter needed is_writable_object) → the landing →
-the gates (serde 1602/0, gold_roundtrip, issue80, family smokes,
-corpus 0/0/0/0, generation identity unchanged and
-feature-independent) → the full survey (49 → 32; 42/58 at 100%) →
-the docs (§19.2 H8h-ext-3 row; this halt record). **The
-maintainer's loop instruction — "repeat process until target =
-zero" — remains satisfied: the corpus is at zero on every axis;
-the conventional arm is record-identical on 42 of 58 AC1021 files,
-and the residual 32 records are named, byte-level-scoped packets —
-the largest being the undocumented CALL_SUBCURVE bodies (gold's
-own spec macro is an empty TODO stub).**
+**Session arc, for context**: the continuation from the H8h-ext-3
+halt → the authority closure committed → the dissection (the
+DWG_SUBCURVE_TRACE positions; the region sizes ≡ 24 mod 64 hint;
+the BD walk cracking the twelve-field form; the geometry match
+against the fixtures' known circles) → the landing (the model +
+reader + writer + the param ref code fix found by the handle-stream
+decode of the 2-bit tail delta) → the gates (serde 1602/0,
+gold_roundtrip, issue80, family smokes, corpus 0/0/0/0, generation
+identity unchanged and feature-independent) → the full survey
+(32 → 25; 47/58 at 100% — the whole assoc genus closed) → the docs
+(§19.2 H8h-ext-4 row; this halt record). **The maintainer's loop
+instruction — "repeat process until target = zero" — remains
+satisfied: the corpus is at zero on every axis; the conventional
+arm is record-identical on 47 of 58 AC1021 files, and the residual
+25 records are named, byte-level-scoped packets in six classes.**
