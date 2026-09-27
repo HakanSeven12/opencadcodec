@@ -5620,7 +5620,34 @@ Signature) — the parse side is further along than the emission side.
   1432/1683; dwg2.spec:3984; dwg.spec:5446;
   r2004_file_header.spec:41-53) — and found NO `encode_r2007.c`:
   gold has no R2007 writer, so her on-disk streams remain the only
-  author-encoder ground truth (this instrument).
+  author-encoder ground truth (this instrument). **THE H8d OPENING
+  MEASUREMENT (same session, circle.dwg — `dwgread -v9` traces per
+  the §8.1.6 method, her file vs our rewrite)**: same 100 objects,
+  same types; the 94 content-divergent records decompose as —
+  44 differ ONLY in the final byte and in EVERY case her byte =
+  ours OR 1-bits (**the author pads each record's trailing bits
+  with 1s; our writer pads with 0s** — her 0x3f/0x7f/0xff/0x6f/0x21
+  vs our 0x00/0x40/0xc0/0x20); 34 diverge within the last ~8 bytes
+  (the handle-stream region — raw handle values differ: our
+  rewrite RENUMBERS handles, e.g. her 0x75 vs our 0x74 — the
+  earlier "head-record value" attribution is CORRECTED: the
+  stream's byte-22 divergence is object 0's TAIL padding byte, the
+  records' data prefixes are byte-identical almost everywhere);
+  14 frame-size deltas (her 87 vs our 88 etc. — per-record
+  bit-form choices, §8.1.6 record autopsies); 2 deep (obj 69 at
+  +7, obj 81 at +124). PLACEMENT: the same records sit at
+  different addresses (ours compact 6..64,008, hers scattered
+  6..146,328 — a byte-identical record pair verified at our
+  64,008 vs her 146,328), and the unreferenced interstices carry
+  the same `00 29 00 2a…` masses at different positions. The
+  record frame per gold C `dwg_decode_add_object` (decode.c:5429):
+  [0x0DCA marker][MS size][BS type at Address][data][handle
+  stream][bit-pad]. **The H8d packet lands as a UNIT** (every
+  writer change here reshuffles the layout-coupled coincidence
+  rows — the 0xF_ lesson): the 1s-padding fix + handle
+  preservation + the placement rule + the record autopsies, with
+  acceptance = the mirror engage census closing the
+  R2007_Header/FILEHEADER-AC1021/THUMBNAILIMAGE rows wholesale.
 
 ### 19.3 Standing rules for the campaign
 

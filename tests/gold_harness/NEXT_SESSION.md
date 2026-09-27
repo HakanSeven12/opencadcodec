@@ -38,8 +38,10 @@ file's objects section:
    comp (zero slack); our window-0 content compresses to ~17.9K —
    a −8,672 margin unclosable by any encoder work.
 2. **Values**: record-level byte divergences from the first bytes
-   (first divergence at byte 4–22 on the minis — head-record content
-   including raw-double mantissa deltas, not bit-form deltas).
+   (first divergence at byte 4–22 on the minis). **CORRECTED by the
+   H8d opening measurement below: the byte-22 divergence is object
+   0's TAIL (the 1s-padding byte), not head-record values — the
+   records' data prefixes are byte-identical almost everywhere.**
 
 The mirror fit tolerance for 9–50K comp windows is one RS block
 (~255 bytes, 0.5–1.8%): only near-byte-identity of the objects
@@ -123,28 +125,52 @@ the prior halt's 0xF-misuse fix stands).
   on-disk streams remain the only author-encoder ground truth (the
   instrument above is the extraction path).
 
-## H8d — the next packet: the objects-stream parity
+## H8d — the next packet: the objects-stream parity (MEASURED this session)
 
 The layer-4 doctrine applied to AC1021: make our rewritten
-`AcDb:AcDbObjects` stream byte-identical to hers. Two named layers
-from the anatomy:
+`AcDb:AcDbObjects` stream byte-identical to hers. **This session's
+opening measurement (circle.dwg, `dwgread -v9` traces on her file +
+our rewrite, per the §8.1.6 method) decomposed the wall into a
+concrete worklist** — same 100 objects both sides, same types, and:
 
-1. **The record ORDER/mass layout**: our stream emits the section's
-   records in a different arrangement than her author-time layout
-   (the two-mass transposition). The candidate mechanisms: object
-   emit order (her handle-map order vs our document order), the
-   objfree-space/handles section coupling, or page-boundary
-   alignment choices. The instrument's anatomy mode + raw dumps
-   (`AC21_DIFF_RAW_DIR`) are the measurement path; the first-divergence
-   token alignment (her stream vs ours over the same window) names
-   the first record that moves.
-2. **The head-record VALUES**: byte 4–22 divergences on every mini —
-   the first objects record's fields (raw doubles incl. mantissa
-   deltas). These are objects-section CONTENT fields (the §19
-   OBJECTS axis is frozen at 0 on the READ side — our reader derives
-   them 0/0 — so the divergences are in our WRITER's re-encoding of
-   the same values: bit-form or value-form choices, e.g. BD raw vs
-   short forms, or actual value drift in re-derived fields).
+1. **The 1s-padding rule (44 records)**: 44 of the 94 divergent
+   records differ ONLY in the final byte, and in every case her
+   byte = ours OR'd with 1-bits — **the author pads each object
+   record's trailing bits with 1s; our writer pads with 0s**
+   (her forms: 0x3f/0x7f/0xff/0x6f/0x21 = 6/7/8/4/1 pad bits set;
+   ours: 0x00/0x40/0xc0/0x20 = zeros). One writer fix.
+2. **The handle-stream tail (34 records)**: divergence within the
+   last ~8 bytes — the raw handle values in the records' handle
+   streams differ (observed single-bit deltas like her 0x75 vs our
+   0x74): **our rewrite RENUMBERS handles** (legitimate for the
+   JSON identity axis, fatal for byte-identity). The packet needs
+   a handle-preservation mode for same-document rewrites (retain
+   her handle values), or a placement that reproduces her
+   numbering.
+3. **The 14 frame-size deltas** (e.g. obj 20: her 87 vs ours 88):
+   per-record bit-form choices that change the record size —
+   walk each with the §8.1.6 record autopsy (first divergent bit
+   + spec-ordered field walk).
+4. **The 2 deep divergences**: obj 69 (size 130, first div at +7)
+   and obj 81 (size 142, first div at +124) — real field-level
+   divergences; the record autopsy names them.
+5. **The placement map**: the same records sit at different
+   addresses (ours compact 6..64,008; hers scattered 6..146,328)
+   — even byte-identical records (verified: our record @64,008 ==
+   her record @146,328 byte-for-byte). The section's unreferenced
+   interstices carry the same `00 29 00 2a…` masses in both files
+   at different positions. The packet needs her allocation rule
+   (or retention of her addresses on same-document rewrite).
+
+The record frame (verified against gold C `dwg_decode_add_object`,
+decode.c:5429): [0x0DCA marker, 4 bytes][per object: MS size][BS
+type at Address][data][handle stream][bit-pad] — the trace's
+Address = the type byte; the interstices are unreferenced by the
+handle map. **LAND AS A UNIT**: every writer change here reshuffles
+the layout-coupled R2007_Header coincidence rows (the 0xF_ lesson);
+the packet lands when the mirror ENGAGES (the census closes
+R2007_Header + FILEHEADER-AC1021 + THUMBNAILIMAGE rows wholesale),
+not piecemeal.
 
 Acceptance = the mirror engage census (`AC21_MIRROR_DEBUG=1
 python3 tests/gold_harness/run_roundtrip.py …` per file): every
