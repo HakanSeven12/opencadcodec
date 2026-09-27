@@ -306,13 +306,29 @@ Verified per family:
   automatically when the mirror engages (her container → her
   addresses). The R2000 pair is the same class for the flat
   layout (example_2000: gold=220 vs ours=557752). Bounded.
-- **R2004_Header 963 — the ONLY genuine scope decision**: the
-  "accepted residue" is a DECISION, not a technical
-  impossibility. The same doctrine applies (an AC18 container
-  mirror — an H8b-scale adaptation to the R2004 page system,
-  RS(255,239)); 232 corpus AC18 files are the surface; gold's
-  `decode_r2004.c` is the authority. Reversing the acceptance
-  is a maintainer call.
+- **R2004_Header 963 — the ONLY genuine scope decision, and its
+  row anatomy is now VERIFIED (2026-09-27 probe on the corpus
+  report)**: the rows are ADDRESS/ID fields —
+  `last_section_address` / `secondheader_address` /
+  `section_map_address` (+ `last_section_id`) — across **147
+  R2004+ files INCLUDING the R2010/R2013/R2018 containers**
+  (Box_2010/2013/2018 all carry the same class). The key covers
+  the whole AC18–AC28 container family. The rows close by the
+  SAME mechanism as the AC1021 address rows: a container mirror
+  (the H8a retention + H8b mirror arm + the objects raw-echo
+  re-scope), because the addresses are pure layout functions of
+  her container (incl. the objects section's size — the
+  placement wall applies to AC18 too, and the raw-echo re-scope
+  answers it the same way). The "4 × 225 + 9 × 7" decomposition
+  in the old halts is STALE — the fresh scan shows 147 files ×
+  3–4 address rows (~598 in the per-file read vs the census's
+  963 leaf count; the delta = array-leaf counting — the packet's
+  opening measurement reconciles it). Cost: a second
+  H8-scale campaign over the R2004/R2010/R2013/R2018 container
+  variants (our reader parses all of them — read axis 0/0 at
+  every version; retention is plumbing). No new instruments, no
+  custom examples; the corpus's 147 files are the surface.
+  Reversing the acceptance is a maintainer call.
 - **BREP is NOT in the 3,576** (a deferred row, separate) — the
   external-specimen ask does not gate this number.
 
