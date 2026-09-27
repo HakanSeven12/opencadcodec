@@ -2932,6 +2932,30 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_xref_manifest_data: Option<Arc<Vec<u8>>>,
 
+    /// The author's reconstructed `AcDb:AcDbObjects` section stream (the
+    /// decompressed pages concatenated — §19 H8d, the H8a-retention
+    /// pattern): the mirror arm's raw-echo source. Her physical layout
+    /// is her editor's incremental-save allocation history — unmodelable
+    /// by rule — and the mirror's own doctrine for unmodelable authored
+    /// state is echo: the section re-emits her raw bytes verbatim, our
+    /// own emission stays the conventional arm's.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_acdb_objects_data: Option<Arc<Vec<u8>>>,
+
+    /// The author's handle map for the echoed objects section above
+    /// (handle → offset in that stream, sorted): the echoed raw needs
+    /// her record addresses, not our compact emission's offsets.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_acdb_objects_handles: Option<Arc<Vec<(u64, i64)>>>,
+
+    /// The read-time identity hash guarding the objects echo above (the
+    /// classes-verbatim fingerprint doctrine): the sorted handle set of
+    /// the source's objects walk. The echo engages only when the
+    /// document's object identity is unchanged — adds, deletes and
+    /// renumberings fall back to our own emission.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_acdb_objects_fingerprint: u64,
+
     /// Non-entity objects whose source record points into the AcDs data store.
     /// Retained for same-version saves together with the original section.
     /// Serialized (as a plain handle list) like the other DWG round-trip
@@ -3144,6 +3168,9 @@ impl CadDocument {
             raw_app_info_history_data: None,
             raw_obj_free_space_data: None,
             raw_xref_manifest_data: None,
+            raw_acdb_objects_data: None,
+            raw_acdb_objects_handles: None,
+            raw_acdb_objects_fingerprint: 0,
             dwg_data_store_handles: HashSet::new(),
             dimstyle_morehandles: Vec::new(),
             section_view_style: None,

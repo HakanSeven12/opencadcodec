@@ -733,6 +733,22 @@ impl DwgBitWriter {
         self.write_handle(DwgReferenceType::Undefined, handle);
     }
 
+    /// Write a record's first handle reference (the ownerhandle slot) in
+    /// the author's form: relative iff it is the smaller encoding —
+    /// `(rel_len < abs_len)` OR `(rel_len == abs_len AND |offset| <
+    /// value)` — else absolute (§19 H8d: verified 196/196 on
+    /// circle.dwg; her census = 78 absolutes + 118 relative + 10 nulls).
+    pub fn write_first_ref_handle(&mut self, ref_type: DwgReferenceType, reference: u64, handle: u64) {
+        let offset = handle.abs_diff(reference);
+        let rel_len = handle_byte_count(offset);
+        let abs_len = handle_byte_count(handle);
+        if rel_len < abs_len || (rel_len == abs_len && offset < handle) {
+            self.write_handle_relative(reference, handle);
+        } else {
+            self.write_handle(ref_type, handle);
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     //  Color encoding (version-dependent)
     // ════════════════════════════════════════════════════════════════════════
@@ -917,6 +933,20 @@ impl DwgBitWriter {
     pub fn write_spear_shift(&mut self) {
         while self.bit_shift > 0 {
             self.write_bit(false);
+        }
+    }
+
+    /// Pad remaining bits in the current byte with ones (align to byte boundary).
+    ///
+    /// §19 H8d: the author's record framing pads the merged object
+    /// record's final partial byte with 1s (verified AC15/AC18/AC21
+    /// samples all-ones) — the closing shift of the merged stream,
+    /// where the handle sub-writer's bits pack into main's tail
+    /// mid-byte. Only the merge's final alignment uses this; the
+    /// intermediate pads stay zero (verified byte-identical).
+    pub fn write_spear_shift_ones(&mut self) {
+        while self.bit_shift > 0 {
+            self.write_bit(true);
         }
     }
 

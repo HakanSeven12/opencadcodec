@@ -79,6 +79,27 @@ pub(crate) fn sab_fingerprint<'a>(
     fingerprint
 }
 
+/// §19 H8d: the identity hash guarding the objects-section raw echo —
+/// the sorted handle set of the objects walk (count + every handle, in
+/// ascending order). Computed identically at read time (the capture,
+/// over the source's handles-section map) and at write time (the gate,
+/// over our emission's handle map): adds, deletes and renumberings
+/// change the set and fall the echo back to our own emission. In-place
+/// field edits on an unchanged handle set are outside this identity
+/// fingerprint (the same limitation class as the classes fingerprint).
+pub(crate) fn objects_handle_set_fingerprint(handles: impl Iterator<Item = u64>) -> u64 {
+    use std::hash::{Hash, Hasher};
+
+    let mut sorted: Vec<u64> = handles.collect();
+    sorted.sort_unstable();
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    sorted.len().hash(&mut hasher);
+    for handle in sorted {
+        handle.hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
 /// §19 H7 CLASSES row: the state hash guarding the verbatim classes
 /// re-emission — the ordered class identity tuple plus the document's
 /// per-class object census (entities + objects resolved through the

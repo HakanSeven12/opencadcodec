@@ -398,8 +398,19 @@ impl<'a> DwgObjectWriter<'a> {
 
         // ── HANDLE: owner (if entmode == 0) ──
         if entmode == 0 {
-            self.writer
-                .write_handle(DwgReferenceType::SoftPointer, owner_handle.value());
+            // §19 H8d: R2007+ non-null owners ride the author's
+            // ownerhandle form (relative iff the smaller encoding);
+            // nulls keep the code-4 absolute.
+            if self.version.r2007_plus() && !owner_handle.is_null() {
+                self.writer.write_first_ref_handle(
+                    DwgReferenceType::SoftPointer,
+                    handle.value(),
+                    owner_handle.value(),
+                );
+            } else {
+                self.writer
+                    .write_handle(DwgReferenceType::SoftPointer, owner_handle.value());
+            }
         }
 
         // ── MAIN + HANDLE: reactors + xdic ──
@@ -802,6 +813,16 @@ impl<'a> DwgObjectWriter<'a> {
         if relative_owner && !effective_owner.is_null() {
             self.writer
                 .write_handle_relative(handle.value(), effective_owner.value());
+        } else if self.version.r2007_plus() && !effective_owner.is_null() {
+            // §19 H8d: the author's ownerhandle form for the internal
+            // non-entity slot (relative iff the smaller encoding); the
+            // explicit relative_owner request paths keep
+            // write_handle_relative, nulls keep code-4.
+            self.writer.write_first_ref_handle(
+                DwgReferenceType::SoftPointer,
+                handle.value(),
+                effective_owner.value(),
+            );
         } else {
             self.writer
                 .write_handle(DwgReferenceType::SoftPointer, effective_owner.value());

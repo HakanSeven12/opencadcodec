@@ -1711,6 +1711,25 @@ impl<R: Read + Seek> DwgReader<R> {
             match self.get_section_buffer("AcDb:AcDbObjects", &info) {
                 Ok(objects_buf) => {
                     objects_section_read = true;
+                    // §19 H8d: retain her reconstructed objects-section
+                    // stream plus her handle map and the identity
+                    // fingerprint (the classes-verbatim doctrine) on
+                    // AC1021-format files — the mirror arm's raw-echo
+                    // source. Her physical layout is her editor's
+                    // incremental-save allocation history; the echo
+                    // engages only when the document's object identity
+                    // is unchanged at the write gate.
+                    if info.ac21_metadata.is_some() {
+                        document.raw_acdb_objects_data =
+                            Some(std::sync::Arc::new(objects_buf.clone()));
+                        let mut her_handles: Vec<(u64, i64)> =
+                            handle_map.iter().map(|(&h, &o)| (h, o)).collect();
+                        her_handles.sort_by_key(|&(h, _)| h);
+                        document.raw_acdb_objects_fingerprint =
+                            super::objects_handle_set_fingerprint(handle_map.keys().copied());
+                        document.raw_acdb_objects_handles =
+                            Some(std::sync::Arc::new(her_handles));
+                    }
                     match crate::io::dwg::dwg_stream_readers::object_reader::DwgObjectReader::with_encoding(
                     objects_buf,
                     dxf_version,

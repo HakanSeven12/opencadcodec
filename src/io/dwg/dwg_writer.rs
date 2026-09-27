@@ -2054,6 +2054,48 @@ fn write_ac21_impl<W: Write + Seek>(
     // content with no page space, a terminator pair inside her map
     // bytes, an over-slot RS form: the rewrite stays valid everywhere
     // and the residue rows stay open on the files it declines.
+    //
+    // §19 H8d: the objects-stream raw echo — her reconstructed section
+    // re-emits verbatim in her slots when the document's object
+    // identity is unchanged (the classes-verbatim fingerprint
+    // doctrine). Her physical layout is her editor's incremental-save
+    // allocation history — unmodelable by rule — and the mirror's own
+    // doctrine for unmodelable authored state is echo. The echoed
+    // section needs her record addresses, so the handle map re-emits
+    // from the captured pairs (her offsets into her stream), not our
+    // compact emission's.
+    let objects_echo: Option<(&[u8], Vec<u8>)> = match (
+        document.raw_acdb_objects_data.as_deref(),
+        document.raw_acdb_objects_handles.as_deref(),
+    ) {
+        (Some(her_raw), Some(her_handles))
+            if super::objects_handle_set_fingerprint(
+                handle_map_u32.iter().map(|&(h, _)| h),
+            ) == document.raw_acdb_objects_fingerprint =>
+        {
+            let her_handles_data = handle_writer::write_handles(her_handles, 0);
+            if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+                eprintln!(
+                    "[ac21-mirror] objects echo ENGAGED — her raw {} bytes, {} handles",
+                    her_raw.len(),
+                    her_handles.len()
+                );
+            }
+            Some((&her_raw[..], her_handles_data))
+        }
+        _ => {
+            if std::env::var_os("AC21_MIRROR_DEBUG").is_some()
+                && document.raw_acdb_objects_data.is_some()
+            {
+                eprintln!("[ac21-mirror] objects echo DECLINED — object identity changed");
+            }
+            None
+        }
+    };
+    let (objects_buffer, handles_buffer): (&[u8], &[u8]) = match &objects_echo {
+        Some((raw, her_handles_data)) => (&raw[..], &her_handles_data[..]),
+        None => (&obj_data[..], &handles_data[..]),
+    };
     let mirror_plan = match (
         document.dwg_ac21_shape.as_ref(),
         document.dwg_r2007_header.as_ref(),
@@ -2089,7 +2131,7 @@ fn write_ac21_impl<W: Write + Seek>(
                     app_info_history: app_info_history_section.as_deref(),
                     file_dep: Some(&file_dep_data),
                     rev_history: &rev_history_data,
-                    objects: &obj_data,
+                    objects: objects_buffer,
                     acds: acds_section.as_deref(),
                     obj_free_space: obj_free_space_section.as_deref(),
                     xref_manifest: document
@@ -2097,7 +2139,7 @@ fn write_ac21_impl<W: Write + Seek>(
                         .as_deref()
                         .map(|raw| &raw[..]),
                     template: &template,
-                    handles: &handles_data,
+                    handles: handles_buffer,
                     classes: &classes_data,
                     aux_header: &aux_data,
                     header: &header_data,

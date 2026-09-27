@@ -445,6 +445,12 @@ impl DwgMergedWriter {
         self.handle.write_handle_undefined(handle);
     }
 
+    /// Write a record's first handle reference (the ownerhandle slot) in
+    /// the author's form — §19 H8d; see the bit writer's method.
+    pub fn write_first_ref_handle(&mut self, ref_type: DwgReferenceType, reference: u64, handle: u64) {
+        self.handle.write_first_ref_handle(ref_type, reference, handle);
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     //  Stream merging
     // ════════════════════════════════════════════════════════════════════════
@@ -490,7 +496,9 @@ impl DwgMergedWriter {
         self.handle_start_bits = self.main.position_in_bits();
         self.handle.flush();
         self.main.write_bytes(self.handle.buffer());
-        self.main.write_spear_shift();
+        // §19 H8d: the record's final partial byte is the author's 1s
+        // pad (the intermediate pads stay zero — verified identical).
+        self.main.write_spear_shift_ones();
 
         self.main.take_bytes()
     }
@@ -604,8 +612,10 @@ impl DwgMergedWriter {
         self.handle.flush();
         self.main.write_bytes(self.handle.buffer());
 
-        // Final byte-alignment for CRC computation.
-        self.main.write_spear_shift();
+        // Final byte-alignment for CRC computation — the author's 1s
+        // pad (§19 H8d: the record's final partial byte is main's
+        // closing shift; the intermediate pads stay zero).
+        self.main.write_spear_shift_ones();
 
         self.main.take_bytes()
     }
