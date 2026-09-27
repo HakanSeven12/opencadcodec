@@ -86,6 +86,10 @@ path = "tests/gold_harness/src/bin/dump_section_bytes.rs"
 name = "dump_proxy_graphics"
 path = "tests/gold_harness/src/bin/dump_proxy_graphics.rs"
 
+[[bin]]
+name = "ac21_token_diff"
+path = "tests/gold_harness/src/bin/ac21_token_diff.rs"
+
 # Consumes serde_json unconditionally; skip under feature-less builds.
 [[example]]
 name = "entity_atlas"
