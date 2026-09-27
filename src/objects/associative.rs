@@ -797,11 +797,31 @@ pub struct AssocAnnotationActionBody {
 pub struct AssocPersSubentManager {
     pub class_version: i32,
     pub markers: [i32; 3],
+    /// §19 H8h-ext-6: gold dwg2.spec `unknown_bl1`/`unknown_bl2` — the
+    /// two BLs between the markers and `num_steps`. Our old parse skipped
+    /// them, desyncing the record (the Chamfer/Fillet 2DE reads pulled
+    /// garbage steps and hit the 2-bit-code-11 branch's 256); the loft
+    /// records only roundtripped because their misparse was symmetric.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub bl1: i32,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub bl2: i32,
     pub steps: Vec<i32>,
-    pub subent_count: i32,
-    /// Fixed semantic tail currently documented as 34 integer slots.
-    pub subent_data: Vec<i32>,
-    pub final_flag: bool,
+    pub subents: Vec<i32>,
+    /// §19 H8h-ext-6: the undocumented BLs after the subents vector,
+    /// captured verbatim (the gold spec declares only the cv2 [BL][B]
+    /// tail, but the cv=1 corpus records carry a variable BL run there —
+    /// e.g. LoftCSurf/LoftM 2DD's [0,0,0,1,1,0]; the simple records carry
+    /// none). Read until one bit remains (the trailing B); re-emitted
+    /// in order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bls: Vec<i32>,
+    /// §19 H8h-ext-6: the trailing B at the main content end (the last
+    /// content bit; the gold spec's `unknown_b4`). The bit after it is
+    /// the merged stream's no-text flag — never a record field (the
+    /// H8h-ext-5 lesson).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub trailing_b: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1312,19 +1332,16 @@ pub struct PersSubentManager {
     pub associative_subent_count: i32,
     pub steps: Vec<i32>,
     pub subents: Vec<i32>,
-    /// §19 H8h-ext-5: the class_version-2 tail after the subents vector —
-    /// [BL][BL], reverse-engineered from the five loft specimens (the
-    /// ACDBPERSSUBENTMANAGER class has no gold spec block; gold parks the
-    /// record raw). Present only when `associative_subent_count != 0`: the
-    /// loft specimens (count 1) carry it and their walk ends exactly at the
-    /// main-stream content end — the following bit is the merged stream's
-    /// no-text flag, NOT a record field; the count-0 records (e.g.
-    /// ExtrudeC 2DC) end the content right after the steps. The first tail
-    /// BL is 1, the second tracks the fourth header BL (= steps[2]).
-    /// Captured at DWG read; `None` for DXF-built records (the writer then
-    /// emits no tail — the pre-H8h-ext-5 form).
+    /// §19 H8h-ext-6: the undocumented BLs after the subents vector —
+    /// a variable run captured verbatim (the loft specimens carry two
+    /// ([1, {2|1}]); the Chamfer/Fillet 2DF records carry the ~1224-BL
+    /// history blob; the count-0 records carry none). The gold spec has
+    /// no block for this class; the run ends flush at the main content
+    /// end (no trailing bit — the bit after the content is the merged
+    /// stream's no-text flag, never a record field; the H8h-ext-5
+    /// lesson). Re-emitted in order.
     #[cfg_attr(feature = "serde", serde(default))]
-    pub v2_tail: Option<(i32, i32)>,
+    pub tail_bls: Vec<i32>,
 }
 
 pub fn associative_canonical_name(name: &str) -> String {

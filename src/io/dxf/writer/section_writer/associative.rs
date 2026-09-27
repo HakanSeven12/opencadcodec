@@ -806,15 +806,25 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for marker in value.markers {
                     self.writer.write_i32(90, marker)?;
                 }
+                // §19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
+                // order; the subents count is the vector length; the cv2
+                // tail emits as 90 + 290.
+                self.writer.write_i32(90, value.bl1)?;
+                self.writer.write_i32(90, value.bl2)?;
                 self.writer.write_i32(90, value.steps.len() as i32)?;
                 for step in &value.steps {
                     self.writer.write_i32(90, *step)?;
                 }
-                self.writer.write_i32(90, value.subent_count)?;
-                for item in &value.subent_data {
+                self.writer.write_i32(90, value.subents.len() as i32)?;
+                for item in &value.subents {
                     self.writer.write_i32(90, *item)?;
                 }
-                self.writer.write_bool(290, value.final_flag)?;
+                // §19 H8h-ext-6: the captured tail BLs as 90 values,
+                // then the trailing B as the 290 code.
+                for bl in &value.tail_bls {
+                    self.writer.write_i32(90, *bl)?;
+                }
+                self.writer.write_bool(290, value.trailing_b)?;
             }
             AssociativeData::EdgeActionParam(value) => {
                 self.write_assoc_single_dependency(

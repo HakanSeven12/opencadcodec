@@ -389,12 +389,10 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_bit_long(*subent);
             }
         }
-        // §19 H8h-ext-5: the captured class_version-2 tail — [BL][BL]
-        // after the subents vector (the merged writer's no-text flag bit
-        // follows; see PersSubentManager::v2_tail).
-        if let Some((tail_bl1, tail_bl2)) = value.v2_tail {
-            self.writer.write_bit_long(tail_bl1);
-            self.writer.write_bit_long(tail_bl2);
+        // §19 H8h-ext-6: the captured tail BLs in order (see
+        // PersSubentManager::tail_bls).
+        for bl in &value.tail_bls {
+            self.writer.write_bit_long(*bl);
         }
     }
 
@@ -480,19 +478,29 @@ impl<'a> DwgObjectWriter<'a> {
             }
             AssociativeData::AnnotationActionBody(value) => self.write_assoc_annotation(value),
             AssociativeData::PersSubentManager(value) => {
+                // §19 H8h-ext-6: the gold dwg2.spec field order — see the
+                // reader arm. The subents count is the vector length; the
+                // cv2 tail (unknown_bl3 + B) emits only when captured.
                 self.writer.write_bit_long(value.class_version);
                 for marker in value.markers {
                     self.writer.write_bit_long(marker);
                 }
+                self.writer.write_bit_long(value.bl1);
+                self.writer.write_bit_long(value.bl2);
                 self.writer.write_bit_long(value.steps.len() as i32);
                 for step in &value.steps {
                     self.writer.write_bit_long(*step);
                 }
-                self.writer.write_bit_long(value.subent_count);
-                for item in &value.subent_data {
+                self.writer.write_bit_long(value.subents.len() as i32);
+                for item in &value.subents {
                     self.writer.write_bit_long(*item);
                 }
-                self.writer.write_bit(value.final_flag);
+                // §19 H8h-ext-6: the captured tail BLs in order, then
+                // the trailing B (see the reader arm).
+                for bl in &value.tail_bls {
+                    self.writer.write_bit_long(*bl);
+                }
+                self.writer.write_bit(value.trailing_b);
             }
             AssociativeData::EdgeActionParam(value) => {
                 self.write_assoc_single_dependency(&value.single_dependency);

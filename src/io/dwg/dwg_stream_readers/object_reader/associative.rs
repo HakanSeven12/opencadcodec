@@ -647,19 +647,17 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
             subents.push(reader.read_bit_long());
         }
     }
-    // §19 H8h-ext-5: the class_version-2 tail — [BL][BL] after the
-    // subents vector, present only when associative_subent_count != 0
-    // (the loft specimens carry it; the subent_count==0 records — e.g.
-    // ExtrudeC 2DC — end the main content right after the steps, and the
-    // following bit is the merged stream's no-text flag, not a record
-    // field — see PersSubentManager::v2_tail).
-    let v2_tail = if class_version == 2 && associative_subent_count != 0 {
-        let tail_bl1 = reader.read_bit_long();
-        let tail_bl2 = reader.read_bit_long();
-        Some((tail_bl1, tail_bl2))
-    } else {
-        None
-    };
+    // §19 H8h-ext-6: the undocumented tail after the subents vector —
+    // a variable BL run captured verbatim (the loft specimens carry
+    // two; the Chamfer/Fillet 2DF records carry the ~1224-BL history
+    // blob; the count-0 records carry none). The run ends flush at the
+    // main content end — the bit after the content is the merged
+    // stream's no-text flag, never a record field (the H8h-ext-5
+    // lesson). See PersSubentManager::tail_bls.
+    let mut tail_bls = Vec::new();
+    while reader.main_remaining_bits() >= 2 {
+        tail_bls.push(reader.read_bit_long());
+    }
     PersSubentManager {
         class_version,
         marker_zero,
@@ -668,7 +666,7 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
         associative_subent_count,
         steps,
         subents,
-        v2_tail,
+        tail_bls,
     }
 }
 
@@ -772,12 +770,22 @@ pub fn read_associative_data(
             ))
         }
         "ASSOCPERSSUBENTMANAGER" => {
+            // §19 H8h-ext-6: the gold dwg2.spec field order —
+            // class_version, unknown_3/0/2 (the markers), unknown_bl1,
+            // unknown_bl2, num_steps, steps, num_subents, subents, and
+            // the class_version-2 tail (unknown_bl3 + B). The old parse
+            // skipped bl1/bl2 (desyncing the record) and read BLs until
+            // the stream end plus a final_flag bit (the H8h-ext-5
+            // lesson: the bit after the content is the merged stream's
+            // no-text flag, never a record field).
             let class_version = reader.read_bit_long();
             let markers = [
                 reader.read_bit_long(),
                 reader.read_bit_long(),
                 reader.read_bit_long(),
             ];
+            let bl1 = reader.read_bit_long();
+            let bl2 = reader.read_bit_long();
             let steps = {
                 let count = safe_count(reader.read_bit_long());
                 let mut result = Vec::with_capacity(count as usize);
@@ -786,18 +794,36 @@ pub fn read_associative_data(
                 }
                 result
             };
-            let subent_count = reader.read_bit_long();
-            let mut subent_data = Vec::new();
+            let subents = {
+                let count = safe_count(reader.read_bit_long());
+                let mut result = Vec::with_capacity(count as usize);
+                for _ in 0..count {
+                    result.push(reader.read_bit_long());
+                }
+                result
+            };
+            // §19 H8h-ext-6: the undocumented tail after the subents
+            // vector — a variable BL run (captured verbatim; the gold
+            // spec declares only the cv2 [BL][B] pair, but the cv=1
+            // corpus records carry more there, e.g. LoftCSurf/LoftM
+            // 2DD's [0,0,0,1,1,0]), then the trailing B (the last
+            // content bit). The bit after the content is the merged
+            // stream's no-text flag — never a record field (the
+            // H8h-ext-5 lesson).
+            let mut tail_bls = Vec::new();
             while reader.main_remaining_bits() > 1 {
-                subent_data.push(reader.read_bit_long());
+                tail_bls.push(reader.read_bit_long());
             }
+            let trailing_b = reader.read_bit();
             AssociativeData::PersSubentManager(AssocPersSubentManager {
                 class_version,
                 markers,
+                bl1,
+                bl2,
                 steps,
-                subent_count,
-                subent_data,
-                final_flag: reader.read_bit(),
+                subents,
+                tail_bls,
+                trailing_b,
             })
         }
         "ASSOCEDGEACTIONPARAM" => {

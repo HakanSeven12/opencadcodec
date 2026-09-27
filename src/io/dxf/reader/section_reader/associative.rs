@@ -1008,9 +1008,9 @@ fn read_static_pers_subent_manager_dxf(record: &AssocDxfRecord) -> PersSubentMan
         associative_subent_count,
         steps,
         subents,
-        // §19 H8h-ext-5: the v2 tail is DWG-wire-only state (captured at
-        // DWG read); DXF documents carry no tail payload.
-        v2_tail: None,
+        // §19 H8h-ext-6: the tail BLs are DWG-wire-only state (captured
+        // at DWG read); DXF documents carry no tail payload.
+        tail_bls: Vec::new(),
     }
 }
 
@@ -1217,19 +1217,32 @@ impl<'a> SectionReader<'a> {
                     parsed.next().unwrap_or_default(),
                     parsed.next().unwrap_or_default(),
                 ];
+                // §19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
+                // order (between the markers and num_steps).
+                let bl1 = parsed.next().unwrap_or_default();
+                let bl2 = parsed.next().unwrap_or_default();
                 let step_count = parsed.next().unwrap_or_default().max(0).min(100_000);
                 let mut steps = Vec::with_capacity(step_count as usize);
                 for _ in 0..step_count {
                     steps.push(parsed.next().unwrap_or_default());
                 }
-                let subent_count = parsed.next().unwrap_or_default();
+                let subent_count = parsed.next().unwrap_or_default().max(0).min(100_000);
+                let mut subents = Vec::with_capacity(subent_count as usize);
+                for _ in 0..subent_count {
+                    subents.push(parsed.next().unwrap_or_default());
+                }
                 AssociativeData::PersSubentManager(AssocPersSubentManager {
                     class_version,
                     markers,
+                    bl1,
+                    bl2,
                     steps,
-                    subent_count,
-                    subent_data: parsed.collect(),
-                    final_flag: record.bool("AcDbAssocPersSubentManager", 290, 0),
+                    subents,
+                    // §19 H8h-ext-6: the remaining 90 values are the
+                    // undocumented tail BLs; the 290 code is the
+                    // trailing B.
+                    tail_bls: parsed.collect(),
+                    trailing_b: record.bool("AcDbAssocPersSubentManager", 290, 0),
                 })
             }
             "ASSOCEDGEACTIONPARAM" => {
