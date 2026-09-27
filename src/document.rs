@@ -1243,13 +1243,14 @@ pub struct CadDocument {
     /// Shared so document snapshots do not duplicate large modeler data.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acds_data: Option<Arc<Vec<u8>>>,
-    /// Debug aid: every record of the source DWG, verbatim, keyed by handle
-    /// (type code, bytes). Only filled when `ACADRUST_RAW_ALL` is set in the
-    /// environment; the writer then re-emits these instead of re-serialising
-    /// so that a writer defect can be bisected by object type
-    /// (`ACADRUST_RAW_EXCLUDE`).
+    /// Original extrusion history and dimension-association records, keyed by
+    /// handle (type code, bytes). Their semantic snapshots guard passthrough.
+    /// `ACADRUST_RAW_ALL` additionally captures every record for debug bisection.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_records: HashMap<u64, (i16, Arc<crate::entities::RawRecord>)>,
+    /// Semantic snapshots guarding same-version passthrough of retained objects.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) original_objects: HashMap<Handle, ObjectType>,
     /// Child record -> compound entity handle, captured with `raw_records`.
     /// Exclusions must serialize each compound entity and its children together.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -1437,6 +1438,7 @@ impl CadDocument {
             acis_sab_handles: Vec::new(),
             raw_acds_data: None,
             raw_records: HashMap::new(),
+            original_objects: HashMap::new(),
             raw_record_owners: HashMap::new(),
             raw_acds_fingerprint: Vec::new(),
             dwg_data_store_handles: HashSet::new(),

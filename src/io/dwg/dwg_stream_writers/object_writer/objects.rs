@@ -286,6 +286,22 @@ impl<'a> DwgObjectWriter<'a> {
 
     /// Write a single non-graphical object record.
     pub(super) fn write_object(&mut self, obj: &ObjectType) {
+        let preserved_handle = match obj {
+            ObjectType::DynamicBlock(value) => Some(value.handle),
+            ObjectType::Associative(value) => Some(value.handle),
+            _ => None,
+        };
+        if let Some(handle) = preserved_handle {
+            if self.document.original_objects.get(&handle) == Some(obj) {
+                if let Some((_, raw)) = self.document.raw_records.get(&handle.value()) {
+                    if raw.version == self.dxf_version {
+                        let raw = raw.clone();
+                        self.register_raw_object(handle, &raw.data, raw.handle_bits);
+                        return;
+                    }
+                }
+            }
+        }
         match obj {
             ObjectType::Dictionary(d) => self.write_dictionary(d),
             ObjectType::Layout(l) => self.write_layout(l),

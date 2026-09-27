@@ -253,7 +253,7 @@ struct Pass2Chunk {
     pending: PendingPolylines,
     pending_attributes: HashMap<u64, Vec<AttributeEntity>>,
     failures: Vec<RecordFailure>,
-    /// (handle, type code, merged bytes, handle bits) — only with ACADRUST_RAW_ALL.
+    /// Source records retained for guarded passthrough or debug bisection.
     raw_records: Vec<(u64, i16, Vec<u8>, i64)>,
 }
 
@@ -1694,7 +1694,11 @@ impl DwgDocumentBuilder {
                             continue;
                         }
                     };
-                    if capture_raw {
+                    if capture_raw
+                        || class_names.dxf.get(&raw_type_code).is_some_and(|name| {
+                            matches!(name.as_str(), "ACSH_EXTRUSION_CLASS" | "DIMASSOC")
+                        })
+                    {
                         chunk.raw_records.push((
                             handle,
                             raw_type_code,
@@ -3053,6 +3057,13 @@ impl DwgDocumentBuilder {
         // its own BlockRecord. Copy the record's value across now that both
         // are assembled.
         Self::hydrate_block_markers(document);
+
+        document.original_objects = document
+            .objects
+            .iter()
+            .filter(|(handle, _)| document.raw_records.contains_key(&handle.value()))
+            .map(|(handle, object)| (*handle, object.clone()))
+            .collect();
 
         if perf {
             eprintln!(
