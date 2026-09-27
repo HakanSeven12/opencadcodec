@@ -197,26 +197,65 @@ were REVERTED (git checkout of the three files) — the tree is
 at the d935181 3,576-verified state. THE α SLICE RELANDS WITH
 THE REMAINING LAYERS AS THE ONE UNIT:**
 
-1. The 5 record autopsies (above).
-2. **THE PLACEMENT LAYER — now the dominant wall**: with
-   records byte-identical the section still diverges from byte
-   164 (our emission order/interstices vs her arrangement; the
-   mirror-sim still OVER: window 0 = 18,177 vs slot 9,696; the
-   window profiles differ because the same records sit at
-   different offsets). The mechanics: her per-record addresses
-   (readable from her handles section at read time — extend the
-   reader's retention to per-object record addresses) + the
-   interstice content (the same `00 29 00 2a…` filler masses at
-   different positions — capture-echo the unreferenced bytes,
-   or derive her allocator's rule). With placement parity the
-   mirror engages and the family rows close wholesale.
+1. The 5 record autopsies (above) — POLISH, NOT BLOCKERS (see the
+   placement re-scope below: the mirror path does not consume our
+   emission).
+2. **THE PLACEMENT LAYER — RE-SCOPED AFTER THE LOOP DIAGNOSIS
+   (the maintenance review of 2026-09-27 found the sessions
+   stuck in a measure→verify→revert loop: seven docs commits, one
+   analysis feat, ZERO parity landings since H8b; 3,576
+   unmoved)**. The loop's root cause was a framing error: the
+   placement was scoped as "derive her allocator's rule" (big,
+   risky surgery) when the codebase ALREADY HOLDS the pattern
+   that solves it — RAW RETENTION + VERBATIM ECHO (the SH tails;
+   the XrefManifest fallback IN THE H8b MIRROR ARM ITSELF:
+   "the section re-emits her raw bytes verbatim"). Her physical
+   layout is her editor's incremental-save allocation history —
+   unmodelable by rule, and the mirror's own doctrine for
+   unmodelable authored state is echo. THE IMPLEMENTATION
+   (verified against the code this session):
+   (a) READER: retain her reconstructed objects-section stream
+       (the reader already rebuilds it while reading objects —
+       the same reconstruction the instrument performs; one
+       `Vec<u8>` on the document, the H8a-retention pattern);
+   (b) WRITER: in `write_ac21_impl`'s MIRROR arm, pass her raw
+       as the `objects` buffer — `Ac21MirrorBuffers.objects` is
+       ALREADY an abstract `&[u8]` slot (dwg_writer.rs:2085);
+       the conventional arm keeps our own emission untouched;
+   (c) the gate then measures our comp == her comp per window →
+       rs_form == her slot exactly → EVERY objects window fits →
+       the 57 objects-decline files ENGAGE (ATMOS stays declined
+       on the gap-entry class — legit).
+   THE DEADLOCK RESOLUTION: the α slice's measured +2 was an
+   artifact of partial parity while the files still took the
+   CONVENTIONAL arm; the unit (α + raw-echo) flips those files
+   to the mirror arm, where the conventional coincidences stop
+   being measured. Land α + raw-echo TOGETHER; the generation
+   identity RE-RECORDS (the conventional path changes — the
+   gate says re-run when the writer changes; document the new
+   md5 in the halt record).
 
-**LAND AS A UNIT** (the 0xF_ lesson); acceptance = the mirror
-engage census (`AC21_MIRROR_DEBUG=1 python3
+**LAND AS A UNIT** (α + raw-echo together); acceptance = the
+mirror engage census (`AC21_MIRROR_DEBUG=1 python3
 tests/gold_harness/run_roundtrip.py …` per AC1021 file): every
 engaged file closes its FILEHEADER AC1021 + THUMBNAILIMAGE +
 R2007 pages-map family rows automatically (the H8b machinery is
 IN and stash-safe). The 0xF_ emission relands with this packet.
+
+**THE HONEST MOVEMENT FORECAST (recorded so the loop is judged
+by results)**: the H8d landing is the FIRST row movement since
+H8b — the engaged files close the bulk of R2007_Header 925 +
+FILEHEADER's AC1021 82 + THUMBNAILIMAGE 50 ≈ **1,057 rows →
+the total drops 3,576 → ~2,519**. THE CEILING, stated plainly:
+the remaining ~2,498 rows are NOT this queue's to move —
+FileDepList 1,055 + SecondHeader 386 + AuxHeader 94 = 1,535 are
+the PARALLEL SESSION's rows, and R2004_Header 963 is accepted
+AC18 residue (no active path). "Target = zero" for THIS queue
+means the H8d family plus the follow-up polish (the 5 record
+rows, the R2000 flat-layout pair, the fallback residue) — the
+number's floor without the parallel session and an AC18
+decision is ~2,498, and every halt record should say so
+instead of implying 0 is reachable from this queue alone.
 
 **Spec authority on file**: the ODA spec PDF
 (`~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp;
