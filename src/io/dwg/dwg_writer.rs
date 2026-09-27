@@ -86,7 +86,12 @@ impl DwgWriter {
             if owned.has_null_table_entries() {
                 owned.assign_table_entry_handles();
             }
-            if owned.version < DxfVersion::AC1027 {
+            // Native records contain class numbers. Compacting a source DWG's
+            // class table would reinterpret untouched entities and opaque objects
+            // as unrelated types when their original records are copied below.
+            if owned.version < DxfVersion::AC1027
+                && owned.dwg_source_version != Some(owned.version)
+            {
                 let required: Vec<_> = owned
                     .entities()
                     .filter_map(|entity| {
@@ -108,6 +113,8 @@ impl DwgWriter {
                         owned.classes.add_or_update(class);
                     }
                 }
+            }
+            if owned.version < DxfVersion::AC1027 {
                 prepare_legacy_document(&mut owned);
             }
             &owned
