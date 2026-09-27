@@ -1141,7 +1141,7 @@ impl DwgRawCmc {
 pub struct DwgHeaderRaw {
     /// The file's version code (e.g. "AC1032"); consumed by the harness
     /// projection (pre-R2004 CMC prints) and not part of gold's HEADER.
-    #[serde(rename = "__version")]
+    #[cfg_attr(feature = "serde", serde(rename = "__version"))]
     pub version: String,
 
     // ── Header prefix ──

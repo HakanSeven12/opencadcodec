@@ -1717,15 +1717,24 @@ impl<R: Read + Seek> DwgReader<R> {
                      // layout is her editor's incremental-save allocation
                      // history; the echo engages only when the document's
                      // object identity is unchanged at the write gate.
-                     if info.ac21_metadata.is_some() {
-                         document.raw_acdb_objects_data =
-                             Some(std::sync::Arc::new(objects_buf.clone()));
-                         let mut her_handles: Vec<(u64, i64)> =
-                             handle_map.iter().map(|(&h, &o)| (h, o)).collect();
-                         her_handles.sort_by_key(|&(h, _)| h);
-                         document.raw_acdb_objects_handles =
-                             Some(std::sync::Arc::new(her_handles));
-                     }
+                    if info.ac21_metadata.is_some() {
+                        document.raw_acdb_objects_data =
+                            Some(std::sync::Arc::new(objects_buf.clone()));
+                        let mut her_handles: Vec<(u64, i64)> =
+                            handle_map.iter().map(|(&h, &o)| (h, o)).collect();
+                        her_handles.sort_by_key(|&(h, _)| h);
+                        if std::env::var_os("DWG_RECORD_TRACE").is_some() {
+                            // §19 H8h diagnostics: her record map —
+                            // (handle, offset in her objects-section
+                            // stream) — for record-level autopsy of the
+                            // conventional emission.
+                            for &(h, o) in &her_handles {
+                                eprintln!("[record-trace her] {h:X} {o}");
+                            }
+                        }
+                        document.raw_acdb_objects_handles =
+                            Some(std::sync::Arc::new(her_handles));
+                    }
                      // §19 H8e-2/H8f/H8g: her whole on-disk file (the
                      // header blocks with their unknown-region bytes,
                      // her page walk or flat section layout exactly

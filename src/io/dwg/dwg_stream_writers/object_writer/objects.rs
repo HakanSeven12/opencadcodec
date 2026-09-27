@@ -1789,7 +1789,11 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_short(layout.shade_plot_resolution);
             self.writer.write_bit_short(layout.shade_plot_dpi);
 
-            // Plot view handle (soft pointer)
+            // Plot view handle — §19 H8h: the author writes this ref as a
+            // HARD pointer (code 5), against the spec's declared code 4
+            // (verified on all three circle.dwg LAYOUTs: her ref byte 0x50
+            // vs our 0x40 at the straddled record byte; the value resolves
+            // identically, so only the wire form differs).
             let plot_view_handle = if !layout.plot_view_handle.is_null() {
                 layout.plot_view_handle
             } else {
@@ -1800,7 +1804,7 @@ impl<'a> DwgObjectWriter<'a> {
                     .unwrap_or(Handle::NULL)
             };
             self.writer
-                .write_handle(DwgReferenceType::SoftPointer, plot_view_handle.value());
+                .write_handle(DwgReferenceType::HardPointer, plot_view_handle.value());
         }
 
         // R2007+: visual style handle

@@ -79,9 +79,13 @@ impl DwgWriter {
         // objects echo and the whole-file echo below both consume it —
         // the impls run after the prepare pipeline, which may repair
         // the document, and those repairs are not user edits.
+        // `DWG_NO_ECHO` (§19 H8h diagnostics): force every echo arm
+        // to decline so the conventional compressed emission runs —
+        // the record-level study path (the α-era measurement form).
         let state_matches = document.dwg_state_fingerprint != 0
             && super::document_state_fingerprint(document)
-                == document.dwg_state_fingerprint;
+                == document.dwg_state_fingerprint
+            && std::env::var_os("DWG_NO_ECHO").is_none();
         if document.dwg_source_version == Some(document.version) {
             if let Some(tail) = document.raw_ac21_tail.as_deref() {
                 if state_matches {
@@ -1981,6 +1985,14 @@ fn write_ac21_impl<W: Write + Seek>(
             obj_data.len(),
             handle_map_u32.len(),
         );
+    }
+    if std::env::var_os("DWG_RECORD_TRACE").is_some() {
+        // §19 H8h diagnostics: our record map — (handle, offset into
+        // the compact conventional objects stream) — paired with the
+        // reader trace for record-level autopsy.
+        for &(h, o) in &handle_map_u32 {
+            eprintln!("[record-trace our] {h:X} {o}");
+        }
     }
 
     // ── Phase 2: Prepare header (sync handles + correct HANDSEED) ──

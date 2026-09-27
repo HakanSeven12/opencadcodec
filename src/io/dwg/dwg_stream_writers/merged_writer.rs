@@ -495,6 +495,16 @@ impl DwgMergedWriter {
         self.handle.write_spear_shift();
         self.handle_start_bits = self.main.position_in_bits();
         self.handle.flush();
+        if std::env::var_os("DWG_MERGE_TRACE").is_some() {
+            // §19 H8h diagnostics: the merged record's anatomy — the
+            // main size, the handle stream's bit start, and the
+            // handle bytes — for record-level autopsy.
+            eprintln!(
+                "[merge-trace] 2-stream main_bits={main_size_bits} handle_start_bits={} handle={:02X?}",
+                self.handle_start_bits,
+                self.handle.buffer(),
+            );
+        }
         self.main.write_bytes(self.handle.buffer());
         // §19 H8d: the record's final partial byte is the author's 1s
         // pad (the intermediate pads stay zero — verified identical).
@@ -610,6 +620,16 @@ impl DwgMergedWriter {
 
         // Append handle bytes.
         self.handle.flush();
+        if std::env::var_os("DWG_MERGE_TRACE").is_some() {
+            // §19 H8h diagnostics: the merged record's anatomy — the
+            // main/text sizes, the handle stream's bit start, and the
+            // handle bytes — for record-level autopsy.
+            eprintln!(
+                "[merge-trace] 3-stream main_bits={main_size_bits} text_bits={text_size_bits} handle_start_bits={} handle={:02X?}",
+                self.handle_start_bits,
+                self.handle.buffer(),
+            );
+        }
         self.main.write_bytes(self.handle.buffer());
 
         // Final byte-alignment for CRC computation — the author's 1s

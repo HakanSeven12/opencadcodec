@@ -789,11 +789,28 @@ impl<'a> DwgObjectWriter<'a> {
         // Extended data — look up raw EED by handle for round-trip fidelity
         let mut eed = crate::xdata::ExtendedData::default();
         if let Some(raw) = self.document.eed_by_handle.get(&handle) {
+            if std::env::var_os("DWG_EED_TRACE").is_some() {
+                // §19 H8h diagnostics: the retention as the writer sees
+                // it — (handle, [(app, len)]) — before the extra_eed merge.
+                eprintln!(
+                    "[eed-trace fetch] handle {:X} blocks {:02X?}",
+                    handle.value(),
+                    raw.iter().map(|(a, b)| (a, b.len())).collect::<Vec<_>>(),
+                );
+            }
             eed.raw_dwg_eed = raw.clone();
         }
         for (app, bytes) in extra_eed {
-            eed.raw_dwg_eed.retain(|(a, _)| *a != app);
-            eed.raw_dwg_eed.push((app, bytes));
+            // §19 H8h: replace-in-place — the author's EED block order is
+            // part of the record's byte identity (her STYLE/DIMSTYLE files
+            // carry the AcadAnnotative block FIRST; a remove-and-push-to-end
+            // reorders the stream). An existing block for the same app keeps
+            // its position; an app with no retained block appends.
+            if let Some(slot) = eed.raw_dwg_eed.iter_mut().find(|(a, _)| *a == app) {
+                slot.1 = bytes;
+            } else {
+                eed.raw_dwg_eed.push((app, bytes));
+            }
         }
         self.write_extended_data(&eed);
 
@@ -1015,6 +1032,22 @@ impl<'a> DwgObjectWriter<'a> {
             // No EED: write BS 0 terminator
             self.writer.write_bit_short(0);
             return;
+        }
+        if std::env::var_os("DWG_EED_TRACE").is_some() {
+            // §19 H8h diagnostics: the block list the writer is about
+            // to emit — (app handle, data len) pairs, raw first then
+            // freshly-encoded records.
+            eprintln!(
+                "[eed-trace] blocks: raw {:02X?} + records {:02X?}",
+                raw_blocks
+                    .iter()
+                    .map(|(a, b)| (a, b.len()))
+                    .collect::<Vec<_>>(),
+                record_blocks
+                    .iter()
+                    .map(|(a, b)| (a, b.len()))
+                    .collect::<Vec<_>>(),
+            );
         }
         for (app_handle, raw_bytes) in raw_blocks.iter().chain(record_blocks.iter()) {
             // BS size of this application's data block

@@ -786,6 +786,11 @@ impl DwgObjectReader {
             for _ in 0..size_u {
                 data.push(reader.read_byte());
             }
+            if std::env::var_os("DWG_EED_TRACE").is_some() {
+                // §19 H8h diagnostics: the EED blocks as parsed from
+                // the source record — (app handle, data len) pairs.
+                eprintln!("[eed-trace read] app {app_handle:X} size {size_u}");
+            }
             result.push((app_handle, data));
         }
         result
