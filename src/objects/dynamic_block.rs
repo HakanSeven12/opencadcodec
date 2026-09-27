@@ -87,7 +87,6 @@ pub enum DynamicBlockData {
     LookupAction(BlockLookupAction),
     StretchAction(BlockStretchAction),
     PolarStretchAction(BlockPolarStretchAction),
-    PropertiesTable,
     AlignmentParameterEntity,
     BasePointParameterEntity,
     FlipParameterEntity,
@@ -178,7 +177,6 @@ impl DynamicBlockData {
     pub(crate) fn visit_handles_mut(&mut self, visit: &mut impl FnMut(&mut Handle)) {
         match self {
             Self::Unknown
-            | Self::PropertiesTable
             | Self::AlignmentParameterEntity
             | Self::BasePointParameterEntity
             | Self::FlipParameterEntity
@@ -285,6 +283,9 @@ impl DynamicBlockData {
                 visit_block_action(&mut value.action, visit);
                 for handle in &mut value.handles {
                     visit(handle);
+                }
+                for item in &mut value.bindings {
+                    visit(&mut item.handle);
                 }
             }
             Self::AngularConstraintParameterEntity(value) => {
@@ -524,15 +525,15 @@ pub struct BlockAction {
     pub element: BlockElement,
     pub display_location: Vector3,
     pub dependencies: Vec<Handle>,
-    pub action_ids: Vec<i32>,
+    pub parameter_ids: Vec<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockActionOffsets {
-    pub offset_x: f64,
-    pub offset_y: f64,
+    pub distance_multiplier: f64,
     pub angle_offset: f64,
+    pub flags: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -652,7 +653,6 @@ pub struct BlockLookupParameter {
     pub index: i32,
     pub lookup_name: String,
     pub lookup_description: String,
-    pub unknown_text: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -754,10 +754,14 @@ pub struct BlockArrayAction {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BlockLookupRow {
-    pub connections: [BlockConnection; 3],
-    pub flag_282: bool,
-    pub flag_281: bool,
+pub struct BlockLookupColumn {
+    pub node_id: i32,
+    pub value_type: i32,
+    pub property_type: i32,
+    pub lookup_property: bool,
+    pub unmatched_name: String,
+    pub writable: bool,
+    pub connection_name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -767,7 +771,7 @@ pub struct BlockLookupAction {
     pub row_count: i32,
     pub column_count: i32,
     pub expressions: Vec<String>,
-    pub rows: Vec<BlockLookupRow>,
+    pub columns: Vec<BlockLookupColumn>,
     pub flag_280: bool,
 }
 
@@ -803,8 +807,11 @@ pub struct BlockPolarStretchAction {
     pub connections: [BlockConnection; 6],
     pub points: Vec<Vector2>,
     pub handles: Vec<Handle>,
-    pub handle_flags: Vec<i16>,
-    pub codes: Vec<i32>,
+    pub bindings: Vec<BlockStretchHandle>,
+    pub codes: Vec<BlockStretchCode>,
+    pub distance_multiplier: f64,
+    pub angle_offset: f64,
+    pub extra: Vec<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

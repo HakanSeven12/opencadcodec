@@ -2541,8 +2541,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     fn write_dynamic_action_dxf(&mut self, value: &crate::objects::BlockAction) -> Result<()> {
         self.write_dynamic_element_dxf(&value.element)?;
         self.writer.write_subclass("AcDbBlockAction")?;
-        self.writer.write_i32(70, value.action_ids.len() as i32)?;
-        for id in &value.action_ids {
+        self.writer
+            .write_i32(70, value.parameter_ids.len() as i32)?;
+        for id in &value.parameter_ids {
             self.writer.write_i32(91, *id)?;
         }
         self.writer.write_i32(71, value.dependencies.len() as i32)?;
@@ -3018,13 +3019,13 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             DynamicBlockData::PolarParameter(value) => {
                 self.write_dynamic_two_point_dxf(&value.parameter)?;
                 self.writer.write_subclass("AcDbBlockPolarParameter")?;
-                self.writer.write_string(305, &value.angle_name)?;
-                self.writer.write_string(306, &value.angle_description)?;
                 self.writer.write_string(305, &value.distance_name)?;
                 self.writer.write_string(306, &value.distance_description)?;
+                self.writer.write_string(307, &value.angle_name)?;
+                self.writer.write_string(308, &value.angle_description)?;
                 self.writer.write_double(140, value.offset)?;
-                self.write_dynamic_value_set_dxf(&value.angle_value_set, 96, 142, 175, 410)?;
-                self.write_dynamic_value_set_dxf(&value.distance_value_set, 97, 146, 176, 309)?;
+                self.write_dynamic_value_set_dxf(&value.distance_value_set, 96, 141, 175, 309)?;
+                self.write_dynamic_value_set_dxf(&value.angle_value_set, 97, 145, 176, 410)?;
             }
             DynamicBlockData::RotationParameter(value) => {
                 self.write_dynamic_two_point_dxf(&value.parameter)?;
@@ -3040,12 +3041,12 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             DynamicBlockData::XYParameter(value) => {
                 self.write_dynamic_two_point_dxf(&value.parameter)?;
                 self.writer.write_subclass("AcDbBlockXYParameter")?;
-                self.writer.write_string(305, &value.x_label)?;
-                self.writer.write_string(306, &value.x_label_description)?;
-                self.writer.write_string(307, &value.y_label)?;
-                self.writer.write_string(308, &value.y_label_description)?;
-                self.writer.write_double(142, value.x_value)?;
-                self.writer.write_double(141, value.y_value)?;
+                self.writer.write_string(305, &value.y_label)?;
+                self.writer.write_string(306, &value.x_label)?;
+                self.writer.write_string(307, &value.y_label_description)?;
+                self.writer.write_string(308, &value.x_label_description)?;
+                self.writer.write_double(141, value.x_value)?;
+                self.writer.write_double(140, value.y_value)?;
                 self.write_dynamic_value_set_dxf(&value.y_value_set, 97, 146, 176, 309)?;
                 self.write_dynamic_value_set_dxf(&value.x_value_set, 96, 142, 175, 410)?;
             }
@@ -3119,9 +3120,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.write_dynamic_action_dxf(&value.action)?;
                 self.writer.write_subclass("AcDbBlockMoveAction")?;
                 self.write_dynamic_connections_dxf(&value.connections, 92, 301)?;
-                self.writer.write_double(140, value.offsets.offset_x)?;
-                self.writer.write_double(141, value.offsets.offset_y)?;
-                self.writer.write_byte(280, 1)?;
+                self.writer
+                    .write_double(140, value.offsets.distance_multiplier)?;
+                self.writer.write_double(141, value.offsets.angle_offset)?;
+                self.writer.write_byte(280, value.offsets.flags)?;
             }
             DynamicBlockData::FlipAction(value) => {
                 self.write_dynamic_action_dxf(&value.action)?;
@@ -3145,22 +3147,27 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.write_dynamic_action_dxf(&value.action)?;
                 self.writer.write_subclass("AcDbBlockArrayAction")?;
                 self.write_dynamic_connections_dxf(&value.connections, 92, 301)?;
-                self.writer.write_double(140, value.column_offset)?;
-                self.writer.write_double(141, value.row_offset)?;
+                self.writer.write_double(140, value.row_offset)?;
+                self.writer.write_double(141, value.column_offset)?;
             }
             DynamicBlockData::LookupAction(value) => {
                 self.write_dynamic_action_dxf(&value.action)?;
                 self.writer.write_subclass("AcDbBlockLookupAction")?;
                 self.writer.write_i32(92, value.row_count)?;
                 self.writer.write_i32(93, value.column_count)?;
+                self.writer.write_string(301, "")?;
                 for expression in &value.expressions {
                     self.writer.write_string(302, expression)?;
                 }
-                self.writer.write_string(301, "")?;
-                for row in &value.rows {
-                    self.write_dynamic_connections_dxf(&row.connections, 94, 303)?;
-                    self.writer.write_bool(282, row.flag_282)?;
-                    self.writer.write_bool(281, row.flag_281)?;
+                for column in &value.columns {
+                    self.writer.write_string(303, "")?;
+                    self.writer.write_i32(94, column.node_id)?;
+                    self.writer.write_i32(95, column.value_type)?;
+                    self.writer.write_i32(96, column.property_type)?;
+                    self.writer.write_bool(282, column.lookup_property)?;
+                    self.writer.write_string(305, &column.unmatched_name)?;
+                    self.writer.write_bool(281, column.writable)?;
+                    self.writer.write_string(304, &column.connection_name)?;
                 }
                 self.writer.write_bool(280, value.flag_280)?;
             }
@@ -3188,31 +3195,47 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                         self.writer.write_i32(94, *index)?;
                     }
                 }
-                self.writer.write_double(140, value.offsets.offset_x)?;
-                self.writer.write_double(141, value.offsets.offset_y)?;
+                self.writer
+                    .write_double(140, value.offsets.distance_multiplier)?;
+                self.writer.write_double(141, value.offsets.angle_offset)?;
+                self.writer.write_byte(280, value.offsets.flags)?;
             }
             DynamicBlockData::PolarStretchAction(value) => {
+                if !value.extra.is_empty() {
+                    return Err(crate::error::DxfError::NotImplemented(
+                        "DXF polar stretch extension data".into(),
+                    ));
+                }
                 self.write_dynamic_action_dxf(&value.action)?;
                 self.writer.write_subclass("AcDbBlockPolarStretchAction")?;
                 self.write_dynamic_connections_dxf(&value.connections, 92, 301)?;
-                self.writer.write_i32(72, value.points.len() as i32)?;
+                self.writer.write_i32(73, value.points.len() as i32)?;
                 for point in &value.points {
-                    self.writer.write_point2d(10, *point)?;
+                    self.writer.write_point2d(1011, *point)?;
                 }
-                self.writer.write_i32(73, value.handles.len() as i32)?;
+                self.writer.write_i32(72, value.handles.len() as i32)?;
                 for handle in &value.handles {
                     self.writer.write_handle(331, *handle)?;
                 }
-                for flag in &value.handle_flags {
-                    self.writer.write_i16(74, *flag)?;
+                self.writer.write_i32(74, value.bindings.len() as i32)?;
+                for item in &value.bindings {
+                    self.writer.write_handle(332, item.handle)?;
+                    self.writer.write_i32(75, item.indexes.len() as i32)?;
+                    for index in &item.indexes {
+                        self.writer.write_i32(76, *index)?;
+                    }
                 }
-                self.writer.write_i32(75, value.codes.len() as i32)?;
-                for code in &value.codes {
-                    self.writer.write_i32(76, *code)?;
+                self.writer.write_i32(78, value.codes.len() as i32)?;
+                for item in &value.codes {
+                    self.writer.write_i32(98, item.code)?;
+                    self.writer.write_i32(79, item.indexes.len() as i32)?;
+                    for index in &item.indexes {
+                        self.writer.write_i32(76, *index)?;
+                    }
                 }
-            }
-            DynamicBlockData::PropertiesTable => {
-                self.writer.write_subclass("AcDbBlockPropertiesTable")?;
+                self.writer.write_double(141, value.distance_multiplier)?;
+                self.writer.write_double(140, value.angle_offset)?;
+                self.writer.write_i32(77, 0)?;
             }
             DynamicBlockData::EvaluationGraph(value) => {
                 self.writer.write_subclass("AcDbEvalGraph")?;

@@ -452,7 +452,6 @@ fn is_dynamic_block_object_name(name: &str) -> bool {
             | "BLOCKSTRETCHACTION"
             | "BLOCKUSERPARAMETER"
             | "BLOCKXYGRIP"
-            | "BLOCKPROPERTIESTABLE"
             | "BLOCKPROPERTIESTABLEGRIP"
     )
 }
@@ -965,12 +964,17 @@ struct DynamicDxfFields {
 
 impl DynamicDxfFields {
     fn values(&self, section: &str, code: i32) -> Vec<&str> {
+        use crate::io::dxf::GroupCodeValueType;
+        let preserve_whitespace = matches!(
+            GroupCodeValueType::from_raw_code(code),
+            GroupCodeValueType::String | GroupCodeValueType::None
+        );
         self.sections
             .get(section)
             .into_iter()
             .flatten()
             .filter(|(item_code, _)| *item_code == code)
-            .map(|(_, value)| value.as_str())
+            .map(|(_, value)| if preserve_whitespace { value.as_str() } else { value.trim() })
             .collect()
     }
 
@@ -1201,7 +1205,7 @@ fn dynamic_dxf_action(fields: &DynamicDxfFields) -> BlockAction {
             .into_iter()
             .map(parse_dxf_handle)
             .collect(),
-        action_ids: fields
+        parameter_ids: fields
             .values(section, 91)
             .into_iter()
             .filter_map(|value| value.parse().ok())
@@ -4189,7 +4193,6 @@ impl<'a> SectionReader<'a> {
                 index: fields.i32("AcDbBlockLookupParameter", 94),
                 lookup_name: fields.text("AcDbBlockLookupParameter", 303),
                 lookup_description: fields.text("AcDbBlockLookupParameter", 304),
-                unknown_text: String::new(),
             }),
             "BLOCKPOINTPARAMETER" => DynamicBlockData::PointParameter(BlockPointParameter {
                 parameter: dynamic_dxf_one_point(&fields),
@@ -4201,33 +4204,13 @@ impl<'a> SectionReader<'a> {
                 let section = "AcDbBlockPolarParameter";
                 DynamicBlockData::PolarParameter(BlockPolarParameter {
                     parameter: dynamic_dxf_two_point(&fields),
-                    angle_name: fields
-                        .values(section, 305)
-                        .first()
-                        .copied()
-                        .unwrap_or("")
-                        .to_string(),
-                    angle_description: fields
-                        .values(section, 306)
-                        .first()
-                        .copied()
-                        .unwrap_or("")
-                        .to_string(),
-                    distance_name: fields
-                        .values(section, 305)
-                        .get(1)
-                        .copied()
-                        .unwrap_or("")
-                        .to_string(),
-                    distance_description: fields
-                        .values(section, 306)
-                        .get(1)
-                        .copied()
-                        .unwrap_or("")
-                        .to_string(),
+                    distance_name: fields.text(section, 305),
+                    distance_description: fields.text(section, 306),
+                    angle_name: fields.text(section, 307),
+                    angle_description: fields.text(section, 308),
                     offset: fields.f64(section, 140),
-                    angle_value_set: dynamic_dxf_value_set(&fields, section, 96, 142, 410),
-                    distance_value_set: dynamic_dxf_value_set(&fields, section, 97, 146, 309),
+                    distance_value_set: dynamic_dxf_value_set(&fields, section, 96, 141, 309),
+                    angle_value_set: dynamic_dxf_value_set(&fields, section, 97, 145, 410),
                 })
             }
             "BLOCKROTATIONPARAMETER" => {
@@ -4245,12 +4228,12 @@ impl<'a> SectionReader<'a> {
                 let section = "AcDbBlockXYParameter";
                 DynamicBlockData::XYParameter(BlockXYParameter {
                     parameter: dynamic_dxf_two_point(&fields),
-                    x_label: fields.text(section, 305),
-                    x_label_description: fields.text(section, 306),
-                    y_label: fields.text(section, 307),
-                    y_label_description: fields.text(section, 308),
-                    x_value: fields.f64(section, 142),
-                    y_value: fields.f64(section, 141),
+                    y_label: fields.text(section, 305),
+                    x_label: fields.text(section, 306),
+                    y_label_description: fields.text(section, 307),
+                    x_label_description: fields.text(section, 308),
+                    x_value: fields.f64(section, 141),
+                    y_value: fields.f64(section, 140),
                     x_value_set: dynamic_dxf_value_set(&fields, section, 96, 142, 410),
                     y_value_set: dynamic_dxf_value_set(&fields, section, 97, 146, 309),
                 })
@@ -4340,9 +4323,9 @@ impl<'a> SectionReader<'a> {
                         connections.get(1).cloned().unwrap_or_default(),
                     ],
                     offsets: BlockActionOffsets {
-                        offset_x: fields.f64(section, 140),
-                        offset_y: fields.f64(section, 141),
-                        angle_offset: 0.0,
+                        distance_multiplier: fields.f64(section, 140),
+                        angle_offset: fields.f64(section, 141),
+                        flags: fields.i32(section, 280) as u8,
                     },
                 })
             }
@@ -4390,8 +4373,8 @@ impl<'a> SectionReader<'a> {
                     connections: std::array::from_fn(|index| {
                         values.get(index).cloned().unwrap_or_default()
                     }),
-                    column_offset: fields.f64(section, 140),
-                    row_offset: fields.f64(section, 141),
+                    column_offset: fields.f64(section, 141),
+                    row_offset: fields.f64(section, 140),
                 })
             }
             "BLOCKLOOKUPACTION" => {
@@ -4402,42 +4385,32 @@ impl<'a> SectionReader<'a> {
                 let code0 = fields.values(section, 94);
                 let code1 = fields.values(section, 95);
                 let code2 = fields.values(section, 96);
-                let name0 = fields.values(section, 303);
                 let name1 = fields.values(section, 304);
                 let name2 = fields.values(section, 305);
                 let flag282 = fields.values(section, 282);
                 let flag281 = fields.values(section, 281);
-                let rows = (0..count)
-                    .map(|index| BlockLookupRow {
-                        connections: [
-                            BlockConnection {
-                                code: code0
-                                    .get(index)
-                                    .and_then(|value| value.parse().ok())
-                                    .unwrap_or(0),
-                                name: name0.get(index).copied().unwrap_or("").to_string(),
-                            },
-                            BlockConnection {
-                                code: code1
-                                    .get(index)
-                                    .and_then(|value| value.parse().ok())
-                                    .unwrap_or(0),
-                                name: name1.get(index).copied().unwrap_or("").to_string(),
-                            },
-                            BlockConnection {
-                                code: code2
-                                    .get(index)
-                                    .and_then(|value| value.parse().ok())
-                                    .unwrap_or(0),
-                                name: name2.get(index).copied().unwrap_or("").to_string(),
-                            },
-                        ],
-                        flag_282: flag282
+                let columns = (0..column_count.max(0) as usize)
+                    .map(|index| BlockLookupColumn {
+                        node_id: code0
+                            .get(index)
+                            .and_then(|value| value.parse().ok())
+                            .unwrap_or(0),
+                        value_type: code1
+                            .get(index)
+                            .and_then(|value| value.parse().ok())
+                            .unwrap_or(0),
+                        property_type: code2
+                            .get(index)
+                            .and_then(|value| value.parse().ok())
+                            .unwrap_or(0),
+                        unmatched_name: name2.get(index).copied().unwrap_or("").to_string(),
+                        connection_name: name1.get(index).copied().unwrap_or("").to_string(),
+                        lookup_property: flag282
                             .get(index)
                             .and_then(|value| value.parse::<i32>().ok())
                             .unwrap_or(0)
                             != 0,
-                        flag_281: flag281
+                        writable: flag281
                             .get(index)
                             .and_then(|value| value.parse::<i32>().ok())
                             .unwrap_or(0)
@@ -4454,7 +4427,7 @@ impl<'a> SectionReader<'a> {
                         .take(count)
                         .map(str::to_string)
                         .collect(),
-                    rows,
+                    columns,
                     flag_280: fields.bool(section, 280),
                 })
             }
@@ -4529,17 +4502,55 @@ impl<'a> SectionReader<'a> {
                     handles,
                     codes,
                     offsets: BlockActionOffsets {
-                        offset_x: fields.f64(section, 140),
-                        offset_y: fields.f64(section, 141),
-                        angle_offset: 0.0,
+                        distance_multiplier: fields.f64(section, 140),
+                        angle_offset: fields.f64(section, 141),
+                        flags: fields.i32(section, 280) as u8,
                     },
                 })
             }
             "BLOCKPOLARSTRETCHACTION" => {
                 let section = "AcDbBlockPolarStretchAction";
+                if fields.i32(section, 77) != 0 {
+                    return Err(crate::error::DxfError::NotImplemented(
+                        "DXF polar stretch extension data".into(),
+                    ));
+                }
                 let connections = dynamic_dxf_sequential_connections(&fields, section, 92, 301, 6);
-                let xs = fields.values(section, 10);
-                let ys = fields.values(section, 20);
+                let xs = fields.values(section, 1011);
+                let ys = fields.values(section, 1021);
+                let indexes: Vec<i32> = fields
+                    .values(section, 76)
+                    .into_iter()
+                    .filter_map(|v| v.parse().ok())
+                    .collect();
+                let mut offset = 0usize;
+                let mut take_indexes = |count: &str| {
+                    let count = count.parse::<usize>().unwrap_or(0);
+                    let result = indexes
+                        .get(offset..offset.saturating_add(count))
+                        .unwrap_or(&[])
+                        .to_vec();
+                    offset = offset.saturating_add(count);
+                    result
+                };
+                let bindings = fields
+                    .values(section, 332)
+                    .into_iter()
+                    .zip(fields.values(section, 75))
+                    .map(|(handle, count)| BlockStretchHandle {
+                        handle: parse_dxf_handle(handle),
+                        indexes: take_indexes(count),
+                    })
+                    .collect();
+                let codes = fields
+                    .values(section, 98)
+                    .into_iter()
+                    .zip(fields.values(section, 79))
+                    .map(|(code, count)| BlockStretchCode {
+                        code: code.parse().unwrap_or(0),
+                        indexes: take_indexes(count),
+                    })
+                    .collect();
                 DynamicBlockData::PolarStretchAction(BlockPolarStretchAction {
                     action: dynamic_dxf_action(&fields),
                     connections: std::array::from_fn(|index| {
@@ -4557,16 +4568,11 @@ impl<'a> SectionReader<'a> {
                         .into_iter()
                         .map(parse_dxf_handle)
                         .collect(),
-                    handle_flags: fields
-                        .values(section, 74)
-                        .into_iter()
-                        .filter_map(|value| value.parse().ok())
-                        .collect(),
-                    codes: fields
-                        .values(section, 76)
-                        .into_iter()
-                        .filter_map(|value| value.parse().ok())
-                        .collect(),
+                    bindings,
+                    codes,
+                    distance_multiplier: fields.f64(section, 141),
+                    angle_offset: fields.f64(section, 140),
+                    extra: Vec::new(),
                 })
             }
             "BLOCKVISIBILITYPARAMETER" => {
@@ -4652,7 +4658,6 @@ impl<'a> SectionReader<'a> {
                     states,
                 })
             }
-            "BLOCKPROPERTIESTABLE" => DynamicBlockData::PropertiesTable,
             "ACAD_EVALUATION_GRAPH" => {
                 let entries = fields
                     .sections

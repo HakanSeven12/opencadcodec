@@ -132,16 +132,16 @@ fn read_action(reader: &mut DwgMergedReader) -> BlockAction {
     for _ in 0..dependency_count {
         dependencies.push(Handle::from(reader.read_handle()));
     }
-    let action_count = safe_count(reader.read_bit_long());
-    let mut action_ids = Vec::with_capacity(action_count as usize);
-    for _ in 0..action_count {
-        action_ids.push(reader.read_bit_long());
+    let parameter_count = safe_count(reader.read_bit_long());
+    let mut parameter_ids = Vec::with_capacity(parameter_count as usize);
+    for _ in 0..parameter_count {
+        parameter_ids.push(reader.read_bit_long());
     }
     BlockAction {
         element,
         display_location,
         dependencies,
-        action_ids,
+        parameter_ids,
     }
 }
 
@@ -194,9 +194,9 @@ fn read_linear_constraint(reader: &mut DwgMergedReader) -> BlockLinearConstraint
 
 fn read_offsets(reader: &mut DwgMergedReader) -> BlockActionOffsets {
     BlockActionOffsets {
-        offset_x: reader.read_bit_double(),
-        offset_y: reader.read_bit_double(),
+        distance_multiplier: reader.read_bit_double(),
         angle_offset: reader.read_bit_double(),
+        flags: reader.read_byte(),
     }
 }
 
@@ -638,7 +638,6 @@ pub fn read_dynamic_block_data(
             index: reader.read_bit_long(),
             lookup_name: reader.read_variable_text(),
             lookup_description: reader.read_variable_text(),
-            unknown_text: reader.read_variable_text(),
         }),
         "BLOCKPOINTPARAMETER" => DynamicBlockData::PointParameter(BlockPointParameter {
             parameter: read_one_point(reader),
@@ -648,13 +647,13 @@ pub fn read_dynamic_block_data(
         }),
         "BLOCKPOLARPARAMETER" => DynamicBlockData::PolarParameter(BlockPolarParameter {
             parameter: read_two_point(reader),
-            angle_name: reader.read_variable_text(),
-            angle_description: reader.read_variable_text(),
             distance_name: reader.read_variable_text(),
             distance_description: reader.read_variable_text(),
+            angle_name: reader.read_variable_text(),
+            angle_description: reader.read_variable_text(),
             offset: reader.read_bit_double(),
-            angle_value_set: read_value_set(reader),
             distance_value_set: read_value_set(reader),
+            angle_value_set: read_value_set(reader),
         }),
         "BLOCKROTATIONPARAMETER" => DynamicBlockData::RotationParameter(BlockRotationParameter {
             parameter: read_two_point(reader),
@@ -666,10 +665,10 @@ pub fn read_dynamic_block_data(
         }),
         "BLOCKXYPARAMETER" => DynamicBlockData::XYParameter(BlockXYParameter {
             parameter: read_two_point(reader),
-            x_label: reader.read_variable_text(),
-            x_label_description: reader.read_variable_text(),
             y_label: reader.read_variable_text(),
+            x_label: reader.read_variable_text(),
             y_label_description: reader.read_variable_text(),
+            x_label_description: reader.read_variable_text(),
             x_value: reader.read_bit_double(),
             y_value: reader.read_bit_double(),
             x_value_set: read_value_set(reader),
@@ -789,8 +788,8 @@ pub fn read_dynamic_block_data(
                 read_connection(reader),
                 read_connection(reader),
             ],
-            column_offset: reader.read_bit_double(),
             row_offset: reader.read_bit_double(),
+            column_offset: reader.read_bit_double(),
         }),
         "BLOCKLOOKUPACTION" => {
             let action = read_action(reader);
@@ -801,16 +800,16 @@ pub fn read_dynamic_block_data(
             for _ in 0..count {
                 expressions.push(reader.read_variable_text());
             }
-            let mut rows = Vec::with_capacity(count as usize);
-            for _ in 0..count {
-                rows.push(BlockLookupRow {
-                    connections: [
-                        read_connection(reader),
-                        read_connection(reader),
-                        read_connection(reader),
-                    ],
-                    flag_282: reader.read_bit(),
-                    flag_281: reader.read_bit(),
+            let mut columns = Vec::with_capacity(safe_count(column_count) as usize);
+            for _ in 0..safe_count(column_count) {
+                columns.push(BlockLookupColumn {
+                    node_id: reader.read_bit_long(),
+                    value_type: reader.read_bit_long(),
+                    property_type: reader.read_bit_long(),
+                    lookup_property: reader.read_bit(),
+                    unmatched_name: reader.read_variable_text(),
+                    writable: reader.read_bit(),
+                    connection_name: reader.read_variable_text(),
                 });
             }
             DynamicBlockData::LookupAction(BlockLookupAction {
@@ -818,7 +817,7 @@ pub fn read_dynamic_block_data(
                 row_count,
                 column_count,
                 expressions,
-                rows,
+                columns,
                 flag_280: reader.read_bit(),
             })
         }
@@ -881,25 +880,42 @@ pub fn read_dynamic_block_data(
             for _ in 0..handle_count {
                 handles.push(Handle::from(reader.read_handle()));
             }
-            let mut handle_flags = Vec::with_capacity(handle_count as usize);
-            for _ in 0..handle_count {
-                handle_flags.push(reader.read_bit_short());
+            let binding_count = safe_count(reader.read_bit_long());
+            let mut bindings = Vec::with_capacity(binding_count as usize);
+            for _ in 0..binding_count {
+                let handle = Handle::from(reader.read_handle());
+                let count = safe_count(reader.read_bit_long());
+                let indexes = (0..count).map(|_| reader.read_bit_long()).collect();
+                bindings.push(BlockStretchHandle { handle, indexes });
             }
             let code_count = safe_count(reader.read_bit_long());
             let mut codes = Vec::with_capacity(code_count as usize);
             for _ in 0..code_count {
-                codes.push(reader.read_bit_long());
+                let code = reader.read_bit_long();
+                let count = safe_count(reader.read_bit_long());
+                let indexes = (0..count).map(|_| reader.read_bit_long()).collect();
+                codes.push(BlockStretchCode { code, indexes });
             }
+            let distance_multiplier = reader.read_bit_double();
+            let angle_offset = reader.read_bit_double();
+            let extra_count = safe_count(reader.read_bit_long());
+            let extra = (0..extra_count).map(|_| reader.read_bit_long()).collect();
             DynamicBlockData::PolarStretchAction(BlockPolarStretchAction {
                 action,
                 connections,
                 points,
                 handles,
-                handle_flags,
+                bindings,
                 codes,
+                distance_multiplier,
+                angle_offset,
+                extra,
             })
         }
-        "BLOCKPROPERTIESTABLE" => DynamicBlockData::PropertiesTable,
+        // Preserve the complete native payload as an Unknown object until a
+        // complete properties-table decoder is available. A unit variant would
+        // silently erase the table when another part of the drawing is saved.
+        "BLOCKPROPERTIESTABLE" => return None,
         "EVALUATION_GRAPH" | "ACAD_EVALUATION_GRAPH" => {
             let first_node_id = reader.read_bit_long();
             let first_node_id_copy = reader.read_bit_long();
