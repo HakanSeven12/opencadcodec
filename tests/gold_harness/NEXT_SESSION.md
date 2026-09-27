@@ -303,14 +303,18 @@ Verified per family:
 - **FileDepList 1,055 — the §19.3 fixture ask is STALE**: the
   corpus files carry real content (circle.dwg: `num_features: 2`,
   comp 150; 273 files bear the section). The read axis is 0/0;
-  the rows are write-side only (our writer emits an empty
-  section). Closing = retain + emit from the document, verified
-  against the corpus directly. No fixture needed.
-- **SecondHeader 386**: all-missing — our writer skips the
-  section on the 7 files that carry it; retention + emission
-  closes it. Bounded.
-- **AuxHeader 94**: value diffs with the read axis matching —
-  retain the author values / fix the defaults. Bounded.
+  the rows are write-side only — **verified at code level:
+  `build_file_dep_list()` (dwg_writer.rs) emits 8 zero bytes
+  (feature count 0 + file count 0) where her sections carry
+  real features**. Closing = retain + emit from the document,
+  verified against the corpus directly. No fixture needed.
+- **SecondHeader 386**: all-missing — **verified at code level:
+  no writer path emits the section**; the 7 R2000-family files
+  carry it and the reader parses it (read axis 0/0). Retention +
+  emission closes it. Bounded.
+- **AuxHeader 94**: **verified: `write_aux_header` IS invoked —
+  the rows are default-vs-author VALUES with the read axis
+  matching; author-value retention fixes them.** Bounded.
 - **FILEHEADER's AC1021 rows are ADDRESS rows** (verified by
   classification: `thumbnail_address`/`summaryinfo_address` —
   e.g. Box_2007 gold=3360 vs ours=1280): they close
