@@ -1008,6 +1008,9 @@ fn read_static_pers_subent_manager_dxf(record: &AssocDxfRecord) -> PersSubentMan
         associative_subent_count,
         steps,
         subents,
+        // §19 H8h-ext-5: the v2 tail is DWG-wire-only state (captured at
+        // DWG read); DXF documents carry no tail payload.
+        v2_tail: None,
     }
 }
 

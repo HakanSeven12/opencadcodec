@@ -647,6 +647,19 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
             subents.push(reader.read_bit_long());
         }
     }
+    // §19 H8h-ext-5: the class_version-2 tail — [BL][BL] after the
+    // subents vector, present only when associative_subent_count != 0
+    // (the loft specimens carry it; the subent_count==0 records — e.g.
+    // ExtrudeC 2DC — end the main content right after the steps, and the
+    // following bit is the merged stream's no-text flag, not a record
+    // field — see PersSubentManager::v2_tail).
+    let v2_tail = if class_version == 2 && associative_subent_count != 0 {
+        let tail_bl1 = reader.read_bit_long();
+        let tail_bl2 = reader.read_bit_long();
+        Some((tail_bl1, tail_bl2))
+    } else {
+        None
+    };
     PersSubentManager {
         class_version,
         marker_zero,
@@ -655,6 +668,7 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
         associative_subent_count,
         steps,
         subents,
+        v2_tail,
     }
 }
 

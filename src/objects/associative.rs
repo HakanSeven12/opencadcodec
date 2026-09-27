@@ -1312,6 +1312,19 @@ pub struct PersSubentManager {
     pub associative_subent_count: i32,
     pub steps: Vec<i32>,
     pub subents: Vec<i32>,
+    /// §19 H8h-ext-5: the class_version-2 tail after the subents vector —
+    /// [BL][BL], reverse-engineered from the five loft specimens (the
+    /// ACDBPERSSUBENTMANAGER class has no gold spec block; gold parks the
+    /// record raw). Present only when `associative_subent_count != 0`: the
+    /// loft specimens (count 1) carry it and their walk ends exactly at the
+    /// main-stream content end — the following bit is the merged stream's
+    /// no-text flag, NOT a record field; the count-0 records (e.g.
+    /// ExtrudeC 2DC) end the content right after the steps. The first tail
+    /// BL is 1, the second tracks the fourth header BL (= steps[2]).
+    /// Captured at DWG read; `None` for DXF-built records (the writer then
+    /// emits no tail — the pre-H8h-ext-5 form).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub v2_tail: Option<(i32, i32)>,
 }
 
 pub fn associative_canonical_name(name: &str) -> String {

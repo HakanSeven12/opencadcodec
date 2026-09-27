@@ -389,6 +389,13 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_bit_long(*subent);
             }
         }
+        // §19 H8h-ext-5: the captured class_version-2 tail — [BL][BL]
+        // after the subents vector (the merged writer's no-text flag bit
+        // follows; see PersSubentManager::v2_tail).
+        if let Some((tail_bl1, tail_bl2)) = value.v2_tail {
+            self.writer.write_bit_long(tail_bl1);
+            self.writer.write_bit_long(tail_bl2);
+        }
     }
 
     fn write_constraint_node_common(&mut self, node: &AssocConstraintNode) {
