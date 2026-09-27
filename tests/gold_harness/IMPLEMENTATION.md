@@ -5645,26 +5645,42 @@ Signature) — the parse side is further along than the emission side.
   `~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp, the
   record-format chapter pp. 99–103; pypdf is installed --user in
   WSL python): `[MS size][OT/BOT type][data][string stream R2007+]
-  [handles stream][B* pad to byte][RS CRC — inside the size, read
-  by gold at (address+size−2), covering type..pad]` — plus a
-  SECOND 2-byte field between her span end and the next record's
-  MS (verified at the obj-0 boundary: her `1c d3` vs our appended
-  crc16 `5c c3` — our writer emits the crc16 appended OUTSIDE the
-  span over [MS+merged], gold does NOT verify per-object CRCs on
-  the R2007 path at -v9: no verdict lines, only section-level
-  checksums — byte-identity is the sole authority). PLACEMENT
+  [handles stream][B* pad to byte — THE AUTHOR PADS THE FINAL
+  HANDLE-SHIFT BITS WITH 1s]` — plus ONE CRC 2-byte field AFTER
+  the span (`crc16(0xC0C1, [MS..span])` — identical rule both
+  sides, already correct in our writer; the spec's "RS CRC
+  inside the size" is a phantom: gold's "(address+size−2)" read
+  lands in the handle tail and the check never validates on the
+  R2007 path — no verdict lines at -v9, only section-level
+  checksums; byte-identity is the sole authority). PLACEMENT
   (verified): the same records at different addresses (ours
   compact 6..64,008, hers scattered 6..146,328 — a byte-identical
   record pair at our 64,008 vs her 146,328), the interstices
   carry the same `00 29 00 2a…` masses at different positions.
-  **The H8d opening moves**: (1) the crc16 micro-experiment
-  pinning the exact tail rule (a one-off example over
-  `crate::io::dwg::crc::crc16` on the candidate spans vs her
-  trailing bytes); (2) the ownerhandle H-form rule from
-  libredwg `bits.c` handle codes + our `write_handle` choice, and
-  the form fix; (3) the §8.1.6 autopsies of the 6 deep rows
-  (incl. two elided-stub cases: her 130/233 vs our 7-byte forms
-  on handles 0.1.DC/0.1.E1); (4) the placement decision
+  **The skeleton — SOLVED by the crc16 micro-experiment (the
+  DWG CRC-16 table ported from gold `bit_calc_CRC`, candidate
+  spans brute-forced against both files' trailing bytes)**: the
+  second field between her span end and the next MS =
+  `crc16(0xC0C1, [MS..span])` — IDENTICAL RULE BOTH SIDES, our
+  writer already emits it correctly (it differs only because its
+  input differs). The 82-record last-byte class = THE FINAL PAD
+  of the handle stream: her final span byte = the handle data's
+  last bits OR'd with 1s to the byte boundary (obj 0: `0.3f` =
+  data `00` + pad `111111`), ours 0-padded (`0.00`) — the fix is
+  a 1s-final-pad variant of the merge's last spear-shift. Gold's
+  "(address+size−2)" CRC read is a phantom (no per-object CRC
+  verdicts exist on the R2007 path at -v9; byte-identity is the
+  sole authority). The ownerhandle offset math VERIFIED: her
+  relative forms vs our absolute code-4 (obj 11 `(12.1.2)` =
+  own.E − 2 = owner.C; obj 68 `(8.0.0)` = own.D8 − 1 = D7; ours
+  `(4.1.C)`) — the ownerhandle (first ref in the handle stream)
+  is encoded RELATIVE TO THE OBJECT'S OWN HANDLE; the exact code
+  tables: libredwg `bits.c` `bit_read_H` + our `bit_writer.rs`
+  `write_handle`. **The H8d opening moves**: (1) the 1s
+  final-pad + the ownerhandle relative-form (one writer
+  session); (2) the §8.1.6 autopsies of the 6 deep rows (incl.
+  two elided-stub cases: her 130/233 vs our 7-byte forms on
+  handles 0.1.DC/0.1.E1); (3) the placement decision
   (retain-vs-replicate her addresses). **The packet lands as a
   UNIT** (every writer change here reshuffles the
   layout-coupled coincidence rows — the 0xF_ lesson), with

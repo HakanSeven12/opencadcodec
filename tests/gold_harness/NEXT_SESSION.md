@@ -160,31 +160,49 @@ OpenDesign_Specification_for_.dwg_files.pdf`, 270pp — record
 format pp. 99–103; pypdf installed --user in WSL python) +
 libredwg `bits.c` handle codes + our `write_handle`.
 
-**The skeleton question (one experiment to close)**: per ODA
-§20.1/20.2 the record = `[MS size][type][data][string stream
-R2007+][handles][B* pad to byte][RS CRC inside the size at
-(address+size−2), covering type..pad]` plus a SECOND 2-byte
-field between her span end and the next MS (obj-0 boundary:
-her `1c d3` vs our appended crc16 `5c c3` — our writer appends
-its crc16 OUTSIDE the span over [MS+merged]); gold does NOT
-verify per-object CRCs on the R2007 path at -v9 (no verdict
-lines — byte-identity is the sole authority). The
-micro-experiment: a one-off example over
-`crate::io::dwg::crc::crc16` testing the candidate spans
-against her trailing bytes pins the exact tail rule
-(pad-in-CRC? second-field scope?) — then the writer fix is
-mechanical.
+**The skeleton — SOLVED by the crc16 micro-experiment (same
+session; the DWG CRC-16 table ported, candidate spans brute-forced
+against both files' trailing bytes)**:
 
-**The opening moves, in order**: (1) the crc16 micro-experiment;
-(2) the ownerhandle-form rule + fix; (3) the §8.1.6 autopsies of
-the 6 deep rows; (4) the PLACEMENT decision (the same records at
-different addresses — ours compact 6..64,008, hers scattered
-6..146,328, byte-identical pair verified; the interstices carry
-the same `00 29 00 2a…` masses at different positions — retain
-her addresses on same-document rewrite, or replicate her
-allocation rule). **LAND AS A UNIT**: every writer change here
-reshuffles the layout-coupled R2007_Header coincidence rows (the
-0xF_ lesson); the packet lands when the mirror ENGAGES.
+- **The second field (between her span end and the next MS) =
+  `crc16(0xC0C1, [MS..span])` — IDENTICAL RULE BOTH SIDES, and
+  our writer already emits it correctly** (her `1c d3` =
+  `d31c`, ours `5c c3` = `c35c`; it differs only because its
+  input differs). No fix needed there.
+- **The 82-record last-byte class = THE FINAL PAD of the handle
+  stream**: her final span byte = the handle data's last bits
+  OR'd with 1s to the byte boundary (obj 0: `0.3f` — data bits
+  `00`, pad `111111`); ours = 0-padded (`0.00`). Verified 82/82
+  on circle.dwg. The fix: the LAST spear-shift of the merge (the
+  pad after the handle stream) pads with 1s — one variant of
+  `write_spear_shift` in bit_writer.rs, invoked in the merge
+  tails (merge_two_stream/merge_three_stream).
+- Gold's "(address+size−2)" CRC read is a phantom: no per-object
+  CRC verdicts exist on the R2007 path at -v9 (the check never
+  validates in practice; only section-level checksums print) —
+  byte-identity is the sole authority.
+- **The ownerhandle H-form — the offset math verified**: her
+  relative forms vs our absolute: obj 11 `(12.1.2)` = own.E − 2 =
+  owner.C ✓; obj 68 `(8.0.0)` = own.D8 − 1 = D7 ✓; our
+  `(4.1.C)` = absolute. The rule: the ownerhandle (the FIRST ref
+  in the handle stream) is encoded RELATIVE TO THE OBJECT'S OWN
+  HANDLE with the offset H-codes; our writer emits the absolute
+  code-4 form (~+1 byte per record — the whole SIZE class). The
+  exact code table: libredwg `bits.c` `bit_read_H` + our
+  `bit_writer.rs` `write_handle`.
+
+**The opening moves, in order**: (1) the 1s final-pad variant +
+the ownerhandle relative-form fix (the two rules above, one
+writer session); (2) the §8.1.6 autopsies of the 6 deep rows
+(incl. the two elided-stub cases); (3) the PLACEMENT decision
+(the same records at different addresses — ours compact
+6..64,008, hers scattered 6..146,328, byte-identical pair
+verified; the interstices carry the same `00 29 00 2a…` masses
+at different positions — retain her addresses on same-document
+rewrite, or replicate her allocation rule). **LAND AS A UNIT**:
+every writer change here reshuffles the layout-coupled
+R2007_Header coincidence rows (the 0xF_ lesson); the packet
+lands when the mirror ENGAGES.
 
 Acceptance = the mirror engage census (`AC21_MIRROR_DEBUG=1
 python3 tests/gold_harness/run_roundtrip.py …` per file): every
