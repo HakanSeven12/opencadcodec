@@ -6179,6 +6179,46 @@ Signature) — the parse side is further along than the emission side.
   Constraints 3E3; PolyLine3D 1C2 — the same named classes as
   the H8h-ext-3 halt minus the subcurve records.
 
+  **H8h-ext-5 — the PersSubentManager v2 tail: 25 → 20
+  (2026-09-27, the continuation; the Loft 29-vs-27 class
+  closed)**: the divergent records are the NON-ASSOC
+  `ACDBPERSSUBENTMANAGER` class (the maintainer's
+  assoc/non-assoc distinction CONFIRMED: the corpus carries
+  both classes — the ASSOC variant `ACDBASSOCPERSSUBENTMANAGER`
+  has a gold spec block and its records were already
+  byte-identical; the non-assoc variant has NO spec block, gold
+  parks it raw, and our reader models it via the
+  `PersSubentManagerStatic` path). THE AUTOPSY: the five loft
+  specimens' class region = [5 BLs: 2, 0, 2, {2|1}, 1]
+  [num_steps=7 + steps][num_subents=0][BL(1)][BL({2|1})] — the
+  walk ends exactly at the main-stream CONTENT end; the
+  following bit is the merged writer's no-text flag (the RL =
+  content + 1; the first attempt misread the flag as a record
+  B field — the +1-bit lesson: the merged writer's finalization
+  writes `total_bits = main + text + 1` and the flag bit
+  itself, so a tail must never include it). THE GATE (the
+  regression that found it): the tail is present ONLY when
+  `associative_subent_count != 0` — the first ungated landing
+  captured garbage on the ~25 count-0 records (e.g. ExtrudeC
+  2DC: 22v27, a 25→48 regression), because reading past the
+  count-0 record's content end pulls the flag + handle-stream
+  bits. THE LANDING: `PersSubentManager.v2_tail:
+  Option<(i32, i32)>` (serde-default; None for DXF), the reader
+  gated on `class_version == 2 && associative_subent_count !=
+  0`, the writer emitting the two BLs when captured. **MEASURED:
+  25 → 20 divergent; 49/58 files at 100%** — Loft 207/207,
+  Loft3 206/206, LoftC 211/211, LoftH 206/206, LoftR 206/206;
+  the regressed genus restored (ExtrudeC 206/206, Box 207/207,
+  RevolveA 207/207); circle 211/211 held. GATES: serde 1602/0,
+  gold_roundtrip ok, issue80 7/0, four family smokes 0/0,
+  corpus 280 files 0/0/0/0, generation identity UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes,
+  feature-independent). THE RESIDUAL 20: ATMOS 5 + 84
+  her-only; example_2007's 9 marginal forms; Chamfer/Fillet 4
+  (the UNKNOWN bodies 1509/1463v30 + the 22v26/30 — the same
+  non-assoc class with the fillet/chamfer unknown_bits mass);
+  Constraints 3E3; PolyLine3D 1C2.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
