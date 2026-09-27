@@ -2949,10 +2949,14 @@ pub struct CadDocument {
     pub(crate) raw_acdb_objects_handles: Option<Arc<Vec<(u64, i64)>>>,
 
     /// The read-time identity hash guarding the objects echo above (the
-    /// classes-verbatim fingerprint doctrine): the sorted handle set of
-    /// the source's objects walk. The echo engages only when the
-    /// document's object identity is unchanged — adds, deletes and
-    /// renumberings fall back to our own emission.
+    /// classes-verbatim fingerprint doctrine): the hash of the
+    /// document's object universe — entities + objects + the tables'
+    /// control/record handles (`io::dwg::document_object_handles`) —
+    /// captured POST-BUILD at read time. The echo engages only when the
+    /// same universe hashes equal at the write gate: adds, deletes and
+    /// renumberings fall back to our own emission. Reader-skipped
+    /// orphans (handles in the source map the builder never
+    /// materialized) are outside the universe on both sides.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acdb_objects_fingerprint: u64,
 

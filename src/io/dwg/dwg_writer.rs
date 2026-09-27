@@ -2070,7 +2070,7 @@ fn write_ac21_impl<W: Write + Seek>(
     ) {
         (Some(her_raw), Some(her_handles))
             if super::objects_handle_set_fingerprint(
-                handle_map_u32.iter().map(|&(h, _)| h),
+                super::document_object_handles(document).into_iter(),
             ) == document.raw_acdb_objects_fingerprint =>
         {
             let her_handles_data = handle_writer::write_handles(her_handles, 0);
@@ -2087,7 +2087,37 @@ fn write_ac21_impl<W: Write + Seek>(
             if std::env::var_os("AC21_MIRROR_DEBUG").is_some()
                 && document.raw_acdb_objects_data.is_some()
             {
-                eprintln!("[ac21-mirror] objects echo DECLINED — object identity changed");
+                eprintln!(
+                    "[ac21-mirror] objects echo DECLINED — document object identity changed"
+                );
+                // §19 H8e: the autopsy trace — the document universe vs
+                // her handles map (the emission-side drops show up here
+                // as missing; orphans are expected on the solids files).
+                if let Some(her_handles) = document.raw_acdb_objects_handles.as_deref() {
+                    let universe: std::collections::HashSet<u64> =
+                        super::document_object_handles(document).into_iter().collect();
+                    let ours: std::collections::HashSet<u64> =
+                        handle_map_u32.iter().map(|&(h, _)| h).collect();
+                    let hers: std::collections::HashSet<u64> =
+                        her_handles.iter().map(|&(h, _)| h).collect();
+                    let mut missing: Vec<u64> = hers.difference(&universe).copied().collect();
+                    let mut extra: Vec<u64> =
+                        universe.difference(&hers).copied().collect();
+                    let mut dropped: Vec<u64> = universe.difference(&ours).copied().collect();
+                    missing.sort_unstable();
+                    extra.sort_unstable();
+                    dropped.sort_unstable();
+                    eprintln!(
+                        "[ac21-mirror] universe {} — her-map-only (orphans) {} {:02X?}, universe-extra {} {:02X?}, emission-dropped {} {:02X?}",
+                        universe.len(),
+                        missing.len(),
+                        &missing[..missing.len().min(10)],
+                        extra.len(),
+                        &extra[..extra.len().min(10)],
+                        dropped.len(),
+                        &dropped[..dropped.len().min(10)],
+                    );
+                }
             }
             None
         }

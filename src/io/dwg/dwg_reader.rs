@@ -1725,8 +1725,6 @@ impl<R: Read + Seek> DwgReader<R> {
                         let mut her_handles: Vec<(u64, i64)> =
                             handle_map.iter().map(|(&h, &o)| (h, o)).collect();
                         her_handles.sort_by_key(|&(h, _)| h);
-                        document.raw_acdb_objects_fingerprint =
-                            super::objects_handle_set_fingerprint(handle_map.keys().copied());
                         document.raw_acdb_objects_handles =
                             Some(std::sync::Arc::new(her_handles));
                     }
@@ -1747,6 +1745,19 @@ impl<R: Read + Seek> DwgReader<R> {
                             Some(visit) => builder.build_with_visitor_stats(&mut document, visit),
                             None => builder.build_with_stats(&mut document),
                         };
+                        // §19 H8e: the identity capture runs POST-BUILD, over
+                        // the document's object universe (entities + objects +
+                        // the tables' control/record handles) — not the source's
+                        // handles map. Reader-skipped orphans (the author's
+                        // edit-history residue — e.g. the ACIS-solids files'
+                        // single orphan, ATMOS's 84) are outside the universe
+                        // on both sides, so an unedited document engages.
+                        if info.ac21_metadata.is_some() {
+                            document.raw_acdb_objects_fingerprint =
+                                super::objects_handle_set_fingerprint(
+                                    super::document_object_handles(&document).into_iter(),
+                                );
+                        }
                         decoded_source_records = build_outcome.decoded_records;
                         skipped_source_records = build_outcome.skipped_records;
                         diagnostics.extend(build_outcome.diagnostics);
