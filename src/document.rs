@@ -30,6 +30,10 @@ use crate::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+#[cfg(test)]
+#[path = "document/evaluated_block_tests.rs"]
+mod evaluated_block_tests;
+
 fn material_checker_texture(entries: &[XRecordEntry]) -> Option<MaterialTexture> {
     if !entries.iter().any(|entry| {
         entry.code == 301
@@ -3743,6 +3747,35 @@ impl CadDocument {
         self.block_records
             .get(&insert.block_name)
             .map(|record| record.handle)
+    }
+
+    /// Copy the native source-definition tag of an evaluated anonymous block.
+    /// Nonempty extension dictionaries need a full object-graph clone and are
+    /// deliberately rejected here rather than shared between block records.
+    pub fn copy_evaluated_block_metadata(&mut self, source: Handle, target: Handle) -> Result<()> {
+        for handle in [source, target] {
+            if !self.block_records.iter().any(|b| b.handle == handle && b.name.starts_with("*U")) {
+                return Err("Expected an evaluated anonymous block record".into());
+            }
+        }
+        let dictionary = if let Some(handle) = self.extension_dictionary_handle(source) {
+            match self.objects.get(&handle) {
+                Some(ObjectType::Dictionary(d)) if d.entries.is_empty() && d.xdictionary_handle.is_none() => Some(d.clone()),
+                _ => return Err("Evaluated block has additional object relationships".into()),
+            }
+        } else { None };
+        if let Some(data) = self.eed_by_handle.get(&source).cloned() {
+            self.eed_by_handle.insert(target, data);
+        }
+        if let Some(mut dictionary) = dictionary {
+            let handle = self.allocate_handle();
+            dictionary.handle = handle;
+            dictionary.owner = target;
+            dictionary.reactors.clear();
+            self.objects.insert(handle, ObjectType::Dictionary(dictionary));
+            self.xdic_by_handle.insert(target, handle);
+        }
+        Ok(())
     }
 
     /// Resolve handle references after reading a DXF file.
