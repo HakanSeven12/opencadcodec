@@ -283,6 +283,49 @@ WSL python) + libredwg `bits.c` (`bit_read_H`, the H-code table:
 option shorts; **BREP stays deferred** (external authentic
 ACSH_BREP_CLASS specimen required).
 
+## The zero-reachability audit (verified 2026-09-27, on the corpus itself)
+
+**Zero is technically reachable with NO additional custom
+examples** — the corpus exercises every remaining row family.
+Verified per family:
+
+- **FileDepList 1,055 — the §19.3 fixture ask is STALE**: the
+  corpus files carry real content (circle.dwg: `num_features: 2`,
+  comp 150; 273 files bear the section). The read axis is 0/0;
+  the rows are write-side only (our writer emits an empty
+  section). Closing = retain + emit from the document, verified
+  against the corpus directly. No fixture needed.
+- **SecondHeader 386**: all-missing — our writer skips the
+  section on the 7 files that carry it; retention + emission
+  closes it. Bounded.
+- **AuxHeader 94**: value diffs with the read axis matching —
+  retain the author values / fix the defaults. Bounded.
+- **FILEHEADER's AC1021 rows are ADDRESS rows** (verified by
+  classification: `thumbnail_address`/`summaryinfo_address` —
+  e.g. Box_2007 gold=3360 vs ours=1280): they close
+  automatically when the mirror engages (her container → her
+  addresses). The R2000 pair is the same class for the flat
+  layout (example_2000: gold=220 vs ours=557752). Bounded.
+- **R2004_Header 963 — the ONLY genuine scope decision**: the
+  "accepted residue" is a DECISION, not a technical
+  impossibility. The same doctrine applies (an AC18 container
+  mirror — an H8b-scale adaptation to the R2004 page system,
+  RS(255,239)); 232 corpus AC18 files are the surface; gold's
+  `decode_r2004.c` is the authority. Reversing the acceptance
+  is a maintainer call.
+- **BREP is NOT in the 3,576** (a deferred row, separate) — the
+  external-specimen ask does not gate this number.
+
+The conditions for zero, stated plainly: (1) the H8d unit lands
+(the first ~1,057); (2) the bounded packets (FileDepList,
+SecondHeader, AuxHeader, the R2000 layout pair) — each a
+retention/emission fix verified against the corpus; (3) the AC18
+decision — without it the floor is 963; (4) the echo doctrine
+extends to unmodelable authored state as needed (established
+campaign precedent: the SH tails, the XrefManifest fallback) —
+the alternative is a per-section byte-parity campaign for each
+modeled section (feasible by the α method, slower).
+
 ## The standing facts
 
 - The four raw-retained SH tails decode to typed views with the
