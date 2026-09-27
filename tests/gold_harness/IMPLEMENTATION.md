@@ -6030,6 +6030,56 @@ Signature) — the parse side is further along than the emission side.
   185 = classes (c)–(g) above — each a named, byte-level-scoped
   future packet.
 
+  **H8h-ext-2 — three more form rules: 185 → 49 (2026-09-27,
+  the same session's continuation; classes (c)+(d)+the
+  VIEW slots)**: (1) **the null-target dictionary items** —
+  the R2000+/same-version arm of `write_dictionary` filtered
+  `!h.is_null()`, dropping the author's placeholder slots
+  (the fixtures' `ACAD_PARALLEL_BACKGROUND → [2,0,0,0]`
+  dictionaries, gold `numitems: 1` vs our 0); fixed: the arm
+  keeps null-target items (`.filter(h.is_null() ||
+  is_writable_object(h))` — a null target is authored state,
+  not a dangling ref; the enqueue guard already skips nulls;
+  the down-conversion arm untouched). (2) **the 3DSOLID-family
+  `history_id` ref code**: our three write sites (3DSOLID/
+  REGION/BODY, `solid_history_handle_value`) wrote
+  SoftPointer(4); the author writes **code 3** — the gold
+  census across the whole corpus prints history_id `[3, ..]`
+  **128/128** non-null (and the nulls `[3,0,0,0]` — the
+  code-3-count-0 `30` byte); the ExtrudeC walk: her ref2 =
+  (3, 2, 02, E0) — the history root 0x2E0 — vs our (4, 2,
+  02, E0); fixed: HardOwnership at all three sites (the
+  Surface entity carries no history_id write — verified).
+  (3) **the VIEW_CONTROL authored slots**: Leader's view
+  control carries **16 null deleted slots** (gold:
+  `num_entries: 16 [BL]`, entries `(2.0.0)` × 16) — the
+  same authored-slots disease as the BLOCK/LTYPE/DIMSTYLE
+  capture; fixed: the pass-1 OBJ_VIEW_CONTROL arm drains
+  [BL count][refs] into `table_control_entries` and the
+  view writer call site applies the same-universe gate (the
+  all-null case passes: the filtered captured set equals
+  the empty live table). **MEASURED: 185 → 49 divergent
+  records; 32/58 files at 100%** — the whole
+  extrude/revolve/polysolid/box/sphere/torus/union/wedge/
+  cone/cylinder named-specimen + solid genus now FULLY
+  byte-identical (ExtrudeC 206/206, Box 207/207, Leader
+  245/245, circle 211/211 held). GENERATION IDENTITY
+  RE-RECORDED: `84374e73ddcf1d6143877c4100b81e48`, 25,375
+  bytes — the null history_id form changed `40` → `30`
+  bytes on the generated R2007+ 3DSOLID-family records
+  (same byte count, different nibble); verified identical
+  WITHOUT `--features serde`. GATES: serde 1602/0,
+  gold_roundtrip ok, issue80 7/0, four family smokes 0/0,
+  corpus 280 files 0/0/0/0. THE RESIDUAL 49: ATMOS 5 (its
+  controls h=2/h=3 + h=77 96v40 + h=352 25642v35 + h=541
+  17v18) + 84 her-only orphans; Constraints 3E3 (666v870);
+  PolyLine3D 1C2 (16v17, ours longer); example_2007's 9
+  marginal forms; Chamfer/Fillet 2 each (the UNKNOWN
+  bodies 1509/1463v28 + the 22v26/30); the Loft3/C/H/R/_
+  29-vs-27 class ×5; the assoc/pathparam genus (ExtrudeCSurf/
+  M, LoftCSurf/M, RevolveM) 24 — each still a named,
+  byte-level-scoped packet.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
