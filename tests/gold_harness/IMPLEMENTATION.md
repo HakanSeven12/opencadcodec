@@ -5845,6 +5845,68 @@ Signature) — the parse side is further along than the emission side.
   echo path never runs our emission for unedited roundtrips);
   their queue value is edited-document correctness, not rows.
 
+  **H8f — the R2000 whole-file echo: the flat container joins the
+  doctrine (`dfd0ff8`, 2026-09-27)**: the R2000 pair's autopsy
+  (the per-stem struct JSONs): the thumbnail/summaryinfo addresses
+  (her preview sits EARLY in her flat layout at 220/448; our
+  conventional emission lands it late) + the preview bytes'
+  embedded offsets — her editor's section placement,
+  unmodelable by rule; echo. The READER retains her whole
+  on-disk file for the flat formats (AC1012/AC1014/AC1015 —
+  extended to every container family in H8g);
+  `write_ac15` gained the echo arm under the same gates.
+  MEASURED: byte-identical on example_2000, sample_2000,
+  circle (R2000), PolyLine2D; corpus 2,507 → **2,014 (−493)**:
+  FILEHEADER 21→14, THUMBNAILIMAGE 8→2, and TWO SIDE EFFECTS —
+  **SecondHeader 386 → 0 and AuxHeader 94 → 0** (their 7 files
+  are R2000-family; the parallel session's rows closed
+  wholesale). The remaining 2,014 sat ENTIRELY on the
+  AC18-family files.
+
+  **H8g — the unified whole-file echo: THE WRITE-TARGET AT ZERO
+  (`c5b7adf`, 2026-09-27; the maintainer's AC18 decision, asked
+  and answered in-session)**: the AC18-family echo extended the
+  doctrine to the paged containers, then UNIFIED with the R2000/
+  AC21 echoes into ONE arm at the write entry
+  (`write_to_writer`): same-version source + retained whole file
+  + the state hash holds → her bytes verbatim, every family.
+  THE GATE — the document-state fingerprint
+  (`document_state_fingerprint`): the H8e-1 handle-set gate had
+  a hole the issue-80 regression caught (`repro_issue80_in_place_
+  layer_rename_survives_dwg_roundtrip` FAILED — an in-place layer
+  rename is invisible to handle-set fingerprints and the echo
+  silently reverted it). THE FIX: the sorted per-part hash of the
+  semantic inventory's visit (the header variables, the ten
+  tables' records, the classes, the entities with their
+  ownership/extension-dictionary/reactor relationships, the
+  objects, the summary, the preview, the EED channel) plus the
+  ten table control handles and the retained metadata models
+  (aux/template/file-dep/rev-history) — captured at the END of
+  the read, compared BEFORE the prepare pipeline at the write
+  entry (the writer's own fixups — table-key resync,
+  database-reference repair, surface-class preparation — are
+  not user edits; the first attempt compared post-prepare and
+  falsely declined example_2000/example_2004). issue80 green.
+  THE PREPARE-PIPELINE LESSON: any identity gate over the
+  document must hash the document AS HANDED TO THE WRITER, not
+  the post-fixup state. MEASURED: byte-identity verified per
+  family (circle/example_2000/example_2004/example_2010/
+  Dynblocks — cmp clean); corpus 280 files: read 0/0,
+  write 0/0, read key-gap 0, **write-target 0** (from 2,014;
+  the arc 3,576 → 0 through H8d/H8e-1/H8e-2/H8f/H8g).
+  R2004_Header 963 (the ACCEPTED residue — the acceptance
+  OVERRIDDEN by the maintainer's explicit decision), FileDepList
+  1,035, FILEHEADER 14, THUMBNAILIMAGE 2 all closed. Generation
+  identity unchanged (39e51dfe…, 30 OK). serde green;
+  gold_roundtrip green. THE HONEST FRAMING, FINAL FORM: for an
+  unedited same-version roundtrip the DWG writer is a byte-copy
+  gated on a full-content hash; edited documents and conversions
+  keep the real writers (the conventional arms, the mirrors, the
+  prepare pipeline); the read axis (0/0 corpus-wide)
+  independently verifies the model the echo bypasses; the
+  writer's derivations stay live as the AC21_MIRROR_DEBUG
+  oracle.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
