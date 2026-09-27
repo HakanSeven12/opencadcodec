@@ -11,7 +11,12 @@
 > READ axis stays ZERO corpus-wide. Read
 > `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3 + §18.5–18.7
 > in `IMPLEMENTATION.md` (§18.6 carries the full decode record), then
-> §19.1–19.3 (§19.2's H8c row carries this landing's record), then
+> §19.1–19.4 (§19.2's H8c row carries this landing's record;
+> §19.4 is the SELF-CONTAINED mechanism reference — the bitcode
+> tables, the record frame, the LZ77 semantics, the container
+> page systems, the CRC-16 + the §5.11 random-encoding engine,
+> each with its in-tree anchor, so NO ODA-spec or libredwg
+> consultation is needed), then
 > this file top to bottom.
 
 ## The H8c verdict (this session's review finding — supersedes the prior halt's encoder theory)

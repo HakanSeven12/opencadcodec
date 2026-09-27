@@ -5756,3 +5756,212 @@ Signature) — the parse side is further along than the emission side.
 - The §18 (SH) decoder rows and the 8757a7c AcDs/section census brief
   stay live: the AcDs row here and that brief share findings but keep
   their own queues.
+
+### 19.4 The external-mechanism reference (self-contained; no ODA-spec or libredwg consultation needed)
+
+Recorded 2026-09-27 so future zero-context agents work from this
+record + the in-tree implementations alone. Every mechanism the
+remaining queue touches is stated here explicitly and has a
+working anchor; where a rule is subtle it was verified against
+gold this campaign (the anchor note says so).
+
+#### A. DWG bitcode primitives (the wire forms)
+
+- Bits are packed MSB-first within each byte; RS/RL/RD are
+  byte-wise little-endian, each byte read MSB-first.
+- BS: prefix '00' → +RS16 raw; '01' → +RC8; '10' → 0; '11' → 256.
+- BL: '00' → +RL32; '01' → +RC8; '10' → 0; '11' → 256.
+- BD: '00' → raw f64; '01' → 1.0; '10' → 0.0; '11' → NaN.
+- MS/MC (modular short/char): 7-bit groups, the LOW chunk
+  first in stream order, high bit 0 terminates; value is the
+  sum of (byte & 0x7F) << (7*i) over the chunks.
+- TV strings live in the R2007+ per-record string stream (see
+  D), not inline in the data.
+- IN-TREE: every primitive is implemented in `bit_writer.rs`
+  and the reader's bit chain; `dump_section_bytes` prints hex
+  + the MSB-first bit string for hand-walking; gold's `-v9`
+  trace prints per-field `@byte.bit` positions in the same
+  convention (the §8.1.6 recipe).
+
+#### B. Handle references (H)
+
+- Frame: `[RC: (code<<4)|count][count value bytes]`, the value
+  accumulated big-endian (first byte = high).
+- Resolution (verified against gold): codes 2/3/4/5 are
+  ABSOLUTE (the ownership classes); 6 = own handle + 1;
+  8 = own − 1; 10 = own + value; 12 = own − value. The null
+  handle is code 4, count 0.
+- First-in-stream ownerhandle form rule (the author's writer,
+  verified 196/196 on circle_2007): choose the RELATIVE form
+  iff its byte length is shorter, or at equal length iff the
+  absolute offset is numerically less than the owner value.
+  Lengths: rel = 1 if offset==1 else 1+bytecount(offset);
+  abs = 1+bytecount(value).
+- IN-TREE: `bit_writer.rs::write_handle` (absolute),
+  `write_handle_relative` (codes 0x60/0x80/0xA0|n/0xC0|n —
+  implemented); the `write_first_ref_handle` helper + the two
+  call sites are the H8d-α re-apply package (recorded in
+  NEXT_SESSION's H8d section).
+
+#### C. Object record frame (R2004+; verified vs gold decode.c)
+
+```
+[MS size]                        size counts everything below
+[R2010+: UMC handle-bits]        NOT counted in size
+[BS (up to R2007) / BOT (R2010+) type]
+[data bits ...]
+[R2007+: string stream + flag bit (see D)]
+[handle stream: ownerhandle first, packed starting at the
+ DATA-END BIT — mid-byte, no alignment]
+[1-bits padding to the byte boundary]   <- the author pads
+                                          with ONES (verified
+                                          AC15/AC18/AC21)
+[crc16 0xC0C1 over MS..span — 2 bytes AFTER the span]
+```
+- The spec's "RS CRC inside the size" is a PHANTOM: gold
+  never validates a per-object CRC on these paths (no
+  per-object verdict lines at -v9); the only real per-record
+  checksum is the after-span crc.
+- R2004+ objects sections begin with the 4-byte 0x0DCA LE
+  marker.
+- The DWG CRC-16: `dx = ((dx>>8)&0xFF) ^ table[(byte ^
+  (dx&0xFF)) & 0xFF]`, seed 0xC0C1; table[i] = 8 rounds of
+  `crc = (crc>>1) ^ (0xA001 if crc&1 else 0)` (entry 1 =
+  0xC0C1 verifies the table).
+- IN-TREE: `merged_writer.rs::merge_two_stream` /
+  `merge_three_stream` build exactly this shape (the final
+  1s-pad variant is part of the α re-apply package);
+  `crc.rs::crc16` + `crc::CRC16_SEED`; `register_object` /
+  `register_raw_object` in `object_writer/common.rs`.
+
+#### D. The R2007 per-record string stream
+
+- The RL bitsize field after the type gives the data-end bit;
+  when strings are present the flag bit at the data end is 1
+  and a short size value sits 128 bits before the end (bit
+  0x8000 flags a second short; combined 30-bit size); the
+  string stream spans downward from there and holds ALL of the
+  record's TV strings.
+- IN-TREE: `merged_writer.rs::merge_three_stream` implements
+  the placement (main/text/handle merge with the flag words);
+  the reader's counterpart decodes it 0/0 corpus-wide.
+
+#### E. AC21 LZ77 (the objects-section codec)
+
+- Stream: `[literal-run opcode][reordered literals]` then
+  match chains. Literal length opcode = count−8 (0x0F →
+  23+continuation). The first opcode may be the 0x2X pseudo-op:
+  the decoder skips 4 bytes and takes the leading literal
+  count from byte[3]&7.
+- Match classes: compact len 3–14 off ≤512 (2 bytes); short
+  3–18 off ≤8192 (3); long 19–50 off ≤4096 (3, high nibble 0);
+  extended len ≤255 with 16-bit offset (4); extended-long
+  len ≥256 (5).
+- After each match the next-op byte's low 3 bits are the
+  trailing literal count: nonzero → literals follow and a
+  FRESH chain block reads the next op (any class, including
+  nibble 0); zero → the next op: nibble 0 EXITS the chain (a
+  literal-length byte), nibble 0xF is REMASKED to 0 and read
+  as an in-chain long match (the author's in-chain long
+  form — her census uses it heavily).
+- Literal runs ≥32 bytes are reordered by 8-byte group
+  reversal; shorter tails via the 31-entry sub-32 swap table —
+  both implemented verbatim in `decompressor_ac21.rs`
+  (`decompress_copy_n_reordered` is pub) and byte-verified
+  against gold's table.
+- IN-TREE: `compressor_ac21.rs::compress_ac21` (measured
+  BEATING the author's ratio on identical content),
+  `decompressor_ac21.rs::decompress_ac21` (pub; pad the source
+  +64), and the harness bin `ac21_token_diff`: per-page stream
+  extraction (RS de-interleave, factor 1), a decoder-exact
+  token walker, the H8b mirror-sim window scorer, and raw
+  stream dumps via `AC21_DIFF_RAW_DIR`.
+
+#### F. The containers (page systems)
+
+R2007 (AC1021):
+- Data pages: RS(255,251), repetition factor 1; a compressed
+  page is de-interleaved at stride bc (blocks of 251). Stored
+  vs compressed dispatches on SIZE ONLY: raw when
+  `comp == uncomp || size == page_size_if_rs_coded(comp)`.
+- System pages (the sections/pages maps): RS(255,239) with a
+  repeat count; page_size = align8(ceil(pesize/239) x 255)
+  with pesize = align8(compressed) x repeat — use the
+  implemented `get_system_page_size`.
+- rs_form for data pages:
+  `page_size_if_rs_coded(len) = align32(ceil(align8(len)/251) x 255)`.
+- The pages map: (id, on-disk size) pairs in physical order
+  from file offset 0x480 (the running sum gives addresses);
+  the sections map: 16-byte entries per the §18 record.
+- IN-TREE: `dwg_reader.rs::decode_ac21_page` +
+  `get_page_buffer_at`; the H8a retention
+  (`document.dwg_ac21_shape`: map_order + per-section page
+  plans); the H8b gate/emission/finalize
+  (`file_header_ac21.rs::mirror_plan`, `write_mirrored_pages`,
+  `write_file_mirrored`) with `AC21_MIRROR_DEBUG=1` decline
+  traces; `reed_solomon.rs::reed_solomon_decode` (pub).
+
+R2004/R2010/R2013/R2018 (the AC18–AC28 family):
+- The H7g doctrine and machinery: per-descriptor maxdecomp
+  frames (the author's custom caps measured: AppInfo 0x300,
+  AppInfoHistory 0x580, Preview 0x7C00, SummaryInfo 0x80),
+  box ids at data_count+3/+4, the SummaryInfo-first@0x100
+  physical order, RS(255,239) system pages.
+- IN-TREE: the H7g retention (`document.dwg_ac18_shape`),
+  `ac18_mirror_plan` + `AC18_MIRROR_DEBUG=1`, the conventional
+  `write_ac18`. All four container versions read 0/0.
+
+#### G. The CRC random encoding (the ONE open algorithmic unknown)
+
+- Purpose: some header CRC values are stored as UInt64s = 10
+  data bits spread evenly + 54 pseudo-random bits.
+- The engine (the ODA §5 pseudocode, reproduced in full; the
+  spec's §5.11 tables follow exactly):
+  `t[0] = (uint32)seed * 0x343fd + 0x269ec3`;
+  `t[1] = (uint32)(seed >> 32) * 0x343fd + 0x269ec3`;
+  `value = t[1]; t[i] (i >= 2) = (((value >> 0x1e) ^ value) *
+  0x6c078965) + i` iterated for i in 2..0x270 — all stored
+  little-endian; a 0x80-entry padding table is derived from
+  the same table; the index loops with wrap at 0x270; the
+  Encode method spreads the 10 bits and fills the rest from
+  the table.
+- IN-TREE: `file_header_ac21.rs::CrcRandomEncoder` (:95,
+  with these exact constants) + the H8b mirror's raw table
+  use.
+- KNOWN STATE (recorded at H7g time): our sequence diverges
+  from the author's draws at the same seed+crc_seed — the
+  first draw already differs (measured on example_2007). The
+  remaining work is pinning the author's MT-variant
+  bit-exactly; every corpus file supplies (seed, her draws)
+  as ground truth on disk, so NO fixture is needed. The
+  3-per-file R2007_Header derive family
+  (`sections_map_crc_seed`, `pages_map_crc_seed`,
+  `crc_seed_encoded`) closes when this is pinned.
+
+#### H. The harness surface (all implemented; the campaign loop)
+
+- Gates: `cargo test --features serde`;
+  `cargo test --features gold-harness --test gold_roundtrip`;
+  `python3 tests/gold_harness/run_roundtrip.py FILE DIR`;
+  `python3 tests/gold_harness/run_corpus.py` (the
+  authoritative counters; report.md + per-file struct JSONs
+  under `target/gold_harness_corpus/`).
+- Record forensics: gold `dwgread -v9 FILE 2> trace.log`
+  prints per-object `[Object number/size/type/address]`,
+  `bitsize` [RL], `Hdlsize`, hdl/str extents in
+  `@byte.bit` window coordinates, per-field positions, handle
+  forms and the padding readings (the §8.1.6 walk); pair with
+  `dump_section_bytes` (hex + MSB-first bit string) and
+  `ac21_token_diff`.
+- Decline traces: `AC21_MIRROR_DEBUG=1` /
+  `AC18_MIRROR_DEBUG=1` prefixed on any run_roundtrip
+  enumerates the per-file gate reasons.
+- Zero-keeping: the stash-run corpus pattern (git stash the
+  writer slice, run the corpus, pop) — measured evidence
+  before any landing; both corpus counters must hold or
+  improve (§19.3).
+- The generation identity canary: after any writer change run
+  `cargo run --example gen_all_entities_all_versions_dwg
+  --features serde` and `md5sum
+  gen_all_entities_all_versions.dwg`; record the new value in
+  the halt — a tracked fact, not a frozen constant.
