@@ -1,59 +1,50 @@
-# Zero-context prompt — TARGET ZERO held; the conventional arm at 20 residual records (H8h-ext-5: the PersSubentManager v2 tail; the assoc/non-assoc class distinction confirmed)
+# Zero-context prompt — TARGET ZERO held; the conventional arm at 15 residual records (H8h-ext-6: the persubent genus completed — the ASSOC re-parse + the passthrough tails)
 
-> Campaign state 2026-09-27 (the halt after the H8h-ext-5 landing; the
-> session continued the loop from the H8h-ext-4 halt: review → land →
+> Campaign state 2026-09-27 (the halt after the H8h-ext-6 landing; the
+> session continued the loop from the H8h-ext-5 halt: review → land →
 > verify → commit → push. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280
 > files, read-fidelity 0, write-fidelity 0, read key-gap 0, write-target
 > 0** — verified after the landing). The ACS/SH campaign stays COMPLETE
 > at 0/0. The §19 structure campaign's READ axis stays ZERO
 > corpus-wide. Read `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3
 > + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's
-> H8d–H8h-ext-5 rows carry this arc's records), then this file top to
+> H8d–H8h-ext-6 rows carry this arc's records), then this file top to
 > bottom.
 
-## The arc (2026-09-27, the continuation session — H8h-ext-5)
+## The arc (2026-09-27, the continuation session — H8h-ext-6)
 
-1. **The assoc/non-assoc distinction (the maintainer's hypothesis,
-   CONFIRMED)**: the corpus carries TWO persubent-manager classes —
-   `ACDBASSOCPERSSUBENTMANAGER` (the associative variant: gold has a
-   spec block — class_version, unknowns 3/0/2, bl1/bl2, steps, subents,
-   the v2 tail; our `AssocPersSubentManager` model; its records were
-   already byte-identical) and `ACDBPERSSUBENTMANAGER` (the
-   NON-associative variant: NO gold spec block, gold parks it raw; our
-   `PersSubentManagerStatic` path; the divergent records). The loft
-   files carry both (gold's warnings show the ASSOC at object 135 and
-   the non-assoc at 136).
-2. **The Loft 29-vs-27 autopsy**: her class region = [5 BLs:
-   2, 0, 2, {2|1}, 1][num_steps=7 + steps [0,{1|2},{1|2},4,0,0,0]]
-   [num_subents=0][BL(1)][BL({2|1})] — the walk ends exactly at the
-   main-stream CONTENT end (bit 199; the RL = 200 = content + 1). The
-   tail values: the first BL is 1, the second tracks the fourth header
-   BL (= steps[2]).
-3. **The +1-bit lesson (the first landing attempt)**: the initial tail
-   read included a B field — but the bit after the content is the
-   MERGED WRITER'S no-text flag (the finalization computes
-   `total_bits = main + text + 1` and writes the flag bit itself), not
-   a record field. The misread tail made every record +1 bit (bitsize
-   201 vs 200; the old records' +1: content 179 → bitsize 180 was the
-   same flag). THE RULE: a reverse-engineered tail must never include
-   the flag bit — the walk's "end exactly at the main content end" is
-   the boundary.
-4. **The regression that found the gate (the second attempt)**: with
-   the tail ungated, the ~25 count-0 records (e.g. ExtrudeC 2DC:
-   associative_subent_count=0) captured garbage (the flag + handle
-   bits) — a 25→48 regression, our records 22v27. THE GATE: the tail
-   is present ONLY when `associative_subent_count != 0` (the loft
-   records carry 1; the count-0 records end the content right after
-   the steps).
-5. **The landing**: `PersSubentManager.v2_tail: Option<(i32, i32)>`
-   (serde-default; None for DXF-built records), the reader gated on
-   `class_version == 2 && associative_subent_count != 0`, the writer
-   emitting the two BLs when captured.
-6. **Measured: 25 → 20 divergent records; 49/58 files at 100%.**
-   Loft 207/207, Loft3 206/206, LoftC 211/211, LoftH 206/206,
-   LoftR 206/206; the regressed genus restored (ExtrudeC 206/206,
-   Box 207/207, RevolveA 207/207); circle 211/211 held.
-7. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
+1. **The ASSOC-variant re-parse**: the old `ASSOCPERSSUBENTMANAGER`
+   reader skipped the gold spec's `unknown_bl1`/`unknown_bl2` (the two
+   BLs between the markers and num_steps) and read BLs until the stream
+   end + a final_flag bit — a value-level BL passthrough that was
+   byte-SYMMETRIC for the loft records but desynced on Chamfer/Fillet
+   2DE (the 2-bit code-11 branch's 256 → 30-byte garbage records).
+   Re-parsed to the spec field order (bl1, bl2, num_steps, steps,
+   num_subents, subents).
+2. **The tail structure discovery**: the first re-parse attempt was 1
+   byte short — the simple records end with ONE trailing B (the last
+   content bit), but the LoftCSurf/LoftM 2DD records carry a variable
+   BL run ([0,0,0,1,1,0]) before it. The old passthrough had consumed
+   it all symmetrically.
+3. **The passthrough tails (the landing)**: both variants now capture
+   the post-subents region verbatim — the ASSOC variant: BLs until one
+   bit remains + the trailing B; the non-assoc variant: BLs until the
+   content end (flush, no B). This subsumes the H8h-ext-5 [BL][BL]
+   tail (a short run) AND the Chamfer/Fillet 2DF **~1224-BL history
+   blobs** (the 1509/1463-byte records — pure BL sequences ending
+   flush).
+4. **The frame math that settled the boundaries**: the RL (bitsize) =
+   main content + text + 1 (the no-text flag); `main_remaining_bits()`
+   is relative to the CONTENT end; the ASSOC records end [BLs][B], the
+   non-assoc records end flush — the bit after the content is ALWAYS
+   the flag, never a record field (the H8h-ext-5 lesson, now applied to
+   both variants).
+5. **Measured: 20 → 15 divergent records; 54/58 files at 100%.** The
+   whole persubent genus byte-identical: Chamfer 207/207, Fillet
+   207/207, Loft 207/207, LoftCSurf 221/221, LoftM 221/221; ATMOS
+   dropped 5 → 4 (one of its records was persubent); circle 211/211
+   held.
+6. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
    family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0.
    Generation identity UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
    25,375 bytes, verified with AND without `--features serde`).
@@ -76,28 +67,25 @@ retained metadata models. Captured at the END of the read; compared
 BEFORE the prepare pipeline at the write entry. The wire-only
 captures (`table_control_entries`, `dimstyle_morehandles`) are
 EXCLUDED from the fingerprint; `xdic_by_handle`, the modeled
-subcurve fields, and the PersSubentManager tail are INCLUDED (real
+subcurve fields, and the persubent tail captures are INCLUDED (real
 state — an edit declines the echo).
 
 **The honest framing, extended**: for an unedited same-version
 roundtrip the DWG writer is a byte-copy gated on a full-content
 hash. The conventional arm is record-identical to the author's
-stream on 49 of the 58 AC1021 corpus files, with **20 named
-residual records** in five classes (below).
+stream on 54 of the 58 AC1021 corpus files, with **15 named
+residual records** in four classes (below).
 
-## The residual 20 (each a named, byte-level-scoped packet)
+## The residual 15 (each a named, byte-level-scoped packet)
 
 - **example_2007 (9)**: 1F +10 (01v21), 176 1726v1727, 1A9 +32
   (a9va1), 37D 2269v2270, 392 +20 (42v52 — another assoc-dep-class
   ref), 393 +30 (10v0c), 396 91v85, 430 +37 (27v28), +1 more.
-- **ATMOS (5 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
-  h=77 96v40, h=352 25642v36 (a 25KB ACIS mass we emit as 36
-  bytes), h=541 17v18; the 84 her-only = the broken-map orphans
-  (pre-existing, documented).
-- **Chamfer/Fillet (4)**: h=2DE 22v26/30 + h=2DF 1509/1463v30 — the
-  same non-assoc PersSubentManager class (the 22v30 record likely
-  needs the v2 tail with different gates) + the fillet/chamfer
-  UNKNOWN body (the unknown_bits mass our stub drops).
+- **ATMOS (4 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
+  h=77 96v40, h=352 25642v36 (a 25KB ACIS mass we emit as 36 bytes),
+  h=541 17v18 — re-autopsy after the persubent landing (one closed);
+  the 84 her-only = the broken-map orphans (pre-existing,
+  documented).
 - **The singles**: Constraints `3E3` (666 vs 870); PolyLine3D `1C2`
   (16 vs 17 — OURS longer).
 
@@ -105,10 +93,7 @@ residual records** in five classes (below).
 
 - **The residual classes above** — each an autopsy → census →
   rule → gates → re-survey packet in the H8h tradition; the
-  §19.2 H8h-ext-5 row carries the map and the method. NOTE for
-  Chamfer/Fillet: the 2DE records are the same PersSubentManager
-  class — check their associative_subent_count and whether a
-  further tail form exists before treating them as unknown_bits.
+  §19.2 H8h-ext-6 row carries the map and the method.
 - **The unattested subcurve action types** (17=ELLIPSE, 19=LINE,
   23=LINESEG3D, 42=NURB3D, 27=CURVE3D): no corpus specimens — the
   twelve-BD ARC form is the only attested layout.
@@ -117,19 +102,23 @@ residual records** in five classes (below).
 - **The dead/no-path rows**: `LoftD`; the SH revolve option shorts;
   **BREP stays deferred** (external authentic ACSH_BREP_CLASS
   specimen required).
+- NOTE: the DXF writer's non-assoc PersSubentManager arm does not
+  emit the captured tail BLs (the DWG writer does); a DWG→DXF→DWG
+  roundtrip of a tailed record would drop them — outside the
+  campaign's gates, noted for completeness.
 
 ## The standing facts
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (UNCHANGED through H8h-ext-5). The generator builds
+  25,375 bytes (UNCHANGED through H8h-ext-6). The generator builds
   and runs identically WITH or WITHOUT `--features serde`.
 - The record-identity state (the 58-file AC1021 survey,
-  `record_identity_survey.py`): **49 files at 100%, 20 divergent
+  `record_identity_survey.py`): **54 files at 100%, 15 divergent
   records, 84 her-only orphans (ATMOS's broken map)**. circle
   211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245;
-  ExtrudeCSurf 216/216; LoftCSurf 221/221; Loft 207/207.
+  Chamfer 207/207; Fillet 207/207; Loft 207/207; LoftCSurf 221/221.
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
   generated-file drift (`src/config.h.in`, autoheader requote) —
   the freeze rule stands. Oracle fingerprints unchanged: the
@@ -142,19 +131,21 @@ residual records** in five classes (below).
   (`~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp) +
   libredwg `bits.c`. NEITHER documents the ACDBASSOC* classes, the
   subcurve wire, or the non-assoc PersSubentManager (the authority
-  closure, commit `cc1a6c8`).
+  closure, commit `cc1a6c8`); the ASSOC variant HAS a gold spec
+  block (dwg2.spec — the H8h-ext-6 re-parse follows it).
 - The hermetic suites: serde green (the 0xF_ test + issue80
   green), gold_roundtrip green, at every landing.
 - Autopsy tooling notes: gold's `-v9` `@byte.bit` positions are
   RECORD-relative (they INCLUDE the 2-byte MS head); the survey's
   merge-trace positions are SPAN-relative. The record-head MS is
-  15 data bits per 16-bit LE word (§19.4.A). **The merged
-  writer's no-text flag bit**: the RL (bitsize) = main content +
-  text + 1; the flag bit at the content end is NOT a record
-  field — a reverse-engineered tail must end at the content end
-  (the +1-bit lesson, H8h-ext-5). The BL forms: 00 = 4-byte LE,
-  01 = 1 byte, 10 = 0 (2 bits). The BD forms: 00 = full 66-bit LE
-  double, 01 = 1.0, 10 = 0.0.
+  15 data bits per 16-bit LE word (§19.4.A). **The merged-stream
+  frame math (the H8h-ext-6 settlement)**: the RL (bitsize) = main
+  content + text + 1 (the no-text flag); `main_remaining_bits()`
+  is relative to the CONTENT end; the bit after the content is
+  ALWAYS the flag — never a record field. The ASSOC persubent
+  records end [BLs][B]; the non-assoc records end flush. The BL
+  forms: 00 = 4-byte LE, 01 = 1 byte, 10 = 0 (2 bits); the BD
+  forms: 00 = full 66-bit LE double, 01 = 1.0, 10 = 0.0.
 
 ## Environment (complete)
 
@@ -205,8 +196,8 @@ md5sum gen_all_entities_all_versions.dwg
 python3 tests/gold_harness/record_identity_survey.py \
     "$GOLD_TESTDATA"/2007/*.dwg "$GOLD_TESTDATA"/example_2007.dwg \
     tests/gold_harness/tests/sh_history/*_2007.dwg
-# current state: 49 files at 100%, 20 divergent records total
-# circle 211/211; ExtrudeCSurf 216/216; Loft 207/207
+# current state: 54 files at 100%, 15 divergent records total
+# circle 211/211; Chamfer 207/207; Loft 207/207
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -219,31 +210,28 @@ cargo build --bin ac21_token_diff --features serde
 ## Commit inventory (this halt)
 
 ```
-04d6815 <docs> the post-H8h-ext-4 halt refresh (the prior halt head)
-<feat> H8h-ext-5: the PersSubentManager v2 tail — [BL][BL] gated on
-       associative_subent_count != 0 (25 -> 20; 49/58 at 100%; the
-       assoc/non-assoc class distinction confirmed)
-<docs> this halt refresh — the post-H8h-ext-5 record
+5f4ced4 <docs> the post-H8h-ext-5 halt refresh (the prior halt head)
+<feat> H8h-ext-6: the persubent genus completed — the ASSOC re-parse
+       per the gold spec + the passthrough tails (20 -> 15; 54/58 at
+       100%; the 2DF history blobs closed)
+<docs> this halt refresh — the post-H8h-ext-6 record
 ```
 
 **PUSH STATE (2026-09-27)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the H8h-ext-4
-halt → the maintainer's assoc/non-assoc hypothesis verified against
-gold's spec (the ASSOC block exists and its records were already
-identical; the non-assoc has no block) → the Loft 29-vs-27 autopsy
-(the 5-BL header, the 7 steps, the [BL][BL] tail ending at the
-content end) → the +1-bit lesson (the merged writer's no-text flag
-bit — the first attempt misread it as a record B field) → the
-regression that found the gate (the count-0 records carry no tail;
-the ungated capture pulled the flag + handle bits — 25→48, then
-the gated fix restored them) → the gates (serde 1602/0,
-gold_roundtrip, issue80, family smokes, corpus 0/0/0/0, generation
-identity unchanged and feature-independent) → the full survey
-(25 → 20; 49/58 at 100% — the whole loft genus closed) → the docs
-(§19.2 H8h-ext-5 row; this halt record). **The maintainer's loop
+**Session arc, for context**: the continuation from the H8h-ext-5
+halt → the Chamfer/Fillet autopsy (the 2DE records revealed as the
+ASSOC variant with a garbage parse — the missing spec BLs) → the
+re-parse landing and the tail discovery (the 1-byte-short first
+attempt; the LoftCSurf/LoftM variable BL runs) → the passthrough
+tails (the ASSOC [BLs][B] and the non-assoc flush endings; the 2DF
+~1224-BL blobs) → the gates (serde 1602/0, gold_roundtrip,
+issue80, family smokes, corpus 0/0/0/0, generation identity
+unchanged and feature-independent) → the full survey (20 → 15;
+54/58 at 100% — the whole persubent genus closed) → the docs (§19.2
+H8h-ext-6 row; this halt record). **The maintainer's loop
 instruction — "repeat process until target = zero" — remains
 satisfied: the corpus is at zero on every axis; the conventional
-arm is record-identical on 49 of 58 AC1021 files, and the residual
-20 records are named, byte-level-scoped packets in five classes.**
+arm is record-identical on 54 of 58 AC1021 files, and the residual
+15 records are named, byte-level-scoped packets in four classes.**

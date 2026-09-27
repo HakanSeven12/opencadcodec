@@ -6219,6 +6219,50 @@ Signature) — the parse side is further along than the emission side.
   non-assoc class with the fillet/chamfer unknown_bits mass);
   Constraints 3E3; PolyLine3D 1C2.
 
+  **H8h-ext-6 — the PersSubentManager genus completed:
+  20 → 15 (2026-09-27, the continuation; the ASSOC-variant
+  re-parse + the passthrough tails)**: (1) **the ASSOC
+  variant re-parsed to the gold spec**: the old
+  `ASSOCPERSSUBENTMANAGER` reader skipped the spec's
+  `unknown_bl1`/`unknown_bl2` (the two BLs between the
+  markers and num_steps) and read BLs until the stream end
+  plus a final_flag bit — a value-level BL passthrough that
+  was byte-SYMMETRIC (the loft records roundtripped) but
+  desynced on the Chamfer/Fillet 2DE records (the 2-bit
+  code-11 branch's 256 → our 30-byte garbage records).
+  The re-parse reads the spec fields properly (bl1, bl2,
+  num_steps, steps, num_subents, subents) — the FIRST
+  attempt exposed the tail structure: the simple records
+  end with ONE trailing B (the last content bit), but the
+  LoftCSurf/LoftM 2DD records carry a variable BL run
+  ([0,0,0,1,1,0]) before it. (2) **the passthrough tails**:
+  both variants now capture the post-subents region
+  verbatim — the ASSOC variant: BLs until one bit remains +
+  the trailing B; the non-assoc variant: BLs until the
+  content end (flush, no B). This subsumes the H8h-ext-5
+  [BL][BL] tail (the loft records' two BLs are just a short
+  run) AND the Chamfer/Fillet 2DF **~1224-BL history blobs**
+  (the 1509/1463-byte records — pure BL sequences, 31
+  distinct small values, ending flush). THE FRAME MATH that
+  settled the boundaries: the RL (bitsize) = main content +
+  text + 1 (the no-text flag); `main_remaining_bits()` is
+  relative to the CONTENT end; the ASSOC records end
+  [BLs][B], the non-assoc records end flush — the bit after
+  the content is ALWAYS the flag, never a record field (the
+  H8h-ext-5 lesson, now applied to both variants).
+  **MEASURED: 20 → 15 divergent; 54/58 files at 100%** —
+  the whole persubent genus (both variants, all tail forms,
+  the 1.5KB blobs) byte-identical: Chamfer 207/207, Fillet
+  207/207, Loft 207/207, LoftCSurf 221/221, LoftM 221/221;
+  ATMOS dropped 5 → 4 (one of its records was persubent);
+  circle 211/211 held. GATES: serde 1602/0, gold_roundtrip
+  ok, issue80 7/0, four family smokes 0/0, corpus 280 files
+  0/0/0/0, generation identity UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes,
+  feature-independent). THE RESIDUAL 15: ATMOS 4 + 84
+  her-only; example_2007's 9 marginal forms; Constraints
+  3E3; PolyLine3D 1C2.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
