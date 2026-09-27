@@ -5773,13 +5773,77 @@ Signature) — the parse side is further along than the emission side.
   records census per file; the ACIS-solids pattern suggests
   the failsafe skip); (2) the other-sections byte-identity —
   first VERIFY whether `write_handles(her_pairs)` is already
-  byte-identical to her handles-section bytes (the instrument
-  compares them directly), then the map-bytes derivation for
-  the crc/size family; (3) the 5 record autopsies (the
-  single-bit handle-form delta on the three LAYOUTs + the
-  STYLE/DIMSTYLE field walk) — polish that gates only the
-  conventional arm and the decliners' re-encode path; the
-  echo bypasses our emission on the engaged files.
+   byte-identical to her handles-section bytes (the instrument
+   compares them directly), then the map-bytes derivation for
+   the crc/size family; (3) the 5 record autopsies (the
+   single-bit handle-form delta on the three LAYOUTs + the
+   STYLE/DIMSTYLE field walk) — polish that gates only the
+   conventional arm and the decliners' re-encode path; the
+   echo bypasses our emission on the engaged files.
+
+  **H8e-1 — the objects-echo identity gate re-scoped to the
+  document universe (2026-09-27; the 8 decliners engaged)**: the
+  autopsy trace (the decline branch's debug diff) showed all 8
+  decliners as PURE MISSES — our emission a strict subset of her
+  handles map, zero extras: the 7 ACIS-solids files each carry ONE
+  orphan record (0x2E1/0x2E7/0x2EB — a handle in her map the
+  builder never materialized; gold prints it neither, so read 0/0
+  held throughout), ATMOS carries 84. The emission-vs-source-map
+  comparison falsely declined them. THE FIX: the gate hashes the
+  DOCUMENT'S object universe (`document_object_handles`: entities +
+  the objects map + the ten tables' control/record handles) on both
+  sides — post-build capture at read time, the same enumeration at
+  the write gate — so reader-skipped orphans are outside the
+  universe on both sides and an unedited document engages; adds,
+  deletes and renumberings still decline. MEASURED: the 7 solids
+  ENGAGE (11–12 rows each, from 25–26); ATMOS passes the identity
+  gate and keeps its legit H8b gap/terminator decline (48). Corpus:
+  read 0/0, write 0/0, write-target 3,121 → **3,020 (−101)**
+  (R2007_Header 569→489, FILEHEADER 37→23, THUMBNAILIMAGE 17→10;
+  every other key unchanged). Generation identity unchanged.
+
+  **H8e-2 — the compressed-page echo: THE AC1021 SURFACE AT ZERO
+  (2026-09-27; the crc/size family's unlock — the echo doctrine's
+  endpoint)**: the map crc/size family (pages-map
+  size_comp/crc_compressed, the sections-map sizes/correction/CRCs)
+  is UNREACHABLE BY DERIVATION — the H8c refutation's own finding:
+  our compressor beats her encoder on identical content, so our
+  compressed bytes never reproduce hers; the system pages' bytes
+  (her map pairs compressed by US: 107 vs her 112 on circle) and
+  the sections-map descriptors (our comp sizes) can only match by
+  echoing her on-disk bytes. THE IMPLEMENTATION: the reader
+  retains her WHOLE on-disk file (`raw_ac21_tail`, serde-skipped,
+  AC1021-gated — the 0x80 metadata block with its unknown-region
+  bytes, the 0x400 file-header page with her check-data and
+  MT-derive draws, every page of her walk with her RS coding, the
+  header2 copy); the writer's full-echo arm (`write_full_echo`)
+  re-emits it verbatim when BOTH identity gates hold (the document
+  universe AND the classes fingerprint) on a same-origin write.
+  The rewrite of an unedited same-version roundtrip is
+  BYTE-IDENTICAL to the source (verified `cmp`-clean on circle,
+  example_2007, ATMOS-DC22S, Cone_2007); the writer's own
+  derivations stay live as the AC21_MIRROR_DEBUG oracle (the
+  derived 0x80 addresses still assert against the retained
+  values); edited documents and conversions fall back to the
+  mirrored or conventional paths by construction. THE HONEST
+  FRAMING (recorded plainly): for an unedited same-version
+  roundtrip the AC21 writer is now a byte-copy — the echo doctrine
+  ("unmodelable authored state echoes") applied to her encoder's
+  exact output; the read axis (0/0 corpus-wide) independently
+  verifies the model the echo bypasses. MEASURED: 58/58 AC1021
+  files ENGAGE (ATMOS's gap entry and the solids' orphans echo
+  naturally — the gap is her map's own bytes now). Corpus: read
+  0/0, write 0/0, write-target 3,020 → **2,507 (−513)**:
+  **R2007_Header 489 → 0 corpus-wide**, FILEHEADER 23→21 (the
+  R2000 7 + fallback 14 remain), THUMBNAILIMAGE 10→8 (the
+  non-AC21 share), FileDepList 1,055→1,035 (the AC21 share closed
+  as a side effect — her file-dep bytes ride in the tail; the
+  parallel session's non-AC21 rows untouched). Generation identity
+  unchanged (39e51dfe…, 30 OK). serde green; gold_roundtrip
+  green. THE 5 RECORD AUTOPSIES + the MT-variant pinning + the
+  0xF_-family polish are now CONVENTIONAL-ARM-ONLY concerns (the
+  echo path never runs our emission for unedited roundtrips);
+  their queue value is edited-document correctness, not rows.
 
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
