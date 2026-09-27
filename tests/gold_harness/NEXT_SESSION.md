@@ -92,12 +92,26 @@ residual records** in five classes (below).
   then a BD candidate `2.000000000000001` (2.0 + 1 ulp — the
   author's computed extrusion distance), then ~120 further bits
   (the `054B4C0C16A2...` bytes in gold's unknown_bits print);
-  (d) gold's own spec macro `CALL_SUBCURVE` is an EMPTY TODO stub
-  — the wire form must be reverse-engineered from the specimens
-  (the ODA PDF's AcDbAssocSubcurveGeometry + the per-action_type
-  dissection: 11=ARC, 17=ELLIPSE, 19=LINE, 23=LINESEG3D, 42=NURB3D,
-  27=CURVE3D). The six specimens' hex is in the -v9 walks
-  (`DWG_NO_ECHO=1` + `$GOLD_DWGREAD -v9 <fixture>`).
+  (d) **the authority search is CLOSED (2026-09-27, the hints session)**:
+  the subcurve wire is unknown to BOTH authorities — libredwg's full
+  history (`git log --all -S "SUBCURVE"`: 5 commits, none
+  implementing; `CALL_SUBCURVE` an empty TODO stub in every one;
+  `subent` a bare `BITCODE_H` placeholder guess never populated; no
+  DXF import/export; no API section; the frozen HEAD `34f02f54` is
+  newer than the 2020 WIP line and still parks the region in
+  unknown_bits) and the ODA PDF (270pp via pypdf: ZERO hits for
+  Subcurve/EdgeActionParam/AcDbAssoc/ActionParam/action_type — the
+  ACDBASSOC* classes are undocumented 2008+ classes; the lone
+  "ASSOC" occurrence is the DIMASSOC header variable). THE
+  SPECIMENS ARE THE ONLY AUTHORITY. Framing: the subcurve types
+  are ARC/ELLIPSE/LINE geometry, so the region likely embeds those
+  entities' geometric fields (center/radius/angles for ARC) in the
+  PDF's documented BD/3BD forms — the 56-zero-bits + BD(2.0+1ulp)
+  head is consistent with a flag/count region then the radius.
+  Method: extract all 7 records' subcurve regions, group by
+  action_type, align within a group, decode the varying fields
+  against the fixtures' known geometry (gold's JSON prints the
+  source CIRCLEs' centers/radii).
 - **ATMOS (5 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
   h=77 96v40, h=352 25642v35 (a 25KB ACIS mass we emit as 35
   bytes), h=541 17v18; the 84 her-only = the broken-map orphans
