@@ -5483,7 +5483,8 @@ Signature) — the parse side is further along than the emission side.
   0-page edge again).
 
   **H8b — the AC21 container-shape write mirror (2026-09-26, the
-  post-H8b-halt packet; MACHINERY LANDED, ENGAGEMENT WAITS ON H8c)**:
+  post-H8b-halt packet; MACHINERY LANDED, ENGAGEMENT WAITS ON THE
+  OBJECTS-STREAM PARITY PACKET — see the H8c row)**:
   the H7g doctrine transferred to the AC1021 container, in full.
   Sites: `DwgFileHeaderWriterAC21::mirror_plan` (the content-parity
   gate), `write_mirrored_pages` (the her-map-order emission),
@@ -5522,7 +5523,9 @@ Signature) — the parse side is further along than the emission side.
   re-emit verbatim). **The engagement census at the halt: all 58
   corpus AC1021 files gate, ZERO engage — 57 decline on an
   `AcDb:AcDbObjects` window (our AC21 LZ77 encoder's ratio runs
-  1.16–1.87× the author's on those windows; her slots are the
+  1.16–1.87× the author's on those windows [ratio attribution
+  CORRECTED by the H8c row below — the measurements stand, the
+  encoder is NOT the wall]; her slots are the
   EXACT rs_form of her comp — zero slack — measured: Box_2007
   window 2 ours 22,836 vs her ~12,2xx; example_2007 window 2
   16,725 vs ~14.4xx; circle.dwg 17,993 vs ~9.4xx; every
@@ -5538,19 +5541,86 @@ Signature) — the parse side is further along than the emission side.
   hermetic tests pin the author rs_form table (note
   `rs_form(302255) = 307,296`), the stored/collision/overflow
   rules and the map-byte/prefix walks — 42/42 module green.
-  **H8c (the next packet): the AC21 LZ77 encoder ratio parity** —
-  the ground truth is the author's on-disk comp streams (decode
-  her pages with the instrumented `decompressor_ac21` token dump
-  vs ours over the same decompressed content; suspects: the
-  8-byte literal-run minimum, greedy-vs-lazy matching, the
-  opcode class selection, the min-match thresholds); acceptance =
-  the engage census with `AC21_MIRROR_DEBUG` margins per page. The
-  oracle record correction landed in NEXT_SESSION: the prior halt's
-  md5 string matched no file — the true fingerprints are the 6,316-
-  byte libtool wrapper (8dad57211b78f42e7594ba6c211cc0e5) and the
-  .libs ELF (d852da1db0894b866e86042d4b26b91d, 230,232 bytes, both
-  mtime 2026-09-15 20:56:22), continuity proven BEHAVIORALLY (the
-  example_2007 page space reproduced bit-exact).
+  **H8c — the AC21 encoder-parity measurement: THE WALL REFUTED AS
+  CONTENT, not encoder ratio; the one true grammar gap (the
+  chain-long 0xF_ form) FOUND AND VERIFIED, LANDING DEFERRED PER
+  ZERO-KEEPING (2026-09-27)**. The instrument:
+  `ac21_token_diff` (a new harness bin) — extracts the author's
+  on-disk comp per page (RS de-interleave, factor 1, RS(255,251)),
+  walks it with a token walker replicating the decoder state
+  machine EXACTLY (the ctor 0x2X pseudo-op skip, the trailing state
+  machine, the chain-continuation `0xF_ → 0x0_` remap), and
+  replay-validates every page's walk byte-for-byte against
+  `decompress_ac21`; the `--our-rt` mirror-sim reconstructs our
+  rewrite's objects stream, slices it at HER window boundaries and
+  scores the H8b fit per window (rs_form vs slot — the exact gate
+  rule); the anatomy mode maps both streams (per-8KB zero-density
+  and aligned-equality). **REFUTATION, measured**: on the author's
+  own decompressed content our compressor BEATS her encoder —
+  objects sections: example_2007 118,803 vs her 121,989 (−2.6%),
+  Box_2007 25,589 vs 26,744 (−4.3%), circle 25,126 vs 26,356
+  (−4.7%) — the prior halt's "1.16–1.87×" figures were
+  our-content-in-her-windows vs her-content: LAYOUT measurements,
+  not encoder ratios. The real wall: our objects stream carries
+  the same constituent masses in a different ORDER (circle: ours
+  [dense head][zero mass @16–40K][uniform ~35% mass to the tail]
+  vs hers [sparse head][uniform ~35% @8–129K][dense pair
+  129–150K][zero mass @172–199K]; totals 199,227 vs 199,139) and
+  record-level VALUE divergences from the first bytes (first
+  divergence at byte 4–22 — head-record content incl. raw-double
+  mantissa deltas, not bit-form deltas), while rs_form's staircase
+  leaves 9–50K comp windows a one-block (~255-byte, 0.5–1.8%)
+  headroom: circle window 0 measures 17,993 vs slot 9,696
+  (−8,672 on one window) — unclosable by encoder work. **The
+  census reprised through the instrument**: some windows sit
+  exactly one block over (Constraints window 0 rs_form 9,952 vs
+  slot 9,696), the uniform minis transpose the same two masses
+  (Arc/ConstructionLine/Donut/Constraints/Ellipse: window 0 over
+  10–12K, one-two middle windows fitting with slack, tail windows
+  one block over), and at least one file fits every reachable
+  window on content alone (ATMOS-DC22S: all 10 reachable windows
+  FIT with margins +256 to +17,600 — its decline is the gap entry
+  class plus our shorter stream, NOT encoding). CONCLUSION: the
+  mirror's objects windows close ONLY through the layer-4
+  objects-stream parity the prior halt itself named as the
+  "alternative unlock" — that is the real next packet: her record
+  layout/order and her head-record byte values. **FOUND AND
+  VERIFIED, LANDING DEFERRED (the census's one true encoder-grammar
+  gap)**: chain-continuation long matches should ride the author's
+  remap form — opcode `0xF0|len_field` (3 bytes; the decoder masks
+  0xF_→0x0_ at exactly that continuation position — CONFIRMED IN
+  GOLD C at `decompress_r2007`'s chain loop, decode_r2007.c:537-538)
+  instead of the 4-byte extended fallback; her census long(F): 519
+  of 3,676 matches on circle, 1,417 of 11,849 on example_2007; our
+  extended usage on identical content collapses accordingly
+  (889→~520 on circle). The emission change was implemented,
+  hermetic-tested (the continuation 0xF_ form pinned; the
+  after-gap class-0 form of the prior halt's 0xF-misuse fix
+  preserved) and measured on the FULL corpus: it moved
+  R2007_Header 925→929 (net +4: 9 files gained a layout-coupled
+  row — Box/Chamfer/ExtrudeP/Fillet/PolysolidD/L/W/X/example_2007
+  — and 5 lost one — Cone/Cylinder/RevolveF/Sphere/Torus_2007 —
+  the pages_map_correction/header2_offset/offset family
+  reshuffling COINCIDENCES as our comp sizes crossed 251-block
+  boundaries, not parity moves). §19.3's rule (struct moves only
+  toward 0) → the emission REVERTED, the compressor stays at HEAD,
+  3,576 re-verified by a stash-run corpus with the change removed.
+  The change RELANDS with the objects-parity packet, where it is
+  REQUIRED (her streams use the 0xF_ form; byte-identity demands
+  it) and every affected row closes anyway. The gold re-scan this
+  session re-verified the frozen tree (34f02f54, the config.h.in
+  requote the only tracked drift), the corrected oracle
+  fingerprints (wrapper 8dad57211b78f42e7594ba6c211cc0e5, ELF
+  d852da1db0894b866e86042d4b26b91d, both mtime 2026-09-15
+  20:56:22), every pinned decode anchor at its line (rs_form @:692,
+  decode_rs @:553, read_system_page @:590, read_data_page @:700,
+  the size-only RS/stored dispatch @:856, read_pages_map @:1099,
+  the LZ77 state machine @:142/320/361/431 incl. the 31-pattern
+  literal reorder table byte-for-byte vs our Rust port; decode.c
+  1432/1683; dwg2.spec:3984; dwg.spec:5446;
+  r2004_file_header.spec:41-53) — and found NO `encode_r2007.c`:
+  gold has no R2007 writer, so her on-disk streams remain the only
+  author-encoder ground truth (this instrument).
 
 ### 19.3 Standing rules for the campaign
 
