@@ -5907,6 +5907,57 @@ Signature) — the parse side is further along than the emission side.
   writer's derivations stay live as the AC21_MIRROR_DEBUG
   oracle.
 
+  **H8h — the conventional-arm record identity on circle: 211/211
+  (`32a2e80`, 2026-09-27; the maintainer's "optional
+  conventional-arm quality" directive — the five record
+  autopsies resolved into TWO fixes)**: the study tooling —
+  `DWG_NO_ECHO` (force every echo arm to decline → the
+  conventional compressed emission), `DWG_RECORD_TRACE` (the
+  reader's her-map + the writer's our-map, handle → offset),
+  `DWG_MERGE_TRACE` (per-record main/text/handle-start/handle
+  bytes), `DWG_EED_TRACE` (the parsed and the emitted EED
+  blocks), the `dwgrewrite --no-lz77` diagnostics flag, and the
+  record-wise byte comparison (the maps pair the offsets; her
+  record bounded by ours — sizes verified equal). The
+  reproduction: 206/211 identical, 5 diverging, no size
+  mismatches — the α-era state exactly. THE AUTOPSIES: (1) the
+  three LAYOUTs share ONE ref — the PlotSettings plot-view
+  handle: the author writes it as a HARD pointer (code 5)
+  AGAINST THE SPEC'S DECLARED CODE 4 (gold's own
+  dwg_resolve_handleref comment: 4 soft pointer, 5 hard pointer;
+  her ref byte 0x50 vs our 0x40 — the straddled record bytes
+  0x94/0x14 vs 0x90/0x10 of the α record were this ref viewed
+  through the merge bit-alignment); fixed: the LAYOUT-embedded
+  `plot_view_handle` writes `HardPointer` (r2004_plus). (2) the
+  STYLE + DIMSTYLE records: the EED
+  `extra_eed` merge replaced same-app blocks with
+  remove-and-push-to-end, REORDERING the author's EED stream —
+  her files carry the AcadAnnotative block FIRST, ours last
+  (the blocks themselves byte-identical: the fetch trace showed
+  the retention IS her bytes in her order — the merge flipped
+  it); fixed: replace-in-place (an app with no retained block
+  still appends). MEASURED: **211/211 byte-identical** — the
+  conventional objects emission now reproduces the author's
+  stream on circle.dwg with zero divergence (the α-era target
+  fully reached). Corpus: 280 files, read 0/0, write 0/0,
+  read key-gap 0, write-target 0 (the echo arms unchanged).
+  Generation identity RE-RECORDED:
+  `1a56bca0a56dff09511cec1659cfff1b` (the plotview form
+  touches the generated LAYOUTs), 25,375 bytes, 30 OK / 0 FAIL —
+  and identical md5 WITHOUT `--features serde`. Plus one
+  engineering fix the maintainer's unflagged
+  `cargo run --example gen_all_entities_all_versions_dwg`
+  surfaced: a bare `#[serde(rename = "__version")]` on
+  `DwgHeaderRaw::version` (unguarded — the crate could not
+  build without the feature); cfg_attr-gated like its siblings,
+  the no-feature build now compiles and runs byte-identically.
+  REMAINING conventional-arm work: the MT-variant pinning
+  (§F2.G — the crc_seed draws; a deeper algorithmic study, not
+  attempted); the record-identity result should extend to the
+  other AC1021 corpus files the same way (circle's two form
+  rules likely cover the class) — a future session's optional
+  measurement.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

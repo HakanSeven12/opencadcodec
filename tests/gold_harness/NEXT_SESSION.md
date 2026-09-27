@@ -1,16 +1,17 @@
-# Zero-context prompt — TARGET ZERO: the write-target at 0 (the unified whole-file echo landed; the campaign's structure surface is closed)
+# Zero-context prompt — TARGET ZERO, and the conventional arm record-identical (the unified whole-file echo + the H8h record parity)
 
-> Campaign state 2026-09-27 (the halt after the H8g landing; the
+> Campaign state 2026-09-27 (the halt after the H8h landing; the
 > session ran the review → land → verify → commit → push → continue
 > loop from the 3,576 post-H8c halt, through H8d (3,121), H8e-1
-> (3,020), H8e-2 (2,507), H8f (2,014), to **H8g: write-target 0**).
-> **THE CORPUS IS AT ZERO ON EVERY AXIS: 280 files, read-fidelity 0,
-> write-fidelity 0, read key-gap 0, write-target 0.** The ACS/SH
-> campaign stays COMPLETE at 0/0. The §19 structure campaign's READ
-> axis stays ZERO corpus-wide. Read `tests/gold_harness/AGENTS.md`
-> first, then §F2.1–F2.3 + §18.5–18.7 in `IMPLEMENTATION.md`, then
-> §19.1–19.3 (§19.2's H8d–H8g rows carry this arc's records), then
-> this file top to bottom.
+> (3,020), H8e-2 (2,507), H8f (2,014), **H8g: write-target 0**, and
+> **H8h: the conventional-arm record identity — 211/211 byte-identical
+> on circle.dwg**). **THE CORPUS IS AT ZERO ON EVERY AXIS: 280 files,
+> read-fidelity 0, write-fidelity 0, read key-gap 0, write-target 0.**
+> The ACS/SH campaign stays COMPLETE at 0/0. The §19 structure
+> campaign's READ axis stays ZERO corpus-wide. Read
+> `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3 + §18.5–18.7
+> in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's H8d–H8h rows carry
+> this arc's records), then this file top to bottom.
 
 ## The arc (2026-09-27, one session — the loop's record)
 
@@ -36,6 +37,19 @@
    DECISION, asked and answered in-session: "Proceed"), unified
    with all prior echoes into ONE arm at the write entry, gated on
    the NEW document-state fingerprint. **2,014 → 0.**
+6. **H8h (`32a2e80`)** — the maintainer's "optional conventional-arm
+   quality" directive: the 5 record autopsies resolved into TWO
+   fixes (the LAYOUT PlotSettings plot-view ref is the author's
+   code 5, against the spec's declared 4; the EED extra_eed merge
+   now replaces in place instead of reordering to the end). The
+   CONVENTIONAL objects emission is now byte-identical to the
+   author's stream on 211/211 circle.dwg records — the α-era target
+   fully reached. The study tooling landed with it:
+   `DWG_NO_ECHO` (force the conventional emission), the
+   `DWG_RECORD_TRACE`/`DWG_MERGE_TRACE`/`DWG_EED_TRACE` autopsy
+   diagnostics, and one unguarded `#[serde(rename)]` fixed so the
+   crate builds and runs without `--features serde` (identical
+   output).
 
 ## The final design (the one thing to understand)
 
@@ -81,15 +95,24 @@ overridden by decision, this session).
 - The echo arms never engage for conversions (version mismatch) or
   programmatic documents (no source, fingerprint 0) — by
   construction, verified by the generation identity
-  (39e51dfe… unchanged through every landing).
+  (`1a56bca0…` — re-recorded at H8h when the plot-view form touched
+  the generated LAYOUTs; unchanged through the H8e/H8f/H8g echo
+  landings themselves).
 
 ## The remaining work (all optional — the target is reached)
 
-- **The conventional-arm correctness**: the 5 record autopsies
-  (the single-bit handle-form delta on the three LAYOUTs; the
-  STYLE/DIMSTYLE field walk), the MT-variant pinning (§F2.G), the
-  handles-section byte-identity question — these gate only
-  EDITED-document re-emission quality now, not rows.
+- **DONE at H8h (`32a2e80`)**: the 5 record autopsies — resolved
+  into TWO writer form rules (the LAYOUT plot-view ref code 5; the
+  EED replace-in-place order) — the conventional objects emission
+  is byte-identical to the author's stream on 211/211 circle.dwg
+  records. A future session may extend the measurement to the
+  other AC1021 corpus files (circle's two rules likely cover the
+  class).
+- **The MT-variant pinning (§F2.G)**: the crc_seed draws — the
+  one remaining named conventional-arm unknown, NOT attempted
+  (a deep algorithmic study of gold's random.c MT variant; the
+  echo path never runs it for unedited roundtrips, so it gates
+  only edited-document re-emission quality, not rows).
 - **The dead/no-path rows**: `LoftD`; the SH revolve option
   shorts; **BREP stays deferred** (external authentic
   ACSH_BREP_CLASS specimen required).
@@ -102,10 +125,13 @@ overridden by decision, this session).
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
-- The generation identity is `39e51dfe3fe281b2373994e2ebd82453`,
-  25,375 bytes (RE-RECORDED at H8d; UNCHANGED through
-  H8e-1/H8e-2/H8f/H8g — verified after every landing; the
-  generator's programmatic documents never take the echo).
+- The generation identity is `1a56bca0a56dff09511cec1659cfff1b`,
+  25,375 bytes (RE-RECORDED at H8h — the plot-view ref form touches
+  the generated LAYOUT records; was `39e51dfe…` from H8d through
+  H8g; the generator's programmatic documents never take the echo).
+  The generator builds and runs identically WITH or WITHOUT
+  `--features serde` (one unguarded `#[serde(rename)]` fixed at
+  H8h).
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
   generated-file drift (`src/config.h.in`, autoheader requote) —
   the freeze rule stands. Oracle fingerprints unchanged: the
@@ -163,7 +189,18 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 39e51dfe3fe281b2373994e2ebd82453, 25,375 bytes
+# 1a56bca0a56dff09511cec1659cfff1b, 25,375 bytes
+# (identical without --features serde since H8h)
+
+# 4b. The conventional-arm record identity (the H8h acceptance,
+#     NEW: the record-level oracle for the non-echo emission)
+DWG_NO_ECHO=1 ./target/debug/dwgrewrite \
+    "$GOLD_TESTDATA/2007/circle.dwg" /tmp/conv.dwg
+AC21_DIFF_RAW_DIR=/tmp/ac21 ./target/debug/ac21_token_diff \
+    "$GOLD_TESTDATA/2007/circle.dwg" --section AcDb:AcDbObjects \
+    --our-rt /tmp/conv.dwg
+# then the record-wise comparison (the record maps via
+# DWG_RECORD_TRACE=1 on the same rewrite): 211/211 identical
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -187,7 +224,13 @@ dfd0ff8 <feat> H8f: the R2000 whole-file echo (→ 2,014;
 c5b7adf <feat> H8g: the unified whole-file echo — write-target 0
        (the maintainer's AC18 decision; the document-state
        fingerprint gate; issue80 green)
-<docs> this halt refresh — the target-zero record
+ef1e3c9 <docs> the target-zero halt record
+32a2e80 <feat> H8h: the conventional-arm record identity on
+       circle — 211/211 (the plot-view ref code 5; the EED
+       replace-in-place; the DWG_NO_ECHO/autopsy trace tooling;
+       the no-serde build fixed; generation identity re-recorded
+       1a56bca0…)
+<docs> this halt refresh — the post-H8h record
 ```
 
 **PUSH STATE (2026-09-27)**: the `gold-vs-silver` branch is PUSHED
@@ -206,7 +249,19 @@ container; the fallback class identified as AC18-family) → the
 maintainer's decision asked and answered → H8g (the AC18 family +
 the unification + the state-hash gate — the issue80 regression
 caught the handle-set hole, the prepare-pipeline lesson fixed the
-false declines) → the corpus at zero → the docs (the §19.2
-H8d–H8g rows; this halt record). **The maintainer's loop
-instruction — "repeat process until target = zero" — is
-satisfied.**
+false declines) → the corpus at zero → the maintainer's review
+("review, update, commit, push") → the target-zero halt record →
+the maintainer's "optional conventional-arm quality" directive →
+H8h (the DWG_NO_ECHO study path; the record maps + merge traces;
+the α-era 206/211 reproduced; the three-LAYOUT single-bit delta
+autopsied to ONE ref — the plot-view handle, the author's code 5
+against the spec's declared 4, the straddle explained; the
+STYLE/DIMSTYLE divergences autopsied to the EED extra_eed
+reorder — replace-in-place fixed; 211/211 byte-identical; the
+unguarded serde attribute the maintainer's unflagged run
+surfaced, cfg_attr-gated) → the battery (serde, gold_roundtrip,
+issue80 green; generation identity re-recorded AND verified
+feature-independent; the corpus 0/0/0/0) → the docs (the §19.2
+H8h row; this halt record). **The maintainer's loop instruction
+— "repeat process until target = zero" — is satisfied, and the
+conventional arm is record-identical on the measured file.**
