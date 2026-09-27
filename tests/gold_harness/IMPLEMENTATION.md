@@ -5621,31 +5621,53 @@ Signature) — the parse side is further along than the emission side.
   r2004_file_header.spec:41-53) — and found NO `encode_r2007.c`:
   gold has no R2007 writer, so her on-disk streams remain the only
   author-encoder ground truth (this instrument). **THE H8d OPENING
-  MEASUREMENT (same session, circle.dwg — `dwgread -v9` traces per
-  the §8.1.6 method, her file vs our rewrite)**: same 100 objects,
-  same types; the 94 content-divergent records decompose as —
-  44 differ ONLY in the final byte and in EVERY case her byte =
-  ours OR 1-bits (**the author pads each record's trailing bits
-  with 1s; our writer pads with 0s** — her 0x3f/0x7f/0xff/0x6f/0x21
-  vs our 0x00/0x40/0xc0/0x20); 34 diverge within the last ~8 bytes
-  (the handle-stream region — raw handle values differ: our
-  rewrite RENUMBERS handles, e.g. her 0x75 vs our 0x74 — the
-  earlier "head-record value" attribution is CORRECTED: the
-  stream's byte-22 divergence is object 0's TAIL padding byte, the
-  records' data prefixes are byte-identical almost everywhere);
-  14 frame-size deltas (her 87 vs our 88 etc. — per-record
-  bit-form choices, §8.1.6 record autopsies); 2 deep (obj 69 at
-  +7, obj 81 at +124). PLACEMENT: the same records sit at
-  different addresses (ours compact 6..64,008, hers scattered
-  6..146,328 — a byte-identical record pair verified at our
-  64,008 vs her 146,328), and the unreferenced interstices carry
-  the same `00 29 00 2a…` masses at different positions. The
-  record frame per gold C `dwg_decode_add_object` (decode.c:5429):
-  [0x0DCA marker][MS size][BS type at Address][data][handle
-  stream][bit-pad]. **The H8d packet lands as a UNIT** (every
-  writer change here reshuffles the layout-coupled coincidence
-  rows — the 0xF_ lesson): the 1s-padding fix + handle
-  preservation + the placement rule + the record autopsies, with
+  MEASUREMENT (same session, refined through the cycle; circle.dwg
+  — `dwgread -v9` traces her file vs our HEAD rewrite, fresh raw
+  dumps via the instrument)**: 211 objects both sides, **handle
+  maps IDENTICAL 211/211 (same order, same handles) — the earlier
+  "our rewrite renumbers handles" attribution is REFUTED**. The
+  class census (current writer): 7 records byte-identical; **82
+  differ ONLY in the final span byte** (her byte = ours with high
+  bits set: 0x3f/0x7f/0xff/0x6f/0x21 vs our 0x00/0x40/0xc0/0x20 —
+  the CRC/pad-skeleton tail, the record bodies byte-identical
+  prefixes); 58 diverge within the last 8 bytes (the handle-stream
+  region); 58 size deltas (mostly ±1–2: her 87 vs our 88, the
+  24-object 5598-vs-5600 repeated class; total stream delta only
+  +88); 6 deep. **Gold's own per-object internal reads prove the
+  data prefixes identical everywhere the sizes hold** (obj 0:
+  bitsize 74 = 74, hdl extent @9.2–@17.0 both, the same reported
+  pad bytes) — the divergence concentrates in the HANDLES-STREAM
+  TAIL: the `ownerhandle` H-reference FORM (her `(8.0.0)`-class
+  encodings vs our `(4.1.X)` absolute forms — the same resolved
+  targets, ~+1 byte per record in ours; obj 10: Hdlsize 0x1C vs
+  our 0x24 = the whole size delta; obj 68: 0x4E vs 0x56). The
+  skeleton per the ODA spec §20.1/20.2 (the PDF at
+  `~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp, the
+  record-format chapter pp. 99–103; pypdf is installed --user in
+  WSL python): `[MS size][OT/BOT type][data][string stream R2007+]
+  [handles stream][B* pad to byte][RS CRC — inside the size, read
+  by gold at (address+size−2), covering type..pad]` — plus a
+  SECOND 2-byte field between her span end and the next record's
+  MS (verified at the obj-0 boundary: her `1c d3` vs our appended
+  crc16 `5c c3` — our writer emits the crc16 appended OUTSIDE the
+  span over [MS+merged], gold does NOT verify per-object CRCs on
+  the R2007 path at -v9: no verdict lines, only section-level
+  checksums — byte-identity is the sole authority). PLACEMENT
+  (verified): the same records at different addresses (ours
+  compact 6..64,008, hers scattered 6..146,328 — a byte-identical
+  record pair at our 64,008 vs her 146,328), the interstices
+  carry the same `00 29 00 2a…` masses at different positions.
+  **The H8d opening moves**: (1) the crc16 micro-experiment
+  pinning the exact tail rule (a one-off example over
+  `crate::io::dwg::crc::crc16` on the candidate spans vs her
+  trailing bytes); (2) the ownerhandle H-form rule from
+  libredwg `bits.c` handle codes + our `write_handle` choice, and
+  the form fix; (3) the §8.1.6 autopsies of the 6 deep rows
+  (incl. two elided-stub cases: her 130/233 vs our 7-byte forms
+  on handles 0.1.DC/0.1.E1); (4) the placement decision
+  (retain-vs-replicate her addresses). **The packet lands as a
+  UNIT** (every writer change here reshuffles the
+  layout-coupled coincidence rows — the 0xF_ lesson), with
   acceptance = the mirror engage census closing the
   R2007_Header/FILEHEADER-AC1021/THUMBNAILIMAGE rows wholesale.
 

@@ -125,52 +125,66 @@ the prior halt's 0xF-misuse fix stands).
   on-disk streams remain the only author-encoder ground truth (the
   instrument above is the extraction path).
 
-## H8d — the next packet: the objects-stream parity (MEASURED this session)
+## H8d — the next packet: the objects-stream parity (MEASURED, refined this session)
 
 The layer-4 doctrine applied to AC1021: make our rewritten
-`AcDb:AcDbObjects` stream byte-identical to hers. **This session's
-opening measurement (circle.dwg, `dwgread -v9` traces on her file +
-our rewrite, per the §8.1.6 method) decomposed the wall into a
-concrete worklist** — same 100 objects both sides, same types, and:
+`AcDb:AcDbObjects` stream byte-identical to hers. **The session's
+measurement cycle (circle.dwg: `dwgread -v9` traces her file vs
+our HEAD rewrite + fresh raw-stream dumps via the instrument)
+refined the worklist — correcting two earlier wrong theories:**
 
-1. **The 1s-padding rule (44 records)**: 44 of the 94 divergent
-   records differ ONLY in the final byte, and in every case her
-   byte = ours OR'd with 1-bits — **the author pads each object
-   record's trailing bits with 1s; our writer pads with 0s**
-   (her forms: 0x3f/0x7f/0xff/0x6f/0x21 = 6/7/8/4/1 pad bits set;
-   ours: 0x00/0x40/0xc0/0x20 = zeros). One writer fix.
-2. **The handle-stream tail (34 records)**: divergence within the
-   last ~8 bytes — the raw handle values in the records' handle
-   streams differ (observed single-bit deltas like her 0x75 vs our
-   0x74): **our rewrite RENUMBERS handles** (legitimate for the
-   JSON identity axis, fatal for byte-identity). The packet needs
-   a handle-preservation mode for same-document rewrites (retain
-   her handle values), or a placement that reproduces her
-   numbering.
-3. **The 14 frame-size deltas** (e.g. obj 20: her 87 vs ours 88):
-   per-record bit-form choices that change the record size —
-   walk each with the §8.1.6 record autopsy (first divergent bit
-   + spec-ordered field walk).
-4. **The 2 deep divergences**: obj 69 (size 130, first div at +7)
-   and obj 81 (size 142, first div at +124) — real field-level
-   divergences; the record autopsy names them.
-5. **The placement map**: the same records sit at different
-   addresses (ours compact 6..64,008; hers scattered 6..146,328)
-   — even byte-identical records (verified: our record @64,008 ==
-   her record @146,328 byte-for-byte). The section's unreferenced
-   interstices carry the same `00 29 00 2a…` masses in both files
-   at different positions. The packet needs her allocation rule
-   (or retention of her addresses on same-document rewrite).
+- **Handles are VERIFIED IDENTICAL 211/211** (same order, same
+  values) — "our rewrite renumbers handles" is REFUTED. No
+  handle-preservation work is needed.
+- **The "1s-pad-bits rule" is superseded**: the 82 last-byte-only
+  divergences sit in the CRC/pad-skeleton TAIL (her CRC bytes vs
+  ours with high bits set = the CRC-value delta induced by
+  different skeleton inputs), not in simple data padding — the
+  final rule needs the crc16 micro-experiment below.
 
-The record frame (verified against gold C `dwg_decode_add_object`,
-decode.c:5429): [0x0DCA marker, 4 bytes][per object: MS size][BS
-type at Address][data][handle stream][bit-pad] — the trace's
-Address = the type byte; the interstices are unreferenced by the
-handle map. **LAND AS A UNIT**: every writer change here reshuffles
-the layout-coupled R2007_Header coincidence rows (the 0xF_ lesson);
-the packet lands when the mirror ENGAGES (the census closes
-R2007_Header + FILEHEADER-AC1021 + THUMBNAILIMAGE rows wholesale),
-not piecemeal.
+**The measured classes (211 objects, current writer): 7
+byte-identical; 82 last-span-byte-only; 58 within-last-8-bytes;
+58 size deltas (±1–2 typical, incl. the 24-object 5598-vs-5600
+repeated class; total stream delta only +88); 6 deep (incl. two
+elided-stub forms: her 130/233 vs our 7-byte records on handles
+0.1.DC/0.1.E1).**
+
+**The primary named mechanism — the `ownerhandle` H-reference
+FORM**: gold's own per-object reads show her `(8.0.0)`-class
+encodings vs our `(4.1.X)` absolute forms for the SAME resolved
+targets, ~+1 byte per record in ours (obj 10: Hdlsize 0x1C vs
+0x24 = the whole size delta; obj 68: 0x4E vs 0x56) — the bulk of
+the SIZE class and the TAIL class in one form fix. The spec-side
+authority: the ODA spec PDF (`~/work/
+OpenDesign_Specification_for_.dwg_files.pdf`, 270pp — record
+format pp. 99–103; pypdf installed --user in WSL python) +
+libredwg `bits.c` handle codes + our `write_handle`.
+
+**The skeleton question (one experiment to close)**: per ODA
+§20.1/20.2 the record = `[MS size][type][data][string stream
+R2007+][handles][B* pad to byte][RS CRC inside the size at
+(address+size−2), covering type..pad]` plus a SECOND 2-byte
+field between her span end and the next MS (obj-0 boundary:
+her `1c d3` vs our appended crc16 `5c c3` — our writer appends
+its crc16 OUTSIDE the span over [MS+merged]); gold does NOT
+verify per-object CRCs on the R2007 path at -v9 (no verdict
+lines — byte-identity is the sole authority). The
+micro-experiment: a one-off example over
+`crate::io::dwg::crc::crc16` testing the candidate spans
+against her trailing bytes pins the exact tail rule
+(pad-in-CRC? second-field scope?) — then the writer fix is
+mechanical.
+
+**The opening moves, in order**: (1) the crc16 micro-experiment;
+(2) the ownerhandle-form rule + fix; (3) the §8.1.6 autopsies of
+the 6 deep rows; (4) the PLACEMENT decision (the same records at
+different addresses — ours compact 6..64,008, hers scattered
+6..146,328, byte-identical pair verified; the interstices carry
+the same `00 29 00 2a…` masses at different positions — retain
+her addresses on same-document rewrite, or replicate her
+allocation rule). **LAND AS A UNIT**: every writer change here
+reshuffles the layout-coupled R2007_Header coincidence rows (the
+0xF_ lesson); the packet lands when the mirror ENGAGES.
 
 Acceptance = the mirror engage census (`AC21_MIRROR_DEBUG=1
 python3 tests/gold_harness/run_roundtrip.py …` per file): every
