@@ -3201,11 +3201,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_byte(280, value.offsets.flags)?;
             }
             DynamicBlockData::PolarStretchAction(value) => {
-                if !value.extra.is_empty() {
-                    return Err(crate::error::DxfError::NotImplemented(
-                        "DXF polar stretch extension data".into(),
-                    ));
-                }
+                // ponytail: the trailing `extra` ids have no known DXF group
+                // code, so DXF drops them (count 77 = 0) rather than failing
+                // the whole save; DWG keeps them. Map them once a native DXF
+                // sample shows their codes.
                 self.write_dynamic_action_dxf(&value.action)?;
                 self.writer.write_subclass("AcDbBlockPolarStretchAction")?;
                 self.write_dynamic_connections_dxf(&value.connections, 92, 301)?;
