@@ -1078,6 +1078,43 @@ fn write_ac15<W: Write + Seek>(
         }
     }
 
+    // ── §19 H8f: the R2000 whole-file echo — the H8e-2 doctrine on
+    // the flat container ──
+    // The R2000 pair's anatomy (the corpus autopsy): the thumbnail and
+    // summaryinfo addresses (her preview sits early in her flat layout;
+    // our conventional emission lands it late) and the preview bytes'
+    // embedded offsets — her editor's section placement is her
+    // incremental-save allocation history, unmodelable by rule, and the
+    // mirror's own doctrine for unmodelable authored state is echo.
+    // When the document's identity holds on BOTH gates (the object
+    // universe AND the classes fingerprint) and her whole on-disk file
+    // is retained, the rewrite re-emits her bytes verbatim — the
+    // flat-container twin of the AC21 compressed-page echo. Edited
+    // documents and conversions never reach this arm.
+    if document.dwg_source_version == Some(version) {
+        let identity_holds = document.raw_ac21_tail.is_some()
+            && super::objects_handle_set_fingerprint(
+                super::document_object_handles(document).into_iter(),
+            ) == document.raw_acdb_objects_fingerprint
+            && super::classes_state_fingerprint(document)
+                == document.raw_classes_fingerprint;
+        if let (true, Some(tail)) = (identity_holds, document.raw_ac21_tail.as_deref()) {
+            if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
+                eprintln!(
+                    "[r2000-echo] full echo ENGAGED — her file {} bytes",
+                    tail.len()
+                );
+            }
+            output.seek(std::io::SeekFrom::Start(0))?;
+            output.write_all(tail)?;
+            output.seek(std::io::SeekFrom::End(0))?;
+            return Ok(());
+        }
+        if std::env::var_os("AC21_MIRROR_DEBUG").is_some() && document.raw_ac21_tail.is_some() {
+            eprintln!("[r2000-echo] full echo DECLINED — document identity changed");
+        }
+    }
+
     // ── Phase 1: Compute objects FIRST to get handle map ──
     let objects_started = web_time::Instant::now();
     let obj_writer = DwgObjectWriter::new(document)?;

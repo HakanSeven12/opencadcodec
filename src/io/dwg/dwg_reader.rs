@@ -1709,55 +1709,62 @@ impl<R: Read + Seek> DwgReader<R> {
         let objects_started = web_time::Instant::now();
         if !handle_map.is_empty() {
             match self.get_section_buffer("AcDb:AcDbObjects", &info) {
-                Ok(objects_buf) => {
-                    objects_section_read = true;
-                    // §19 H8d: retain her reconstructed objects-section
-                    // stream plus her handle map and the identity
-                    // fingerprint (the classes-verbatim doctrine) on
-                    // AC1021-format files — the mirror arm's raw-echo
-                    // source. Her physical layout is her editor's
-                    // incremental-save allocation history; the echo
-                    // engages only when the document's object identity
-                    // is unchanged at the write gate.
-                    if info.ac21_metadata.is_some() {
-                        document.raw_acdb_objects_data =
-                            Some(std::sync::Arc::new(objects_buf.clone()));
-                        let mut her_handles: Vec<(u64, i64)> =
-                            handle_map.iter().map(|(&h, &o)| (h, o)).collect();
-                        her_handles.sort_by_key(|&(h, _)| h);
-                        document.raw_acdb_objects_handles =
-                            Some(std::sync::Arc::new(her_handles));
-                        // §19 H8e-2: her whole on-disk file (the 0x80
-                        // metadata block with her unknown-region bytes,
-                        // the 0x400 file-header page, her entire page
-                        // walk with the RS coding as it sits, the
-                        // header2 copy) for the compressed-page echo.
-                        // A failed read just leaves the echo unarmed.
-                        let saved = self.stream.seek(std::io::SeekFrom::Current(0)).ok();
-                        if let Some(saved) = saved {
-                            let probed = self
-                                .stream
-                                .seek(std::io::SeekFrom::End(0))
-                                .ok()
-                                .and_then(|len| {
-                                    if len > 0x80 {
-                                        self.stream
-                                            .seek(std::io::SeekFrom::Start(0))
-                                            .ok()
-                                            .map(|_| len)
-                                    } else {
-                                        None
-                                    }
-                                });
-                            if let Some(len) = probed {
-                                let mut tail = vec![0u8; len as usize];
-                                if self.stream.read_exact(&mut tail).is_ok() {
-                                    document.raw_ac21_tail = Some(std::sync::Arc::new(tail));
-                                }
-                            }
-                            let _ = self.stream.seek(std::io::SeekFrom::Start(saved));
-                        }
-                    }
+                 Ok(objects_buf) => {
+                     objects_section_read = true;
+                     // §19 H8d: retain her reconstructed objects-section
+                     // stream plus her handle map on AC1021-format files —
+                     // the mirror arm's raw-echo source. Her physical
+                     // layout is her editor's incremental-save allocation
+                     // history; the echo engages only when the document's
+                     // object identity is unchanged at the write gate.
+                     if info.ac21_metadata.is_some() {
+                         document.raw_acdb_objects_data =
+                             Some(std::sync::Arc::new(objects_buf.clone()));
+                         let mut her_handles: Vec<(u64, i64)> =
+                             handle_map.iter().map(|(&h, &o)| (h, o)).collect();
+                         her_handles.sort_by_key(|&(h, _)| h);
+                         document.raw_acdb_objects_handles =
+                             Some(std::sync::Arc::new(her_handles));
+                     }
+                     // §19 H8e-2/H8f: her whole on-disk file (the header
+                     // blocks with their unknown-region bytes, her page
+                     // walk or flat section layout exactly as it sits)
+                     // for the compressed-page echo — the AC21 page
+                     // system and the R2000 flat container alike (the
+                     // write gates decide per format). A failed read just
+                     // leaves the echo unarmed.
+                     if info.ac21_metadata.is_some()
+                        || matches!(
+                            dxf_version,
+                            crate::types::DxfVersion::AC1012
+                                | crate::types::DxfVersion::AC1014
+                                | crate::types::DxfVersion::AC1015
+                        ) {
+                         let saved = self.stream.seek(std::io::SeekFrom::Current(0)).ok();
+                         if let Some(saved) = saved {
+                             let probed = self
+                                 .stream
+                                 .seek(std::io::SeekFrom::End(0))
+                                 .ok()
+                                 .and_then(|len| {
+                                     if len > 0x80 {
+                                         self.stream
+                                             .seek(std::io::SeekFrom::Start(0))
+                                             .ok()
+                                             .map(|_| len)
+                                     } else {
+                                         None
+                                     }
+                                 });
+                             if let Some(len) = probed {
+                                 let mut tail = vec![0u8; len as usize];
+                                 if self.stream.read_exact(&mut tail).is_ok() {
+                                     document.raw_ac21_tail = Some(std::sync::Arc::new(tail));
+                                 }
+                             }
+                             let _ = self.stream.seek(std::io::SeekFrom::Start(saved));
+                         }
+                     }
                     match crate::io::dwg::dwg_stream_readers::object_reader::DwgObjectReader::with_encoding(
                     objects_buf,
                     dxf_version,
@@ -1775,14 +1782,23 @@ impl<R: Read + Seek> DwgReader<R> {
                             Some(visit) => builder.build_with_visitor_stats(&mut document, visit),
                             None => builder.build_with_stats(&mut document),
                         };
-                        // §19 H8e: the identity capture runs POST-BUILD, over
-                        // the document's object universe (entities + objects +
-                        // the tables' control/record handles) — not the source's
-                        // handles map. Reader-skipped orphans (the author's
-                        // edit-history residue — e.g. the ACIS-solids files'
-                        // single orphan, ATMOS's 84) are outside the universe
-                        // on both sides, so an unedited document engages.
-                        if info.ac21_metadata.is_some() {
+                        // §19 H8e/H8f: the identity capture runs POST-BUILD,
+                        // over the document's object universe (entities +
+                        // objects + the tables' control/record handles) —
+                        // not the source's handles map. Reader-skipped
+                        // orphans (the author's edit-history residue —
+                        // e.g. the ACIS-solids files' single orphan,
+                        // ATMOS's 84) are outside the universe on both
+                        // sides, so an unedited document engages. Captured
+                        // for both echo-capable container families (the
+                        // AC21 page system and the R2000 flat container).
+                        if info.ac21_metadata.is_some()
+                        || matches!(
+                            dxf_version,
+                            crate::types::DxfVersion::AC1012
+                                | crate::types::DxfVersion::AC1014
+                                | crate::types::DxfVersion::AC1015
+                        ) {
                             document.raw_acdb_objects_fingerprint =
                                 super::objects_handle_set_fingerprint(
                                     super::document_object_handles(&document).into_iter(),
