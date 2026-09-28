@@ -7469,11 +7469,33 @@ after−before, regenerated the pin, and added the ungated
   Tree-ABSENCE on a constructed solid is deliberately NOT ranked:
   the specimen family is selected for trees (136 carriers = 136
   roots), so always-linked is selection bias, not genus.
-- **G-C (11 rows)**: ds_version 1 vs the authored 16/17, the
-  segidx-last position vs the authored segidx-first 128, num_segidx 8
-  vs the authored 91/97, file_header_size 128 vs 65664, the
-  populated-slot tail pattern, the unpopulated prvsav slot — the
-  ranked queue head, exactly as §20.2 predicted.
+- **G-C (CLOSED the same day — the first queue packet)**: the
+  constructed AcDs container now sits AT the authored genus
+  (`acds_genus_diffs: 0 rows / 0 occurrences` after its day-one 11).
+  The packet: `build_acds_prototype` gained the era profiles (§20.2's
+  specimen-derived invariants, live-measured from the sh_history
+  fixtures): ds_version 16 (AC1032) / 17 (AC1027), the segidx-FIRST
+  layout (the jard header's 128 fixed segment right after the 128-byte
+  header), the 91/97-row era scales with the authored slot allocations
+  (the two era tail clusters + the fixed schdat-at-5 and
+  schidx/schdat-at-88/89 pairs), the named pointers into those slots,
+  the populated prvsav (48-byte header + zero body — a fresh file has
+  no previous save) and — 2013-only — freesp (an empty free-space
+  list), file_header_size 65664, unknown_1 8, and the invented
+  `_data_` id=3 thumbnail boilerplate DROPPED (the authored sections
+  carry one `_data_` row; no record of any loader needing the
+  invented second one). Two extractor arms extended with the packet
+  (`unknown_1s`, `container_versions`) and two regression tests pin
+  both era profiles through a construct → write → read-back decode
+  with the SAB surviving. The generation identity moved —
+  `4265c04a19048e33295bc047cb0b2908`, 25,407 bytes (re-recorded in
+  NEXT_SESSION.md; the container bytes changed, so the md5 must move
+  — an intended content change). The row view is the genus: segment
+  interior sizes beyond the fixed templates are unmeasured (the two
+  documented schdat slots carry the fixed 448-byte schema template —
+  the authored pair's per-file schema-instance bytes are
+  unknown-internals; the tail pattern, pointers, scale, and header
+  values all match).
 
 The queue closes row by row through the §8.1.2 packet workflow; every
 genus change to a known-wrong-gold surface goes through a recorded

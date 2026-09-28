@@ -727,7 +727,7 @@ fn acds_data<'a>(
             return std::borrow::Cow::Borrowed(raw.as_slice());
         }
     }
-    std::borrow::Cow::Owned(build_acds_prototype(sab_entries))
+    std::borrow::Cow::Owned(build_acds_prototype(sab_entries, version))
 }
 
 /// §19 H7 CLASSES row: the section bytes — verbatim re-emission of the
@@ -2478,114 +2478,258 @@ fn build_rev_history() -> Vec<u8> {
 ///   `marker[8] + id[4] + pad[4] + size[8] + records[8] + meta[8] + fill[8]`
 ///
 /// Segments are padded with 0x70 bytes to 16-byte alignment.
-fn build_acds_prototype(sab_entries: &[(Handle, Vec<u8>)]) -> Vec<u8> {
+/// One container segment kind in the AcDs data store.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum AcDsSegKind {
+    Segidx,
+    Datidx,
+    Data,
+    SchdatA,
+    SchdatB,
+    Schidx,
+    Prvsav,
+    Search,
+    Freesp,
+}
+
+/// The AcDs container genus per era (§20.2 G-C): the authored-specimen
+/// invariants measured live from the sh_history fixtures on 2026-09-28
+/// — ds_version, the fixed 91/97-row scales, the slot allocations (the
+/// tail cluster plus the early schdat and the fixed schidx/schdat
+/// slots), the named pointers, and the physical emission order. The
+/// genus is the reader-visible pattern; segment interior sizes beyond
+/// the fixed templates are not genus (the gate measures the row view).
+struct AcDsEraProfile {
+    ds_version: u32,
+    num_segidx: usize,
+    slot_schdat_a: usize,
+    slot_segidx: usize,
+    slot_datidx: usize,
+    slot_data: usize,
+    slot_prvsav: usize,
+    slot_schidx: usize,
+    slot_schdat_b: usize,
+    slot_search: usize,
+    slot_freesp: Option<usize>,
+    /// Physical emission order after the segidx segment.
+    order: &'static [AcDsSegKind],
+}
+
+/// R2013 (AC1027): ds_version=17, 97 rows; the schema pair at the
+/// fixed slots 88/89; the operational tail segidx..search at 91..95
+/// plus freesp; prvsav physically after schidx.
+const ACDS_ERA_2013: AcDsEraProfile = AcDsEraProfile {
+    ds_version: 17,
+    num_segidx: 97,
+    slot_schdat_a: 5,
+    slot_segidx: 91,
+    slot_datidx: 92,
+    slot_data: 93,
+    slot_prvsav: 94,
+    slot_schidx: 88,
+    slot_schdat_b: 89,
+    slot_search: 95,
+    slot_freesp: Some(96),
+    order: &[
+        AcDsSegKind::Datidx,
+        AcDsSegKind::SchdatB,
+        AcDsSegKind::SchdatA,
+        AcDsSegKind::Data,
+        AcDsSegKind::Schidx,
+        AcDsSegKind::Prvsav,
+        AcDsSegKind::Search,
+        AcDsSegKind::Freesp,
+    ],
+};
+
+/// R2018 (AC1032): ds_version=16, 91 rows; the schema pair at the fixed
+/// slots 88/89 plus the early schdat at 5; the operational tail
+/// segidx..search at 84..90; prvsav physically right after datidx.
+const ACDS_ERA_2018: AcDsEraProfile = AcDsEraProfile {
+    ds_version: 16,
+    num_segidx: 91,
+    slot_schdat_a: 5,
+    slot_segidx: 84,
+    slot_datidx: 85,
+    slot_data: 86,
+    slot_prvsav: 87,
+    slot_schidx: 88,
+    slot_schdat_b: 89,
+    slot_search: 90,
+    slot_freesp: None,
+    order: &[
+        AcDsSegKind::Datidx,
+        AcDsSegKind::Prvsav,
+        AcDsSegKind::SchdatB,
+        AcDsSegKind::SchdatA,
+        AcDsSegKind::Data,
+        AcDsSegKind::Schidx,
+        AcDsSegKind::Search,
+    ],
+};
+
+fn acds_era_profile(dxf_version: DxfVersion) -> &'static AcDsEraProfile {
+    if dxf_version == DxfVersion::AC1027 {
+        &ACDS_ERA_2013
+    } else {
+        &ACDS_ERA_2018
+    }
+}
+
+fn build_acds_prototype(sab_entries: &[(Handle, Vec<u8>)], dxf_version: DxfVersion) -> Vec<u8> {
     if sab_entries.is_empty() {
         return Vec::new();
     }
+    let profile = acds_era_profile(dxf_version);
 
-    // ── Segment 1: _data_ id=2 (SAB data records, one per ACIS entity) ──
-    let data2 = build_acds_data2_segment(sab_entries);
-
-    // ── Segment 2: _data_ id=3 (thumbnail, empty boilerplate) ─────
-    #[rustfmt::skip]
-    let data3: &[u8] = &[
-        0xAC, 0xD5, 0x5F, 0x64, 0x61, 0x74, 0x61, 0x5F, // marker "_data_"
-        0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // id=3
-        0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // size=64
-        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // records=1
-        0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, // meta: 0, cols=4
-        0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, // fill "UUUUUUUU"
-        0x62, 0x62, 0x62, 0x62, 0x62, 0x62, 0x62, 0x62, // content "bbbb..."
-        0x62, 0x62, 0x62, 0x62, 0x62, 0x62, 0x62, 0x62,
-    ];
-
-    // ── Segment 3: datidx id=4 ────────────────────────────────────
+    // ── Content segments (the fixed datastore schema + the SAB records) ──
+    let data = build_acds_data2_segment(sab_entries);
     let datidx = build_acds_datidx(sab_entries.len());
+    let schdat_a = ACDS_SCHDAT_TEMPLATE.to_vec();
+    let schdat_b = ACDS_SCHDAT_TEMPLATE.to_vec();
+    let schidx = ACDS_SCHIDX_TEMPLATE.to_vec();
+    let prvsav = build_acds_empty_segment(b"prvsav", 8, 256);
+    let search = {
+        let handles: Vec<u32> = sab_entries.iter().map(|(h, _)| h.value() as u32).collect();
+        build_acds_search_segment(&handles)
+    };
+    let freesp = profile
+        .slot_freesp
+        .map(|_| build_acds_empty_segment(b"freesp", 9, 128));
 
-    // ── Segment 4: schdat id=5 (schema definitions, fixed) ────────
-    let schdat = ACDS_SCHDAT_TEMPLATE;
+    // ── Layout: the jard header (128) then the segidx FIRST (the
+    // authored segidx-first genus), then the physical order above ──
+    let segidx_offset = 0x80usize;
+    let segidx_size = align16(48 + profile.num_segidx * 12);
+    let mut segidx = {
+        let mut seg = vec![0u8; segidx_size];
+        seg[0..8].copy_from_slice(&[0xAC, 0xD5, 0x73, 0x65, 0x67, 0x69, 0x64, 0x78]); // "segidx"
+        seg[8..12].copy_from_slice(&1u32.to_le_bytes()); // id=1
+        seg[12..16].copy_from_slice(&0u32.to_le_bytes()); // pad
+        seg[16..24].copy_from_slice(&(segidx_size as u64).to_le_bytes()); // segment size
+        seg[24..32].copy_from_slice(&1u64.to_le_bytes()); // record count
+        seg[32..40].copy_from_slice(&0u64.to_le_bytes()); // meta
+        seg[40..48].copy_from_slice(&[0x55; 8]); // fill
+        seg
+    };
 
-    // ── Segment 5: schidx id=6 (schema index, fixed) ─────────────
-    let schidx = ACDS_SCHIDX_TEMPLATE;
+    let mut off = segidx_offset + segidx_size;
+    let mut placed: Vec<(AcDsSegKind, usize, usize)> = Vec::new();
+    for kind in profile.order {
+        let bytes: &[u8] = match kind {
+            AcDsSegKind::Datidx => &datidx,
+            AcDsSegKind::Prvsav => &prvsav,
+            AcDsSegKind::SchdatB => &schdat_b,
+            AcDsSegKind::SchdatA => &schdat_a,
+            AcDsSegKind::Data => &data,
+            AcDsSegKind::Schidx => &schidx,
+            AcDsSegKind::Search => &search,
+            AcDsSegKind::Freesp => freesp.as_deref().expect("freesp only ordered for 2013"),
+            AcDsSegKind::Segidx => unreachable!("segidx is placed by the layout, not the order"),
+        };
+        placed.push((*kind, off, bytes.len()));
+        off += bytes.len();
+    }
+    let total_size = off;
 
-    // ── Segment 6: search id=7 ───────────────────────────────────
-    let handles: Vec<u32> = sab_entries.iter().map(|(h, _)| h.value() as u32).collect();
-    let search = build_acds_search_segment(&handles);
-
-    // ── Segment 7: segidx id=1 ───────────────────────────────────
-    // Compute offsets (all relative to section start = after jard header)
-    let off_data2 = 0x80u32;
-    let off_data3 = off_data2 + data2.len() as u32;
-    let off_datidx = off_data3 + data3.len() as u32;
-    let off_schdat = off_datidx + datidx.len() as u32;
-    let off_schidx = off_schdat + schdat.len() as u32;
-    let off_search = off_schidx + schidx.len() as u32;
-    let off_segidx = off_search + search.len() as u32;
-    let segidx_size = 192u32;
-
-    let segidx = build_acds_segidx(
-        off_segidx,
-        segidx_size,
-        off_data2,
-        data2.len() as u32,
-        off_data3,
-        data3.len() as u32,
-        off_datidx,
-        datidx.len() as u32,
-        off_schdat,
-        schdat.len() as u32,
-        off_schidx,
-        schidx.len() as u32,
-        off_search,
-        search.len() as u32,
-    );
+    // ── The 91/97-row index table: zeroed rows except the allocated
+    // slots (the unused rows are offset 0 — the reader's empty slots) ──
+    let slot_for = |kind: AcDsSegKind| -> usize {
+        match kind {
+            AcDsSegKind::SchdatA => profile.slot_schdat_a,
+            AcDsSegKind::Segidx => profile.slot_segidx,
+            AcDsSegKind::Datidx => profile.slot_datidx,
+            AcDsSegKind::Data => profile.slot_data,
+            AcDsSegKind::Prvsav => profile.slot_prvsav,
+            AcDsSegKind::Schidx => profile.slot_schidx,
+            AcDsSegKind::SchdatB => profile.slot_schdat_b,
+            AcDsSegKind::Search => profile.slot_search,
+            AcDsSegKind::Freesp => profile.slot_freesp.expect("freed slot only ordered for 2013"),
+        }
+    };
+    let mut rows: Vec<(usize, u32, u32)> = vec![(0, 0, 0); profile.num_segidx];
+    rows[slot_for(AcDsSegKind::Segidx)] = (slot_for(AcDsSegKind::Segidx), segidx_offset as u32, segidx_size as u32);
+    for (kind, offset, size) in &placed {
+        rows[slot_for(*kind)] = (slot_for(*kind), *offset as u32, *size as u32);
+    }
+    let mut pos = 48;
+    for (_slot, offset, size) in &rows {
+        write_segidx_entry(&mut segidx, pos, *offset, *size);
+        pos += 12;
+    }
 
     // ── Jard header ──────────────────────────────────────────────
-    let total_size = off_segidx + segidx_size;
-    let segidx_offset = off_segidx;
-    let header = build_acds_jard_header(segidx_offset, total_size);
+    let header = build_acds_jard_header(profile, total_size as u32);
 
     // ── Assemble ─────────────────────────────────────────────────
-    let mut result = Vec::with_capacity(total_size as usize);
+    let mut result = Vec::with_capacity(total_size);
     result.extend_from_slice(&header);
-    result.extend_from_slice(&data2);
-    result.extend_from_slice(data3);
-    result.extend_from_slice(&datidx);
-    result.extend_from_slice(schdat);
-    result.extend_from_slice(schidx);
-    result.extend_from_slice(&search);
+    debug_assert_eq!(result.len(), segidx_offset);
     result.extend_from_slice(&segidx);
-
-    debug_assert_eq!(result.len(), total_size as usize);
+    for (kind, offset, size) in &placed {
+        let bytes: &[u8] = match kind {
+            AcDsSegKind::Datidx => &datidx,
+            AcDsSegKind::Prvsav => &prvsav,
+            AcDsSegKind::SchdatB => &schdat_b,
+            AcDsSegKind::SchdatA => &schdat_a,
+            AcDsSegKind::Data => &data,
+            AcDsSegKind::Schidx => &schidx,
+            AcDsSegKind::Search => &search,
+            AcDsSegKind::Freesp => freesp.as_deref().expect("freesp only ordered for 2013"),
+            AcDsSegKind::Segidx => unreachable!(),
+        };
+        debug_assert_eq!(result.len(), *offset);
+        debug_assert_eq!(bytes.len(), *size);
+        result.extend_from_slice(bytes);
+    }
+    debug_assert_eq!(result.len(), total_size);
     result
+}
+
+/// An empty content segment of a fixed total size: the 48-byte seg
+/// header (the reader only maps names to kinds) plus a zero body —
+/// honest semantics for the sections a fresh file carries no data in
+/// (prvsav: no previous save; freesp: an empty free-space list).
+fn build_acds_empty_segment(name: &[u8; 6], segment_idx: u32, total_size: usize) -> Vec<u8> {
+    let mut seg = vec![0u8; total_size];
+    seg[0..2].copy_from_slice(&[0xAC, 0xD5]);
+    seg[2..8].copy_from_slice(name);
+    seg[8..12].copy_from_slice(&segment_idx.to_le_bytes());
+    seg[12..16].copy_from_slice(&0u32.to_le_bytes()); // is_blob01
+    seg[16..24].copy_from_slice(&(total_size as u64).to_le_bytes()); // segment size
+    seg[24..28].copy_from_slice(&1u32.to_le_bytes()); // ds_version
+    seg[28..32].copy_from_slice(&0u32.to_le_bytes()); // unknown_3
+    seg[32..40].copy_from_slice(&0u64.to_le_bytes()); // align offsets
+    seg[40..48].copy_from_slice(&[0x55; 8]); // fill
+    seg
 }
 
 /// Build the AcDsPrototype_1b file header ("jard", 128 bytes).
 ///
-/// Fourteen little-endian `RL` fields per the ODA datastore layout (field names
-/// follow libredwg's `acds.spec`), then zero padding to 128 bytes. A strict
-/// reader validates these; a wrong `ds_version` in particular
-/// made the whole section read as "invalid data". The segment ordering emitted
-/// by [`build_acds_prototype`] is fixed (segidx=1, _data_=2, thumbnail=3,
-/// datidx=4, schdat=5, schidx=6, search=7), so the `*_segidx` pointers are
-/// constant.
-fn build_acds_jard_header(segidx_offset: u32, file_size: u32) -> Vec<u8> {
+/// Fourteen little-endian `RL` fields per the ODA datastore layout (field
+/// names follow libredwg's `acds.spec`), then zero padding to 128 bytes. A
+/// strict reader validates these; a wrong `ds_version` in particular made
+/// the whole section read as "invalid data". The values are the
+/// authored-specimen genus per era (§20.2 G-C): file_header_size 65664,
+/// unknown_1 8, ds_version 16/17, segidx FIRST at offset 128, the era's
+/// row scale, and the named pointers into the era's slot allocation.
+fn build_acds_jard_header(profile: &AcDsEraProfile, file_size: u32) -> Vec<u8> {
     let mut h = vec![0u8; 128];
     h[0..4].copy_from_slice(b"jard"); // file_signature
-    h[4..8].copy_from_slice(&128u32.to_le_bytes()); // file_header_size
-    h[8..12].copy_from_slice(&2u32.to_le_bytes()); // unknown_1 (always 2)
-    h[12..16].copy_from_slice(&2u32.to_le_bytes()); // version (always 2)
-    h[16..20].copy_from_slice(&0u32.to_le_bytes()); // unknown_2 (always 0)
-    h[20..24].copy_from_slice(&1u32.to_le_bytes()); // ds_version (datastore revision)
-    h[24..28].copy_from_slice(&segidx_offset.to_le_bytes()); // segidx_offset
+    h[4..8].copy_from_slice(&65664u32.to_le_bytes()); // file_header_size
+    h[8..12].copy_from_slice(&8u32.to_le_bytes()); // unknown_1
+    h[12..16].copy_from_slice(&2u32.to_le_bytes()); // version
+    h[16..20].copy_from_slice(&0u32.to_le_bytes()); // unknown_2
+    h[20..24].copy_from_slice(&profile.ds_version.to_le_bytes()); // ds_version
+    h[24..28].copy_from_slice(&0x80u32.to_le_bytes()); // segidx_offset — segidx-first
     h[28..32].copy_from_slice(&0u32.to_le_bytes()); // segidx_unknown
-    h[32..36].copy_from_slice(&8u32.to_le_bytes()); // num_segidx (null + 7 segments)
-    h[36..40].copy_from_slice(&6u32.to_le_bytes()); // schidx_segidx
-    h[40..44].copy_from_slice(&4u32.to_le_bytes()); // datidx_segidx
-    h[44..48].copy_from_slice(&7u32.to_le_bytes()); // search_segidx
-    h[48..52].copy_from_slice(&0u32.to_le_bytes()); // prvsav_segidx
+    h[32..36].copy_from_slice(&(profile.num_segidx as u32).to_le_bytes()); // num_segidx
+    h[36..40].copy_from_slice(&(profile.slot_schidx as u32).to_le_bytes()); // schidx_segidx
+    h[40..44].copy_from_slice(&(profile.slot_datidx as u32).to_le_bytes()); // datidx_segidx
+    h[44..48].copy_from_slice(&(profile.slot_search as u32).to_le_bytes()); // search_segidx
+    h[48..52].copy_from_slice(&(profile.slot_prvsav as u32).to_le_bytes()); // prvsav_segidx
     h[52..56].copy_from_slice(&file_size.to_le_bytes()); // file_size
-                                                         // Remaining bytes are zero (padding to file_header_size).
+                                                          // Remaining bytes are zero (padding to 128).
     h
 }
 
@@ -2727,68 +2871,8 @@ fn build_acds_search_segment(handles: &[u32]) -> Vec<u8> {
     seg
 }
 
-/// Build `segidx` segment id=1 with offsets for all other segments.
-#[allow(clippy::too_many_arguments)]
-fn build_acds_segidx(
-    off_segidx: u32,
-    sz_segidx: u32,
-    off_data2: u32,
-    sz_data2: u32,
-    off_data3: u32,
-    sz_data3: u32,
-    off_datidx: u32,
-    sz_datidx: u32,
-    off_schdat: u32,
-    sz_schdat: u32,
-    off_schidx: u32,
-    sz_schidx: u32,
-    off_search: u32,
-    sz_search: u32,
-) -> Vec<u8> {
-    let mut seg = vec![0x70u8; sz_segidx as usize];
-
-    // Segment header
-    seg[0..8].copy_from_slice(&[0xAC, 0xD5, 0x73, 0x65, 0x67, 0x69, 0x64, 0x78]); // "segidx"
-    seg[8..12].copy_from_slice(&1u32.to_le_bytes()); // id=1
-    seg[12..16].copy_from_slice(&0u32.to_le_bytes()); // pad
-    seg[16..24].copy_from_slice(&(sz_segidx as u64).to_le_bytes()); // segment size
-    seg[24..32].copy_from_slice(&1u64.to_le_bytes()); // record count
-    seg[32..40].copy_from_slice(&0u64.to_le_bytes()); // meta
-    seg[40..48].copy_from_slice(&[0x55; 8]); // fill
-
-    // Content: 8 entries × 12 bytes = 96 bytes
-    // Entry format: (u32 offset, u32 pad=0, u32 size)
-    let mut pos = 48;
-
-    // Entry 0: null
-    write_segidx_entry(&mut seg, pos, 0, 0);
-    pos += 12;
-    // Entry 1: segidx
-    write_segidx_entry(&mut seg, pos, off_segidx, sz_segidx);
-    pos += 12;
-    // Entry 2: _data_ id=2
-    write_segidx_entry(&mut seg, pos, off_data2, sz_data2);
-    pos += 12;
-    // Entry 3: _data_ id=3
-    write_segidx_entry(&mut seg, pos, off_data3, sz_data3);
-    pos += 12;
-    // Entry 4: datidx
-    write_segidx_entry(&mut seg, pos, off_datidx, sz_datidx);
-    pos += 12;
-    // Entry 5: schdat
-    write_segidx_entry(&mut seg, pos, off_schdat, sz_schdat);
-    pos += 12;
-    // Entry 6: schidx
-    write_segidx_entry(&mut seg, pos, off_schidx, sz_schidx);
-    pos += 12;
-    // Entry 7: search
-    write_segidx_entry(&mut seg, pos, off_search, sz_search);
-    // Rest is padding (already 0x70)
-
-    seg
-}
-
-/// Write one segidx entry: (offset u32, pad u32, size u32).
+/// Write one segidx entry: (offset u32, pad u32 = 0, size u32). Unused
+/// rows stay all-zero — the reader's empty-slot convention (offset 0).
 fn write_segidx_entry(buf: &mut [u8], pos: usize, offset: u32, size: u32) {
     buf[pos..pos + 4].copy_from_slice(&offset.to_le_bytes());
     buf[pos + 4..pos + 8].copy_from_slice(&0u32.to_le_bytes());
@@ -3116,7 +3200,7 @@ mod tests {
             .expect("default layout");
         document.dwg_source_version = Some(DxfVersion::AC1032);
         document.dwg_data_store_handles.insert(layout_handle);
-        document.raw_acds_data = Some(Arc::new(build_acds_prototype(&[])));
+        document.raw_acds_data = Some(Arc::new(build_acds_prototype(&[], DxfVersion::AC1032)));
 
         let bytes = DwgWriter::write_to_vec(&document).expect("write drawing");
         let mut reader = DwgReader::from_stream(std::io::Cursor::new(bytes));
@@ -3124,6 +3208,88 @@ mod tests {
 
         assert!(roundtripped.raw_acds_data.is_some());
         assert!(roundtripped.dwg_data_store_handles.contains(&layout_handle));
+    }
+
+    /// The §20 G-C container genus: a constructed data store must parse
+    /// back with the authored-specimen invariants for its era — the
+    /// jard header values, the row scale, the slot allocation, the named
+    /// pointers, and (beyond the gate's row view) a surviving SAB blob.
+    fn assert_constructed_acds_genus(version: DxfVersion, profile: &super::AcDsEraProfile) {
+        use crate::entities::acis::primitives::build_cylinder;
+        use crate::entities::{EntityType, Solid3D};
+        use crate::io::dwg::DwgReader;
+
+        let mut document = CadDocument::with_version(version);
+        let sat = build_cylinder([0.0, 0.0, 0.0], 5.0, 10.0).to_sat_string();
+        document
+            .add_entity(EntityType::Solid3D(Solid3D::from_sat(&sat)))
+            .expect("add solid");
+
+        let bytes = DwgWriter::write_to_vec(&document).expect("write drawing");
+        let roundtripped = DwgReader::from_stream(std::io::Cursor::new(bytes))
+            .read()
+            .expect("read drawing");
+        let acds = roundtripped.dwg_acds.as_ref().expect("AcDs summary");
+
+        assert_eq!(acds.ds_version, profile.ds_version, "ds_version");
+        assert_eq!(acds.segidx_offset, 128, "segidx-first position");
+        assert_eq!(acds.file_header_size, 65664, "file_header_size");
+        assert_eq!(acds.unknown_1, 8, "unknown_1");
+        assert_eq!(acds.version, 2, "container version");
+        assert_eq!(acds.segidx.len(), profile.num_segidx, "row scale");
+        assert_eq!(acds.segments.len(), profile.num_segidx, "segment slots");
+        assert_eq!(acds.schidx_segidx as usize, profile.slot_schidx, "schidx pointer");
+        assert_eq!(acds.datidx_segidx as usize, profile.slot_datidx, "datidx pointer");
+        assert_eq!(acds.search_segidx as usize, profile.slot_search, "search pointer");
+        assert_eq!(acds.prvsav_segidx as usize, profile.slot_prvsav, "prvsav pointer");
+
+        let expected_type = |slot: usize| -> Option<u32> {
+            if slot == profile.slot_segidx {
+                Some(0)
+            } else if slot == profile.slot_datidx {
+                Some(1)
+            } else if slot == profile.slot_data {
+                Some(2)
+            } else if slot == profile.slot_schidx {
+                Some(3)
+            } else if slot == profile.slot_schdat_a || slot == profile.slot_schdat_b {
+                Some(4)
+            } else if slot == profile.slot_search {
+                Some(5)
+            } else if slot == profile.slot_prvsav {
+                Some(7)
+            } else if profile.slot_freesp == Some(slot) {
+                Some(8)
+            } else {
+                None
+            }
+        };
+        for (slot, seg) in acds.segments.iter().enumerate() {
+            assert_eq!(seg.type_, expected_type(slot), "slot {slot} kind");
+        }
+
+        // The modeler payload must survive the container roundtrip.
+        let solid = roundtripped
+            .entities()
+            .find_map(|entity| match entity {
+                EntityType::Solid3D(solid) => Some(solid),
+                _ => None,
+            })
+            .expect("solid survives");
+        assert!(
+            !solid.acis_data.sab_data.is_empty(),
+            "the SAB blob must re-attach from the constructed data store"
+        );
+    }
+
+    #[test]
+    fn constructed_acds_container_matches_the_authored_genus_2018() {
+        assert_constructed_acds_genus(DxfVersion::AC1032, &super::ACDS_ERA_2018);
+    }
+
+    #[test]
+    fn constructed_acds_container_matches_the_authored_genus_2013() {
+        assert_constructed_acds_genus(DxfVersion::AC1027, &super::ACDS_ERA_2013);
     }
 
     #[test]

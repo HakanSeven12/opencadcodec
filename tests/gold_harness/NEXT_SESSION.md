@@ -12,15 +12,15 @@
 > R2013 160/160). The ACS/SH campaign stays COMPLETE at 0/0. The §19
 > structure campaign's READ axis stays ZERO corpus-wide. **THE ACTIVE
 > WORK IS NOW THE §20 GENUS-GATE QUEUE — the fifth validation layer is
-> LANDED (§20.6) and REVIEWED (the same day's review pass fixed the
-> ordering genus — it computed a union, not always-after, pinning
-> variable pairs both ways and hiding the writer's points-first rank —
-> and gated the ungated solid-history-links-root invariant): the gates
+> LANDED (§20.6), REVIEWED, and ONE PACKET CLOSED (the same day's G-C
+> container campaign: `acds_genus_diffs` 11 rows → 0 — the constructed
+> AcDs container now sits at the authored genus on every measured
+> invariant, era-profiled for 2013/2018): the gates
 > decode the constructed corpus silver-side,
 > assert it against the authored-specimen genus pinned in
 > genus_expectations.json, and emit the ranked sections
 > sab_form_diffs (67 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
-> (11 rows). THE COUNTS ARE THE WORK QUEUE.** Read
+> (0 rows — CLOSED). THE COUNTS ARE THE WORK QUEUE.** Read
 > `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now with
 > the §20.6 landed state), then §19.4 + §19.5, then §18.6 + §F2.1–F2.3,
 > then this file top to bottom.
@@ -107,12 +107,27 @@
     the primitive builders, from_sat, add_entity,
     create_solid_history), and the unused-import residue was
     cleaned from both instruments.
- 5. **The zero-keeping rule held through the landing**: the full corpus
-    re-ran at 280 files with ALL FOUR AXES 0 and the genus sections
-    attached; the generation identity is UNCHANGED
-    (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes); the AC21 echo
-    is clean; the hermetic suites are green; the four family smokes are
-    0/0.
+ 5. **The G-C container packet CLOSED (the first queue packet, the
+    same day)**: `build_acds_prototype` gained the era profiles
+    live-measured from the specimens (ds_version 16/17, segidx-FIRST
+    at 128, the 91/97-row scales with the authored slot allocations,
+    the named pointers, the populated prvsav — 48-byte header + zero
+    body — and 2013's freesp, file_header_size 65664, unknown_1 8;
+    the invented `_data_` id=3 thumbnail boilerplate dropped — the
+    authored sections carry one `_data_` row). Two extractor arms
+    extended (`unknown_1s`, `container_versions`), two regression
+    tests pin both eras through construct → write → read-back with
+    the SAB surviving. **`acds_genus_diffs`: 11 rows → 0.** The
+    generation identity MOVED — the container bytes changed:
+    `4265c04a19048e33295bc047cb0b2908`, 25,407 bytes (re-recorded
+    here; an intended content change, never papered over).
+ 6. **The zero-keeping rule held through the G-C landing**: the full
+    corpus re-ran at 280 files with ALL FOUR AXES 0 and the genus
+    sections attached (the authored corpus rides the echo — the
+    constructed container path is disjoint); the hermetic suites are
+    green (52 segments, 0 failures, the two new era tests in); the
+    genus cargo mirror green (fresh extraction == the regenerated
+    pin); the four family smokes 0/0; the AC21 echo clean.
 
 ## THE NEXT WORK: work down the genus-gate queue (§8.1.2 packets, strict-loader verdicts)
 
@@ -125,18 +140,26 @@ through a recorded strict-loader probe verdict (§20.4 — the gates rank
 divergence; they do not decide fatality; some rows may close as
 TOLERATED with the row kept as the recorded state).
 
-- **G-C first (the container campaign)**: the constructed AcDs
-  container (ds_version=1, segidx-last, 8 slots, no prvsav) vs the
-  authored jard genus (16/17, segidx-first at 128, 91/97 slots, the
-  era tail patterns). The §18 AcDs records are the reference.
-- **G-A next (the SAB form campaign)**: the vertex short-width (the
+- **G-C CLOSED (the container campaign, same-day packet)**: the era
+  profiles landed (§20.6); `acds_genus_diffs` 0. Guard: the two
+  regression tests + the gate rows stay armed — any writer change that
+  regresses ds_version, the segidx position, the row scale, the slot
+  allocation, the pointers, prvsav, or the two extended header fields
+  re-ranks immediately.
+- **G-A NOW FIRST (the SAB form campaign)**: the vertex short-width (the
   5-byte tail the edge class got in `complete_class_width` — the
-  vertex arm), then the asmheader/product-string/flavor family (the
-  constructed stream's ACIS-700 stance vs the authored ASM 22300
-  stance — a strict-loader question, the 2026-09-21 zero proved the
-  ACIS-700 stance BricsCAD-ACCEPTED, so these rows may close
-  TOLERATED), then the ordering family (the writer's
-  `reorder_restore_file` rank vs the authored order).
+  vertex arm), then the asmheader emission (authored-uniform class),
+  then the tolerance triple (spatial_resolution 10.0 vs the authored
+  1.0 — find the constructed default's source), then the ACIS-700
+  flavor / product-string / header-triple family (a strict-loader
+  question: the 2026-09-21 zero proved the ACIS-700 stance
+  BricsCAD-ACCEPTED, so these rows may close TOLERATED; do NOT forge
+  Autodesk identity stamps — the product strings are the author's
+  identity), then the ordering family (the writer's
+  `reorder_restore_file` rank vs the authored first-appearance genus),
+  and the persubent-attrib class (investigate the tree-correlation
+  with the `--corpus-scan` specimen evidence first — the fixture
+  family is tree-selected, so uniformity may be selection bias).
 - **G-B last (the tree)**: the elide marker closes only when a
   constructed tree passes a strict loader (the interposition + the
   33/427 trio + the node-id resolution are the authored genus to
@@ -194,9 +217,13 @@ era specimens (the era censuses all-zero).
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative: all four axes 0, WITH the
   genus sections (`sab_form_diffs` 67 / `sh_genus_diffs` 1 /
-  `acds_genus_diffs` 11) as additional output.
-- The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (UNCHANGED through the §20 landing). The generator
+  `acds_genus_diffs` 0 — the container campaign CLOSED) as
+  additional output.
+- The generation identity is `4265c04a19048e33295bc047cb0b2908`,
+  25,407 bytes (MOVED at the G-C packet — the constructed AcDs
+  container changed; an intended content change, re-recorded; the
+  prior identity `84374e73ddcf1d6143877c4100b81e48` / 25,375 held
+  through the §20 landing and the review pass). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -292,12 +319,12 @@ python3 tests/gold_harness/run_roundtrip.py \
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
 #    ... genus gates (the §20 work queue): sab_form 67 rows,
-#        sh_genus 1 rows, acds_genus 11 rows (the day-one queue)
+#        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED)
 
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 84374e73ddcf1d6143877c4100b81e48, 25,375 bytes
+# 4265c04a19048e33295bc047cb0b2908, 25,407 bytes (the G-C packet moved it)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -358,6 +385,14 @@ ba12a2f <feat> §20 genus gates: genus_extract.py + genus_gates.py + the
        point-rank rows in) + the solid-history-links-root arm gated +
        the unused-import residue cleaned + the docs reconciled
        (THIS SESSION'S REVIEW LANDING)
+<fix> §20 G-C packet: the constructed AcDs container era-profiles —
+       ds_version 16/17, segidx-first at 128, the 91/97-row scales,
+       the authored slot allocations + pointers, the populated prvsav
+       + 2013 freesp, file_header_size 65664, unknown_1 8, the
+       invented thumbnail _data_ dropped; two extractor arms extended;
+       two era regression tests — acds_genus_diffs 11 -> 0; the
+       generation identity moved to 4265c04a... (25,407 bytes)
+       (THIS SESSION'S G-C PACKET)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the

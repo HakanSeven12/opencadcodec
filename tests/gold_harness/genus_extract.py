@@ -368,6 +368,8 @@ def project_acds_genus(stem, doc, sink):
         return
     sink["containers"] += 1
     sink["specimens"].add(stem)
+    sink["unknown_1s"].add(acds.get("unknown_1"))
+    sink["container_versions"].add(acds.get("version"))
     sink["ds_versions"].add(acds.get("ds_version"))
     sink["segidx_offsets"].add(acds.get("segidx_offset"))
     sink["file_header_sizes"].add(acds.get("file_header_size"))
@@ -431,6 +433,7 @@ def extract(specimens, workdir, binary, corpus_scan):
                "node_version_pairs": set(), "node_eval_version_pairs": set(),
                "solid_history_links_root": set()},
         "acds": {"containers": 0, "empty_containers": 0, "specimens": set(),
+                 "unknown_1s": set(), "container_versions": set(),
                  "ds_versions": set(),
                  "segidx_offsets": set(), "file_header_sizes": set(),
                  "num_segidx": set(), "tail_patterns": set(),
@@ -536,6 +539,8 @@ def render_expectations(sink, corpus_scan_enabled):
             "record_history": sorted(sh["record_history"]),
         },
         "acds_genus": {
+            "unknown_1s": sorted(acds["unknown_1s"]),
+            "container_versions": sorted(acds["container_versions"]),
             "ds_versions": sorted(acds["ds_versions"]),
             "segidx_offsets": sorted(acds["segidx_offsets"]),
             "file_header_sizes": sorted(acds["file_header_sizes"]),

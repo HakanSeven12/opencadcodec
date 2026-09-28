@@ -311,6 +311,12 @@ def gate_acds_genus(stem, doc, expectations, rows):
     if not acds:
         return
     genus = expectations["acds_genus"]
+    if acds.get("unknown_1") not in genus["unknown_1s"]:
+        rows.add("unknown_1",
+                 f"{acds.get('unknown_1')} not in genus {genus['unknown_1s']}")
+    if acds.get("version") not in genus["container_versions"]:
+        rows.add("container-version",
+                 f"{acds.get('version')} not in genus {genus['container_versions']}")
     if acds.get("ds_version") not in genus["ds_versions"]:
         rows.add("ds_version",
                  f"{acds.get('ds_version')} not in genus {genus['ds_versions']}")
