@@ -1155,6 +1155,18 @@ pub struct Assoc2dConstraintGroup {
     /// Exact bit width of `nodes_wire_handles`.
     #[cfg_attr(feature = "serde", serde(default))]
     pub nodes_wire_handles_bit_len: u32,
+    /// §19 H8h-ext-14: the R2010+ raw text-region capture. The R2010/
+    /// R2013 specimens' text streams (has_strings: 1) hold content this
+    /// campaign never decoded (the AC21 raw-stream dump instrument does
+    /// not cover the R2010+ containers), so the capture retains the
+    /// whole region verbatim instead of re-encoding class-name TUs —
+    /// the ext-12 TABLECONTENT `wire_text` pattern. AC1021 keeps the
+    /// decoded-names path (verified 58/58).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_text: Option<Vec<u8>>,
+    /// Exact bit width of `nodes_wire_text`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_text_bit_len: u32,
 }
 
 impl Default for Assoc2dConstraintGroup {
@@ -1172,6 +1184,8 @@ impl Default for Assoc2dConstraintGroup {
             nodes_wire_main_bit_len: 0,
             nodes_wire_handles: None,
             nodes_wire_handles_bit_len: 0,
+            nodes_wire_text: None,
+            nodes_wire_text_bit_len: 0,
         }
     }
 }

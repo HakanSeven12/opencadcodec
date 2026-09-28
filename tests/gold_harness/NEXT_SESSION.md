@@ -1,65 +1,61 @@
-# Zero-context prompt — TARGET ZERO held; the conventional arm at ZERO DIVERGENT RECORDS (H8h-ext-13: the pre-2007 constraint-group arms closed — the TwoStream capture extension + the H8d ownerhandle form rule extended to the pre-2007 slots; the R2000/R2004 constraint records round-trip byte-identical)
+# Zero-context prompt — TARGET ZERO held; the conventional arm at ZERO DIVERGENT RECORDS (H8h-ext-14: the R2010/R2013 constraint-group arms closed — the raw text-region capture + the era census instrument; the era censuses: R2010 215/216, R2013 157/160 records byte-identical)
 
-> Campaign state 2026-09-28 (the halt after the H8h-ext-13 landing; the
-> session continued the loop from the H8h-ext-12 zero-residual halt:
-> review → land → verify → commit → push. **THE CORPUS STAYS AT ZERO ON
-> EVERY AXIS: 280 files, read-fidelity 0, write-fidelity 0, read
-> key-gap 0, write-target 0** — verified after the landing). The ACS/SH
-> campaign stays COMPLETE at 0/0. The §19 structure campaign's READ
-> axis stays ZERO corpus-wide. **THE RECORD-IDENTITY SURVEY STAYS AT
-> ZERO: 58/58 AC1021 files at 100%, 0 divergent records — re-verified
-> after the landing.** Read `tests/gold_harness/AGENTS.md` first, then
-> §F2.1–F2.3 + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3
-> (§19.2's H8d–H8h-ext-13 rows carry this arc's records), then this
-> file top to bottom.
+> Campaign state 2026-09-28 (the halt after the H8h-ext-14 landing; the
+> session continued the loop from the H8h-ext-13 halt: review → land →
+> verify → commit → push. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280
+> files, read-fidelity 0, write-fidelity 0, read key-gap 0,
+> write-target 0** — verified after the landing). The ACS/SH campaign
+> stays COMPLETE at 0/0. The §19 structure campaign's READ axis stays
+> ZERO corpus-wide. **THE RECORD-IDENTITY SURVEY STAYS AT ZERO: 58/58
+> AC1021 files at 100%, 0 divergent records — re-verified after the
+> landing.** Read `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3
+> + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's
+> H8d–H8h-ext-14 rows carry this arc's records), then this file top to
+> bottom.
 
-## The arc (2026-09-28, the continuation session — H8h-ext-13)
+## The arc (2026-09-28, the continuation session — H8h-ext-14)
 
-1. **The residual task resumed**: the pre-2007 constraint-group
-   conventional arms (the first named residual after the ext-12
-   zero-residual landing). THE MEASUREMENT PROBLEM: the
-   record-identity survey is AC1021-only (the reader's record-trace
-   gate + the token-diff's AC21 page-system raw dump) — the era proof
-   was built via the gold -v9 TRACE-SEGMENT COMPARISON instead: the
-   constraint-group object's full decode block (the field prints +
-   the unknown_bits hex + the handle prints + the CRC print), her
-   original vs our conv, the file-address lines stripped. The CRC-16
-   covers MS+span, so matching CRCs = matching bytes — a record-level
-   identity proof.
-2. **THE DISSECTION FINDINGS**: (a) our TwoStream close ALREADY
-   mirrors the authored bit-continuous frame (§19.4.C) — the merge
-   trace census: main_bits == handle_start_bits on 235/235 records of
-   the R2000 specimen (the RL patch seeks back and the handle bytes
-   overwrite bit-continuously into the partial byte; the final 1s pad
-   closes); (b) her pre-2007 ownerhandle forms follow the SAME H8d
-   rule as AC1021 — the census: (8.0) 44×, (12.1) 70×, (4.1) 82×,
-   (4.2) 17×, (4.0) 11×, (10.1) 5× = exactly the
-   relative-iff-shorter + numeric-tie-break distribution; (c) the
-   node region's inline class-name TVs (pre-2007) sit INSIDE the
-   captured main bits — no separate names capture.
-3. **THE FIXES**: (1) the ext-8 capture's era gate extended from
-   AC1021 to AC1015|AC1018|AC1021 (the names read stays AC1021-only —
-   the TwoStream TVs are inline); (2) the constraint writer's
-   handle-tail emission gets the ext-12 explicit-1s pad extension (a
-   no-op for the byte-aligned AC1021 specimens — Constraints 219/219
-   re-verified); (3) the H8d `write_first_ref_handle` ownerhandle
-   form rule extended to the pre-2007 slots — the `r2007_plus` gates
-   dropped in BOTH common writers (the entity entmode==0 slot and the
-   non-entity owner slot). The first attempt's +1-byte handle stream
-   (her (12.1.3) vs our (4.2.3E0) ownerhandle) closed by the form
-   rule.
-4. **Measured: the R2000 and R2004 Constraints.dwg constraint-group
-   records round-trip BYTE-IDENTICAL** (the CRCs match — 47A0 ==
-   47A0, 4B0D == 4B0D; the unknown_bits hex identical; the only trace
-   diffs are gold's file-address prints).
-5. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
-   family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0 (the
-   ownerhandle form change touches EVERY pre-2007 record — the
-   semantic axes are form-agnostic and held), the full AC1021 survey
-   re-verified 58/58 / 0 divergent. Generation identity UNCHANGED
-   (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes, verified with
-   AND without `--features serde` — the artifact is AC1032/R2018,
-   outside the TwoStream change). The echo byte-identity held.
+1. **The residual task resumed**: the R2010/R2013 constraint-group arms
+   (the ext-13 row's named residual — the MC handle-bits header, the
+   BOT type, the authored underlap frames).
+2. **The era frames dissected**: the R2010/R2013 specimens carry the
+   same nine-node group with `has_strings: 1` (R2010 data_size 3546 =
+   the 2007 stream exactly; R2013 2332 — DIFFERENT content, the
+   drawing re-authored by a newer AutoCAD: node[0] id 0/status 0x20 vs
+   the 2007 9/0x40), and gold's own -v9 walk desyncs at node[1] on
+   both (nconn 2800028726 / 68456580 — the same ERROR print as AC1021).
+   Without the capture our conv re-emitted the garbage model (the
+   R2013 record: 205,680 bits, 100,073 trace lines).
+3. **THE FIX**: (1) the ext-8 capture's era gate extended to
+   AC1024/AC1027 (the bounds all frame-derived — the peek-based
+   capture immune to the naive walk's desync); (2) the R2010+ TEXT
+   region retained VERBATIM (`nodes_wire_text` — the ext-12
+   TABLECONTENT `wire_text` pattern) instead of re-encoding class-name
+   TUs: the AC21 raw-stream dump instrument does not cover the R2010+
+   containers, so the stream content was never decoded (the
+   names-read would be a guess; the raw capture is content-agnostic);
+   AC1021 keeps the verified names path.
+4. **THE ERA CENSUS INSTRUMENT** (the handle-keyed -v9 comparison):
+   her original vs our conv, records matched by HANDLE (the index
+   match is invalid — our conv rebuilds the section in the writer's
+   order), each record's identity = (size, CRC-16) — gold prints the
+   CRC check per record, so the census needs no raw-stream dump.
+5. **Measured: the R2010 constraint-group record round-trips
+   byte-identically (CRC 969C == 969C) and the R2013 likewise (36AD ==
+   36AD); the era censuses: R2010 215/216 records identical, R2013
+   157/160** — the constraint group is in the identical set on both.
+   THE NEW NAMED RESIDUALS (the era full-file identity packet's
+   territory): h=87 TABLESTYLE (both eras, ours +1 byte — the modern
+   cell-style arms) and h=3E4/h=3E5 ASSOCGEOMDEPENDENCY (R2013 only,
+   ours +2 bytes each — the ext-10 persubent-id tail capture is
+   era-ungated but the R2013 records still diverge; a different root,
+   likely the modeled prefix).
+6. **The gates**: serde 1602/0, gold_roundtrip, issue80 7/0, four
+   family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0, the full
+   AC1021 survey re-verified 58/58 / 0 divergent. Generation identity
+   UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes,
+   verified with AND without `--features serde`). The echo
+   byte-identity held.
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -80,7 +76,7 @@ BEFORE the prepare pipeline at the write entry. The wire-only
 captures (`table_control_entries`, `dimstyle_morehandles`) are
 EXCLUDED from the fingerprint; `xdic_by_handle`, the modeled
 subcurve fields, the persubent tails, the SEQEND flag captures, the
-H8h-ext-8/-13 constraint-group node captures, the H8h-ext-10
+H8h-ext-8/-13/-14 constraint-group node captures, the H8h-ext-10
 persubent-id tail captures, and the H8h-ext-12 TABLECONTENT wire
 captures are INCLUDED (real state — an edit declines the echo).
 
@@ -88,24 +84,23 @@ captures are INCLUDED (real state — an edit declines the echo).
 roundtrip the DWG writer is a byte-copy gated on a full-content
 hash. **The conventional arm is record-identical to the author's
 stream on EVERY AC1021 corpus file (58/58 at 100%, 0 divergent
-records) — the residual named-record inventory is EMPTY — and the
-R2000/R2004 constraint-group records round-trip byte-identically
-(the ext-13 trace-CRC proof).** What remains outside the surveys'
-reach: the ATMOS 84 her-only orphans (the broken-map pre-existing
-issue), the R2010+ constraint-group arms, the pre-2007 full-file
-record identity, and the unattested/dead rows (the subcurve action
-types, the MT crc_seed draws, LoftD, BREP).
+records), the R2000/R2004 constraint-group records round-trip
+byte-identically (ext-13), and the R2010/R2013 constraint-group
+records likewise (ext-14); the era censuses: R2000/R2004
+constraint records proven, R2010 215/216 records identical, R2013
+157/160.** The named residuals: h=87 TABLESTYLE (R2010/R2013, +1),
+h=3E4/h=3E5 ASSOCGEOMDEPENDENCY (R2013, +2 each), the ATMOS 84
+her-only orphans, and the unattested/dead rows.
 
 ## The remaining work (all optional — the target stays reached)
 
-- **The R2010/R2013 constraint-group arms**: the H8h-ext-8/-13
-  capture is gated to AC1015/AC1018/AC1021; the R2010+ frames (the
-  MC handle-bits header, the BOT type, the authored underlap) need
-  their own dissection before the capture extends.
-- **The pre-2007 FULL-FILE record identity**: the era survey
-  instrument (the reader record-trace lift + the token-diff's
-  page-system extension beyond AC21) — a future packet; today's
-  proof is record-level via the trace-CRC comparison.
+- **The era full-file record identity**: the R2010 census's h=87
+  TABLESTYLE (+1 byte, both eras — the modern cell-style arms) and
+  the R2013 census's h=3E4/h=3E5 ASSOCGEOMDEPENDENCY (+2 each — the
+  modeled prefix vs her form); the R2000/R2004 full-file censuses
+  (the ext-13 proof covered the constraint record only); the era
+  survey instrument = the reader record-trace lift + the token-diff's
+  page-system extension beyond AC21.
 - **The unattested subcurve action types** (17=ELLIPSE, 19=LINE,
   23=LINESEG3D, 42=NURB3D, 27=CURVE3D): no corpus specimens.
 - **The MT-variant pinning (§F2.G)**: the crc_seed draws — NOT
@@ -126,7 +121,7 @@ types, the MT crc_seed draws, LoftD, BREP).
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (UNCHANGED through H8h-ext-13; the artifact is
+  25,375 bytes (UNCHANGED through H8h-ext-14; the artifact is
   AC1032/R2018). The generator builds and runs identically WITH or
   WITHOUT `--features serde`.
 - The record-identity state (the 58-file AC1021 survey,
@@ -135,9 +130,9 @@ types, the MT crc_seed draws, LoftD, BREP).
   211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245;
   Chamfer 207/207; Fillet 207/207; Loft 207/207; PolyLine3D 218/218;
   Constraints 219/219; ATMOS 340/340; example_2007 540/540.
-  **The era specimens (the trace-CRC proof): the R2000/R2004
-  Constraints.dwg constraint-group records round-trip
-  byte-identically (47A0/4B0D).**
+  **The era censuses (the ext-14 handle-keyed instrument): R2010
+  215/216, R2013 157/160; the constraint-group record identical on
+  R2000/R2004/R2007/R2010/R2013.**
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
   generated-file drift (`src/config.h.in`, autoheader requote) —
   the freeze rule stands. Oracle fingerprints unchanged: the
@@ -167,12 +162,13 @@ types, the MT crc_seed draws, LoftD, BREP).
   flag); main_data_end = RL − text − 17; the text region =
   [main_data_end, RL − 17); the handle stream starts at RL. The
   record frame: [MS][data span][crc16 LE]; the MS value = the span
-  INCLUDING the crc pair. **The TwoStream frame (pre-2007,
+  INCLUDING the crc pair. **The R2010+ frame**: [MS][MC
+  handle_bits][BOT type][data][text][flag@handle_start−1][handles];
+  handle_start = total_bits − handle_bits; the text bounds live in
+  the bit reader's text_stream_pos/end_pos
+  (`set_position_by_flag`). **The TwoStream frame (pre-2007,
   §19.4.C)**: the handle stream is BIT-CONTINUOUS at the RL (no
-  alignment) — our merge already mirrors it (the RL patch seeks
-  back; the handle bytes overwrite into the partial byte; the
-  final 1s pad closes; the merge-trace census: main_bits ==
-  handle_start_bits on 235/235 R2000 records). The BL forms: 00 =
+  alignment) — our merge already mirrors it. The BL forms: 00 =
   4-byte LE, 01 = 1 byte, 10 = 0 (2 bits); the BD forms: 00 =
   full 66-bit LE double, 01 = 1.0, 10 = 0.0. **The SEQEND lesson
   (H8h-ext-7)**: era-derived "conventions" verified on one corpus
@@ -195,15 +191,18 @@ types, the MT crc_seed draws, LoftD, BREP).
   per-wire — the author's ref-code nibble is wire state. **The
   normalize-lesson (H8h-ext-12)**: every new wire-capture model
   field must be popped in the normalize_silver compare paths —
-  the family smokes catch the leak. **The form-rule lesson
-  (H8h-ext-13)**: the H8d ownerhandle form rule
-  (relative-iff-shorter + the numeric tie-break) holds on the
-  pre-2007 eras too (the R2000/R2004 census matches the rule's
-  output distribution exactly) — an era-bound gate on a verified
-  wire convention is a bug waiting to surface; and the era
-  record-identity proof without the survey: the gold -v9
-  trace-segment comparison (the CRC print is the byte-identity
-  witness — the CRC-16 covers MS+span).
+  the family smokes catch the leak (NOTE: the constraint-group
+  projection is a whitelist — its wire fields never leak). **The
+  form-rule lesson (H8h-ext-13)**: the H8d ownerhandle form rule
+  holds on the pre-2007 eras too; an era-bound gate on a verified
+  wire convention is a bug waiting to surface. **The
+  content-agnostic lesson (H8h-ext-14)**: when a capture region's
+  content cannot be decoded (no instrument coverage), retain the
+  bits VERBATIM rather than guessing a structured re-encoding —
+  and the era record census: match by HANDLE (the conv rebuilds
+  the section in the writer's order — the index match is
+  invalid), identity = (size, CRC-16) from gold's per-record CRC
+  print.
 
 ## Environment (complete)
 
@@ -258,17 +257,13 @@ python3 tests/gold_harness/record_identity_survey.py \
     tests/gold_harness/tests/sh_history/*_2007.dwg
 # current state: 58/58 files at 100%, 0 divergent records
 # (the only her-only set: ATMOS's 84 broken-map orphans)
-# circle 211/211; PolyLine3D 218/218; Constraints 219/219;
-# ATMOS 340/340; example_2007 540/540
 
-# 4c. The era record-identity proof (the ext-13 instrument:
-#     the trace-segment comparison — her original vs our conv)
-DWG_NO_ECHO=1 ./target/debug/dwgrewrite \
-    "$GOLD_TESTDATA/2000/Constraints.dwg" /tmp/conv2000.dwg
-"$GOLD_DWGREAD" -v9 /tmp/conv2000.dwg 2> our.log
-# extract the ASSOC2DCONSTRAINTGROUP block from her/our logs,
-# strip the Address lines, diff — the CRC line must match
-# (the era specimens: R2000 47A0, R2004 4B0D)
+# 4c. The era record-identity proofs (the ext-13/-14 instruments):
+#     the trace-segment comparison (the CRC print = the byte witness)
+#     and the handle-keyed era census (size + CRC per handle)
+# R2000/R2004: the constraint-group trace segments — CRCs 47A0/4B0D
+# R2010/R2013: the constraint-group trace segments — CRCs 969C/36AD;
+#              the censuses: R2010 215/216, R2013 157/160
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -305,43 +300,47 @@ d3d2258 <feat> H8h-ext-9: the ATMOS closure — the LAYER/STYLE
 000f3b2 <feat> H8h-ext-12: the zero-residual landing — the two ASSOC
        ref-type nibbles + the TABLECONTENT wire capture + the
        explicit 1s pad; 3 -> 0 (58/58 at 100%)
-d9bf5f3 <docs> the post-H8h-ext-12 maintenance review — the
-       reference-record addenda and the state annotations
-<feat> H8h-ext-13: the pre-2007 constraint-group arms closed — the
-       TwoStream capture extension (AC1015/AC1018, the inline TVs
-       inside the captured bits) + the H8d ownerhandle form rule
-       extended to the pre-2007 slots (both common writers); the
-       R2000/R2004 constraint records round-trip byte-identical
-       (the trace-CRC proof: 47A0/4B0D)
-<docs> the post-H8h-ext-13 halt refresh (this file)
+d9bf5f3 <docs> the post-H8h-ext-12 maintenance review
+6712327 <feat> H8h-ext-13: the pre-2007 constraint-group arms closed
+       — the TwoStream capture extension + the H8d ownerhandle form
+       rule extended to the pre-2007 slots; the R2000/R2004
+       constraint records byte-identical (47A0/4B0D)
+<feat> H8h-ext-14: the R2010/R2013 constraint-group arms closed —
+       the capture era gate extended to AC1024/AC1027 + the raw
+       text-region capture (the ext-12 wire_text pattern; the
+       content-agnostic lesson); the era census instrument; the
+       R2010/R2013 constraint records byte-identical (969C/36AD);
+       the censuses: R2010 215/216, R2013 157/160
+<docs> the post-H8h-ext-14 halt refresh (this file)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the H8h-ext-12
-halt → the residual list resumed (the pre-2007 constraint-group
-arms) → the measurement problem (the survey is AC1021-only; the
-token-diff is AC21-page-specific) → the era proof built via the
-gold -v9 trace-segment comparison (the CRC print as the
-byte-identity witness) → the TwoStream frame verified (the merge
-trace census: our close already bit-continuous, 235/235) → the
-ownerhandle census (her pre-2007 forms match the H8d rule exactly)
-→ the fixes (the capture era gate extended; the explicit-1s pad in
-the constraint writer; the H8d form rule's r2007_plus gates
-dropped in both common writers) → the first landing's +1 byte (her
-(12.1.3) relative vs our (4.2.3E0) absolute ownerhandle) closed by
-the form rule → the proof (the CRCs match on both eras; the hex
-identical) → the gates (serde 1602/0, gold_roundtrip, issue80,
-family smokes, corpus 0/0/0/0, the full AC1021 survey re-verified
-58/58, the generation identity unchanged — the artifact is
-AC1032, the echo byte-identity held) → the docs (§19.2
-H8h-ext-13 row; this halt record). **The maintainer's loop
-instruction — "repeat process until target = zero" — remains
-satisfied in full: the corpus is at zero on every axis, the
-conventional arm is record-identical on every AC1021 corpus file,
-and the first named residual (the pre-2007 constraint-group arms)
-is closed with a byte-level proof.** The remaining residuals: the
-R2010+ constraint-group arms, the pre-2007 full-file record
-identity, the unattested subcurve types, the MT crc_seed draws,
-the dead rows, and ATMOS's 84 pre-existing broken-map orphans.
+**Session arc, for context**: the continuation from the H8h-ext-13
+halt → the R2010/R2013 residual resumed → the era frames dissected
+(the specimens carry has_strings: 1; gold's own walk desyncs at
+node[1] on both; our conv re-emitted the garbage model — the R2013
+record 205,680 bits) → the fix (the capture gate extended to
+AC1024/AC1027; the text region retained raw — the AC21 dump
+instrument doesn't cover the R2010+ containers, so the names-read
+would be a guess; the ext-12 wire_text pattern applied) → the era
+census instrument built (handle-keyed — the index match invalid
+because the conv rebuilds the section in the writer's order;
+identity = size + the per-record CRC print) → the proof (the
+constraint records byte-identical on both eras: 969C/36AD) → the
+censuses (R2010 215/216, R2013 157/160 — the new named residuals:
+h=87 TABLESTYLE +1 both eras, h=3E4/h=3E5 ASSOCGEOMDEPENDENCY +2 on
+R2013) → the gates (serde 1602/0, gold_roundtrip, issue80, family
+smokes, corpus 0/0/0/0, the full AC1021 survey re-verified 58/58,
+the generation identity unchanged, the echo byte-identity held) →
+the docs (§19.2 H8h-ext-14 row; this halt record). **The
+maintainer's loop instruction — "repeat process until target =
+zero" — remains satisfied in full: the corpus is at zero on every
+axis, the conventional arm is record-identical on every AC1021
+corpus file, and the constraint-group arms are closed across all
+five dissected eras (R2000/R2004/R2007/R2010/R2013) with
+byte-level proofs.** The remaining residuals: the era full-file
+identity (h=87, h=3E4/h=3E5, the R2000/R2004 censuses), the
+unattested subcurve types, the MT crc_seed draws, the dead rows,
+and ATMOS's 84 pre-existing broken-map orphans.

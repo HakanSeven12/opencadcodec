@@ -975,14 +975,35 @@ pub fn read_associative_data(
             // at the RL (the authored §19.4.C frame our merge already
             // mirrors). DXF/programmatic reads keep the naive modeled
             // emission (`nodes_wire_main` stays `None`).
+            //
+            // §19 H8h-ext-14: the capture extends to the R2010/R2013
+            // frames (AC1024/AC1027 — the MC handle-bits header, the
+            // BOT type, the flag at handle_start−1). Their text
+            // streams (has_strings: 1) hold content this campaign
+            // never decoded — the AC21 raw-stream dump instrument
+            // does not cover the R2010+ containers — so the region
+            // is retained VERBATIM (the ext-12 TABLECONTENT
+            // `wire_text` pattern) instead of re-encoding class-name
+            // TUs; AC1021 keeps the decoded-names path (verified
+            // 58/58). The naive walk desyncs on these records exactly
+            // as on AC1021 (gold's own -v9 walk errors at node[1]:
+            // nconn 2800028726 / 68456580), but the capture is
+            // peek-based — the bounds come from the frame, not the
+            // walk.
             let mut nodes_wire_names: Vec<String> = Vec::new();
             let mut nodes_wire_main: Option<Vec<u8>> = None;
             let mut nodes_wire_main_bit_len: u32 = 0;
             let mut nodes_wire_handles: Option<Vec<u8>> = None;
             let mut nodes_wire_handles_bit_len: u32 = 0;
+            let mut nodes_wire_text: Option<Vec<u8>> = None;
+            let mut nodes_wire_text_bit_len: u32 = 0;
             let era_wire = matches!(
                 dxf_version,
-                DxfVersion::AC1015 | DxfVersion::AC1018 | DxfVersion::AC1021
+                DxfVersion::AC1015
+                    | DxfVersion::AC1018
+                    | DxfVersion::AC1021
+                    | DxfVersion::AC1024
+                    | DxfVersion::AC1027
             );
             if era_wire && node_count > 0 {
                 let node_region_end = reader.main_data_end();
@@ -1006,6 +1027,21 @@ pub fn read_associative_data(
                             break;
                         }
                         nodes_wire_names.push(reader.read_variable_text());
+                    }
+                }
+                // R2010+: the whole text region, verbatim (the naive
+                // walk reads no text, so the remaining count is the
+                // full region).
+                if matches!(dxf_version, DxfVersion::AC1024 | DxfVersion::AC1027)
+                {
+                    let text_len = reader.text_remaining_bits().max(0) as u32;
+                    if text_len > 0 {
+                        if let Some(bytes) =
+                            reader.peek_window_bytes(node_region_end, text_len)
+                        {
+                            nodes_wire_text = Some(bytes);
+                            nodes_wire_text_bit_len = text_len;
+                        }
                     }
                 }
                 let handle_from = reader.handle_position_in_bits();
@@ -1048,6 +1084,8 @@ pub fn read_associative_data(
                 nodes_wire_main_bit_len,
                 nodes_wire_handles,
                 nodes_wire_handles_bit_len,
+                nodes_wire_text,
+                nodes_wire_text_bit_len,
             })
         }
         "ASSOCVARIABLE" => {

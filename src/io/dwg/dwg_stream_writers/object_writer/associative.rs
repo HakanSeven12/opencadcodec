@@ -578,6 +578,19 @@ impl<'a> DwgObjectWriter<'a> {
                     for name in &value.nodes_wire_names {
                         self.writer.write_variable_text(name);
                     }
+                    // §19 H8h-ext-14: the R2010+ raw text-region
+                    // re-emission (the AC1021 path rides the names
+                    // loop above; the R2010+ capture never decoded
+                    // the stream, so its bits replay verbatim).
+                    if let Some(bytes) = &value.nodes_wire_text {
+                        let bits = (value.nodes_wire_text_bit_len as usize)
+                            .min(bytes.len() * 8);
+                        for index in 0..bits {
+                            let byte = bytes[index / 8];
+                            let bit = (byte >> (7 - index % 8)) & 1;
+                            self.writer.write_text_bit(bit == 1);
+                        }
+                    }
                     if let Some(bytes) = &value.nodes_wire_main {
                         let bits = (value.nodes_wire_main_bit_len as usize)
                             .min(bytes.len() * 8);

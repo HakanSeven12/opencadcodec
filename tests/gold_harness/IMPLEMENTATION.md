@@ -6702,6 +6702,72 @@ Signature) — the parse side is further along than the emission side.
   extension — a future packet; today's proof
   is record-level).
 
+  **H8h-ext-14 — the R2010/R2013
+  constraint-group arms closed (the raw
+  text-region capture; the era census
+  instrument) (2026-09-28, the
+  continuation)**: the ext-13 row's named
+  residual fell. THE ERA FRAMES: the R2010/
+  R2013 specimens carry the same nine-node
+  group with `has_strings: 1` (R2010
+  data_size 3546 = the 2007 stream exactly;
+  R2013 2332 — DIFFERENT content, the
+  drawing re-authored by a newer AutoCAD:
+  node[0] id 0/status 0x20 vs the 2007
+  9/0x40), and gold's own -v9 walk desyncs
+  at node[1] on both (nconn 2800028726 /
+  68456580 — the same ERROR print as
+  AC1021). Without the capture our conv
+  re-emitted the garbage model (the R2013
+  record: 205,680 bits, 100,073 trace
+  lines). THE FIX: (1) the ext-8 capture's
+  era gate extended to AC1024/AC1027 (the
+  MC handle-bits header, the BOT type, the
+  flag at handle_start−1 — the bounds all
+  frame-derived, the peek-based capture
+  immune to the naive walk's desync); (2)
+  the R2010+ TEXT region retained VERBATIM
+  (`nodes_wire_text` — the ext-12
+  TABLECONTENT `wire_text` pattern) instead
+  of re-encoding class-name TUs: the AC21
+  raw-stream dump instrument does not cover
+  the R2010+ containers, so the stream
+  content was never decoded (the names-read
+  would be a guess; the raw capture is
+  content-agnostic); AC1021 keeps the
+  verified names path. THE ERA CENSUS
+  INSTRUMENT (the handle-keyed -v9
+  comparison): her original vs our conv,
+  records matched by HANDLE (the index
+  match is invalid — our conv rebuilds the
+  section in the writer's order), each
+  record's identity = (size, CRC-16) —
+  gold prints the CRC check per record, so
+  the census needs no raw-stream dump.
+  **MEASURED: the R2010 constraint-group
+  record round-trips byte-identically (CRC
+  969C == 969C) and the R2013 likewise
+  (36AD == 36AD); the era censuses: R2010
+  215/216 records identical, R2013 157/160
+  — the constraint group is in the
+  identical set on both.** THE NEW NAMED
+  RESIDUALS (the era full-file identity
+  packet's territory): h=87 TABLESTYLE
+  (both eras, ours +1 byte — the modern
+  cell-style arms) and h=3E4/h=3E5
+  ASSOCGEOMDEPENDENCY (R2013 only, ours +2
+  bytes each — the ext-10 persubent-id
+  tail capture is era-ungated but the
+  R2013 records still diverge; a different
+  root, likely the modeled prefix). GATES:
+  serde 1602/0, gold_roundtrip ok, issue80
+  7/0, four family smokes 0/0, corpus 280
+  files 0/0/0/0, generation identity
+  UNCHANGED (`84374e73…`, 25,375 bytes,
+  feature-independent), the echo
+  byte-identity held, the full AC1021
+  survey re-verified 58/58 / 0 divergent.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
