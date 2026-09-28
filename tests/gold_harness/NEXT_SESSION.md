@@ -282,12 +282,18 @@ d3d2258 <feat> H8h-ext-9: the ATMOS closure — the LAYER/STYLE
 3dd3362 <feat> H8h-ext-11: the wire-exactness landings — the
        RAY/XLine read-side normalize removed, the ordinate
        measurement recompute removed on both sides; 5 -> 3
-<feat> H8h-ext-12: the zero-residual landing — the two ASSOC
+000f3b2 <feat> H8h-ext-12: the zero-residual landing — the two ASSOC
        ref-type nibbles (the pab empty-values dependency + the
        compound child.parameter, both SoftPointer per the wire) +
        the TABLECONTENT wire capture (the ext-8 doctrine, third
        application) + the explicit 1s pad; 3 -> 0 (58/58 at 100%)
-<docs> the post-H8h-ext-12 halt refresh (this file)
+       [this commit also carried the §19.2 H8h-ext-12 row and the
+       post-ext-12 halt refresh of this file]
+<docs> the post-H8h-ext-12 maintenance review — the §19 header
+       state annotation (PHASE 2 landed; the survey at 58/58 /
+       0 divergent), the §19.4.B declared-vs-wire ref-type census,
+       the §19.4.C pad × wire-capture interplay, and this file's
+       commit-inventory hashes
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the

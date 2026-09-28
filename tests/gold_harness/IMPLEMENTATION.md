@@ -4337,7 +4337,7 @@ stems O (point) and T (direction) and the angle stem F (360).
 
 ---
 
-## 19. The header & whole-structure campaign (planned 2026-09-25 — not yet started)
+## 19. The header & whole-structure campaign (planned 2026-09-25; PHASE 2 landed through the H8h arc — the READ axis ZERO corpus-wide, the AC1021 record-identity survey at 58/58 files / 0 divergent records as of H8h-ext-12, 2026-09-28)
 
 The campaign target to date is the **OBJECTS axis**: silver's parsed
 entity/object records must match gold's, plus the write-side re-read
@@ -6718,6 +6718,18 @@ gold this campaign (the anchor note says so).
   ABSOLUTE (the ownership classes); 6 = own handle + 1;
   8 = own − 1; 10 = own + value; 12 = own − value. The null
   handle is code 4, count 0.
+- Declared-vs-wire TYPE codes (the §19 H8h-ext-12 census):
+  gold's dwg2.spec guesses some ACDBASSOC reference TYPES, and
+  the authored wires disagree — the empty-values
+  AcDbAssocParamBasedActionBody dependency is declared 5
+  (HardPointer) but written 4 (SoftPointer; example_2007
+  h=392: (4.2.397)), and the compound child.parameter is
+  declared 3 (HardOwnership) but written 4 (SoftPointer;
+  example_2007 h=393: (4.0.0)). The same split as the
+  H8h-ext-3 deps census {3: 27} and the H8h-ext-4 edge param
+  (declared 3, written 4): the wire is the authority; fix the
+  writer's type when the census is uniform, capture the code
+  when authors diverge.
 - First-in-stream ownerhandle form rule (the author's writer,
   verified 196/196 on circle_2007): choose the RELATIVE form
   iff its byte length is shorter, or at equal length iff the
@@ -6758,6 +6770,17 @@ gold this campaign (the anchor note says so).
 - IN-TREE: `merged_writer.rs::merge_two_stream` /
   `merge_three_stream` build exactly this shape (the final
   1s-pad variant is part of the α re-apply package);
+- The pad × wire-capture interplay (the §19 H8h-ext-8/-12
+  lesson): a verbatim capture that runs to the record end must
+  TRIM the author's closing 1s pad (≤7 bits) — the writer
+  re-creates it at close — and a capture re-emitted through the
+  HANDLE stream must re-create the pad EXPLICITLY with 1s: the
+  merged writer's own handle-stream close pads with ZEROS
+  (`write_spear_shift`), so a trimmed capture replayed raw ends
+  0-padded where the author pads 1s (the h=BF2 landing: the
+  right record size with a wrong final byte, her 0x9b vs our
+  0x98). Corpus records whose handle streams end byte-aligned
+  never expose it.
   `crc.rs::crc16` + `crc::CRC16_SEED`; `register_object` /
   `register_raw_object` in `object_writer/common.rs`.
 
