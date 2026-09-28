@@ -19,7 +19,7 @@
 > decode the constructed corpus silver-side,
 > assert it against the authored-specimen genus pinned in
 > genus_expectations.json, and emit the ranked sections
-> sab_form_diffs (67 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
+> sab_form_diffs (66 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
 > (0 rows — CLOSED). THE COUNTS ARE THE WORK QUEUE.** Read
 > `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now with
 > the §20.6 landed state), then §19.4 + §19.5, then §18.6 + §F2.1–F2.3,
@@ -128,6 +128,18 @@
     green (52 segments, 0 failures, the two new era tests in); the
     genus cargo mirror green (fresh extraction == the regenerated
     pin); the four family smokes 0/0; the AC21 echo clean.
+ 7. **The vertex packet CLOSED (the second queue packet, the same
+    day)**: the authored vertex's missing token — its role within
+    its own edge (0 = start, 1 = end, 2 = both endpoints of a
+    closed edge; the semantics pinned by a 580-vertex census: every
+    authored vertex carries the 4-token payload, roles distribute
+    216/268/96, the per-vertex edge-endpoint correlation is exact).
+    `add_vertex` emits the role placeholder; `add_edge` fills it for
+    the owning vertex records. **The vertex row's 28 occurrences
+    gone: `sab_form_diffs` 67 → 66 rows, 521 → 493 occurrences.**
+    The identity moved to
+    `0e8b23cde1f2476198154cc317b16683`, 25,439 bytes. The suite
+    green; the mirror green.
 
 ## THE NEXT WORK: work down the genus-gate queue (§8.1.2 packets, strict-loader verdicts)
 
@@ -146,11 +158,10 @@ TOLERATED with the row kept as the recorded state).
   regresses ds_version, the segidx position, the row scale, the slot
   allocation, the pointers, prvsav, or the two extended header fields
   re-ranks immediately.
-- **G-A NOW FIRST (the SAB form campaign)**: the vertex short-width (the
-  5-byte tail the edge class got in `complete_class_width` — the
-  vertex arm), then the asmheader emission (authored-uniform class),
-  then the tolerance triple (spatial_resolution 10.0 vs the authored
-  1.0 — find the constructed default's source), then the ACIS-700
+- **G-A NOW FIRST (the SAB form campaign)**: the asmheader emission
+  (authored-uniform class), then the tolerance triple
+  (spatial_resolution 10.0 vs the authored 1.0 — find the constructed
+  default's source), then the ACIS-700
   flavor / product-string / header-triple family (a strict-loader
   question: the 2026-09-21 zero proved the ACIS-700 stance
   BricsCAD-ACCEPTED, so these rows may close TOLERATED; do NOT forge
@@ -160,6 +171,8 @@ TOLERATED with the row kept as the recorded state).
   and the persubent-attrib class (investigate the tree-correlation
   with the `--corpus-scan` specimen evidence first — the fixture
   family is tree-selected, so uniformity may be selection bias).
+  (The vertex short-width row CLOSED — the second packet, arc item
+  7.)
 - **G-B last (the tree)**: the elide marker closes only when a
   constructed tree passes a strict loader (the interposition + the
   33/427 trio + the node-id resolution are the authored genus to
@@ -216,14 +229,15 @@ era specimens (the era censuses all-zero).
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative: all four axes 0, WITH the
-  genus sections (`sab_form_diffs` 67 / `sh_genus_diffs` 1 /
+  genus sections (`sab_form_diffs` 66 / `sh_genus_diffs` 1 /
   `acds_genus_diffs` 0 — the container campaign CLOSED) as
   additional output.
-- The generation identity is `4265c04a19048e33295bc047cb0b2908`,
-  25,407 bytes (MOVED at the G-C packet — the constructed AcDs
-  container changed; an intended content change, re-recorded; the
-  prior identity `84374e73ddcf1d6143877c4100b81e48` / 25,375 held
-  through the §20 landing and the review pass). The generator
+- The generation identity is `0e8b23cde1f2476198154cc317b16683`,
+  25,439 bytes (MOVED at the G-C and vertex packets — the constructed
+  AcDs container + the vertex role token changed; intended content
+  changes, re-recorded; the identity history: `84374e73…`/25,375
+  through the §20 landing → `4265c04a…`/25,407 at G-C →
+  `0e8b23cd…`/25,439 at the vertex packet). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -318,13 +332,15 @@ python3 tests/gold_harness/run_roundtrip.py \
 # 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 work queue): sab_form 67 rows,
-#        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED)
+#    ... genus gates (the §20 work queue): sab_form 66 rows,
+#        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED; the vertex
+#        row closed at the second packet)
 
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 4265c04a19048e33295bc047cb0b2908, 25,407 bytes (the G-C packet moved it)
+# 0e8b23cde1f2476198154cc317b16683, 25,439 bytes (G-C + the vertex
+# role token moved it)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -393,6 +409,12 @@ ba12a2f <feat> §20 genus gates: genus_extract.py + genus_gates.py + the
        two era regression tests — acds_genus_diffs 11 -> 0; the
        generation identity moved to 4265c04a... (25,407 bytes)
        (THIS SESSION'S G-C PACKET)
+<fix> §20 G-A vertex packet: the authored vertex role token (0=start,
+       1=end, 2=closed-edge; the 580-vertex census) — add_vertex emits
+       the placeholder, add_edge fills the owning records' roles; the
+       vertex row's 28 occurrences gone (sab_form 67 -> 66 rows,
+       521 -> 493 occurrences); the identity moved to 0e8b23cd...
+       (25,439 bytes) (THIS SESSION'S VERTEX PACKET)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the

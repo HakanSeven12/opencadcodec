@@ -777,12 +777,23 @@ impl SatDocument {
     }
 
     /// Add a vertex record and return its index.
+    ///
+    /// The authored vertex form (the §20 G-A genus, verified live across
+    /// the 136-specimen corpus — every authored vertex carries the four
+    /// payload tokens): `vertex $attr $-1 <edge> <role> <point>` — the
+    /// third token is the vertex's role within its own edge (0 = start,
+    /// 1 = end, 2 = both endpoints of a closed edge; the 5-byte width
+    /// delta the genus gates ranked). The role placeholder is filled by
+    /// [`Self::add_edge`] when the edge that owns this vertex is added;
+    /// vertices whose edge pointer is NULL or never added keep the 0
+    /// placeholder.
     pub fn add_vertex(&mut self, edge: SatPointer, point: SatPointer) -> i32 {
         let index = self.records.len() as i32;
         let mut record = SatRecord::new(index, "vertex");
         record.attribute = SatPointer::NULL;
         record.tokens.push(SatToken::Pointer(SatPointer::NULL)); // v700 unknown (always $-1)
         record.tokens.push(SatToken::Pointer(edge));
+        record.tokens.push(SatToken::Integer(0)); // role in its edge — set by add_edge
         record.tokens.push(SatToken::Pointer(point));
         self.records.push(record);
         self.header.num_records = self.records.len();
@@ -793,6 +804,11 @@ impl SatDocument {
     ///
     /// The v700 edge format:
     /// `edge $attr -1 $-1 $start_v start_param $end_v end_param $coedge $curve sense @7 unknown`
+    ///
+    /// Also fills the owning vertex records' role token (the authored
+    /// vertex genus above): the start vertex carries 0, the end vertex 1,
+    /// and a closed edge's single vertex 2 — but only for vertex records
+    /// that name THIS edge as their own.
     pub fn add_edge(
         &mut self,
         start_vertex: SatPointer,
@@ -817,6 +833,23 @@ impl SatDocument {
             .tokens
             .push(SatToken::Enum(sense.as_str().to_string()));
         record.tokens.push(SatToken::String("unknown".to_string()));
+
+        let roles: [(SatPointer, i32); 2] = if start_vertex == end_vertex {
+            [(start_vertex, 2), (SatPointer::NULL, 0)]
+        } else {
+            [(start_vertex, 0), (end_vertex, 1)]
+        };
+        for &(vertex, role) in &roles {
+            if let Some(vertex_record) = self.records.get_mut(vertex.0 as usize) {
+                if vertex_record.entity_type == "vertex"
+                    && vertex_record.tokens.get(1) == Some(&SatToken::Pointer(SatPointer(index)))
+                    && matches!(vertex_record.tokens.get(2), Some(SatToken::Integer(_)))
+                {
+                    vertex_record.tokens[2] = SatToken::Integer(role.into());
+                }
+            }
+        }
+
         self.records.push(record);
         self.header.num_records = self.records.len();
         index

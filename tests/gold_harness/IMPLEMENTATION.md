@@ -7500,3 +7500,18 @@ after−before, regenerated the pin, and added the ungated
 The queue closes row by row through the §8.1.2 packet workflow; every
 genus change to a known-wrong-gold surface goes through a recorded
 strict-loader probe verdict (§20.4).
+
+**The first two packets (the same day, post-landing)**: G-C closed
+above. G-A's vertex row closed with the second packet: the authored
+vertex carries a role token — `vertex $attr $-1 <edge> <role> <point>`
+where the role is the vertex's ordinal within its own edge (0 = start,
+1 = end, 2 = both endpoints of a closed edge — derived from a
+580-vertex census across all 136 carriers: every authored vertex has
+the 4-token payload, the roles distribute 216/268/96, and the
+per-vertex correlation against the edge endpoints pinned the
+semantics). `add_vertex` emits the token (placeholder 0) and
+`add_edge` fills it for the vertex records that name the edge as
+their own; the constructed vertex width 34 → 39, the row's 28
+occurrences gone (`sab_form_diffs` 67 → 66 rows, 521 → 493
+occurrences). The generation identity moved again:
+`0e8b23cde1f2476198154cc317b16683`, 25,439 bytes.
