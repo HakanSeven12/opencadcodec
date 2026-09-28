@@ -624,6 +624,19 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.write_header_variable("$SPLFRAME", |w| {
             w.write_i16(70, if hdr.spline_frame { 1 } else { 0 })
         })?;
+        if self.dxf_version >= DxfVersion::AC1015 {
+            self.write_header_variable("$XCLIPFRAME", |w| {
+                w.write_byte(280, hdr.xclip_frame.clamp(0, 2) as u8)
+            })?;
+        }
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.write_header_variable("$DWFFRAME", |w| {
+                w.write_byte(280, hdr.dwf_frame.clamp(0, 2) as u8)
+            })?;
+            self.write_header_variable("$DGNFRAME", |w| {
+                w.write_byte(280, hdr.dgn_frame.clamp(0, 2) as u8)
+            })?;
+        }
         if self.dxf_version >= DxfVersion::AC1021 {
             self.write_header_variable("$SOLIDHIST", |w| {
                 w.write_byte(280, u8::from(hdr.record_solid_history))

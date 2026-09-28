@@ -264,6 +264,11 @@ pub struct HeaderVariables {
     pub hide_text: i16,
     /// XCLIPFRAME - Xref clipping frame visibility
     pub xclip_frame: i16,
+    /// DWFFRAME - DWF underlay frame visibility (0 hidden, 1 shown and
+    /// plotted, 2 shown but not plotted)
+    pub dwf_frame: i16,
+    /// DGNFRAME - DGN underlay frame visibility (same values as DWFFRAME)
+    pub dgn_frame: i16,
     /// HALOGAP - Halo gap percentage
     pub halo_gap: i16,
     /// OBSCOLOR - Obscured line color
@@ -776,6 +781,10 @@ impl Default for HeaderVariables {
             // headers (R2000) don't carry the variable at all, so the default
             // must match what AutoCAD shows for them.
             xclip_frame: 2,
+            // New drawings show DWF frames without plotting them and hide
+            // DGN frames.
+            dwf_frame: 2,
+            dgn_frame: 0,
             halo_gap: 0,
             obscured_color: 257,
             obscured_linetype: 0,
