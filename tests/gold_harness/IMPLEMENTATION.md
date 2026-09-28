@@ -6626,6 +6626,82 @@ Signature) — the parse side is further along than the emission side.
   unattested/dead rows (the subcurve action
   types, the MT crc_seed draws, LoftD, BREP).
 
+  **H8h-ext-13 — the pre-2007
+  constraint-group arms closed (the TwoStream
+  capture extension + the H8d ownerhandle
+  form rule extended to the pre-2007 slots)
+  (2026-09-28, the continuation)**: the first
+  residual task resumed after the
+  zero-residual landing. THE MEASUREMENT
+  PROBLEM: the record-identity survey is
+  AC1021-only (the reader's record-trace
+  gate + the token-diff's AC21 page-system
+  raw dump) — the era proof was built via
+  the gold -v9 TRACE-SEGMENT COMPARISON
+  instead: the constraint-group object's
+  full decode block (the field prints + the
+  unknown_bits hex + the handle prints + the
+  CRC print), her original vs our conv, the
+  file-address lines stripped. The CRC-16
+  covers MS+span, so matching CRCs = matching
+  bytes — a record-level identity proof.
+  THE DISSECTION FINDINGS: (a) our TwoStream
+  close ALREADY mirrors the authored
+  bit-continuous frame (§19.4.C) — the merge
+  trace census: main_bits == handle_start_bits
+  on 235/235 records of the R2000 specimen
+  (the RL patch seeks back and the handle
+  bytes overwrite bit-continuously into the
+  partial byte; the final 1s pad closes); (b)
+  her pre-2007 ownerhandle forms follow the
+  SAME H8d rule as AC1021 — the census: (8.0)
+  44×, (12.1) 70×, (4.1) 82×, (4.2) 17×,
+  (4.0) 11×, (10.1) 5× = exactly the
+  relative-iff-shorter + numeric-tie-break
+  distribution; (c) the node region's inline
+  class-name TVs (pre-2007) sit INSIDE the
+  captured main bits — no separate names
+  capture. THE FIXES: (1) the ext-8 capture's
+  era gate extended from AC1021 to
+  AC1015|AC1018|AC1021 (the names read stays
+  AC1021-only — the TwoStream TVs are inline);
+  (2) the constraint writer's handle-tail
+  emission gets the ext-12 explicit-1s pad
+  extension (a no-op for the byte-aligned
+  AC1021 specimens — Constraints 219/219
+  re-verified); (3) the H8d
+  `write_first_ref_handle` ownerhandle form
+  rule extended to the pre-2007 slots — the
+  `r2007_plus` gates dropped in BOTH common
+  writers (the entity entmode==0 slot and the
+  non-entity owner slot). **MEASURED: the
+  R2000 and R2004 Constraints.dwg
+  constraint-group records round-trip
+  BYTE-IDENTICAL (the CRCs match — 47A0 ==
+  47A0, 4B0D == 4B0D; the unknown_bits hex
+  identical; the only trace diffs are gold's
+  file-address prints); the first attempt's
+  +1-byte handle stream (her (12.1.3) vs our
+  (4.2.3E0) ownerhandle) closed by the form
+  rule.** GATES: serde 1602/0, gold_roundtrip
+  ok, issue80 7/0, four family smokes 0/0,
+  corpus 280 files 0/0/0/0 (the ownerhandle
+  form change touches EVERY pre-2007 record —
+  the semantic axes are form-agnostic and
+  held), generation identity UNCHANGED
+  (`84374e73…`, 25,375 bytes — the artifact
+  is AC1032/R2018, outside the TwoStream
+  change), the echo byte-identity held, the
+  full AC1021 survey re-verified 58/58 / 0
+  divergent. THE REMAINING ERA RESIDUAL: the
+  R2010/R2013 constraint-group arms (the
+  MC/BOT frames + the authored underlap need
+  their own dissection) and the pre-2007
+  FULL-FILE record identity (the era survey
+  instrument = the token-diff's page-system
+  extension — a future packet; today's proof
+  is record-level).
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

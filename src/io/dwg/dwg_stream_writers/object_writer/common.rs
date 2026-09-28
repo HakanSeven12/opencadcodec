@@ -398,10 +398,13 @@ impl<'a> DwgObjectWriter<'a> {
 
         // ── HANDLE: owner (if entmode == 0) ──
         if entmode == 0 {
-            // §19 H8d: R2007+ non-null owners ride the author's
-            // ownerhandle form (relative iff the smaller encoding);
-            // nulls keep the code-4 absolute.
-            if self.version.r2007_plus() && !owner_handle.is_null() {
+            // §19 H8d: non-null owners ride the author's ownerhandle
+            // form (relative iff the smaller encoding); nulls keep
+            // the code-4 absolute. Verified 196/196 on circle_2007
+            // (AC1021); §19 H8h-ext-13: the pre-2007 corpus follows
+            // the same convention (the R2000/R2004 specimens' census),
+            // so the gate drops the r2007_plus bound.
+            if !owner_handle.is_null() {
                 self.writer.write_first_ref_handle(
                     DwgReferenceType::SoftPointer,
                     handle.value(),
@@ -830,11 +833,17 @@ impl<'a> DwgObjectWriter<'a> {
         if relative_owner && !effective_owner.is_null() {
             self.writer
                 .write_handle_relative(handle.value(), effective_owner.value());
-        } else if self.version.r2007_plus() && !effective_owner.is_null() {
+        } else if !effective_owner.is_null() {
             // §19 H8d: the author's ownerhandle form for the internal
-            // non-entity slot (relative iff the smaller encoding); the
+            // non-entity slot (relative iff the smaller encoding; the
             // explicit relative_owner request paths keep
-            // write_handle_relative, nulls keep code-4.
+            // write_handle_relative, nulls keep code-4). Verified
+            // 196/196 on circle_2007 (AC1021); §19 H8h-ext-13: the
+            // pre-2007 corpus follows the SAME convention (the R2000/
+            // R2004 Constraints specimens' census: the (8.0)/(12.1)/
+            // (4.1)/(4.2) mix is exactly the rule's output — the
+            // relative form when shorter, the tie-break by numeric
+            // value), so the gate drops the r2007_plus bound.
             self.writer.write_first_ref_handle(
                 DwgReferenceType::SoftPointer,
                 handle.value(),

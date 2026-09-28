@@ -940,13 +940,13 @@ pub fn read_associative_data(
                     data: AssocConstraintNodeData::None,
                 });
             }
-            // §19 H8h-ext-8: the AC1021 node-region wire capture.
-            // Gold's flat REPEAT misparses the authored records — on
-            // the 2007/Constraints.dwg group (h 3E3, nine nodes) gold's
-            // own -v9 walk desyncs at node[1] and parks 5249 unknown
-            // bits. The real wire (cross-verified against the R2000/
-            // R2004 ancestors of the same drawing — the circle node's
-            // data region is bit-identical across eras once the inline
+            // §19 H8h-ext-8: the node-region wire capture. Gold's flat
+            // REPEAT misparses the authored records — on the 2007/
+            // Constraints.dwg group (h 3E3, nine nodes) gold's own -v9
+            // walk desyncs at node[1] and parks 5249 unknown bits. The
+            // real wire (cross-verified against the R2000/R2004
+            // ancestors of the same drawing — the circle node's data
+            // region is bit-identical across eras once the inline
             // class-name TV of the pre-2007 records is discounted)
             // carries, per node: a class-name TU consumed from the
             // TEXT stream in walk order ("AcConstrainedCircle",
@@ -965,15 +965,26 @@ pub fn read_associative_data(
             // handle bits from the drain position after this record's
             // own head reads to the record end (the captured tail
             // includes her closing 1s pad; the merged writer's own pad
-            // is a no-op once aligned). Gated to AC1021, the only
-            // frame dissected; DXF/programmatic reads keep the naive
-            // modeled emission (their `nodes_wire_main` stays `None`).
+            // is a no-op once aligned).
+            //
+            // §19 H8h-ext-13: the capture extends to the TwoStream
+            // eras (AC1015/AC1018) — the same drawing's R2000/R2004
+            // specimens carry the node class names INLINE as main TVs
+            // (inside the captured region, so no separate names
+            // capture), and their handle streams are bit-continuous
+            // at the RL (the authored §19.4.C frame our merge already
+            // mirrors). DXF/programmatic reads keep the naive modeled
+            // emission (`nodes_wire_main` stays `None`).
             let mut nodes_wire_names: Vec<String> = Vec::new();
             let mut nodes_wire_main: Option<Vec<u8>> = None;
             let mut nodes_wire_main_bit_len: u32 = 0;
             let mut nodes_wire_handles: Option<Vec<u8>> = None;
             let mut nodes_wire_handles_bit_len: u32 = 0;
-            if dxf_version == DxfVersion::AC1021 && node_count > 0 {
+            let era_wire = matches!(
+                dxf_version,
+                DxfVersion::AC1015 | DxfVersion::AC1018 | DxfVersion::AC1021
+            );
+            if era_wire && node_count > 0 {
                 let node_region_end = reader.main_data_end();
                 if node_region_end > node_region_start {
                     let count = (node_region_end - node_region_start) as u32;
@@ -987,11 +998,15 @@ pub fn read_associative_data(
                 // The class-name TUs, in walk order, bounded by what
                 // the record's text stream actually holds (the
                 // dissected corpus specimen carries exactly nine).
-                for _ in 0..node_count {
-                    if reader.text_remaining_bits() <= 0 {
-                        break;
+                // TwoStream eras: the names are inline main TVs —
+                // already inside the captured region.
+                if dxf_version == DxfVersion::AC1021 {
+                    for _ in 0..node_count {
+                        if reader.text_remaining_bits() <= 0 {
+                            break;
+                        }
+                        nodes_wire_names.push(reader.read_variable_text());
                     }
-                    nodes_wire_names.push(reader.read_variable_text());
                 }
                 let handle_from = reader.handle_position_in_bits();
                 // Trim the author's closing 1s pad (§19.4: the record's

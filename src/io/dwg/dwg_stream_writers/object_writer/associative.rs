@@ -588,8 +588,27 @@ impl<'a> DwgObjectWriter<'a> {
                         }
                     }
                     if let Some(bytes) = &value.nodes_wire_handles {
-                        self.writer
-                            .write_handle_bits(bytes, value.nodes_wire_handles_bit_len);
+                        // §19 H8h-ext-13: re-create the author's
+                        // closing 1s pad explicitly (the ext-12
+                        // lesson): extend the captured bits to the
+                        // byte boundary with 1s so the merged writer's
+                        // own zero-pad never fires — the DWG
+                        // final-partial-byte convention (§19.4.C),
+                        // bit-continuous for the TwoStream eras and
+                        // the appended-buffer close for AC1021 alike.
+                        // A no-op when the capture is byte-aligned
+                        // (the AC1021 corpus specimens).
+                        let mut bytes = bytes.clone();
+                        let mut bit_len = value.nodes_wire_handles_bit_len;
+                        let rem = bit_len % 8;
+                        if rem != 0 {
+                            let pad = 8 - rem;
+                            if let Some(last) = bytes.last_mut() {
+                                *last |= ((1u16 << pad) - 1) as u8;
+                            }
+                            bit_len += pad;
+                        }
+                        self.writer.write_handle_bits(&bytes, bit_len);
                     }
                 } else {
                     for node in &value.nodes {
