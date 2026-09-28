@@ -6484,6 +6484,56 @@ Signature) — the parse side is further along than the emission side.
   RESIDUAL 5: example_2007's h=1A9/h=392/h=393/
   h=430/h=BF2.
 
+  **H8h-ext-11 — the wire-exactness landings:
+  the RAY/XLine normalize and the ordinate
+  measurement recompute: 5 → 3 (2026-09-28,
+  the continuation)**: the two double records
+  fell to RECOMPUTE-ON-ROUNDTRIP — the model
+  APIs' semantic normalizations applied to the
+  author's already-computed wire doubles,
+  shifting them exactly 1 ulp. (1) **h=1A9
+  (RAY)**: her vector = (0.8208410212999244,
+  0.5711567365892636, 0); our model held
+  (...42, ...35, 0) — `Ray::new` (and
+  `XLine::new`) NORMALIZE the direction, and
+  re-normalizing the author's unit vector
+  recomputes it 1 ulp off. THE FIX: the
+  builder constructs the entity WITHOUT the
+  constructor normalize (the struct literal;
+  the wire direction is authoritative); the
+  normalize stays the programmatic-API
+  semantic. (2) **h=430 (DIMENSION_ORDINATE)**:
+  her act_measurement = 4630.519359082827
+  (one ulp below her feature_location.x);
+  BOTH sides recomputed it away — the
+  builder's ordinate arm called
+  `refresh_measurement()` after
+  `map_dimension_common` had already set the
+  wire value, and the writer's
+  `write_dimension_ordinate` recomputed
+  `d.measurement()` into a cloned base before
+  emitting. THE FIX: both recomputes removed
+  on the DWG path — the model's stored value
+  is the semantic source of truth on every
+  path (programmatic construction refreshes
+  at `DimensionOrdinate::new`; edits refresh
+  via the transform path). **MEASURED:
+  example_2007 537/540; 57/58 files at
+  100%.** GATES: serde 1602/0,
+  gold_roundtrip ok, issue80 7/0, four family
+  smokes 0/0, corpus 280 files 0/0/0/0,
+  generation identity UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`,
+  25,375 bytes, feature-independent — the
+  generator's rays take the constructor
+  normalize and its ordinate the constructor
+  refresh, so the emitted bytes are
+  unchanged), the echo byte-identity held
+  (circle cmp clean). THE RESIDUAL 3:
+  example_2007's h=392/h=393 (the ACDBASSOC
+  partial-parse single-bits) and h=BF2 (the
+  14.5KB UNKNOWN_OBJ, 203 bytes short).
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

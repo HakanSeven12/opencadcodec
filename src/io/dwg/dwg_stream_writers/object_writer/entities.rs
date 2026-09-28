@@ -2448,8 +2448,14 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_dimension_ordinate(&mut self, d: &DimensionOrdinate) {
-        let mut base = d.base.clone();
-        base.actual_measurement = d.measurement();
+        // §19 H8h-ext-11: emit the model's stored measurement. The
+        // builder preserves the DWG-read wire value; recomputing it
+        // here shifted the authored double 1 ulp (example_2007
+        // h=430: her 4630.519359082827 became ...828). Programmatic
+        // ordinate construction refreshes at new(); edited documents
+        // refresh via the transform path — the stored value is the
+        // semantic source of truth on every path.
+        let base = d.base.clone();
         self.write_common_dimension_data(common::OBJ_DIMENSION_ORDINATE, &base);
         self.writer.write_3bit_double(d.definition_point);
         self.writer.write_3bit_double(d.feature_location);

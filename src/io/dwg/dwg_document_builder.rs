@@ -3576,13 +3576,31 @@ impl DwgDocumentBuilder {
                 }
                 OBJ_RAY => {
                     let data = entities::read_ray(&mut reader);
-                    let mut e = Ray::new(data.base_point, data.direction);
+                    // §19 H8h-ext-11: construct WITHOUT the
+                    // Ray::new direction normalize — the author's
+                    // unit vectors are wire-exact f64s, and
+                    // re-normalizing shifts them 1 ulp (example_
+                    // 2007 h=1A9: her 0.8208410212999244 becomes
+                    // ...42 through the constructor). The normalize
+                    // stays a programmatic-API semantic; the DWG
+                    // read preserves the wire bits.
+                    let mut e = Ray {
+                        common: EntityCommon::default(),
+                        base_point: data.base_point,
+                        direction: data.direction,
+                    };
                     e.common = entity_common;
                     let _ = document.add_entity(EntityType::Ray(e));
                 }
                 OBJ_XLINE => {
                     let data = entities::read_xline(&mut reader);
-                    let mut e = XLine::new(data.base_point, data.direction);
+                    // §19 H8h-ext-11: same wire-exactness rule as
+                    // OBJ_RAY (XLine::new also normalizes).
+                    let mut e = XLine {
+                        common: EntityCommon::default(),
+                        base_point: data.base_point,
+                        direction: data.direction,
+                    };
                     e.common = entity_common;
                     let _ = document.add_entity(EntityType::XLine(e));
                 }
@@ -4249,7 +4267,15 @@ impl DwgDocumentBuilder {
                     map_dimension_common(&mut dim.base, &data.common, &maps);
                     dim.definition_point = data.definition_point;
                     dim.base.definition_point = data.definition_point;
-                    dim.refresh_measurement();
+                    // §19 H8h-ext-11: the wire's actual_measurement
+                    // (already set by map_dimension_common) is
+                    // authoritative — refresh_measurement() here
+                    // recomputed it from the geometry and clobbered
+                    // the author's stored double 1 ulp away
+                    // (example_2007 h=430: her 4630.519359082827
+                    // became ...828 through the ordinate-arm
+                    // recompute). The refresh stays a programmatic
+                    // and edited-document semantic.
                     let _ = document.add_entity(EntityType::Dimension(Dimension::Ordinate(dim)));
                 }
                 OBJ_ARC_DIMENSION => {
