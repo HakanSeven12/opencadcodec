@@ -1015,15 +1015,11 @@ pub(crate) fn transform_mesh(e: &mut Mesh, transform: &Transform) {
 // ── RasterImage ──────────────────────────────────────────────────────────────
 
 pub(crate) fn transform_raster_image(e: &mut RasterImage, transform: &Transform) {
+    // Same as a wipeout: `u_vector` / `v_vector` carry the pixel size, and the
+    // linear part already scales them — a second multiply squared the factor.
     e.insertion_point = transform.apply(e.insertion_point);
     e.u_vector = transform.apply_rotation(e.u_vector);
     e.v_vector = transform.apply_rotation(e.v_vector);
-
-    let unit_x = Vector3::new(1.0, 0.0, 0.0);
-    let transformed_unit = transform.apply_rotation(unit_x);
-    let scale_factor = transformed_unit.length();
-    e.u_vector = e.u_vector * scale_factor;
-    e.v_vector = e.v_vector * scale_factor;
 }
 
 // ── Solid3D ──────────────────────────────────────────────────────────────────
