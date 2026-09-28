@@ -4337,7 +4337,7 @@ stems O (point) and T (direction) and the angle stem F (360).
 
 ---
 
-## 19. The header & whole-structure campaign (planned 2026-09-25; PHASE 2 landed through the H8h arc — the READ axis ZERO corpus-wide, the AC1021 record-identity survey at 58/58 files / 0 divergent records as of H8h-ext-12, 2026-09-28)
+## 19. The header & whole-structure campaign (planned 2026-09-25; PHASE 2 landed through the H8h arc — the READ axis ZERO corpus-wide, the AC1021 record-identity survey at 58/58 files / 0 divergent records, and the era censuses at R2000 235/235, R2004 227/227, R2010 216/216, R2013 160/160 as of H8h-ext-15, 2026-09-28)
 
 The campaign target to date is the **OBJECTS axis**: silver's parsed
 entity/object records must match gold's, plus the write-side re-read
@@ -6987,11 +6987,20 @@ gold this campaign (the anchor note says so).
   absolute offset is numerically less than the owner value.
   Lengths: rel = 1 if offset==1 else 1+bytecount(offset);
   abs = 1+bytecount(value).
+- The rule's call-site census (the H8h-ext-13/-15 extension):
+  the rule holds on ALL eras (the R2000/R2004 ownerhandle
+  census matches the rule's output distribution exactly) and
+  covers every first-ref slot — the entity entmode==0 owner,
+  the non-entity owner, AND the pre-2004 prev/next entity chain
+  links (her CIRCLE (12.2.1E0) = own−0x1E0 where the plain
+  absolute (4.2.1FE) was written; the `offset < handle`
+  tie-break decides at equal length).
 - IN-TREE: `bit_writer.rs::write_handle` (absolute),
   `write_handle_relative` (codes 0x60/0x80/0xA0|n/0xC0|n —
-  implemented); the `write_first_ref_handle` helper + the two
-  call sites are the H8d-α re-apply package (recorded in
-  NEXT_SESSION's H8d section).
+  implemented); the `write_first_ref_handle` helper + the
+  call sites (both common writers' owner slots; the chain
+  handles in `write_common_data`) are the H8d-α re-apply
+  package (recorded in NEXT_SESSION's H8d section).
 
 #### C. Object record frame (R2004+; verified vs gold decode.c)
 
@@ -7035,17 +7044,38 @@ gold this campaign (the anchor note says so).
   `crc.rs::crc16` + `crc::CRC16_SEED`; `register_object` /
   `register_raw_object` in `object_writer/common.rs`.
 
-#### D. The R2007 per-record string stream
+#### D. The string streams (the R2007 per-record stream; the pre-2007 inline TV)
 
+**The R2007 per-record string stream:**
 - The RL bitsize field after the type gives the data-end bit;
   when strings are present the flag bit at the data end is 1
   and a short size value sits 128 bits before the end (bit
   0x8000 flags a second short; combined 30-bit size); the
   string stream spans downward from there and holds ALL of the
   record's TV strings.
+- The stream's PRESENCE is PER-RECORD wire state (the
+  H8h-ext-15 lesson): authors differ — the R2013 Constraints
+  geomdeps carry has_strings: 0 (no stream; a TU read returns
+  "" at 0 bits) while the AC1021 corpus authors write
+  has_strings: 1 even for empty-only streams. Never a blanket
+  merge rule: capture the presence at the read (the geomdep's
+  `wire_no_text_stream`; text_remaining_bits() ≤ 0) and mirror
+  it at the write — a blanket all-empty-stream drop in the
+  merge regressed 22 AC1021 records before the revert.
 - IN-TREE: `merged_writer.rs::merge_three_stream` implements
   the placement (main/text/handle merge with the flag words);
   the reader's counterpart decodes it 0/0 corpus-wide.
+
+**The pre-2007 inline TV (the H8h-ext-15 form):**
+- BS(byte count INCLUDING the terminating NUL) + the encoded
+  chars + the NUL byte — her R2000 LAYER name "0" spans 26
+  bits (BS 2 + '0' + NUL); a count-excluded emission is 8 bits
+  short per string and desyncs the record. The READER's own
+  parse proves the convention (read `count` bytes, strip
+  embedded NULs) — a count-excluded wire would misalign every
+  following field on HER files.
+- IN-TREE: `bit_writer.rs::write_variable_text` (the pre-2007
+  branch); the reader's `read_variable_text` legacy branch.
 
 #### E. AC21 LZ77 (the objects-section codec)
 

@@ -332,13 +332,19 @@ dc3737a <feat> H8h-ext-14: the R2010/R2013 constraint-group arms
        closed — the raw text-region capture + the era census
        instrument; the R2010/R2013 constraint records
        byte-identical (969C/36AD)
-<feat> H8h-ext-15: the era full-file record identity closed —
+0f2bbfa <feat> H8h-ext-15: the era full-file record identity closed —
        seven systematic roots (the pre-2007 TV terminator, the
        VISUALSTYLE accessor gate, the PLACEHOLDER wire-type capture,
        the entity chain form rule, the EED retained-block bytes, the
        geomdep stream-presence capture, the TABLESTYLE verbatim
        write); all four era censuses at zero (235/227/216/160)
-<docs> the post-H8h-ext-15 halt refresh (this file)
+       [this commit also carried the §19.2 H8h-ext-15 row and the
+       post-ext-15 halt refresh of this file]
+<docs> the post-H8h-ext-15 maintenance review — the §19 header state
+       annotation (the era censuses), the §19.4.B form-rule call-site
+       census, the §19.4.D string-stream reference (the pre-2007 TV
+       form + the stream-presence lesson), and this file's
+       commit-inventory hashes
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
