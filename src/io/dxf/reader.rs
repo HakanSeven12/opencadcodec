@@ -360,6 +360,7 @@ impl DxfReader {
         // (R12 STYLE entries) only receive their handles there, so running this
         // earlier would resolve every reference to a null handle.
         rewire_stale_text_style_references(&mut document);
+        rewire_dangling_layout_block_records(&mut document);
 
         // Pre-R2004 (R2000/R14) down-saved gradient hatches keep their gradient
         // in the ACAD round-trip metadata (GradientColor1/2ACI EED + an
@@ -756,6 +757,76 @@ fn rehandle_colliding_default_entries(
             if ds.dimtxsty_handle.value() == old {
                 ds.dimtxsty_handle = new;
             }
+        }
+    }
+}
+
+/// Re-point LAYOUT objects whose block-record reference resolves to nothing.
+///
+/// Some exporters (QGIS) write the LAYOUT objects of a template with that
+/// template's handles while the BLOCK_RECORD table carries fresh ones, so the
+/// Model layout names a record that does not exist and model space reads as
+/// empty. Model goes back to `*Model_Space`; paper layouts, in tab order, take
+/// the `*Paper_Space*` records no valid layout already owns.
+fn rewire_dangling_layout_block_records(document: &mut CadDocument) {
+    use crate::objects::ObjectType;
+
+    let records: HashMap<u64, String> = document
+        .block_records
+        .iter()
+        .map(|record| (record.handle.value(), record.name.to_ascii_lowercase()))
+        .collect();
+    let mut dangling = Vec::new();
+    let mut owned = std::collections::HashSet::new();
+    for (handle, object) in &document.objects {
+        if let ObjectType::Layout(layout) = object {
+            if records.contains_key(&layout.block_record.value()) {
+                owned.insert(layout.block_record.value());
+            } else {
+                dangling.push((layout.tab_order, *handle, layout.name.eq_ignore_ascii_case("Model")));
+            }
+        }
+    }
+    if dangling.is_empty() {
+        return;
+    }
+    dangling.sort();
+
+    // `*Paper_Space` first, then `*Paper_Space0`, `*Paper_Space1`, ...
+    let mut free_paper: Vec<(Option<u64>, u64)> = records
+        .iter()
+        .filter(|(handle, _)| !owned.contains(*handle))
+        .filter_map(|(handle, name)| {
+            let suffix = name.strip_prefix("*paper_space")?;
+            let order = if suffix.is_empty() { None } else { Some(suffix.parse().ok()?) };
+            Some((order, *handle))
+        })
+        .collect();
+    free_paper.sort();
+    let mut free_paper = free_paper.into_iter().map(|(_, handle)| handle);
+    let model = document.header.model_space_block_handle.value();
+
+    for (_, layout_handle, is_model) in dangling {
+        let target = if is_model && records.contains_key(&model) && !owned.contains(&model) {
+            model
+        } else if is_model {
+            continue;
+        } else {
+            let Some(handle) = free_paper.next() else {
+                continue;
+            };
+            handle
+        };
+        owned.insert(target);
+        if let Some(ObjectType::Layout(layout)) = document.objects.get_mut(&layout_handle) {
+            layout.block_record = Handle::new(target);
+        }
+        if let Some(record) = document
+            .block_records
+            .iter_mut()
+            .find(|record| record.handle.value() == target)
+        {
+            record.layout = layout_handle;
         }
     }
 }
