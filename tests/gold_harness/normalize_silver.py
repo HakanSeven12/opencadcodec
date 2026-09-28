@@ -4569,6 +4569,10 @@ def normalize_silver(
             # out_json's record-meta rule: the PLACEHOLDER class carries
             # dxfname ACDBPLACEHOLDER (differs from the spec block name).
             fields["dxfname"] = "ACDBPLACEHOLDER"
+            # §19 H8h-ext-15: the captured authored type code (the
+            # per-file 501-vs-80 form) is a writer-side fidelity
+            # channel — gold's decode has no counterpart field.
+            payload.pop("wire_type_code", None)
         if silver_type == "ImageDefinitionReactor":
             # dwg.spec IMAGEDEF_REACTOR: gold serializes class_version (BL)
             # and the ownerhandle only; the image-entity link is implied by

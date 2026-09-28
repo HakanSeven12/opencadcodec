@@ -5879,6 +5879,12 @@ impl DwgDocumentBuilder {
                     let obj = crate::objects::PlaceHolder {
                         handle: Handle::from(handle),
                         owner: owner_handle,
+                        // §19 H8h-ext-15: the authored type code is
+                        // PER-FILE (the R2000 specimen writes the
+                        // class-based 501; R2004/R2010 write the fixed
+                        // 80) — capture the dispatched code; the writer
+                        // re-emits it verbatim.
+                        wire_type_code: Some(raw_type_code),
                     };
                     document.objects.insert(
                         Handle::from(handle),

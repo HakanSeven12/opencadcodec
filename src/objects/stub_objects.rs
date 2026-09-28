@@ -252,6 +252,22 @@ impl VisualStyle {
         if self.properties.len() == 24 {
             return self.properties.clone();
         }
+        // §19 H8h-ext-15: the pre-R2007 wires carry 23 properties (the
+        // R2007-only bd2007_45 is absent). Synthesize the never-emitted
+        // 24th slot so the writer's [0..=22] + (R2007+ [23]) form reads
+        // the STORED values — the old len==24-only gate fell back to the
+        // core defaults, so the R2000/R2004 records re-emitted garbage
+        // (the era census: every VISUALSTYLE −25 bytes, our conv decoding
+        // face_opacity 0 where her wire carries −0.6). The model keeps
+        // its faithful 23 (the semantic projections match gold).
+        if self.properties.len() == 23 {
+            let mut padded = self.properties.clone();
+            padded.push(VisualStyleProperty {
+                value: VisualStylePropertyValue::Double(0.0),
+                enabled: 0,
+            });
+            return padded;
+        }
         let core = self.core_properties();
         let short = |value| VisualStyleProperty {
             value: VisualStylePropertyValue::Short(value),
@@ -788,6 +804,15 @@ pub struct PlaceHolder {
     pub handle: Handle,
     /// Owner handle
     pub owner: Handle,
+    /// §19 H8h-ext-15: the authored record's raw type code. The
+    /// PLACEHOLDER's wire type is PER-FILE: the R2000 Constraints
+    /// specimen writes the class-based 501 while the R2004/R2010
+    /// specimens write the fixed 80 (the ext-7 lesson — a convention
+    /// verified on one file is not a law). A DWG read captures the
+    /// dispatched code; the writer re-emits it, falling back to the
+    /// fixed 80 for DXF-built and programmatic documents.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_type_code: Option<i16>,
 }
 
 impl PlaceHolder {
@@ -796,6 +821,7 @@ impl PlaceHolder {
         PlaceHolder {
             handle: Handle::NULL,
             owner: Handle::NULL,
+            wire_type_code: None,
         }
     }
 }

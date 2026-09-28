@@ -6768,6 +6768,115 @@ Signature) — the parse side is further along than the emission side.
   byte-identity held, the full AC1021
   survey re-verified 58/58 / 0 divergent.
 
+  **H8h-ext-15 — THE ERA FULL-FILE
+  RECORD IDENTITY CLOSED: all four era
+  censuses at ZERO divergent records —
+  seven systematic roots fell (2026-09-28,
+  the continuation)**: the ext-14 census
+  instrument turned on the R2000/R2004
+  specimens for the first time: 164/235
+  and 157/227 records diverged (vs the
+  near-perfect R2010/R2013) — a
+  never-measured surface. Seven roots
+  fell, in census order: (1) **the
+  pre-2007 TV terminator** — the authored
+  wire counts the NUL in the length
+  (BS(len+1) + chars + NUL; her LAYER "0"
+  spans 26 bits vs our 18); the READER
+  already parsed it right (count bytes →
+  strip NULs — its own correctness proved
+  the convention), only the WRITER's
+  count-excluded form was wrong; the
+  single fix closed 159+155 records. (2)
+  **the VISUALSTYLE legacy_properties
+  gate** — the pre-R2007 wires carry 23
+  properties (the R2007-only bd2007_45 is
+  absent) and the accessor's len==24-only
+  gate fell back to CORE DEFAULTS (every
+  VISUALSTYLE −25 bytes, our conv decoding
+  face_opacity 0 where her wire carries
+  −0.6); the accessor now synthesizes the
+  never-emitted 24th slot at ACCESS time
+  (the model keeps its faithful 23 — the
+  semantic projections match gold; the
+  first attempt padded the reader's model
+  and the smokes caught the bd2007_45
+  extra_in_silver leak). (3) **the
+  PLACEHOLDER wire type** — PER-FILE
+  variance (the R2000 specimen writes the
+  class-based 501; R2004/R2010 the fixed
+  80 — the ext-7 lesson again): the
+  dispatched raw code is captured on the
+  read (`wire_type_code`) and re-emitted;
+  the fixed 80 stays the DXF/programmatic
+  fallback. (4) **the entity chain
+  handles** — the pre-2004 prev/next links
+  follow the H8d first-ref form rule (her
+  CIRCLE (12.2.1E0) = own−offset at equal
+  length; the rule's `offset < handle`
+  tie-break) — routed through
+  write_first_ref_handle. (5) **the EED
+  retained-block bytes** — the H8h
+  replace-in-place overwrote the author's
+  AcadAnnotative block with the synthesized
+  marker (codepage 0 where her blocks carry
+  30): a DWG read's retained raw block now
+  keeps BOTH its position AND its bytes;
+  the synthesis fires only for apps with
+  no retained block (the DXF/programmatic
+  path). (6) **the R2013 geomdep text
+  stream** — her records carry
+  has_strings: 0 (no stream; the classname
+  TU reads "" at 0 bits) where our
+  emission ran +18 bits; the stream's
+  PRESENCE is PER-RECORD wire state: the
+  first attempt (a blanket all-empty-
+  stream drop in the merge) REGRESSED 22
+  AC1021 records (their authors write
+  has_strings: 1 with empty-only streams —
+  the ext-7 lesson a third time) and
+  changed the generation identity; REVERTED.
+  The fix: the reader captures
+  `wire_no_text_stream` at the classname TU
+  (text_remaining_bits() ≤ 0, gated to
+  R2007+) and the writer skips the TU so
+  the merge emits no stream — the
+  generator (DXF-built, flag false) is
+  untouched. (7) **the
+  TABLESTYLE modern_style resolution** —
+  the writer resolved the null cell-style
+  text_style into the "Standard" handle
+  (the era censuses' single +1-byte
+  divergence, h=87 on R2010/R2013); on a
+  DWG read the retained NamedTableCellStyle
+  is the wire truth — verbatim; the
+  resolution rides the DXF/programmatic
+  path. **MEASURED: the era censuses ALL
+  AT ZERO — R2000 235/235, R2004 227/227,
+  R2010 216/216, R2013 160/160 (every
+  record byte-identical: size + CRC-16).**
+  GATES: serde 1602/0 (the VisualStyle
+  model keeps 23 — no test changes),
+  gold_roundtrip ok, issue80 7/0, four
+  family smokes 0/0/0/0 (the two
+  wire-capture field leaks — the
+  PlaceHolder wire_type_code popped in the
+  normalize; the bd2007_45 leak fixed by
+  the accessor-side pad), corpus 280 files
+  0/0/0/0, the full AC1021 survey
+  re-verified 58/58 / 0 divergent, the
+  echo byte-identity held. **THE
+  GENERATION IDENTITY UNCHANGED**
+  (`84374e73ddcf1d6143877c4100b81e48`,
+  25,375 bytes, feature-independent) —
+  the blanket all-empty-stream drop (which
+  changed the artifact to
+  `3969f799…`) was REVERTED with the
+  survey regression; the per-record
+  `wire_no_text_stream` capture leaves
+  the generator (DXF-built, flag false)
+  byte-identical.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

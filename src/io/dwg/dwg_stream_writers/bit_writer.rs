@@ -644,10 +644,25 @@ impl DwgBitWriter {
                 self.write_bytes(&code_unit.to_le_bytes());
             }
         } else {
-            // Pre-R2007: Write byte count, then encoded bytes
+            // Pre-R2007: BS byte count INCLUDING the terminating NUL,
+            // then the encoded bytes, then the NUL byte.
+            // §19 H8h-ext-15: the authored pre-2007 wire counts the
+            // terminator — her R2000 LAYER name "0" spans 26 bits
+            // (BS 2 + '0' + NUL) where the old form emitted 18
+            // (BS 1 + '0'); the H8h-ext-8 R2000 dissection found the
+            // same convention on the constraint class names (BS 20
+            // for the 19-char "AcConstrainedCircle"), and the
+            // READER's own correctness proves it (it reads `count`
+            // bytes and strips embedded NULs — a count-excluding wire
+            // would misalign every following field on HER files, and
+            // read-fidelity is 0). The semantic gates never saw the
+            // loss: our count-excluded wires re-read to the same
+            // strings. Empty strings stay BS 0 (the shared empty
+            // early-return).
             let encoded = crate::io::dxf::code_page::encode_legacy_string(text, self.encoding);
-            self.write_bit_short(encoded.len() as i16);
+            self.write_bit_short(encoded.len() as i16 + 1);
             self.write_bytes(&encoded);
+            self.write_bytes(&[0]);
         }
     }
 

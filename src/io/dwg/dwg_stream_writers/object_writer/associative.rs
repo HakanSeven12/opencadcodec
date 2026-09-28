@@ -463,8 +463,16 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_assoc_dependency(&value.dependency);
                 self.writer.write_bit_short(value.class_version);
                 self.writer.write_bit(value.enabled);
-                self.writer
-                    .write_variable_text(&value.persistent_subent.class_name);
+                // §19 H8h-ext-15: mirror the author's stream PRESENCE —
+                // on a no-stream record (the captured wire_no_text_
+                // stream; her R2013 geomdeps) the classname TU is
+                // skipped so the merge emits has_strings: 0; records
+                // whose author wrote a stream (the AC1021 corpus,
+                // even empty-only) keep the normal TU emission.
+                if !value.persistent_subent.wire_no_text_stream {
+                    self.writer
+                        .write_variable_text(&value.persistent_subent.class_name);
+                }
                 self.writer
                     .write_bit(value.persistent_subent.dependent_on_compound_object);
                 // §19 H8h-ext-10: re-emit the captured persubent-id tail

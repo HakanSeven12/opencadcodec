@@ -689,6 +689,18 @@ pub fn read_associative_data(
             let dependency = read_dependency(reader);
             let class_version = reader.read_bit_short();
             let enabled = reader.read_bit();
+            // §19 H8h-ext-15: capture the text stream's PRESENCE at the
+            // classname TU — the author's PER-RECORD form: her R2013
+            // Constraints geomdeps carry has_strings: 0 (no stream; the
+            // TU read returns "" at 0 bits) while the AC1021 corpus
+            // authors write has_strings: 1 even with empty-only
+            // streams. The writer skips the TU on a no-stream record so
+            // the merge emits no stream. Gated to R2007+ — the
+            // pre-2007 classname is an inline main TV (no text
+            // streams exist; the flag stays false and the write is
+            // the normal inline form).
+            let wire_no_text_stream =
+                dxf_version >= DxfVersion::AC1021 && reader.text_remaining_bits() <= 0;
             let class_name = reader.read_variable_text();
             let dependent_on_compound_object = reader.read_bit();
             // §19 H8h-ext-10: capture the undocumented persubent-id
@@ -705,6 +717,7 @@ pub fn read_associative_data(
                 dependent_on_compound_object,
                 tail_bits: None,
                 tail_bit_len: 0,
+                wire_no_text_stream,
             };
             let tail_from = reader.position_in_bits();
             let tail_to = reader.main_data_end();

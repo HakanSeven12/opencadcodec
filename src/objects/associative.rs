@@ -607,6 +607,14 @@ pub struct AssocPersistentSubentId {
     /// Exact bit width of `tail_bits`.
     #[cfg_attr(feature = "serde", serde(default))]
     pub tail_bit_len: u32,
+    /// §19 H8h-ext-15: the author's record carried NO text stream
+    /// (has_strings: 0) at the classname TU — PER-RECORD wire state:
+    /// the R2013 Constraints specimen's geomdeps omit the stream while
+    /// the AC1021 corpus authors write has_strings: 1 with empty-only
+    /// streams (the blanket all-empty drop regressed those; reverted).
+    /// The writer skips the classname TU so the merge emits no stream.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_no_text_stream: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

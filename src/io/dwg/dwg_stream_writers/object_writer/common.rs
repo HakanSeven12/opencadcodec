@@ -522,10 +522,26 @@ impl<'a> DwgObjectWriter<'a> {
 
             // HANDLE: prev + next entity handles only when NOT sequential
             if !nolinks {
-                self.writer
-                    .write_handle(DwgReferenceType::SoftPointer, prev_h.value());
-                self.writer
-                    .write_handle(DwgReferenceType::SoftPointer, next_h.value());
+                // §19 H8h-ext-15: the chain handles follow the H8d
+                // first-ref form rule — the authored R2000 links use the
+                // relative form at equal length (her CIRCLE h=3DE
+                // prev_entity (12.2.1E0) = own − 0x1E0 where the plain
+                // absolute (4.2.1FE) was written; her LINE h=1FE
+                // next_entity (10.2.1E0) = own + 0x1E0 vs (4.2.3DE)).
+                // The tie-break is the rule's `offset < handle` (the
+                // numerically smaller stored number) — the same rule the
+                // ownerhandle slot rides (§19.4.B; the ext-13 pre-2007
+                // census).
+                self.writer.write_first_ref_handle(
+                    DwgReferenceType::SoftPointer,
+                    handle.value(),
+                    prev_h.value(),
+                );
+                self.writer.write_first_ref_handle(
+                    DwgReferenceType::SoftPointer,
+                    handle.value(),
+                    next_h.value(),
+                );
             }
         }
 
@@ -804,16 +820,22 @@ impl<'a> DwgObjectWriter<'a> {
             eed.raw_dwg_eed = raw.clone();
         }
         for (app, bytes) in extra_eed {
-            // §19 H8h: replace-in-place — the author's EED block order is
-            // part of the record's byte identity (her STYLE/DIMSTYLE files
-            // carry the AcadAnnotative block FIRST; a remove-and-push-to-end
-            // reorders the stream). An existing block for the same app keeps
-            // its position; an app with no retained block appends.
-            if let Some(slot) = eed.raw_dwg_eed.iter_mut().find(|(a, _)| *a == app) {
-                slot.1 = bytes;
-            } else {
-                eed.raw_dwg_eed.push((app, bytes));
+            // §19 H8h: the author's EED block order is part of the
+            // record's byte identity (her STYLE/DIMSTYLE files carry
+            // the AcadAnnotative block FIRST; a remove-and-push-to-end
+            // reorders the stream) — an existing block for the same app
+            // KEEPS its position. §19 H8h-ext-15: a DWG read's
+            // RETAINED raw block is the wire truth and also keeps its
+            // BYTES — the H8h replace-in-place overwrote the author's
+            // block with the synthesized marker (codepage 0 where her
+            // blocks carry 30; the era census: every STYLE and
+            // DIMSTYLE same-size CRC divergence on R2000/R2004).
+            // The synthesis now only fires for apps with NO retained
+            // block (the DXF-built and programmatic paths).
+            if eed.raw_dwg_eed.iter().any(|(a, _)| *a == app) {
+                continue;
             }
+            eed.raw_dwg_eed.push((app, bytes));
         }
         self.write_extended_data(&eed);
 

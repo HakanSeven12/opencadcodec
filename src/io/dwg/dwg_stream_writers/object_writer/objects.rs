@@ -1268,15 +1268,23 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_table_style_named_cell_style(&mut self, value: &NamedTableCellStyle) {
-        let resolved = self.resolve_table_text_style(value.cell_style.content_format.text_style);
-        if resolved == value.cell_style.content_format.text_style {
-            self.write_named_table_cell_style(value);
-            return;
+        // §19 H8h-ext-15: on a DWG read the retained NamedTableCellStyle
+        // is the wire truth — write it verbatim. The null → "Standard"
+        // resolution rode the DXF-built and programmatic path only
+        // (her R2010/R2013 TABLESTYLE h=87 nulls the leading
+        // cellstyle's text_style where the resolution wrote the
+        // resolved (5.1.11) handle — the era censuses' single +1-byte
+        // divergence, now the last record standing).
+        if self.document.dwg_source_version.is_none() {
+            let resolved =
+                self.resolve_table_text_style(value.cell_style.content_format.text_style);
+            if resolved != value.cell_style.content_format.text_style {
+                let mut value = value.clone();
+                value.cell_style.content_format.text_style = resolved;
+                return self.write_named_table_cell_style(&value);
+            }
         }
-
-        let mut value = value.clone();
-        value.cell_style.content_format.text_style = resolved;
-        self.write_named_table_cell_style(&value);
+        self.write_named_table_cell_style(value);
     }
 
     fn write_default_modern_table_cell_style(&mut self, value: &TableStyle) {
@@ -2922,7 +2930,12 @@ impl<'a> DwgObjectWriter<'a> {
     // ── PlaceHolder ─────────────────────────────────────────────────
 
     fn write_placeholder(&mut self, ph: &PlaceHolder) {
-        self.write_common_non_entity_data(common::OBJ_PLACEHOLDER, ph.handle, ph.owner, &[], &None);
+        // §19 H8h-ext-15: the authored type code is per-file (the R2000
+        // specimen writes the class-based 501; R2004/R2010 the fixed 80) —
+        // re-emit the captured code; DXF-built and programmatic documents
+        // keep the fixed fallback.
+        let type_code = ph.wire_type_code.unwrap_or(common::OBJ_PLACEHOLDER);
+        self.write_common_non_entity_data(type_code, ph.handle, ph.owner, &[], &None);
 
         self.register_object(ph.handle);
     }

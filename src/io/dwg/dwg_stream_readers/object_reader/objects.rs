@@ -117,6 +117,11 @@ pub fn read_visual_style(
                 enabled: 1,
             });
         }
+        // §19 H8h-ext-15: the pre-R2007 model keeps its faithful 23
+        // wire properties (the semantic projections see 23, matching
+        // gold); `legacy_properties()` synthesizes the never-emitted
+        // 24th slot at access time so the writer re-emits the READ
+        // values instead of its core defaults.
         value.internal_use_only = reader.read_bit();
         return value;
     }
