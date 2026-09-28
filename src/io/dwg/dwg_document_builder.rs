@@ -775,10 +775,37 @@ impl DwgDocumentBuilder {
                     OBJ_LAYER_CONTROL => {
                         document.layers.set_handle(control_handle);
                         document.header.layer_control_handle = control_handle;
+                        // §19 H8h-ext-9: capture the authored entry slots
+                        // (num_entries BL per the gold walk; the Russian
+                        // ATMOS-DC22S drawing carries a null deleted-slot
+                        // tail — entries [10, A5, 0] for two live layers).
+                        // Echoed by the writer under the same-universe
+                        // gate.
+                        let num_entries = reader.read_bit_long().max(0) as i32;
+                        let mut entries = Vec::new();
+                        for _ in 0..num_entries {
+                            let handle_value = reader.read_handle();
+                            entries.push(Handle::from(handle_value));
+                        }
+                        document
+                            .table_control_entries
+                            .insert(control_handle, entries);
                     }
                     OBJ_STYLE_CONTROL => {
                         document.text_styles.set_handle(control_handle);
                         document.header.style_control_handle = control_handle;
+                        // §19 H8h-ext-9: same capture for the style table
+                        // (ATMOS-DC22S: entries [11, 6B, 0×5] for two live
+                        // styles — five null deleted slots).
+                        let num_entries = reader.read_bit_long().max(0) as i32;
+                        let mut entries = Vec::new();
+                        for _ in 0..num_entries {
+                            let handle_value = reader.read_handle();
+                            entries.push(Handle::from(handle_value));
+                        }
+                        document
+                            .table_control_entries
+                            .insert(control_handle, entries);
                     }
                     OBJ_LTYPE_CONTROL => {
                         document.line_types.set_handle(control_handle);
@@ -5276,7 +5303,10 @@ impl DwgDocumentBuilder {
                     );
                 }
                 OBJ_DICTIONARYWDFLT => {
-                    let data = objects::read_dictionary_with_default(&mut reader);
+                    let data = objects::read_dictionary_with_default(
+                        &mut reader,
+                        self.obj_reader.version(),
+                    );
                     let mut obj = crate::objects::DictionaryWithDefault::new();
                     obj.handle = Handle::from(handle);
                     obj.owner = owner_handle;

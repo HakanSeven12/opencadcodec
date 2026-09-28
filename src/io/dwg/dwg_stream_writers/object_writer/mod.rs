@@ -371,16 +371,20 @@ impl<'a> DwgObjectWriter<'a> {
 
         // ── Table controls ──────────────────────────────────────
         self.write_block_control();
-        self.write_table_control(
-            self.document.layers.handle(),
-            common::OBJ_LAYER_CONTROL,
-            &self
-                .document
-                .layers
-                .iter()
-                .map(|l| l.handle)
-                .collect::<Vec<_>>(),
-        );
+        // §19 H8h-ext-9: the authored entry slots echo (the null
+        // deleted-slot tails — ATMOS-DC22S carries [10, A5, 0]).
+        {
+            let live: Vec<Handle> =
+                self.document.layers.iter().map(|l| l.handle).collect();
+            let entries = self
+                .authored_control_entries(self.document.layers.handle(), &live)
+                .unwrap_or(live);
+            self.write_table_control(
+                self.document.layers.handle(),
+                common::OBJ_LAYER_CONTROL,
+                &entries,
+            );
+        }
         self.write_text_style_control();
         self.write_ltype_control();
         // §19 H8h-ext: the author's view-table slots echo verbatim (the
@@ -626,10 +630,15 @@ impl<'a> DwgObjectWriter<'a> {
     /// STYLE_CONTROL
     fn write_text_style_control(&mut self) {
         let handles: Vec<Handle> = self.document.text_styles.iter().map(|s| s.handle).collect();
+        // §19 H8h-ext-9: the authored entry slots echo (ATMOS-DC22S
+        // carries [11, 6B, 0×5] — five null deleted slots).
+        let entries = self
+            .authored_control_entries(self.document.text_styles.handle(), &handles)
+            .unwrap_or(handles);
         self.write_table_control(
             self.document.text_styles.handle(),
             common::OBJ_STYLE_CONTROL,
-            &handles,
+            &entries,
         );
     }
 

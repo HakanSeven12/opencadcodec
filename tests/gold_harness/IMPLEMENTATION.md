@@ -6369,6 +6369,54 @@ Signature) — the parse side is further along than the emission side.
   RESIDUAL 12: example_2007's 9 marginals; ATMOS 3 +
   84 her-only.
 
+  **H8h-ext-9 — the ATMOS closure: two reader-side
+  conventions corrected: 12 → 9 (2026-09-28, the
+  continuation; the ATMOS-DC22S three)**: the Russian
+  drawing's three divergent records fell to two
+  root causes, both reader-side. (1) **h=2/h=3
+  (LAYER_CONTROL/STYLE_CONTROL)**: her entry vectors
+  carry NULL DELETED-SLOT TAILS — [10, A5, 0] for two
+  live layers; [11, 6B, 0×5] for two live styles —
+  the same authored-slots phenomenon the H8h
+  extension captured for BLOCK/LTYPE/VIEW/DIMSTYLE
+  but not LAYER/STYLE, whose writers derived the
+  count from the live tables. THE FIX: the builder
+  captures the LAYER/STYLE entry slots (num_entries
+  BL + the handle vector, keyed by the control
+  handle — the VIEW_CONTROL pattern), and the two
+  writers apply the same-universe gate
+  (`authored_control_entries`: the captured non-null
+  set must equal the live table's handles; edited
+  tables and DXF-built documents fall back to the
+  model). (2) **h=77 (DICTIONARY)**: the image
+  dictionary's keys are CYRILLIC — "_Схема-1" …
+  "_Схема-4" — and `clean_dict_key()` (the R13/R14
+  mis-sized-key workaround: cut at the first
+  non-printable/high byte, added for the
+  ACAD_FILTER\u{80}0 xclip/gradient lookups) was
+  applied to ALL eras, truncating the legitimate
+  R2007 Unicode keys to "_". THE FIX: the cut is
+  gated to `r13_14_only()` (the mis-sized era);
+  R2000+ keys are exact-length and pass verbatim —
+  the same lesson as the H8h-ext-7 SEQEND flags: an
+  era-verified convention is not a law. (The
+  read-fidelity gates never caught it:
+  normalize_gold/normalize_silver drop DICTIONARY
+  texts/items from the compare — only the byte
+  survey sees the loss.) **MEASURED: ATMOS 340/340
+  (0 divergent; the 84 her-only broken-map orphans
+  remain, pre-existing); the residual 12 → 9; 57/58
+  files at 100%** (only example_2007 below). GATES:
+  serde 1602/0, gold_roundtrip ok, issue80 7/0,
+  four family smokes 0/0, corpus 280 files 0/0/0/0,
+  generation identity UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`, 25,375
+  bytes, feature-independent — the generator's
+  tables carry no captures and its dictionary keys
+  are ASCII), the echo byte-identity held (circle
+  cmp clean). THE RESIDUAL 9: example_2007's
+  marginals only.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

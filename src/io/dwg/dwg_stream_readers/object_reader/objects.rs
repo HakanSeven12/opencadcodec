@@ -756,15 +756,31 @@ pub struct WipeoutVariablesData {
 //  Reader functions
 // ════════════════════════════════════════════════════════════════════════
 
-/// Dictionary keys are ASCII identifiers ([A-Z0-9_:]). R13/R14 mis-sizes the
-/// key string, appending a few control/high bytes from the following field
-/// ("ACAD_FILTER\u{80}0…"), which broke exact-name lookups (xclip filters,
-/// gradient round-trip records). The trailing garbage is always non-printable
-/// or high-bit, so cut the key at the first such byte.
+/// Dictionary keys are ASCII identifiers ([A-Z0-9_:]) in the R13/R14
+/// corpus, where the reader mis-sizes the key string, appending a few
+/// control/high bytes from the following field
+/// ("ACAD_FILTER\u{80}0…"), which broke exact-name lookups (xclip
+/// filters, gradient round-trip records). The trailing garbage is always
+/// non-printable or high-bit, so cut the key at the first such byte.
+/// §19 H8h-ext-9: the cut is GATED to the mis-sized era — R2000+ keys
+/// are exact-length strings that may legitimately carry non-ASCII text
+/// (the Russian ATMOS-DC22S drawing's "_Схема-1" image-dictionary keys;
+/// the ungated cut truncated them to "_"). The same lesson as the
+/// H8h-ext-7 SEQEND flags: an era-verified convention is not a law.
 fn clean_dict_key(name: String) -> String {
     match name.find(|c: char| (c as u32) < 0x20 || (c as u32) > 0x7e) {
         Some(pos) => name[..pos].to_string(),
         None => name,
+    }
+}
+
+/// The per-era dictionary-key cleaner: the R13/R14 mis-sized-key cut,
+/// exact keys everywhere else.
+fn dict_key(version: DwgVersion, name: String) -> String {
+    if version.r13_14_only() {
+        clean_dict_key(name)
+    } else {
+        name
     }
 }
 
@@ -782,7 +798,7 @@ pub fn read_dictionary(reader: &mut DwgMergedReader, version: DwgVersion) -> Dic
 
     let mut entries = Vec::with_capacity(num_entries as usize);
     for _ in 0..num_entries {
-        let name = clean_dict_key(reader.read_variable_text());
+        let name = dict_key(version, reader.read_variable_text());
         let handle = reader.read_handle();
         entries.push(DictionaryEntry { name, handle });
     }
@@ -794,14 +810,17 @@ pub fn read_dictionary(reader: &mut DwgMergedReader, version: DwgVersion) -> Dic
     }
 }
 
-pub fn read_dictionary_with_default(reader: &mut DwgMergedReader) -> DictionaryWithDefaultData {
+pub fn read_dictionary_with_default(
+    reader: &mut DwgMergedReader,
+    version: DwgVersion,
+) -> DictionaryWithDefaultData {
     let num_entries = safe_count(reader.read_bit_long());
     let duplicate_cloning = reader.read_bit_short();
     let hard_owner = reader.read_byte() != 0;
 
     let mut entries = Vec::with_capacity(num_entries as usize);
     for _ in 0..num_entries {
-        let name = clean_dict_key(reader.read_variable_text());
+        let name = dict_key(version, reader.read_variable_text());
         let handle = reader.read_handle();
         entries.push(DictionaryEntry { name, handle });
     }
