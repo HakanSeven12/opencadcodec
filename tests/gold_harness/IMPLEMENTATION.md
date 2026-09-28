@@ -6417,6 +6417,73 @@ Signature) — the parse side is further along than the emission side.
   cmp clean). THE RESIDUAL 9: example_2007's
   marginals only.
 
+  **H8h-ext-10 — the example_2007 first fruits:
+  four of the nine closed (the hasatts bit, the
+  REGION history_id presence, the persubent-id
+  tail): 9 → 5 (2026-09-28, the continuation)**:
+  the last residual class opened; three root
+  causes fell. (1) **h=1F (*Model_Space
+  BLOCK_HEADER)**: her hasatts bit is 0 while
+  the block carries ATTDEF entities — the writer
+  DERIVED the bit from AttributeDefinition
+  presence (a DXF-built heuristic applied to
+  DWG reads). THE FIX: the captured model bit
+  (`flags.has_attributes`) is authoritative on a
+  DWG read; the heuristic stays the DXF-built and
+  programmatic fallback (the generation
+  identity's path). (2) **h=176/h=37D (REGION,
+  +1 byte each)**: the writer emitted an explicit
+  null history_id handle where the author OMITS
+  it. Gold's rule (dwg.spec COMMON_3DSOLID): the
+  ref is read only while ≥8 handle bits remain
+  (the AVAIL_BITS guard) — and the wire census is
+  PER-RECORD: ATMOS's native solids write
+  explicit nulls (58×, matched by our emission),
+  while example_2007's imported-ACIS REGIONs
+  (an "ASM 223.0.1.1930 OSX" SAB blob) end
+  their handle streams flush after the layer
+  ref. THE FIX: the reader gates the read on
+  the ≥8 rule and captures the wire PRESENCE
+  (Some(NULL) = an explicit null on the wire;
+  None = absent — the REGION reader previously
+  never read the handle at all while the writer
+  emitted it, the asymmetry that produced the
+  +8 bits); the writer mirrors the presence for
+  DWG reads and keeps the explicit null for
+  DXF/programmatic documents. (3) **h=396
+  (ASSOCGEOMDEPENDENCY, −46 bits)**: her record
+  carries 46 undocumented main-stream bits after
+  the persubent id's dependent_on_compound_
+  object — gold's spec block (dwg2.spec 3148)
+  ends there and its own walk parks them
+  unknown; her handle stream holds only the five
+  parsed refs plus the closing 1s pad, so the
+  main tail is the whole delta. THE FIX (the
+  H8h-ext-8 wire-capture doctrine): the reader
+  retains the tail verbatim (`tail_bits` +
+  `tail_bit_len` on AssocPersistentSubentId,
+  peeked from the post-flag position to the
+  main-data end); the writer re-emits the bits;
+  records whose parse consumes the region
+  exactly capture nothing. **MEASURED:
+  example_2007 535/540 (the residual 5: h=1A9/
+  h=430 — double low-mantissa diffs on fields
+  that print identically, the recomputed-value
+  suspicion; h=392/h=393 — single-bit diffs in
+  the ACDBASSOC partial-parse classes' unknown
+  regions; h=BF2 — a 14.5KB UNKNOWN_OBJ whose
+  captured re-emission runs 203 bytes short and
+  near-fully differs); ATMOS re-verified
+  340/340; 57/58 files at 100%.** GATES: serde
+  1602/0, gold_roundtrip ok, issue80 7/0, four
+  family smokes 0/0, corpus 280 files 0/0/0/0,
+  generation identity UNCHANGED
+  (`84374e73ddcf1d6143877c4100b81e48`, 25,375
+  bytes, feature-independent), the echo
+  byte-identity held (circle cmp clean). THE
+  RESIDUAL 5: example_2007's h=1A9/h=392/h=393/
+  h=430/h=BF2.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

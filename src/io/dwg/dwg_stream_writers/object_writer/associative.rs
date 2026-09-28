@@ -454,6 +454,19 @@ impl<'a> DwgObjectWriter<'a> {
                     .write_variable_text(&value.persistent_subent.class_name);
                 self.writer
                     .write_bit(value.persistent_subent.dependent_on_compound_object);
+                // §19 H8h-ext-10: re-emit the captured persubent-id tail
+                // (the undocumented main-stream bits after dependent_on_
+                // compound_object); absent for DXF-built and edited
+                // documents.
+                if let Some(bytes) = &value.persistent_subent.tail_bits {
+                    let bits = (value.persistent_subent.tail_bit_len as usize)
+                        .min(bytes.len() * 8);
+                    for index in 0..bits {
+                        let byte = bytes[index / 8];
+                        let bit = (byte >> (7 - index % 8)) & 1;
+                        self.writer.write_bit(bit == 1);
+                    }
+                }
             }
             AssociativeData::SurfaceActionBody(value) => self.write_assoc_surface(value),
             AssociativeData::Action(value) => self.write_assoc_action(value),

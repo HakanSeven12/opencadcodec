@@ -4849,13 +4849,22 @@ impl DwgDocumentBuilder {
                     e.wires = data.wires;
                     e.silhouettes = data.silhouettes;
 
-                    // 3DSOLID R2007+: history_id handle
-                    // (always present since R2007, regardless of ACIS version)
-                    if self.obj_reader.version().r2007_plus() {
+                    // 3DSOLID R2007+: history_id handle.
+                    // §19 H8h-ext-10: gold reads the ref only while
+                    // ≥8 handle bits remain (the dwg.spec AVAIL_BITS
+                    // guard) — the imported-ACIS solids of example_
+                    // 2007 (REGION h=176/h=37D) end their handle
+                    // streams flush after the layer ref and OMIT it,
+                    // while ATMOS's native solids write explicit
+                    // nulls (58×). Capture the wire presence:
+                    // Some(NULL) = an explicit null on the wire;
+                    // None = absent — the writer mirrors the author's
+                    // form for DWG reads.
+                    if self.obj_reader.version().r2007_plus()
+                        && reader.record_end_bits() - reader.handle_position_in_bits() >= 8
+                    {
                         let h = reader.read_handle();
-                        if h != 0 {
-                            e.history_handle = Some(Handle::new(h));
-                        }
+                        e.history_handle = Some(Handle::new(h));
                     }
                     let _ = document.add_entity(EntityType::Solid3D(e));
                 }
@@ -4901,6 +4910,17 @@ impl DwgDocumentBuilder {
                     };
                     e.wires = data.wires;
                     e.silhouettes = data.silhouettes;
+                    // §19 H8h-ext-10: REGION's history_id handle — the
+                    // same AVAIL_BITS-gated read as 3DSOLID/BODY (the
+                    // imported-ACIS REGIONs of example_2007 omit it;
+                    // native authors may write explicit nulls).
+                    if self.obj_reader.version().r2007_plus()
+                        && !e.common.has_ds_data
+                        && reader.record_end_bits() - reader.handle_position_in_bits() >= 8
+                    {
+                        let h = reader.read_handle();
+                        e.history_handle = Some(Handle::new(h));
+                    }
                     let _ = document.add_entity(EntityType::Region(e));
                 }
                 OBJ_BODY => {
@@ -4945,11 +4965,15 @@ impl DwgDocumentBuilder {
                     };
                     e.wires = data.wires;
                     e.silhouettes = data.silhouettes;
-                    if self.obj_reader.version().r2007_plus() && !e.common.has_ds_data {
+                    // §19 H8h-ext-10: the AVAIL_BITS-gated read with the
+                    // wire-presence capture (Some(NULL) = an explicit
+                    // null on the wire; None = absent).
+                    if self.obj_reader.version().r2007_plus()
+                        && !e.common.has_ds_data
+                        && reader.record_end_bits() - reader.handle_position_in_bits() >= 8
+                    {
                         let h = reader.read_handle();
-                        if h != 0 {
-                            e.history_handle = Some(Handle::new(h));
-                        }
+                        e.history_handle = Some(Handle::new(h));
                     }
                     let _ = document.add_entity(EntityType::Body(e));
                 }

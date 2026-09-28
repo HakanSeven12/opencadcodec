@@ -687,14 +687,39 @@ pub fn read_associative_data(
         }),
         "ASSOCGEOMDEPENDENCY" => {
             let dependency = read_dependency(reader);
+            let class_version = reader.read_bit_short();
+            let enabled = reader.read_bit();
+            let class_name = reader.read_variable_text();
+            let dependent_on_compound_object = reader.read_bit();
+            // §19 H8h-ext-10: capture the undocumented persubent-id
+            // tail — the main-stream bits after dependent_on_compound_
+            // object that gold's spec block (dwg2.spec 3148) does not
+            // cover and its own -v9 walk parks as unknown (example_
+            // 2007 h=396: 46 bits; the handle stream holds only the
+            // five parsed refs plus the closing 1s pad, so the main
+            // tail is the whole delta). Re-emitted verbatim by the
+            // writer; records whose parse consumes the region exactly
+            // capture nothing and keep the modeled emission.
+            let mut persistent_subent = AssocPersistentSubentId {
+                class_name,
+                dependent_on_compound_object,
+                tail_bits: None,
+                tail_bit_len: 0,
+            };
+            let tail_from = reader.position_in_bits();
+            let tail_to = reader.main_data_end();
+            if tail_to > tail_from {
+                let count = (tail_to - tail_from) as u32;
+                if let Some(bytes) = reader.peek_window_bytes(tail_from, count) {
+                    persistent_subent.tail_bits = Some(bytes);
+                    persistent_subent.tail_bit_len = count;
+                }
+            }
             AssociativeData::GeomDependency(AssocGeomDependency {
                 dependency,
-                class_version: reader.read_bit_short(),
-                enabled: reader.read_bit(),
-                persistent_subent: AssocPersistentSubentId {
-                    class_name: reader.read_variable_text(),
-                    dependent_on_compound_object: reader.read_bit(),
-                },
+                class_version,
+                enabled,
+                persistent_subent,
             })
         }
         "ASSOCACTION" => AssociativeData::Action(read_action(reader)),

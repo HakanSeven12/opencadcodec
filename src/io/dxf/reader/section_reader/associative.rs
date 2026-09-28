@@ -1080,6 +1080,7 @@ impl<'a> SectionReader<'a> {
                     },
                     dependent_on_compound_object: record.bool("AcDbAssocPersSubentId", 290, 0)
                         || record.bool("AcDbAssocAsmBasedEntityPersSubentId", 290, 0),
+                    ..Default::default()
                 },
             }),
             "ASSOCACTION" => AssociativeData::Action(read_action(&record)),

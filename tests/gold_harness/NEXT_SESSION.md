@@ -1,55 +1,58 @@
-# Zero-context prompt — TARGET ZERO held; the conventional arm at 9 residual records (H8h-ext-9: the ATMOS closure — the LAYER/STYLE authored-slots capture + the dictionary-key era gate; the residual is example_2007's marginals only)
+# Zero-context prompt — TARGET ZERO held; the conventional arm at 5 residual records (H8h-ext-10: the example_2007 first fruits — the hasatts bit, the REGION history_id presence, the persubent-id tail; 4 of the 9 closed)
 
-> Campaign state 2026-09-28 (the halt after the H8h-ext-9 landing; the
-> session continued the loop from the H8h-ext-8 halt: review → land →
+> Campaign state 2026-09-28 (the halt after the H8h-ext-10 landing; the
+> session continued the loop from the H8h-ext-9 halt: review → land →
 > verify → commit → push. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280
 > files, read-fidelity 0, write-fidelity 0, read key-gap 0,
 > write-target 0** — verified after the landing). The ACS/SH campaign
 > stays COMPLETE at 0/0. The §19 structure campaign's READ axis stays
 > ZERO corpus-wide. Read `tests/gold_harness/AGENTS.md` first, then
 > §F2.1–F2.3 + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3
-> (§19.2's H8d–H8h-ext-9 rows carry this arc's records), then this
+> (§19.2's H8d–H8h-ext-10 rows carry this arc's records), then this
 > file top to bottom.
 
-## The arc (2026-09-28, the continuation session — H8h-ext-9)
+## The arc (2026-09-28, the continuation session — H8h-ext-10)
 
-1. **The ATMOS autopsy**: the Russian drawing's three divergent
-   records (the ext-8 halt's residual ATMOS class) fell to TWO
-   reader-side root causes.
-2. **h=2/h=3 (LAYER_CONTROL/STYLE_CONTROL)**: her entry vectors carry
-   NULL DELETED-SLOT TAILS — the layer control [10, A5, 0] for two
-   live layers; the style control [11, 6B, 0×5] for two live styles
-   (gold's -v9 walk prints the full vectors). The H8h-extension
-   authored-slots capture existed for BLOCK/LTYPE/VIEW/DIMSTYLE but
-   NOT LAYER/STYLE, whose writers derived num_entries from the live
-   tables. THE FIX: the builder captures the LAYER/STYLE entry slots
-   (num_entries BL + the handle vector, keyed by the control handle —
-   the VIEW_CONTROL pattern), and the two writers apply the
-   same-universe gate (`authored_control_entries`: the captured
-   non-null set must equal the live table's handles; edited tables
-   and DXF-built documents fall back to the model).
-3. **h=77 (DICTIONARY)**: the image dictionary's keys are CYRILLIC —
-   "_Схема-1" … "_Схема-4" (her text stream: plain TUs, count=8,
-   UTF-16LE, 552 bits) — and `clean_dict_key()` (the R13/R14
-   mis-sized-key workaround: cut at the first non-printable/high
-   byte, added for the ACAD_FILTER\u{80}0 xclip/gradient lookups)
-   was applied to ALL eras, truncating the legitimate R2007 Unicode
-   keys to "_" (the silver model carried "_"; gold's JSON carried
-   the full text). THE FIX: the cut is gated to `r13_14_only()` (the
-   mis-sized era); R2000+ keys are exact-length and pass verbatim —
-   the same lesson as the H8h-ext-7 SEQEND flags: an era-verified
-   convention is not a law. (The read-fidelity gates never caught
-   it: normalize_gold/normalize_silver drop DICTIONARY texts/items
-   from the compare — only the byte survey sees the loss.)
-4. **Measured: ATMOS 340/340 (0 divergent; the 84 her-only
-   broken-map orphans remain, pre-existing, documented); the
-   residual 12 → 9; 57/58 files at 100%** (only example_2007 below).
-5. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
-   family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0.
-   Generation identity UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
-   25,375 bytes, verified with AND without `--features serde` — the
-   generator's tables carry no captures and its dictionary keys are
-   ASCII). The echo byte-identity held (circle cmp clean).
+1. **The example_2007 autopsy opened** (the last residual class): the 9
+   records fell into 6 root-cause classes; 3 classes (4 records)
+   closed this session.
+2. **h=1F (*Model_Space BLOCK_HEADER)**: her hasatts bit is 0 while
+   the block carries ATTDEF entities — the writer DERIVED the bit from
+   AttributeDefinition presence (a DXF-built heuristic applied to DWG
+   reads). THE FIX: the captured model bit (`flags.has_attributes`) is
+   authoritative on a DWG read; the heuristic stays the DXF-built and
+   programmatic fallback.
+3. **h=176/h=37D (REGION, +1 byte each)**: the writer emitted an
+   explicit null history_id handle where the author OMITS it. Gold's
+   rule (dwg.spec COMMON_3DSOLID): the ref is read only while ≥8
+   handle bits remain (the AVAIL_BITS guard) — and the wire census is
+   PER-RECORD: ATMOS's native solids write explicit nulls (58×,
+   matched by our emission), while example_2007's imported-ACIS
+   REGIONs (an "ASM 223.0.1.1930 OSX" SAB blob) end their handle
+   streams flush after the layer ref. THE FIX: the reader gates the
+   read on the ≥8 rule and captures the wire PRESENCE (Some(NULL) =
+   an explicit null on the wire; None = absent — the REGION reader
+   previously never read the handle at all while the writer emitted
+   it, the asymmetry that produced the +8 bits); the writer mirrors
+   the presence for DWG reads and keeps the explicit null for
+   DXF/programmatic documents.
+4. **h=396 (ASSOCGEOMDEPENDENCY, −46 bits)**: her record carries 46
+   undocumented main-stream bits after the persubent id's
+   dependent_on_compound_object — gold's spec block (dwg2.spec 3148)
+   ends there and its own walk parks them unknown; her handle stream
+   holds only the five parsed refs plus the closing 1s pad, so the
+   main tail is the whole delta. THE FIX (the H8h-ext-8 wire-capture
+   doctrine): the reader retains the tail verbatim (`tail_bits` +
+   `tail_bit_len` on AssocPersistentSubentId, peeked from the
+   post-flag position to the main-data end); the writer re-emits the
+   bits; records whose parse consumes the region exactly capture
+   nothing.
+5. **Measured: example_2007 535/540; ATMOS re-verified 340/340;
+   57/58 files at 100%.** The gates: serde 1602/0, gold_roundtrip,
+   issue80 7/0, four family smokes 0/0/0/0, corpus 280 files
+   0/0/0/0. Generation identity UNCHANGED
+   (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes, verified with
+   AND without `--features serde`). The echo byte-identity held.
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -69,35 +72,83 @@ retained metadata models. Captured at the END of the read; compared
 BEFORE the prepare pipeline at the write entry. The wire-only
 captures (`table_control_entries`, `dimstyle_morehandles`) are
 EXCLUDED from the fingerprint; `xdic_by_handle`, the modeled
-subcurve fields, the persubent tails, the SEQEND flag captures, and
-the H8h-ext-8 constraint-group node captures are INCLUDED (real
-state — an edit declines the echo).
+subcurve fields, the persubent tails, the SEQEND flag captures, the
+H8h-ext-8 constraint-group node captures, and the H8h-ext-10
+persubent-id tail captures are INCLUDED (real state — an edit
+declines the echo).
 
 **The honest framing, extended**: for an unedited same-version
 roundtrip the DWG writer is a byte-copy gated on a full-content
 hash. The conventional arm is record-identical to the author's
-stream on 57 of the 58 AC1021 corpus files, with **9 named
+stream on 57 of the 58 AC1021 corpus files, with **5 named
 residual records** in one class (below).
 
-## The residual 9 (each a named, byte-level-scoped packet)
+## The residual 5 (each a named, byte-level-scoped packet)
 
-- **example_2007 (9)**: 1F +10 (01v21), 176 1726v1727, 1A9 +32
-  (a9va1), 37D 2269v2270, 392 +20 (42v52 — another assoc-dep-class
-  ref), 393 +30 (10v0c), 396 91v85, 430 +37 (27v28), +1 more.
-  (ATMOS's 84 her-only = the broken-map orphans, pre-existing,
-  documented — not counted in the 9.)
+All in example_2007 (535/540):
+
+- **h=1A9 (RAY)**: first diff at record byte +32 (her 0xa9 our
+  0xa1), same size. Gold prints both records' fields IDENTICALLY
+  (point (11211.6, 5441.2, 0), vector (0.820841, 0.571157, 0)) —
+  the divergence is in a double's LOW MANTISSA BITS. THE SUSPICION:
+  our writer RECOMPUTES the unit vector (normalization differs in
+  the last ulp from the author's stored value) or reads/writes a
+  transformed double. THE PATH: decode the raw BDs at the diff
+  position in both records (the record frame: type BS @2.0, RL
+  @3.2, own handle; the RAY fields point 3BD @29.4, vector 3BD
+  @46.2 — gold positions are RECORD-relative, MS included), print
+  the full IEEE hex, and find which model field feeds the writer
+  (src/io/dwg/dwg_stream_writers/object_writer/entities.rs,
+  write for OBJ_RAY) — check for a normalize()/computation on the
+  write path.
+- **h=430 (DIMENSION_ORDINATE)**: first diff at bytes +37..+38 (her
+  27e0 our 2820), same size. Same class: the lspace_factor/
+  act_measurement region — the raw doubles differ in low bits
+  while printing identically. THE PATH: same as h=1A9 — decode the
+  BDs at @35.0 (lspace_factor) and @43.2 (act_measurement) in both
+  records; check whether the writer recomputes act_measurement
+  from the dimension geometry.
+- **h=392 (ACDBASSOCALIGNEDDIMACTIONBODY, unhandled class)**: ONE
+  bit differs (record byte +20: her 0x42 our 0x52; in the
+  unknown_bits TF coords: her A1 our A9 at TF byte 8). We re-emit
+  the unknown region NOT verbatim — the class is parsed as an
+  AnnotationActionBody partial parse and re-serialized. THE PATH:
+  find the ASSOCALIGNEDDIMACTIONBODY reader/writer arms
+  (src/io/dwg/dwg_stream_readers/object_reader/associative.rs,
+  read_annotation_action; the writer's AnnotationActionBody arm),
+  decode the 51 unknown bits around the diff, and either fix the
+  one field or capture the unknown region verbatim (the ProxyObject
+  path already does this for unhandled classes — check why this
+  class takes the parsed path instead).
+- **h=393 (ACDBASSOCOSNAPPOINTREFACTIONPARAM, unstable class)**:
+  ONE byte differs at +30 (her 0x10 our 0x0c) — in the handle
+  stream tail (the record's last data byte; the handle stream @24.2
+  ..@30.0). The parsed fields print identically (num_params 1,
+  params[0] 394, status 0, osnap_mode 0xa0, param 2.0646e-255 —
+  gold's own garbage prints). THE PATH: dump both handle streams
+  (the parsed refs: ownerhandle (8.0.0) abs:391, params[0]
+  (3.2.394)), find the extra/shorter handle read, and check the
+  writer's handle order for this class.
+- **h=BF2 (UNKNOWN_OBJ, 14.5KB)**: ours 203 bytes SHORTER and
+  near-fully differing (14,167 of 14,322 bytes). The biggest fish:
+  a large unhandled-class object whose capture/re-emission goes
+  wrong wholesale. THE PATH: identify the class (object number 465
+  — check the classes section for its DXF name), then compare our
+  ProxyObject payload capture vs her record (the payload bit_count
+  vs her unknown region size — a 203-byte shortfall suggests the
+  capture stops early or the re-emission drops a trailing block).
+  NOTE: this record's divergence may share a root cause with the
+  h=392 class (both UNKNOWN_OBJ-decoded).
 
 ## The remaining work (all optional — the target stays reached)
 
-- **example_2007's 9 marginals** — the last residual class; each an
-  autopsy → census → rule → gates → re-survey packet in the H8h
-  tradition.
+- **example_2007's 5 residuals** — the packets above; each an
+  autopsy → census → rule → gates → re-survey in the H8h tradition.
 - **The pre-2007 constraint-group conventional arms** (the
   r14/2000/2004/2010/2013 `Constraints.dwg` specimens): the
   H8h-ext-8 capture is AC1021-gated; those eras keep their current
   behavior (echo-covered on the corpus axes, ungated by the AC1021
-  survey). A later packet could extend the capture (the inline-TV
-  forms and the R2010+ framing need their own dissection).
+  survey).
 - **The unattested subcurve action types** (17=ELLIPSE, 19=LINE,
   23=LINESEG3D, 42=NURB3D, 27=CURVE3D): no corpus specimens.
 - **The MT-variant pinning (§F2.G)**: the crc_seed draws — NOT
@@ -115,14 +166,14 @@ residual records** in one class (below).
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (UNCHANGED through H8h-ext-9). The generator builds
+  25,375 bytes (UNCHANGED through H8h-ext-10). The generator builds
   and runs identically WITH or WITHOUT `--features serde`.
 - The record-identity state (the 58-file AC1021 survey,
-  `record_identity_survey.py`): **57 files at 100%, 9 divergent
+  `record_identity_survey.py`): **57 files at 100%, 5 divergent
   records, 84 her-only orphans (ATMOS's broken map)**. circle
   211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245;
   Chamfer 207/207; Fillet 207/207; Loft 207/207; PolyLine3D 218/218;
-  Constraints 219/219; **ATMOS 340/340**.
+  Constraints 219/219; ATMOS 340/340; **example_2007 535/540**.
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
   generated-file drift (`src/config.h.in`, autoheader requote) —
   the freeze rule stands. Oracle fingerprints unchanged: the
@@ -137,7 +188,9 @@ residual records** in one class (below).
   subcurve wire, the non-assoc PersSubentManager, or the
   constraint-group node classes (the authority closure, commits
   `cc1a6c8` + the H8h-ext-8 grep); the ASSOC persubent variant HAS
-  a gold spec block (the H8h-ext-6 re-parse follows it).
+  a gold spec block (the H8h-ext-6 re-parse follows it); the
+  3DSOLID history_id AVAIL_BITS rule IS in gold's dwg.spec
+  COMMON_3DSOLID (the H8h-ext-10 re-read follows it).
 - The hermetic suites: serde green (the 0xF_ test + issue80
   green), gold_roundtrip green, at every landing.
 - Autopsy tooling notes: gold's `-v9` `@byte.bit` positions are
@@ -147,23 +200,32 @@ residual records** in one class (below).
   frame math**: the RL (bitsize) = main content + text + 1 (the
   no-text flag); `main_remaining_bits()` is relative to the
   CONTENT end; the bit after the content is ALWAYS the flag —
-  never a record field. The ASSOC persubent records end [BLs][B];
-  the non-assoc records end flush. The BL forms: 00 = 4-byte LE,
-  01 = 1 byte, 10 = 0 (2 bits); the BD forms: 00 = full 66-bit LE
-  double, 01 = 1.0, 10 = 0.0. **The SEQEND lesson (H8h-ext-7)**:
-  era-derived "conventions" verified on one corpus family are
-  per-author forms — prefer the read capture, keep the convention
-  as the DXF fallback only. **The pad lesson (H8h-ext-8)**: a
-  wire capture that runs to the record end must TRIM the author's
-  closing 1s pad (≤7 bits) — the writer re-creates it at close, so
-  an untrimmed capture double-pads (+1 byte, the measured
+  never a record field. The record frame: [MS][BS type][RL
+  bitsize][H own handle][data …][handle stream][1s pad][crc16 LE];
+  the MS value = the data size INCLUDING the crc pair; gold's
+  Hdlsize = the handle-stream bit count including the closing 1s
+  pad. The ASSOC persubent records end [BLs][B]; the non-assoc
+  records end flush. The BL forms: 00 = 4-byte LE, 01 = 1 byte,
+  10 = 0 (2 bits); the BD forms: 00 = full 66-bit LE double, 01 =
+  1.0, 10 = 0.0. **The SEQEND lesson (H8h-ext-7)**: era-derived
+  "conventions" verified on one corpus family are per-author
+  forms — prefer the read capture, keep the convention as the DXF
+  fallback only. **The pad lesson (H8h-ext-8)**: a wire capture
+  that runs to the record end must TRIM the author's closing 1s
+  pad (≤7 bits) — the writer re-creates it at close, so an
+  untrimmed capture double-pads (+1 byte, the measured
   666-vs-667). **The era-gate lesson (H8h-ext-9)**: a workaround
-  added for one era's wire quirk (the R13/R14 mis-sized dictionary
-  keys) must be GATED to that era — applied universally it mangles
-  legitimate later-era content (the R2007 Cyrillic dictionary
-  keys); the normalize layer can hide such losses (DICTIONARY
-  texts are dropped from the semantic compare) — the byte survey
-  is the only witness.
+  added for one era's wire quirk must be GATED to that era; the
+  normalize layer can hide such losses (DICTIONARY texts are
+  dropped from the semantic compare) — the byte survey is the only
+  witness. **The presence lesson (H8h-ext-10)**: an author field
+  that is sometimes-present on the wire (the 3DSOLID history_id —
+  ATMOS writes explicit nulls, example_2007's imported REGIONs
+  omit) needs the wire PRESENCE captured, not just the value —
+  Option<Handle> with Some(NULL) vs None — or the writer cannot
+  mirror the author's form; and a writer-side DERIVATION (the
+  hasatts heuristic) is a DXF fallback only, never a DWG-read
+  rule.
 
 ## Environment (complete)
 
@@ -216,9 +278,9 @@ md5sum gen_all_entities_all_versions.dwg
 python3 tests/gold_harness/record_identity_survey.py \
     "$GOLD_TESTDATA"/2007/*.dwg "$GOLD_TESTDATA"/example_2007.dwg \
     tests/gold_harness/tests/sh_history/*_2007.dwg
-# current state: 57 files at 100%, 9 divergent records total
+# current state: 57 files at 100%, 5 divergent records total
 # circle 211/211; PolyLine3D 218/218; Chamfer 207/207;
-# Constraints 219/219; ATMOS 340/340
+# Constraints 219/219; ATMOS 340/340; example_2007 535/540
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -242,33 +304,37 @@ d6b0431 <feat> H8h-ext-8: the Constraints 3E3 closure — the AC1021
        node-region wire capture for the ASSOC2DCONSTRAINTGROUP (the
        class-name TUs, the main bits, the handle tail; naive as the
        DXF fallback; Constraints 219/219; 13 -> 12)
-<feat> H8h-ext-9: the ATMOS closure — the LAYER/STYLE authored-slots
-       capture + the dictionary-key cut gated to r13_14_only (the
-       Cyrillic keys pass verbatim on R2000+); ATMOS 340/340;
-       12 -> 9
-<docs> the post-H8h-ext-9 halt refresh (this file)
+d3d2258 <feat> H8h-ext-9: the ATMOS closure — the LAYER/STYLE
+       authored-slots capture + the dictionary-key cut gated to
+       r13_14_only (the Cyrillic keys pass verbatim on R2000+);
+       ATMOS 340/340; 12 -> 9
+<feat> H8h-ext-10: the example_2007 first fruits — the hasatts
+       captured bit, the REGION history_id wire-presence (the
+       AVAIL_BITS-gated read + Some(NULL) capture + the presence-
+       mirrored emission), the persubent-id tail capture; 9 -> 5
+<docs> the post-H8h-ext-10 halt refresh (this file)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the H8h-ext-8
-halt → the ATMOS autopsy (the three records: h=2/h=3 the table
-controls, h=77 the image dictionary) → the null deleted-slot tails
-discovered in her LAYER/STYLE entry vectors (the authored-slots
-capture missing for those two tables) → the Cyrillic dictionary
-keys discovered truncated to "_" (the `clean_dict_key` R13/R14
-workaround applied to all eras; the normalize layer had hidden the
-loss from the read-fidelity gates — the byte survey was the only
-witness) → the fixes (the VIEW_CONTROL-pattern capture + the
-same-universe gate for both writers; the cut gated to
-`r13_14_only()`) → the gates (serde 1602/0, gold_roundtrip,
+**Session arc, for context**: the continuation from the H8h-ext-9
+halt → the example_2007 autopsy (the 9 records: 6 root-cause
+classes) → the hasatts fix (the writer's ATTDEF-presence heuristic
+vs her captured 0) → the REGION history_id dissection (gold's
+AVAIL_BITS rule found in dwg.spec COMMON_3DSOLID; the ATMOS
+explicit-null census 58× vs the imported-ACIS omission; the
+reader's missing REGION read + the writer's unconditional null =
+the +8-bit asymmetry) → the presence-capture design (Some(NULL)
+vs None) → the persubent-id tail capture (46 undocumented bits,
+the ext-8 doctrine) → the gates (serde 1602/0, gold_roundtrip,
 issue80, family smokes, corpus 0/0/0/0, generation identity
 unchanged and feature-independent, echo byte-identity held) → the
-full survey (ATMOS 340/340; the residual 12 → 9; 57/58 at 100%) →
-the docs (§19.2 H8h-ext-9 row; this halt record). **The
-maintainer's loop instruction — "repeat process until target =
-zero" — remains satisfied: the corpus is at zero on every axis;
-the conventional arm is record-identical on 57 of 58 AC1021 files,
-and the residual 9 records are one named class (example_2007's
-marginals), each a byte-level-scoped packet.**
+full survey (example_2007 535/540; ATMOS re-verified 340/340; the
+residual 9 → 5; 57/58 at 100%) → the docs (§19.2 H8h-ext-10 row;
+this halt record). **The maintainer's loop instruction — "repeat
+process until target = zero" — remains satisfied: the corpus is at
+zero on every axis; the conventional arm is record-identical on 57
+of 58 AC1021 files, and the residual 5 records are one named class
+(example_2007's marginals), each a byte-level-scoped packet with a
+recorded next-session path.**

@@ -5257,10 +5257,17 @@ impl<'a> DwgObjectWriter<'a> {
         // elided SH class record). §19 H8h-ext: the author codes this ref 3
         // (HardOwnership) — the gold census across every genus prints
         // history_id [3, ..] 128/128 non-null (the fixtures, example_2007,
-        // ATMOS); never 4/5.
+        // ATMOS); never 4/5. §19 H8h-ext-10: mirror the author's wire
+        // PRESENCE — the imported-ACIS solids omit the null ref (gold's
+        // AVAIL_BITS rule; example_2007's REGIONs h=176/h=37D) while
+        // native authors write explicit nulls (ATMOS 58×; the reader
+        // captures Some(NULL)). DXF-built and programmatic documents
+        // keep the explicit null (the generation identity's fallback).
         if self.version.r2007_plus() {
             let h = self.solid_history_handle_value(e.history_handle);
-            self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            if e.history_handle.is_some() || self.document.dwg_source_version.is_none() {
+                self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            }
         }
 
         self.register_object(e.common.handle);
@@ -5296,7 +5303,11 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2007_plus() && !acds {
             let h = self.solid_history_handle_value(e.history_handle);
             // §19 H8h-ext: author wire code 3 (gold census 128/128).
-            self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            // §19 H8h-ext-10: mirror the author's wire presence (see
+            // write_solid3d) — omit the absent null for DWG reads.
+            if e.history_handle.is_some() || self.document.dwg_source_version.is_none() {
+                self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            }
         }
         self.register_object(e.common.handle);
     }
@@ -5331,7 +5342,11 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2007_plus() && !acds {
             let h = self.solid_history_handle_value(e.history_handle);
             // §19 H8h-ext: author wire code 3 (gold census 128/128).
-            self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            // §19 H8h-ext-10: mirror the author's wire presence (see
+            // write_solid3d) — omit the absent null for DWG reads.
+            if e.history_handle.is_some() || self.document.dwg_source_version.is_none() {
+                self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            }
         }
 
         self.register_object(e.common.handle);

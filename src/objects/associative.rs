@@ -595,6 +595,18 @@ pub struct AssocValueDependency {
 pub struct AssocPersistentSubentId {
     pub class_name: String,
     pub dependent_on_compound_object: bool,
+    /// §19 H8h-ext-10: the undocumented persubent-id tail. Gold's spec
+    /// for the ASSOCGEOMDEPENDENCY's persubent id (dwg2.spec 3148)
+    /// ends at `dependent_on_compound_object`, but the authored
+    /// records carry more main-stream bits after it (example_2007
+    /// h=396: 46 bits gold parks as unknown). A DWG read captures
+    /// them verbatim so the rewrite re-emits her bytes; the modeled
+    /// emission (no tail) stays the DXF/programmatic fallback.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bits: Option<Vec<u8>>,
+    /// Exact bit width of `tail_bits`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bit_len: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

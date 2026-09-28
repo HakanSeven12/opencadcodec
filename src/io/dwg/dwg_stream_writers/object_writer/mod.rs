@@ -2132,13 +2132,22 @@ impl<'a> DwgObjectWriter<'a> {
 
         // Anonymous flag
         self.writer.write_bit(record.flags.anonymous);
-        // Has attributes
-        let has_attributes = record.entity_handles.iter().any(|handle| {
-            matches!(
-                self.document.get_entity(*handle),
-                Some(EntityType::AttributeDefinition(_))
-            )
-        });
+        // Has attributes. §19 H8h-ext-10: on a DWG read the author's
+        // captured flag is authoritative — her *Model_Space carries
+        // ATTDEF entities yet hasatts=0 (example_2007 h=1F; the wire
+        // bit is block metadata, not ATTDEF presence). The
+        // AttributeDefinition-presence heuristic stays the fallback
+        // for DXF-built and programmatic documents.
+        let has_attributes = if self.document.dwg_source_version.is_some() {
+            record.flags.has_attributes
+        } else {
+            record.entity_handles.iter().any(|handle| {
+                matches!(
+                    self.document.get_entity(*handle),
+                    Some(EntityType::AttributeDefinition(_))
+                )
+            })
+        };
         self.writer.write_bit(has_attributes);
         // Is xref
         self.writer.write_bit(record.flags.is_xref);
