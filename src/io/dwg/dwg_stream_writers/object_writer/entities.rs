@@ -2553,7 +2553,17 @@ impl<'a> DwgObjectWriter<'a> {
         // Write SEQEND — last in polyline chain
         self.prev_handle = None;
         self.next_handle = None;
-        let seqend_flags = self.seqend_era_flags();
+        // §19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) —
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) — a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2754,7 +2764,17 @@ impl<'a> DwgObjectWriter<'a> {
         // Write SEQEND — last in polyline chain
         self.prev_handle = None;
         self.next_handle = None;
-        let seqend_flags = self.seqend_era_flags();
+        // §19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) —
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) — a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2973,7 +2993,17 @@ impl<'a> DwgObjectWriter<'a> {
         // Write SEQEND — last in polyface chain
         self.prev_handle = None;
         self.next_handle = None;
-        let seqend_flags = self.seqend_era_flags();
+        // §19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) —
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) — a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -3114,7 +3144,17 @@ impl<'a> DwgObjectWriter<'a> {
         // Write SEQEND — last in polygon mesh chain
         self.prev_handle = None;
         self.next_handle = None;
-        let seqend_flags = self.seqend_era_flags();
+        // §19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) —
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) — a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
