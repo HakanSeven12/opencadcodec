@@ -170,10 +170,15 @@ TOLERATED with the row kept as the recorded state).
   regresses ds_version, the segidx position, the row scale, the slot
   allocation, the pointers, prvsav, or the two extended header fields
   re-ranks immediately.
-- **G-A NOW FIRST (the SAB form campaign)**: the asmheader emission
-  (authored-uniform class), then the tolerance triple
-  (spatial_resolution 10.0 vs the authored 1.0 — find the constructed
-  default's source), then the ACIS-700
+- **G-A NOW FIRST (the SAB form campaign)**: the tolerance triple is
+  the next cheap packet — spatial_resolution 10.0 vs the authored
+  1.0; the investigation already pinned the source: the SatHeader
+  DEFAULT is 10.0 (`types.rs` ~147) and the existing "normalize to
+  1.0 for SAB" pass sits AFTER a strip-method's early return
+  ("nothing to strip") that clean primitive documents always take,
+  so it never runs — fix the default (the authored genus is 1.0
+  everywhere; IntelliCAD/AutoCAD native SAB data always uses 1.0,
+  per the code's own recorded comment). Then the ACIS-700
   flavor / product-string / header-triple family (a strict-loader
   question: the 2026-09-21 zero proved the ACIS-700 stance
   BricsCAD-ACCEPTED, so these rows may close TOLERATED; do NOT forge
@@ -183,8 +188,8 @@ TOLERATED with the row kept as the recorded state).
   and the persubent-attrib class (investigate the tree-correlation
   with the `--corpus-scan` specimen evidence first — the fixture
   family is tree-selected, so uniformity may be selection bias).
-  (The vertex short-width row CLOSED — the second packet, arc item
-  7.)
+  (CLOSED so far: the vertex short-width row — the second packet,
+  arc item 7; the asmheader row — the third packet, arc item 8.)
 - **G-B last (the tree)**: the elide marker closes only when a
   constructed tree passes a strict loader (the interposition + the
   33/427 trio + the node-id resolution are the authored genus to
@@ -459,10 +464,23 @@ ways = false positives; `point` dropped from every constraint set =
 the writer's points-first rank invisible), recomputed as
 after−before, the pin regenerated, the ungated
 solid-history-links-root invariant armed, the corrected queue verified
-(false rows gone, point-rank rows in), the docs reconciled. **The
-maintainer's loop instruction — "repeat process until
-target = zero" — remains satisfied on its own terms: the corpus is at
-zero on every axis, the conventional arm is record-identical
-everywhere surveyed, and the fifth layer's queue is now MEASURED,
-REVIEWED, and ranked — the next sessions work it down packet by packet
-with the strict loaders adjudicating.**
+(false rows gone, point-rank rows in), the docs reconciled → **the
+queue work (the maintainer's "continue implementation, repeat until
+fully implemented" directive)**: three packets landed, each
+evidence-first, each committed and pushed — G-C (the era-profiled
+AcDs container: ds_version 16/17, segidx-first, the 91/97-row slot
+allocations, prvsav/freesp, the header constants, the invented
+thumbnail dropped; 11 rows → 0), the vertex role token (the
+580-vertex census pinned the semantics: 0 = start, 1 = end, 2 =
+closed-edge; 28 occurrences gone), and the asmheader (the
+era-uniform opening record prepended at the SAB boundary with the
++1 wire-pointer shift; 11 occurrences gone) — the queue now
+65/1/0, the suite green at every landing, the identity re-recorded
+at each intended move. **The maintainer's loop instruction —
+"repeat process until target = zero" — remains satisfied on its own
+terms: the corpus is at zero on every axis, the conventional arm is
+record-identical everywhere surveyed, and the fifth layer's queue is
+MEASURED, REVIEWED, and being WORKED DOWN — three of its row
+families closed this session, the next packets designed (the
+tolerance default's source pinned), and the strict loaders
+adjudicate the rest.**
