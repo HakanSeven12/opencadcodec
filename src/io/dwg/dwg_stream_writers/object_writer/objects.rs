@@ -266,14 +266,15 @@ fn encode_xrecord_entries(
     output
 }
 
-/// Flatten a [`Matrix4`](crate::types::Matrix4) into 12 doubles holding its 3×4
-/// part in row-major order (3 rows of 4); the bottom row is dropped. DWG stores
-/// the spatial-filter transforms row-major.
-fn matrix_to_row_major(m: &crate::types::Matrix4) -> [f64; 12] {
+/// Flatten a [`Matrix4`](crate::types::Matrix4) into 12 doubles in column-major
+/// 4×3 order (X axis, Y axis, Z axis, translation); the bottom row is dropped.
+/// DWG stores the spatial-filter transforms in the same column-major layout as
+/// DXF code 40.
+fn matrix_to_column_major(m: &crate::types::Matrix4) -> [f64; 12] {
     let mut out = [0.0; 12];
     let mut i = 0;
-    for row in 0..3 {
-        for col in 0..4 {
+    for col in 0..4 {
+        for row in 0..3 {
             out[i] = m.m[row][col];
             i += 1;
         }
@@ -2736,10 +2737,10 @@ impl<'a> DwgObjectWriter<'a> {
         if let Some(d) = sf.back_clip {
             self.writer.write_bit_double(d);
         }
-        for v in matrix_to_row_major(&sf.inverse_block_transform) {
+        for v in matrix_to_column_major(&sf.inverse_block_transform) {
             self.writer.write_bit_double(v);
         }
-        for v in matrix_to_row_major(&sf.clip_bound_transform) {
+        for v in matrix_to_column_major(&sf.clip_bound_transform) {
             self.writer.write_bit_double(v);
         }
 

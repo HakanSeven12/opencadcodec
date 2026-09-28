@@ -18,17 +18,20 @@ use crate::types::*;
 use crate::xdata::{ExtendedData, ExtendedDataRecord, XDataValue};
 
 /// Build a [`Matrix4`] from 12 doubles holding a 4×3 transform in DXF
-/// column-major order (4 columns of 3 rows each). The implied bottom row is
-/// `[0, 0, 0, 1]`.
-/// Build a 4×4 from 12 row-major values (a SPATIAL_FILTER transform is stored
-/// row-major, matching the DWG builder — reading it column-major transposed the
-/// clip and put the xclip region in the wrong place).
-fn matrix_from_row_major(v: &[f64]) -> Matrix4 {
+/// column-major order (4 columns of 3 rows each: X axis, Y axis, Z axis,
+/// translation). The implied bottom row is `[0, 0, 0, 1]`.
+///
+/// Per the Autodesk DXF reference, `SPATIAL_FILTER` group-40 matrices are
+/// written column-major: `[c00, c10, c20, c01, c11, c21, c02, c12, c22,
+/// Tx, Ty, Tz]`. [`Matrix4`] stores row-major, so this maps columns into
+/// rows: row 0 = `[v0, v3, v6, v9]`, row 1 = `[v1, v4, v7, v10]`,
+/// row 2 = `[v2, v5, v8, v11]`.
+fn matrix_from_column_major(v: &[f64]) -> Matrix4 {
     Matrix4 {
         m: [
-            [v[0], v[1], v[2], v[3]],
-            [v[4], v[5], v[6], v[7]],
-            [v[8], v[9], v[10], v[11]],
+            [v[0], v[3], v[6], v[9]],
+            [v[1], v[4], v[7], v[10]],
+            [v[2], v[5], v[8], v[11]],
             [0.0, 0.0, 0.0, 1.0],
         ],
     }
@@ -8608,10 +8611,10 @@ impl<'a> SectionReader<'a> {
             }
         }
         if mat.len() >= 12 {
-            obj.inverse_block_transform = matrix_from_row_major(&mat[0..12]);
+            obj.inverse_block_transform = matrix_from_column_major(&mat[0..12]);
         }
         if mat.len() >= 24 {
-            obj.clip_bound_transform = matrix_from_row_major(&mat[12..24]);
+            obj.clip_bound_transform = matrix_from_column_major(&mat[12..24]);
         }
         Ok(Some(obj))
     }
@@ -21331,5 +21334,75 @@ mod tests {
         } else {
             panic!("Expected Circle entity");
         }
+    }
+
+    /// SPATIAL_FILTER group-40 matrices are column-major on disk:
+    /// `[c00, c10, c20, c01, c11, c21, c02, c12, c22, Tx, Ty, Tz]`.
+    /// A pure translation (-200, -150, 0) must land in the last column,
+    /// not scattered across row 2 (the old row-major misread collapsed
+    /// every 2D boundary point onto the x == y diagonal).
+    #[test]
+    fn spatial_filter_matrix_is_column_major() {
+        let v = [
+            1.0, 0.0, 0.0, // col 0 (X axis)
+            0.0, 1.0, 0.0, // col 1 (Y axis)
+            0.0, 0.0, 1.0, // col 2 (Z axis)
+            -200.0, -150.0, 0.0, // col 3 (translation)
+        ];
+        let m = matrix_from_column_major(&v);
+        assert_eq!(
+            m.m,
+            [
+                [1.0, 0.0, 0.0, -200.0],
+                [0.0, 1.0, 0.0, -150.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        );
+        // A boundary point maps through the inverse then the insert
+        // transform back to itself: (210, 160) -> (-200,-150) -> + (200,150).
+        let p = m.transform_point(Vector3::new(210.0, 160.0, 0.0));
+        assert!((p.x - 10.0).abs() < 1e-9, "x={}", p.x);
+        assert!((p.y - 10.0).abs() < 1e-9, "y={}", p.y);
+    }
+
+    /// A SPATIAL_FILTER with a translated inverse must survive a DXF
+    /// write/read round-trip with its translation intact.
+    #[test]
+    fn spatial_filter_dxf_roundtrip_preserves_translation() {
+        use crate::objects::{ObjectType, SpatialFilter};
+        use crate::types::Matrix4;
+
+        let mut doc = CadDocument::new();
+        let h = crate::types::Handle::new(0xAB);
+        let mut sf = SpatialFilter::new();
+        sf.handle = h;
+        sf.boundary_points = vec![
+            crate::types::Vector2::new(210.0, 160.0),
+            crate::types::Vector2::new(240.0, 190.0),
+        ];
+        sf.inverse_block_transform = Matrix4 {
+            m: [
+                [1.0, 0.0, 0.0, -200.0],
+                [0.0, 1.0, 0.0, -150.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        };
+        doc.objects.insert(h, ObjectType::SpatialFilter(sf));
+
+        let doc2 = roundtrip(doc);
+        let Some(ObjectType::SpatialFilter(back)) = doc2.objects.get(&h) else {
+            panic!("expected SPATIAL_FILTER to survive round-trip");
+        };
+        assert_eq!(
+            back.inverse_block_transform.m,
+            [
+                [1.0, 0.0, 0.0, -200.0],
+                [0.0, 1.0, 0.0, -150.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        );
     }
 }
