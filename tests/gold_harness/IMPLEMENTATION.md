@@ -7515,3 +7515,20 @@ their own; the constructed vertex width 34 → 39, the row's 28
 occurrences gone (`sab_form_diffs` 67 → 66 rows, 521 → 493
 occurrences). The generation identity moved again:
 `0e8b23cde1f2476198154cc317b16683`, 25,439 bytes.
+
+**The third packet — the asmheader**: the authored SAB opens with
+`asmheader $-1 $-1 "232.6.0.65535"` (era-uniform, byte-identical
+across all 136 carriers — a live census). The record prepends at the
+SAB-write boundary (`prepend_asmheader` in `sab.rs`): the
+SatDocument keeps the DXF-SAT convention of body at index 0
+(`new_body`'s recorded rule — SAT in DXF does not use asmheader),
+so every wire pointer shifts by +1 at the boundary, exactly the
+authored numbering (asmheader $0, body $1, …). Captured documents
+(raw binary tokens) and asmheader-carrying documents pass through
+untouched, and the restore-file reorder never re-ranks an
+asmheader-carrying (authored-shaped) document. The row's 11
+occurrences gone: `sab_form_diffs` 66 → 65 rows, 493 → 482
+occurrences. Five SAB module tests updated to the new index
+convention (the asmheader shifts every parsed record by one). The
+identity moved to `a8f227e09d60a17605043f9dedebc30c`, 25,439 bytes
+(the compressed section absorbed the 38-byte record).

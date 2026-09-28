@@ -110,6 +110,9 @@ impl SabWriter {
         let doc = if !doc.records.is_empty()
             && doc.records[0].entity_type != "body"
             && doc.records.iter().any(|r| r.entity_type == "body")
+            // An asmheader-carrying document is authored-shaped (the
+            // ASM-era file order, asmheader first) — never re-rank it.
+            && !doc.records.iter().any(|r| r.entity_type == "asmheader")
             && !doc
                 .records
                 .iter()
@@ -117,6 +120,32 @@ impl SabWriter {
         {
             reordered = Self::reorder_restore_file(doc);
             &reordered
+        } else {
+            doc
+        };
+
+        // The ASM header record (§20 G-A genus, verified live: every
+        // authored specimen SAB across all four eras — 136/136
+        // carriers — opens with `asmheader $-1 $-1 "232.6.0.65535"`
+        // before the body). The SatDocument keeps the DXF-SAT
+        // convention of body at index 0 (`new_body`'s recorded rule),
+        // so the record prepends here at the SAB boundary and shifts
+        // every wire pointer by +1. Captured documents (raw binary
+        // tokens) and documents already carrying an asmheader pass
+        // through untouched.
+        let asm;
+        let doc = if !doc.records.is_empty()
+            && !doc
+                .records
+                .iter()
+                .any(|r| r.tokens.iter().any(|t| matches!(t, SatToken::Sab { .. })))
+            && !doc
+                .records
+                .iter()
+                .any(|r| r.entity_type == "asmheader")
+        {
+            asm = Self::prepend_asmheader(doc);
+            &asm
         } else {
             doc
         };
@@ -295,6 +324,39 @@ impl SabWriter {
 
         // End of record
         buf.push(tags::END_OF_RECORD);
+    }
+
+    /// Prepend the ASM header record: `asmheader $-1 $-1 "232.6.0.65535"`
+    /// — the authored SAB genus's opening record (era-uniform, byte-
+    /// identical across all 136 specimen carriers). Every wire pointer
+    /// shifts by +1: the SatDocument's indices are DXF-SAT-convention
+    /// (body at 0), the SAB stream's record 0 is the asmheader.
+    fn prepend_asmheader(doc: &SatDocument) -> SatDocument {
+        let shift = |p: SatPointer| {
+            if p.0 >= 0 {
+                SatPointer::new(p.0 + 1)
+            } else {
+                p
+            }
+        };
+        let mut out = doc.clone();
+        out.records = Vec::with_capacity(doc.records.len() + 1);
+        let mut header = SatRecord::new(0, "asmheader");
+        header.attribute = SatPointer::NULL;
+        header.tokens.push(SatToken::String("232.6.0.65535".to_string()));
+        out.records.push(header);
+        for (index, record) in doc.records.iter().enumerate() {
+            let mut record = record.clone();
+            record.index = index as i32 + 1;
+            record.attribute = shift(record.attribute);
+            for token in record.tokens.iter_mut() {
+                if let SatToken::Pointer(p) = token {
+                    *token = SatToken::Pointer(shift(*p));
+                }
+            }
+            out.records.push(record);
+        }
+        out
     }
 
     /// Restore-file record order: top-level entities first, then the
@@ -1657,10 +1719,13 @@ mod tests {
         let roundtrip = SabReader::read(&sab).unwrap();
 
         assert_eq!(roundtrip.header.version, doc.header.version);
-        assert_eq!(roundtrip.records.len(), doc.records.len());
-        assert_eq!(roundtrip.records[0].entity_type, "body");
-        assert_eq!(roundtrip.records[3].entity_type, "face");
-        assert_eq!(roundtrip.records[4].entity_type, "plane-surface");
+        // The SAB stream opens with the asmheader record (the authored
+        // genus), so every parsed record index shifts by one.
+        assert_eq!(roundtrip.records.len(), doc.records.len() + 1);
+        assert_eq!(roundtrip.records[0].entity_type, "asmheader");
+        assert_eq!(roundtrip.records[1].entity_type, "body");
+        assert_eq!(roundtrip.records[4].entity_type, "face");
+        assert_eq!(roundtrip.records[5].entity_type, "plane-surface");
     }
 
     #[test]
@@ -1680,8 +1745,9 @@ mod tests {
 
         // Roundtrip
         let roundtrip = SabReader::read(&sab).unwrap();
-        assert_eq!(roundtrip.records[0].entity_type, "plane-surface");
-        assert_eq!(roundtrip.records[1].entity_type, "straight-curve");
+        assert_eq!(roundtrip.records[0].entity_type, "asmheader");
+        assert_eq!(roundtrip.records[1].entity_type, "plane-surface");
+        assert_eq!(roundtrip.records[2].entity_type, "straight-curve");
     }
 
     #[test]
@@ -1698,13 +1764,13 @@ mod tests {
         let roundtrip = SabReader::read(&sab).unwrap();
 
         // forward/single → Enum("forward"), Enum("single")
-        let face1 = &roundtrip.records[0];
+        let face1 = &roundtrip.records[1];
         let last_two: Vec<_> = face1.tokens.iter().rev().take(2).collect();
         assert_eq!(last_two[0], &SatToken::Enum("single".to_string()));
         assert_eq!(last_two[1], &SatToken::Enum("forward".to_string()));
 
         // reversed/double → Enum("reversed"), Enum("double")
-        let face2 = &roundtrip.records[1];
+        let face2 = &roundtrip.records[2];
         let last_two: Vec<_> = face2.tokens.iter().rev().take(2).collect();
         assert_eq!(last_two[0], &SatToken::Enum("double".to_string()));
         assert_eq!(last_two[1], &SatToken::Enum("reversed".to_string()));
@@ -1718,7 +1784,9 @@ mod tests {
             End-of-ACIS-data\n";
         let document = SatDocument::parse(sat).unwrap();
         let roundtrip = SabReader::read(&SabWriter::write(&document)).unwrap();
-        assert_eq!(roundtrip.records[0].tokens, document.records[0].tokens);
+        // The asmheader record (the authored genus) shifts the parsed
+        // face to index 1.
+        assert_eq!(roundtrip.records[1].tokens, document.records[0].tokens);
         assert_eq!(roundtrip.placement(), document.placement());
         let transform = roundtrip
             .records
@@ -1733,7 +1801,8 @@ mod tests {
             ["no_rotate", "no_reflect", "no_shear"]
         );
         let text = roundtrip.to_sat_string();
-        assert!(text.starts_with("21200 2 1 1\n"));
+        // The asmheader record counts in the SAT header's record census.
+        assert!(text.starts_with("21200 3 1 1\n"));
         assert!(text.contains(" forward double out #\n"));
         assert!(text.contains(" no_rotate no_reflect no_shear #\n"));
     }
@@ -1910,7 +1979,14 @@ mod tests {
                 SatDocument::parse(&doc.to_sat_string()).unwrap(),
                 SabReader::read(&SabWriter::write(&doc)).unwrap(),
             ] {
-                let curve = SatPCurve::from_record(&read.records[index as usize]).unwrap();
+                // The SAB stream's asmheader record shifts indices by
+                // one, so locate the pcurve by class, not by index.
+                let curve_record = read
+                    .records
+                    .iter()
+                    .find(|record| record.entity_type == "pcurve")
+                    .unwrap();
+                let curve = SatPCurve::from_record(curve_record).unwrap();
                 assert_eq!(curve.sense(), sense);
             }
         }

@@ -19,7 +19,7 @@
 > decode the constructed corpus silver-side,
 > assert it against the authored-specimen genus pinned in
 > genus_expectations.json, and emit the ranked sections
-> sab_form_diffs (66 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
+> sab_form_diffs (65 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
 > (0 rows — CLOSED). THE COUNTS ARE THE WORK QUEUE.** Read
 > `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now with
 > the §20.6 landed state), then §19.4 + §19.5, then §18.6 + §F2.1–F2.3,
@@ -140,6 +140,18 @@
     The identity moved to
     `0e8b23cde1f2476198154cc317b16683`, 25,439 bytes. The suite
     green; the mirror green.
+ 8. **The asmheader packet CLOSED (the third queue packet, the same
+    day)**: the authored SAB opens with
+    `asmheader $-1 $-1 "232.6.0.65535"` (era-uniform, byte-identical
+    across all 136 carriers). The record prepends at the SAB-write
+    boundary (`prepend_asmheader`) with every wire pointer shifted
+    by +1 — the SatDocument keeps the DXF-SAT body-at-0 convention
+    (`new_body`'s recorded rule); the authored numbering is
+    asmheader $0, body $1, …. Five SAB module tests updated to the
+    shifted index convention. **The asmheader row's 11 occurrences
+    gone: `sab_form_diffs` 66 → 65 rows, 493 → 482 occurrences.**
+    The identity moved to
+    `a8f227e09d60a17605043f9dedebc30c`, 25,439 bytes.
 
 ## THE NEXT WORK: work down the genus-gate queue (§8.1.2 packets, strict-loader verdicts)
 
@@ -229,16 +241,18 @@ era specimens (the era censuses all-zero).
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative: all four axes 0, WITH the
-  genus sections (`sab_form_diffs` 66 / `sh_genus_diffs` 1 /
+  genus sections (`sab_form_diffs` 65 / `sh_genus_diffs` 1 /
   `acds_genus_diffs` 0 — the container campaign CLOSED) as
   additional output.
-- The generation identity is `0e8b23cde1f2476198154cc317b16683`,
-  25,439 bytes (MOVED at the G-C and vertex packets — the constructed
-  AcDs container + the vertex role token changed; intended content
-  changes, re-recorded; the identity history: `84374e73…`/25,375
-  through the §20 landing → `4265c04a…`/25,407 at G-C →
-  `0e8b23cd…`/25,439 at the vertex packet). The generator
-  builds and runs identically WITH or WITHOUT `--features serde`.
+- The generation identity is `a8f227e09d60a17605043f9dedebc30c`,
+  25,439 bytes (MOVED at the G-C, vertex, and asmheader packets —
+  the constructed AcDs container, the vertex role token, and the
+  asmheader record changed; intended content changes, re-recorded;
+  the identity history: `84374e73…`/25,375 through the §20 landing →
+  `4265c04a…`/25,407 at G-C → `0e8b23cd…`/25,439 at the vertex
+  packet → `a8f227e0…`/25,439 at the asmheader packet). The
+  generator builds and runs identically WITH or WITHOUT
+  `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
   regenerate with `python3 tests/gold_harness/genus_extract.py` and
@@ -332,15 +346,15 @@ python3 tests/gold_harness/run_roundtrip.py \
 # 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 work queue): sab_form 66 rows,
+#    ... genus gates (the §20 work queue): sab_form 65 rows,
 #        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED; the vertex
-#        row closed at the second packet)
+#        and asmheader rows closed at the second and third packets)
 
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 0e8b23cde1f2476198154cc317b16683, 25,439 bytes (G-C + the vertex
-# role token moved it)
+# a8f227e09d60a17605043f9dedebc30c, 25,439 bytes (G-C + the vertex
+# role token + the asmheader record moved it)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -414,7 +428,15 @@ ba12a2f <feat> §20 genus gates: genus_extract.py + genus_gates.py + the
        the placeholder, add_edge fills the owning records' roles; the
        vertex row's 28 occurrences gone (sab_form 67 -> 66 rows,
        521 -> 493 occurrences); the identity moved to 0e8b23cd...
-       (25,439 bytes) (THIS SESSION'S VERTEX PACKET)
+       (25,439 bytes)        (THIS SESSION'S VERTEX PACKET)
+<fix> §20 G-A asmheader packet: the authored SAB's opening record
+       (asmheader $-1 $-1 "232.6.0.65535", era-uniform 136/136)
+       prepended at the SAB-write boundary with the +1 wire-pointer
+       shift (the DXF-SAT body-at-0 convention preserved); five SAB
+       module tests updated to the shifted indices; the asmheader
+       row's 11 occurrences gone (sab_form 66 -> 65 rows,
+       493 -> 482 occurrences); the identity moved to a8f227e0...
+       (25,439 bytes) (THIS SESSION'S ASMHEADER PACKET)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
