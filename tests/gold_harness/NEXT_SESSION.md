@@ -41,11 +41,14 @@
    Generation identity UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
    25,375 bytes, verified with AND without `--features serde` — the
    generator's programmatic polylines take the era fallback).
-6. **The next packet started**: Constraints `3E3` — the
-   ASSOC2DCONSTRAINTGROUP record (ours 204 bytes LONGER, 870 vs 666;
-   gold parks 5249 unknown bits in her record — its spec block is
-   partial; our reader parses the group fully). The autopsy needs the
-   -v9 walk + our writer's emission comparison — a fresh dissection.
+6. **The Constraints 3E3 dissection STARTED (the handover packet)**:
+   the head + class fields match through num_nodes=9; node[0]
+   matches; node[1] id/status match then both walks desync under the
+   naive node form (gold's own walk desyncs there — the node DATA
+   region is undocumented); the record carries a text stream with
+   the UTF-16LE constraint class names; OURS is 204 bytes longer.
+   The dissection state + the next-session path recorded in the
+   residual section below.
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -85,7 +88,34 @@ residual records** in three classes (below).
   broken-map orphans (pre-existing, documented).
 - **Constraints (1)**: `3E3` — the ASSOC2DCONSTRAINTGROUP (666 vs
   870, OURS 204 bytes longer; gold parks 5249 unknown bits — the
-  fresh dissection packet).
+  fresh dissection packet). **THE DISSECTION STATE (2026-09-28,
+  the started packet)**: the head + class fields MATCH byte-for-byte
+  through num_actions=2/num_nodes=9 (type, own handle (0,2,995), eed,
+  reactors, xdic, class_version=1, geometry_status=0, action_index=1,
+  max_assoc_dep_index=2, num_deps=0, version=2, b1=0, the identity
+  workplane 3BDs, num_actions, num_nodes; bitsize 5146 vs our 6855 —
+  ours 1709 bits ≈ 214 bytes longer). node[0] matches (id=9,
+  status=0x40, nconn=1, conns=[1]); node[1] id=3/status=0x8c matches,
+  then BOTH sides desync under the naive
+  [BLd id][RC status][BL nconn][BLs conns] node form — gold's own
+  -v9 walk desyncs at the same point (its nconn print = 2800028726
+  garbage) — the REAL node wire has more/different fields after
+  status (the node DATA arms: class_name TU + the per-kind geometry).
+  THE RECORD CARRIES A TEXT STREAM (has_strings=1, data_size 3546
+  bits) with UTF-16LE class names visible in her unknown_bits:
+  "ConstrainedImplicitPoint", "ConstrainedBoundedLine",
+  "PointCurveConstraint", "AcPointCurveConstrain…" — the constraint
+  class names; OUR text stream may differ in content or length (a
+  candidate for part of the +204). THE NEXT SESSION'S PATH: (a) walk
+  OUR emission with OUR OWN writer structure (we know our form:
+  write_constraint_node_common = [node_id BL][status RC][nconn BL]
+  [conns BLs] then the node DATA arm per kind — see
+  src/io/dwg/dwg_stream_writers/object_writer/associative.rs) and
+  her bytes with the same walk, aligning from node[1]; (b) compare
+  the text streams (the class-name TUs) — dump both via the
+  ac21_token_diff instrument's text-stream dump; (c) the node DATA
+  arms (our AssocConstraintNodeData variants) — find the form ours
+  emits that hers lacks (ours-longer).
 
 ## The remaining work (all optional — the target stays reached)
 
@@ -215,11 +245,14 @@ cargo build --bin ac21_token_diff --features serde
 
 ```
 574a59e <docs> the post-H8h-ext-6 halt refresh (the prior halt head)
-<feat> H8h-ext-7: the SEQEND captured-flags fix — the four
+a1a1506 <feat> H8h-ext-7: the SEQEND captured-flags fix — the four
        polyline-family writers use the read-captured flag pair, the
        era convention demoted to the DXF fallback (15 -> 14; 55/58 at
        100%)
-<docs> this halt refresh — the post-H8h-ext-7 record
+b5e16b5 <docs> the post-H8h-ext-7 halt refresh
+<docs> the Constraints 3E3 dissection-state handover (the started
+       packet: the matching prefix, the node[1] desync point, the
+       text-stream class names, the next-session path)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
