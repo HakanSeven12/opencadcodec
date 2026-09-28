@@ -289,6 +289,42 @@ impl DwgMergedReader {
         self.main.data_len() as i64 * 8
     }
 
+    /// The handle reader's current bit position in the record-window
+    /// coordinate base (the same base as `record_end_bits`). Authors
+    /// interleave undocumented handle reads inside opaque regions; the
+    /// §19 H8h-ext-8 node-region capture uses this boundary to retain
+    /// the unmodeled handle bits that follow a record's own head reads.
+    pub fn handle_position_in_bits(&self) -> i64 {
+        match &self.handle {
+            Some(reader) => reader.position_in_bits(),
+            None => self.main.position_in_bits(),
+        }
+    }
+
+    /// Read `count` raw record-window bits at absolute bit `start`
+    /// without disturbing any stream cursor, packed MSB-first into whole
+    /// bytes (bit i of the window is byte `i / 8`'s bit `7 - i % 8`).
+    /// Mirrors the `write_undocumented_tail` re-emission packing so a
+    /// captured window replays bit-exact.
+    pub fn peek_window_bytes(&self, start: i64, count: u32) -> Option<Vec<u8>> {
+        if count == 0 {
+            return Some(Vec::new());
+        }
+        if start < 0 || start + count as i64 > self.record_end_bits() {
+            return None;
+        }
+        let mut out = vec![0u8; (count as usize).div_ceil(8)];
+        let data = self.main.data_bytes();
+        for i in 0..count as usize {
+            let pos = start + i as i64;
+            let byte = (pos >> 3) as usize;
+            if (data[byte] >> (7 - (pos & 7))) & 1 == 1 {
+                out[i / 8] |= 0x80 >> (i % 8);
+            }
+        }
+        Some(out)
+    }
+
     /// Bits from the main cursor to the record's physical data end.
     ///
     /// Mirrors `handle_remaining_bits()` (both measure up to the same

@@ -1,54 +1,72 @@
-# Zero-context prompt — TARGET ZERO held; the conventional arm at 14 residual records (H8h-ext-7: the SEQEND captured-flags fix; the era convention demoted to the DXF fallback)
+# Zero-context prompt — TARGET ZERO held; the conventional arm at 12 residual records (H8h-ext-8: the Constraints 3E3 closure — the ASSOC2DCONSTRAINTGROUP node-region wire capture; the halt-doc count corrected 14→13→12)
 
-> Campaign state 2026-09-28 (the halt after the H8h-ext-7 landing; the
-> session continued the loop from the H8h-ext-6 halt: review → land →
+> Campaign state 2026-09-28 (the halt after the H8h-ext-8 landing; the
+> session continued the loop from the H8h-ext-7 halt: review → land →
 > verify → commit → push. **THE CORPUS STAYS AT ZERO ON EVERY AXIS: 280
-> files, read-fidelity 0, write-fidelity 0, read key-gap 0, write-target
-> 0** — verified after the landing). The ACS/SH campaign stays COMPLETE
-> at 0/0. The §19 structure campaign's READ axis stays ZERO
-> corpus-wide. Read `tests/gold_harness/AGENTS.md` first, then §F2.1–F2.3
-> + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3 (§19.2's
-> H8d–H8h-ext-7 rows carry this arc's records), then this file top to
-> bottom.
+> files, read-fidelity 0, write-fidelity 0, read key-gap 0,
+> write-target 0** — verified after the landing). The ACS/SH campaign
+> stays COMPLETE at 0/0. The §19 structure campaign's READ axis stays
+> ZERO corpus-wide. Read `tests/gold_harness/AGENTS.md` first, then
+> §F2.1–F2.3 + §18.5–18.7 in `IMPLEMENTATION.md`, then §19.1–19.3
+> (§19.2's H8d–H8h-ext-8 rows carry this arc's records), then this
+> file top to bottom.
 
-## The arc (2026-09-28, the continuation session — H8h-ext-7)
+## The arc (2026-09-28, the continuation session — H8h-ext-8)
 
-1. **The PolyLine3D 1C2 autopsy**: the divergent record is the
-   polyline's SEQEND (type 6). Gold's -v9 walk mapped the record
-   completely: her shadow_flags RC = 0x00 with NO shadow ref (Hdlsize
-   25 = owner 8 + layer 16 + 1 pad bit); our record carried
-   shadow_flags = 3 + the null shadow ref ([5,0,0,0], 8 bits) — the
-   +1 byte and the 0x03-vs-0x00 delta.
-2. **The root cause**: `seqend_era_flags()` — the "AutoCAD SEQEND
-   convention, verified per owner across the example corpus
-   (ex2000/2004/2007/2010/2013/2018)" returning (3, 0) for the R2007
-   band. The convention is REAL for the example_* corpus but is a
-   per-AUTHOR form, not an era law: the ODA-authored test-data
-   PolyLine3D carries (0, 0). Our reader ALREADY captures the wire
-   SEQEND's flag pair (pending.seqend_flags keyed by the owner,
-   transferred to the polyline model with the seqend handle) — the
-   writer ignored it.
-3. **The fix**: the four polyline-family writers (Polyline2D/3D,
-   PolyfaceMesh, PolygonMesh) use the captured pair when the read
-   retained a wire SEQEND (`e.seqend_handle.is_some()`); the era
-   convention is the DXF-built fallback only. The INSERT path
-   (literal (0,0), no corpus divergence) untouched.
-4. **Measured: 15 → 14 divergent records; 55/58 files at 100%.**
-   PolyLine3D 218/218; Polyline/Polygon/example_* held (their captured
-   (3,0) equals the era form — the switch is a no-op there).
+1. **The Constraints 3E3 autopsy COMPLETED — via the era family**: the
+   same drawing exists as r14/2000/2004/2007/2010/2013 `Constraints.dwg`
+   specimens (found by a corpus scan for
+   `Decode object ASSOC2DCONSTRAINTGROUP`). The pre-2007 records carry
+   the node class names INLINE as TVs — `AcConstrainedCircle`,
+   `AcConstrainedImplicitPoint`, `AcCenterPointConstraint`,
+   `AcConstrainedBoundedLine`, `AcPointCurveConstraint`,
+   `AcPointCoincidenceConstraint` — nine nodes, one name each, in walk
+   order. THE REAL NODE WIRE: per node `[BLd id][RC status][TU
+   class-name (AC1021: consumed from the record's TEXT stream in walk
+   order; pre-2007: inline main TV)][class data arm][geometry handle
+   refs]` — NOT gold's flat REPEAT (dwg2.spec 5682), whose own -v9 walk
+   desyncs at node[1] and parks 5249 unknown bits.
+2. **CROSS-ERA BIT-IDENTITY**: the circle node's 320-bit data region is
+   bit-identical between the 2007 and 2000 records once the inline TV
+   is discounted — the class arms are era-stable. Recovered forms: the
+   circle `[BL 1][BL 1][BL 3][BL 0][3BD center (11.319546, 16.063856,
+   0)][3BD (0,0,1)][3BD (1,0,0)][BD radius 2.147789][BD 0.0][BD 2π]`;
+   the implicit points carry the `00FFFFFFFF` BLd -1 (point_idx)
+   markers (three, one per ip node) + a curve_id BLd; the handle
+   stream carries five node reads after the head's six
+   (`[3E4][∅][3E5][∅][∅]` — the two ASSOCGEOMDEPENDENCY refs plus
+   three nulls). THE AUTHORITY CLOSURE HOLDS: the ODA PDF has zero
+   ConstraintGroup hits (grep-verified); libredwg's spec macros
+   (`AcConstraintGeometry_fields` etc.) are defined but used by NO
+   live block, and its model struct is base-only ("still in work").
+3. **The fix (the H8d/persubent-tail/MultiLeader-tail wire-capture
+   doctrine)**: the AC1021 reader retains the region verbatim — the
+   main bits from the end of num_nodes to the record's main-data end,
+   the per-node class-name TUs (bounded by what the text stream
+   holds), and the handle bits from the drain position after the
+   record's own head reads to the record end MINUS the author's
+   closing 1s pad (a ≤7-bit trailing-1s scan; the merged writer
+   re-creates the pad at close — the first landing attempt
+   double-padded, the measured 666-vs-667 byte taught the trim). The
+   writer re-emits the TUs into the text stream (walk order) + the raw
+   bits + the raw handle tail; the naive modeled REPEAT stays the
+   DXF/programmatic fallback (`nodes_wire_main` absent; the naive
+   semantic walk kept for the model). Gated to AC1021 — the only
+   dissected frame.
+4. **Measured: Constraints 219/219 (0 divergent; streams 222306 =
+   222306); the residual 12; 56/58 files at 100%.** THE HALT-DOC
+   CORRECTION (honest bookkeeping, stash-rebuild verified): the
+   ext-7 halt's "14" was actually 13 — its residual list carried the
+   stale ext-6-era names h=352/h=541 for ATMOS (five names for
+   "four"), and a direct re-measure of the halt's own committed HEAD
+   shows ATMOS at 3 divergent (h=2/h=3/h=77 only): this landing's
+   true delta is 13 → 12.
 5. **The gates**: serde 1602/0, gold_roundtrip ok, issue80 7/0, four
    family smokes 0/0/0/0, the full corpus 280 files 0/0/0/0.
    Generation identity UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
    25,375 bytes, verified with AND without `--features serde` — the
-   generator's programmatic polylines take the era fallback).
-6. **The Constraints 3E3 dissection STARTED (the handover packet)**:
-   the head + class fields match through num_nodes=9; node[0]
-   matches; node[1] id/status match then both walks desync under the
-   naive node form (gold's own walk desyncs there — the node DATA
-   region is undocumented); the record carries a text stream with
-   the UTF-16LE constraint class names; OURS is 204 bytes longer.
-   The dissection state + the next-session path recorded in the
-   residual section below.
+   generator's programmatic groups take the naive fallback). The echo
+   byte-identity held (circle cmp clean).
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -68,64 +86,38 @@ retained metadata models. Captured at the END of the read; compared
 BEFORE the prepare pipeline at the write entry. The wire-only
 captures (`table_control_entries`, `dimstyle_morehandles`) are
 EXCLUDED from the fingerprint; `xdic_by_handle`, the modeled
-subcurve fields, the persubent tails, and the SEQEND flag captures
-are INCLUDED (real state — an edit declines the echo).
+subcurve fields, the persubent tails, the SEQEND flag captures, and
+the H8h-ext-8 constraint-group node captures are INCLUDED (real
+state — an edit declines the echo).
 
 **The honest framing, extended**: for an unedited same-version
 roundtrip the DWG writer is a byte-copy gated on a full-content
 hash. The conventional arm is record-identical to the author's
-stream on 55 of the 58 AC1021 corpus files, with **14 named
-residual records** in three classes (below).
+stream on 56 of the 58 AC1021 corpus files, with **12 named
+residual records** in two classes (below).
 
-## The residual 14 (each a named, byte-level-scoped packet)
+## The residual 12 (each a named, byte-level-scoped packet)
 
 - **example_2007 (9)**: 1F +10 (01v21), 176 1726v1727, 1A9 +32
   (a9va1), 37D 2269v2270, 392 +20 (42v52 — another assoc-dep-class
   ref), 393 +30 (10v0c), 396 91v85, 430 +37 (27v28), +1 more.
-- **ATMOS (4 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
-  h=77 96v40, h=352 25642v36 (a 25KB ACIS mass we emit as 36 bytes),
-  h=541 17v18 — re-autopsy pending; the 84 her-only = the
-  broken-map orphans (pre-existing, documented).
-- **Constraints (1)**: `3E3` — the ASSOC2DCONSTRAINTGROUP (666 vs
-  870, OURS 204 bytes longer; gold parks 5249 unknown bits — the
-  fresh dissection packet). **THE DISSECTION STATE (2026-09-28,
-  the started packet)**: the head + class fields MATCH byte-for-byte
-  through num_actions=2/num_nodes=9 (type, own handle (0,2,995), eed,
-  reactors, xdic, class_version=1, geometry_status=0, action_index=1,
-  max_assoc_dep_index=2, num_deps=0, version=2, b1=0, the identity
-  workplane 3BDs, num_actions, num_nodes; bitsize 5146 vs our 6855 —
-  ours 1709 bits ≈ 214 bytes longer). node[0] matches (id=9,
-  status=0x40, nconn=1, conns=[1]); node[1] id=3/status=0x8c matches,
-  then BOTH sides desync under the naive
-  [BLd id][RC status][BL nconn][BLs conns] node form — gold's own
-  -v9 walk desyncs at the same point (its nconn print = 2800028726
-  garbage) — the REAL node wire has more/different fields after
-  status (the node DATA arms: class_name TU + the per-kind geometry).
-  THE RECORD CARRIES A TEXT STREAM (has_strings=1, data_size 3546
-  bits) with UTF-16LE class names visible in her unknown_bits:
-  "ConstrainedImplicitPoint", "ConstrainedBoundedLine",
-  "PointCurveConstraint", "AcPointCurveConstrain…" — the constraint
-  class names; OUR text stream may differ in content or length (a
-  candidate for part of the +204). THE NEXT SESSION'S PATH: (a) walk
-  OUR emission with OUR OWN writer structure (we know our form:
-  write_constraint_node_common = [node_id BL][status RC][nconn BL]
-  [conns BLs] then the node DATA arm per kind — see
-  src/io/dwg/dwg_stream_writers/object_writer/associative.rs) and
-  her bytes with the same walk, aligning from node[1]; (b) compare
-  the text streams (the class-name TUs) — dump both via the
-  ac21_token_diff instrument's text-stream dump; (c) the node DATA
-  arms (our AssocConstraintNodeData variants) — find the form ours
-  emits that hers lacks (ours-longer).
+- **ATMOS (3 + 84 her-only)**: the controls h=2 16v15, h=3 20v15,
+  h=77 96v40 — re-autopsy pending; the 84 her-only = the broken-map
+  orphans (pre-existing, documented). (The ext-7 halt's list named
+  h=352/h=541 too — both re-measure CLEAN at that halt's own HEAD;
+  stale names from the ext-6 era, corrected in §19.2's H8h-ext-8
+  row.)
 
 ## The remaining work (all optional — the target stays reached)
 
-- **The Constraints 3E3 packet** (the fresh start): gold's -v9 walk
-  of the record + our writer's ConstraintGroup emission comparison;
-  ours-longer suggests we emit a region the author omits (or a
-  longer form of the nodes array). The ASSOC2DCONSTRAINTGROUP spec
-  block is partial in gold (5249 unknown bits on her side).
-- **example_2007's 9 marginals + ATMOS's 4** — each an autopsy →
+- **example_2007's 9 marginals + ATMOS's 3** — each an autopsy →
   census → rule → gates → re-survey packet in the H8h tradition.
+- **The pre-2007 constraint-group conventional arms** (the
+  r14/2000/2004/2010/2013 `Constraints.dwg` specimens): the
+  H8h-ext-8 capture is AC1021-gated; those eras keep their current
+  behavior (echo-covered on the corpus axes, ungated by the AC1021
+  survey). A later packet could extend the capture (the inline-TV
+  forms and the R2010+ framing need their own dissection).
 - **The unattested subcurve action types** (17=ELLIPSE, 19=LINE,
   23=LINESEG3D, 42=NURB3D, 27=CURVE3D): no corpus specimens.
 - **The MT-variant pinning (§F2.G)**: the crc_seed draws — NOT
@@ -143,13 +135,14 @@ residual records** in three classes (below).
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique
   stems); report.json totals are authoritative: all four axes 0.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
-  25,375 bytes (UNCHANGED through H8h-ext-7). The generator builds
+  25,375 bytes (UNCHANGED through H8h-ext-8). The generator builds
   and runs identically WITH or WITHOUT `--features serde`.
 - The record-identity state (the 58-file AC1021 survey,
-  `record_identity_survey.py`): **55 files at 100%, 14 divergent
+  `record_identity_survey.py`): **56 files at 100%, 12 divergent
   records, 84 her-only orphans (ATMOS's broken map)**. circle
   211/211; ExtrudeC 206/206; Box 207/207; Leader 245/245;
-  Chamfer 207/207; Fillet 207/207; Loft 207/207; PolyLine3D 218/218.
+  Chamfer 207/207; Fillet 207/207; Loft 207/207; PolyLine3D 218/218;
+  **Constraints 219/219**.
 - The gold tree sits at `34f02f54` FROZEN with ONE tracked
   generated-file drift (`src/config.h.in`, autoheader requote) —
   the freeze rule stands. Oracle fingerprints unchanged: the
@@ -161,9 +154,10 @@ residual records** in three classes (below).
 - Spec authority on file: the ODA spec PDF
   (`~/work/OpenDesign_Specification_for_.dwg_files.pdf`, 270pp) +
   libredwg `bits.c`. NEITHER documents the ACDBASSOC* classes, the
-  subcurve wire, or the non-assoc PersSubentManager (the authority
-  closure, commit `cc1a6c8`); the ASSOC persubent variant HAS a
-  gold spec block (the H8h-ext-6 re-parse follows it).
+  subcurve wire, the non-assoc PersSubentManager, or the
+  constraint-group node classes (the authority closure, commits
+  `cc1a6c8` + the H8h-ext-8 grep); the ASSOC persubent variant HAS
+  a gold spec block (the H8h-ext-6 re-parse follows it).
 - The hermetic suites: serde green (the 0xF_ test + issue80
   green), gold_roundtrip green, at every landing.
 - Autopsy tooling notes: gold's `-v9` `@byte.bit` positions are
@@ -179,7 +173,11 @@ residual records** in three classes (below).
   double, 01 = 1.0, 10 = 0.0. **The SEQEND lesson (H8h-ext-7)**:
   era-derived "conventions" verified on one corpus family are
   per-author forms — prefer the read capture, keep the convention
-  as the DXF fallback only.
+  as the DXF fallback only. **The pad lesson (H8h-ext-8)**: a
+  wire capture that runs to the record end must TRIM the author's
+  closing 1s pad (≤7 bits) — the writer re-creates it at close, so
+  an untrimmed capture double-pads (+1 byte, the measured
+  666-vs-667).
 
 ## Environment (complete)
 
@@ -191,7 +189,9 @@ write tool and run by absolute path (PowerShell quoting caveats:
 inline `&&`, `$var`, pipes, nested quotes and multi-word grep
 alternations are all broken; ONE COMMAND PER LINE in script files;
 `sleep` is capped at 120 s — use long timeouts on the bash tool for
-the corpus — the full corpus takes ~4 minutes).
+the corpus — the full corpus takes ~4 minutes; the bash tool's
+timeout parameter is capped at 120 s in practice — run the corpus
+as a background process and read its logs).
 
 ```bash
 # Environment (source this):
@@ -230,8 +230,9 @@ md5sum gen_all_entities_all_versions.dwg
 python3 tests/gold_harness/record_identity_survey.py \
     "$GOLD_TESTDATA"/2007/*.dwg "$GOLD_TESTDATA"/example_2007.dwg \
     tests/gold_harness/tests/sh_history/*_2007.dwg
-# current state: 55 files at 100%, 14 divergent records total
-# circle 211/211; PolyLine3D 218/218; Chamfer 207/207
+# current state: 56 files at 100%, 12 divergent records total
+# circle 211/211; PolyLine3D 218/218; Chamfer 207/207;
+# Constraints 219/219
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -250,28 +251,36 @@ a1a1506 <feat> H8h-ext-7: the SEQEND captured-flags fix — the four
        era convention demoted to the DXF fallback (15 -> 14; 55/58 at
        100%)
 b5e16b5 <docs> the post-H8h-ext-7 halt refresh
-<docs> the Constraints 3E3 dissection-state handover (the started
-       packet: the matching prefix, the node[1] desync point, the
-       text-stream class names, the next-session path)
+<feat> H8h-ext-8: the Constraints 3E3 closure — the AC1021
+       node-region wire capture for the ASSOC2DCONSTRAINTGROUP (the
+       class-name TUs, the main bits, the handle tail; naive as the
+       DXF fallback; Constraints 219/219; 13 -> 12)
+<docs> the post-H8h-ext-8 halt refresh (this file)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the H8h-ext-6
-halt → the PolyLine3D 1C2 autopsy (gold's -v9 walk: her shadow=0,
-no ref; ours (3,0) + the null ref — the +1 byte) → the root cause
-(`seqend_era_flags()` — the example-corpus convention mistaken for
-an era law; the ODA-authored specimen carries (0,0)) → the fix (the
-captured pair from pending.seqend_flags, era as the DXF fallback
-only) → the gates (serde 1602/0, gold_roundtrip, issue80, family
-smokes, corpus 0/0/0/0, generation identity unchanged and
-feature-independent) → the full survey (15 → 14; 55/58 at 100% —
-PolyLine3D 218/218) → the Constraints 3E3 autopsy started (the
-ASSOC2DCONSTRAINTGROUP, ours 204 bytes longer — the fresh packet
-map) → the docs (§19.2 H8h-ext-7 row; this halt record). **The
-maintainer's loop instruction — "repeat process until target =
-zero" — remains satisfied: the corpus is at zero on every axis; the
-conventional arm is record-identical on 55 of 58 AC1021 files, and
-the residual 14 records are named, byte-level-scoped packets in
-three classes.**
+**Session arc, for context**: the continuation from the H8h-ext-7
+halt → the Constraints 3E3 autopsy continued (the started packet:
+the matching prefix, the node[1] desync, the text-stream class
+names) → the era-family discovery (r14/2000/2004/2010/2013
+`Constraints.dwg` specimens; the pre-2007 records carry the node
+class names INLINE as TVs — the real node wire pinned: per node
+[id][status][class-name TU][class data arm][geometry handles]) →
+the cross-era bit-identity proof (the circle's 320-bit data region
+identical across eras) → the fix (the wire-capture doctrine:
+names + main bits + handle tail, AC1021-gated, the naive REPEAT as
+the DXF fallback) → the pad lesson (the first attempt's +1 byte =
+the double-padded author's 1s pad; the ≤7-bit trailing-1s trim) →
+the gates (serde 1602/0, gold_roundtrip, issue80, family smokes,
+corpus 0/0/0/0, generation identity unchanged and
+feature-independent) → the full survey (Constraints 219/219; the
+residual 12; the halt-doc count corrected: the ext-7 "14" was 13 —
+its ATMOS list carried the stale ext-6 names h=352/h=541,
+stash-rebuild verified) → the docs (§19.2 H8h-ext-8 row; this halt
+record). **The maintainer's loop instruction — "repeat process
+until target = zero" — remains satisfied: the corpus is at zero
+on every axis; the conventional arm is record-identical on 56 of
+58 AC1021 files, and the residual 12 records are named,
+byte-level-scoped packets in two classes.**

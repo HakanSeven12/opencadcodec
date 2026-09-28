@@ -541,8 +541,34 @@ impl<'a> DwgObjectWriter<'a> {
                 // write_constraint_node_common is exactly that shape;
                 // mirrors the reader.
                 self.writer.write_bit_long(value.nodes.len() as i32);
-                for node in &value.nodes {
-                    self.write_constraint_node_common(node);
+                // §19 H8h-ext-8: DWG-read AC1021 records re-emit their
+                // captured node region verbatim — the per-node
+                // class-name TUs into the text stream (walk order),
+                // the main bits, then the captured handle tail (the
+                // per-node geometry-dependency reads and her closing
+                // 1s pad). The modeled REPEAT stays the fallback for
+                // DXF-built and programmatic records (no capture).
+                if value.nodes_wire_main.is_some() {
+                    for name in &value.nodes_wire_names {
+                        self.writer.write_variable_text(name);
+                    }
+                    if let Some(bytes) = &value.nodes_wire_main {
+                        let bits = (value.nodes_wire_main_bit_len as usize)
+                            .min(bytes.len() * 8);
+                        for index in 0..bits {
+                            let byte = bytes[index / 8];
+                            let bit = (byte >> (7 - index % 8)) & 1;
+                            self.writer.write_bit(bit == 1);
+                        }
+                    }
+                    if let Some(bytes) = &value.nodes_wire_handles {
+                        self.writer
+                            .write_handle_bits(bytes, value.nodes_wire_handles_bit_len);
+                    }
+                } else {
+                    for node in &value.nodes {
+                        self.write_constraint_node_common(node);
+                    }
                 }
             }
             AssociativeData::Variable(value) => {

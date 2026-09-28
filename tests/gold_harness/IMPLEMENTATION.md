@@ -6294,6 +6294,81 @@ Signature) — the parse side is further along than the emission side.
   ours 204 bytes LONGER; gold parks 5249 unknown bits in
   her record — a fresh dissection packet).
 
+  **H8h-ext-8 — the Constraints 3E3 closure: the
+  node-region wire capture: 13 → 12 (2026-09-28, the
+  continuation session; the ASSOC2DCONSTRAINTGROUP
+  single)**: the dissection completed against the ERA
+  FAMILY — the same drawing exists as r14/2000/2004/
+  2007/2010/2013 `Constraints.dwg` specimens (a corpus
+  scan away from the AC1021 set), and the pre-2007
+  records carry the node class names INLINE as TVs
+  (`AcConstrainedCircle`, `AcConstrainedImplicitPoint`,
+  `AcCenterPointConstraint`, `AcConstrainedBoundedLine`,
+  `AcPointCurveConstraint`,
+  `AcPointCoincidenceConstraint` — nine nodes, one name
+  each, in walk order), which pins the real node wire:
+  per node `[BLd id][RC status][TU class-name (AC1021:
+  consumed from the record's TEXT stream in walk order;
+  pre-2007: inline main TV)][class data arm][geometry
+  handle refs]` — NOT gold's flat REPEAT (dwg2.spec
+  5682), whose own -v9 walk desyncs at node[1] and parks
+  5249 unknown bits. CROSS-ERA BIT-IDENTITY: the circle
+  node's 320-bit data region is bit-identical between
+  the 2007 and 2000 records once the inline TV is
+  discounted — the class arms are era-stable. The
+  recovered arms: the circle = `[BL 1][BL 1][BL 3][BL 0]
+  [3BD center (11.319546, 16.063856, 0)][3BD (0,0,1)]
+  [3BD (1,0,0)][BD radius 2.147789][BD 0.0][BD 2π]`;
+  the implicit points carry the `00FFFFFFFF` BLd -1
+  (point_idx) markers (three, one per ip node) + a
+  curve_id BLd; the handle stream carries five node
+  reads after the head's six (`[3E4][∅][3E5][∅][∅]` —
+  the two ASSOCGEOMDEPENDENCY refs plus three nulls).
+  THE AUTHORITY CLOSURE HOLDS: the ODA PDF has zero
+  ConstraintGroup hits (grep-verified); libredwg's
+  spec macros (`AcConstraintGeometry_fields` etc.) are
+  defined but used by NO live block, and its model
+  struct is base-only ("still in work"). THE FIX (the
+  H8d/persubent-tail/MultiLeader-tail wire-capture
+  doctrine): the AC1021 reader retains the region
+  verbatim — the main bits from the end of num_nodes to
+  the record's main-data end, the per-node class-name
+  TUs (bounded by what the text stream holds), and the
+  handle bits from the drain position after the
+  record's own head reads to the record end MINUS the
+  author's closing 1s pad (a ≤7-bit trailing-1s scan;
+  the merged writer re-creates the pad at close — the
+  first landing attempt double-padded, the measured
+  666-vs-667 byte taught the trim); the writer re-emits
+  the TUs into the text stream (walk order) + the raw
+  bits + the raw handle tail, and the naive modeled
+  REPEAT stays the DXF/programmatic fallback
+  (`nodes_wire_main` absent; the naive semantic walk
+  kept for the model). Gated to AC1021 — the only
+  dissected frame; the pre-2007 era specimens keep
+  their current behavior (echo-covered on the corpus
+  axes, ungated by the AC1021 survey; a later packet if
+  ever measured). **MEASURED: Constraints 219/219
+  (0 divergent, streams 222306 = 222306); the residual
+  12 = example_2007's 9 marginals + ATMOS 3 (the
+  controls h=2 16v15, h=3 20v15, h=77 96v40) + 84
+  her-only; 56/58 files at 100%.** THE HALT-DOC
+  CORRECTION (honest bookkeeping, stash-rebuild
+  verified): the ext-7 halt's "14" was actually 13 —
+  its residual list carried the stale ext-6-era names
+  h=352/h=541 for ATMOS (five names for "four"), and a
+  direct re-measure of the halt's own committed HEAD
+  shows ATMOS at 3 divergent (h=2/h=3/h=77 only): this
+  landing's true delta is 13 → 12. GATES: serde 1602/0,
+  gold_roundtrip ok, issue80 7/0, four family smokes
+  0/0, corpus 280 files 0/0/0/0, generation identity
+  UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
+  25,375 bytes, feature-independent — the generator's
+  programmatic groups take the naive fallback), the
+  echo byte-identity held (circle cmp clean). THE
+  RESIDUAL 12: example_2007's 9 marginals; ATMOS 3 +
+  84 her-only.
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

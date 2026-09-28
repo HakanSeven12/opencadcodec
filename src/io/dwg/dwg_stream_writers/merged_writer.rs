@@ -451,6 +451,19 @@ impl DwgMergedWriter {
         self.handle.write_first_ref_handle(ref_type, reference, handle);
     }
 
+    /// Write captured raw bits into the handle stream at the current drain
+    /// position (§19 H8h-ext-8 node-region capture re-emission). The
+    /// packing mirrors `DwgMergedReader::peek_window_bytes`: bit i of the
+    /// window is byte `i / 8`'s bit `7 - i % 8`.
+    pub fn write_handle_bits(&mut self, bytes: &[u8], bit_len: u32) {
+        let bits = (bit_len as usize).min(bytes.len() * 8);
+        for index in 0..bits {
+            let byte = bytes[index / 8];
+            let bit = (byte >> (7 - index % 8)) & 1;
+            self.handle.write_bit(bit == 1);
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     //  Stream merging
     // ════════════════════════════════════════════════════════════════════════

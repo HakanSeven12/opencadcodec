@@ -1117,6 +1117,32 @@ pub struct Assoc2dConstraintGroup {
     pub dependency: Handle,
     pub actions: Vec<Handle>,
     pub nodes: Vec<AssocConstraintNode>,
+    /// §19 H8h-ext-8: the AC1021 node-region wire captures. Gold's flat
+    /// per-node REPEAT (dwg2.spec 5682) misparses the authored records:
+    /// the real node wire carries a class-name TU per node (consumed from
+    /// the record's text stream in walk order), per-class data arms and
+    /// per-node geometry-dependency handle reads — none documented in
+    /// the ODA spec or libredwg. A DWG read captures the region
+    /// verbatim — the main bits from the end of num_nodes to the
+    /// record's main-data end, the per-node class-name TUs, and the
+    /// handle bits from the drain position after the record's own head
+    /// handles to the record end — so the conventional rewrite re-emits
+    /// her bytes bit-exact. The naive modeled emission stays the DXF
+    /// and generator fallback (`nodes_wire_main` absent).
+    pub nodes_wire_names: Vec<String>,
+    /// MSB-first packed main-content bits of the node region.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_main: Option<Vec<u8>>,
+    /// Exact bit width of `nodes_wire_main` (the final byte may carry
+    /// unused low bits).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_main_bit_len: u32,
+    /// MSB-first packed handle-stream tail bits (AC1021 only).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_handles: Option<Vec<u8>>,
+    /// Exact bit width of `nodes_wire_handles`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_handles_bit_len: u32,
 }
 
 impl Default for Assoc2dConstraintGroup {
@@ -1129,6 +1155,11 @@ impl Default for Assoc2dConstraintGroup {
             dependency: Handle::NULL,
             actions: Vec::new(),
             nodes: Vec::new(),
+            nodes_wire_names: Vec::new(),
+            nodes_wire_main: None,
+            nodes_wire_main_bit_len: 0,
+            nodes_wire_handles: None,
+            nodes_wire_handles_bit_len: 0,
         }
     }
 }

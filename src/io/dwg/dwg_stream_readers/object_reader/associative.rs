@@ -889,6 +889,7 @@ pub fn read_associative_data(
             // per-node data as one global connection vector (garbage
             // signed BLs) and lost the node count: gold reads 9 nodes on
             // Constraints.dwg where this read 1, 129 where this read 113.
+            let node_region_start = reader.position_in_bits();
             let mut nodes: Vec<AssocConstraintNode> =
                 Vec::with_capacity(node_count as usize);
             for _ in 0..node_count {
@@ -914,6 +915,86 @@ pub fn read_associative_data(
                     data: AssocConstraintNodeData::None,
                 });
             }
+            // §19 H8h-ext-8: the AC1021 node-region wire capture.
+            // Gold's flat REPEAT misparses the authored records — on
+            // the 2007/Constraints.dwg group (h 3E3, nine nodes) gold's
+            // own -v9 walk desyncs at node[1] and parks 5249 unknown
+            // bits. The real wire (cross-verified against the R2000/
+            // R2004 ancestors of the same drawing — the circle node's
+            // data region is bit-identical across eras once the inline
+            // class-name TV of the pre-2007 records is discounted)
+            // carries, per node: a class-name TU consumed from the
+            // TEXT stream in walk order ("AcConstrainedCircle",
+            // "AcConstrainedImplicitPoint", "AcCenterPointConstraint",
+            // ...), a class data arm (the circle: connection BLs, the
+            // center 3BD, normal/x-axis 3BD shorts, radius BD, 0.0,
+            // 2π; the implicit points: connection BLs, point_idx BLd
+            // -1, curve_id BLd; ...) and per-node geometry handles in
+            // the HANDLE stream (two soft pointers into the group's
+            // two ASSOCGEOMDEPENDENCYs plus three inline nulls). None
+            // of it is documented (the ODA spec and libredwg cover
+            // only the flat base form). Retain the region verbatim so
+            // the conventional rewrite re-emits her bytes: the main
+            // bits from the end of num_nodes to the record's
+            // main-data end, the per-node class-name TUs, and the
+            // handle bits from the drain position after this record's
+            // own head reads to the record end (the captured tail
+            // includes her closing 1s pad; the merged writer's own pad
+            // is a no-op once aligned). Gated to AC1021, the only
+            // frame dissected; DXF/programmatic reads keep the naive
+            // modeled emission (their `nodes_wire_main` stays `None`).
+            let mut nodes_wire_names: Vec<String> = Vec::new();
+            let mut nodes_wire_main: Option<Vec<u8>> = None;
+            let mut nodes_wire_main_bit_len: u32 = 0;
+            let mut nodes_wire_handles: Option<Vec<u8>> = None;
+            let mut nodes_wire_handles_bit_len: u32 = 0;
+            if dxf_version == DxfVersion::AC1021 && node_count > 0 {
+                let node_region_end = reader.main_data_end();
+                if node_region_end > node_region_start {
+                    let count = (node_region_end - node_region_start) as u32;
+                    if let Some(bytes) =
+                        reader.peek_window_bytes(node_region_start, count)
+                    {
+                        nodes_wire_main = Some(bytes);
+                        nodes_wire_main_bit_len = count;
+                    }
+                }
+                // The class-name TUs, in walk order, bounded by what
+                // the record's text stream actually holds (the
+                // dissected corpus specimen carries exactly nine).
+                for _ in 0..node_count {
+                    if reader.text_remaining_bits() <= 0 {
+                        break;
+                    }
+                    nodes_wire_names.push(reader.read_variable_text());
+                }
+                let handle_from = reader.handle_position_in_bits();
+                // Trim the author's closing 1s pad (§19.4: the record's
+                // final partial byte is the 1s pad; our merged writer
+                // re-creates it at close). The pad is at most 7 bits —
+                // a wider run means real handle bits, not padding.
+                let mut handle_to = reader.record_end_bits();
+                let mut pad_bits: i64 = 0;
+                while pad_bits < 7 && handle_to - pad_bits > handle_from {
+                    let bit = reader
+                        .peek_window_bytes(handle_to - pad_bits - 1, 1)
+                        .map(|bytes| bytes[0] >> 7);
+                    if bit != Some(1) {
+                        break;
+                    }
+                    pad_bits += 1;
+                }
+                handle_to -= pad_bits;
+                if handle_to > handle_from {
+                    let count = (handle_to - handle_from) as u32;
+                    if let Some(bytes) =
+                        reader.peek_window_bytes(handle_from, count)
+                    {
+                        nodes_wire_handles = Some(bytes);
+                        nodes_wire_handles_bit_len = count;
+                    }
+                }
+            }
             AssociativeData::ConstraintGroup(Assoc2dConstraintGroup {
                 action,
                 version: group_version,
@@ -922,6 +1003,11 @@ pub fn read_associative_data(
                 dependency,
                 actions,
                 nodes,
+                nodes_wire_names,
+                nodes_wire_main,
+                nodes_wire_main_bit_len,
+                nodes_wire_handles,
+                nodes_wire_handles_bit_len,
             })
         }
         "ASSOCVARIABLE" => {

@@ -1339,6 +1339,7 @@ impl<'a> SectionReader<'a> {
                     dependency,
                     actions,
                     nodes,
+                    ..Default::default()
                 })
             }
             "ASSOCVARIABLE" => {
