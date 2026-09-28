@@ -6148,6 +6148,30 @@ impl DwgDocumentBuilder {
                     );
                 }
                 OBJ_TABLECONTENT => {
+                    // §19 H8h-ext-12: the AC1021 TABLECONTENT wire
+                    // capture. Gold has NO spec block for the class
+                    // ("Unknown Class object 529") and the modeled
+                    // emission diverges structurally (example_2007
+                    // h=BF2: her main region 17,587 bits vs our
+                    // modeled 15,963 — 203 bytes, near-full; the text
+                    // region and handle stream re-emit bit-identical).
+                    // Capture the body verbatim — bounds taken BEFORE
+                    // the parse advances the text/handle cursors; the
+                    // bits peeked after (peek does not disturb the
+                    // cursors). Gated to AC1021, the record-identity
+                    // attested frame; other eras keep the modeled
+                    // emission.
+                    let wire = if self.obj_reader.dxf_version()
+                        == crate::types::DxfVersion::AC1021
+                    {
+                        let body_start = reader.position_in_bits();
+                        let main_end = reader.main_end_bits();
+                        let text_len = reader.text_remaining_bits().max(0) as u32;
+                        let handle_from = reader.handle_position_in_bits();
+                        Some((body_start, main_end, text_len, handle_from))
+                    } else {
+                        None
+                    };
                     let (
                         name,
                         description,
@@ -6186,6 +6210,60 @@ impl DwgDocumentBuilder {
                     obj.merged_ranges = merged_ranges;
                     obj.table_style_handle = (style_handle != 0)
                         .then(|| Handle::from(style_handle));
+                    if let Some((body_start, main_end, text_len, handle_from)) =
+                        wire
+                    {
+                        if main_end > body_start {
+                            let count = (main_end - body_start) as u32;
+                            if let Some(bytes) =
+                                reader.peek_window_bytes(body_start, count)
+                            {
+                                obj.wire_main = Some(bytes);
+                                obj.wire_main_bit_len = count;
+                            }
+                        }
+                        if text_len > 0 {
+                            if let Some(bytes) =
+                                reader.peek_window_bytes(main_end, text_len)
+                            {
+                                obj.wire_text = Some(bytes);
+                                obj.wire_text_bit_len = text_len;
+                            }
+                        }
+                        // The handle tail with the author's closing 1s
+                        // pad trimmed (the ext-8 lesson: the writer's
+                        // handle buffer starts at an arbitrary bit, so
+                        // an untrimmed capture double-pads). The writer
+                        // re-creates the pad explicitly with 1s — the
+                        // author's final-partial-byte convention (the
+                        // h=BF2 lesson: the merged writer's own handle
+                        // pad is 0s; every other corpus record ends
+                        // byte-aligned so only this record exposes
+                        // it).
+                        let mut handle_to = reader.record_end_bits();
+                        let mut pad_bits: i64 = 0;
+                        while pad_bits < 7
+                            && handle_to - pad_bits > handle_from
+                        {
+                            let bit = reader
+                                .peek_window_bytes(handle_to - pad_bits - 1, 1)
+                                .map(|bytes| bytes[0] >> 7);
+                            if bit != Some(1) {
+                                break;
+                            }
+                            pad_bits += 1;
+                        }
+                        handle_to -= pad_bits;
+                        if handle_to > handle_from {
+                            let count = (handle_to - handle_from) as u32;
+                            if let Some(bytes) =
+                                reader.peek_window_bytes(handle_from, count)
+                            {
+                                obj.wire_handles = Some(bytes);
+                                obj.wire_handles_bit_len = count;
+                            }
+                        }
+                    }
                     document.objects.insert(
                         Handle::from(handle),
                         crate::objects::ObjectType::TableContent(obj),

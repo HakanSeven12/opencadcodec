@@ -6534,6 +6534,98 @@ Signature) — the parse side is further along than the emission side.
   partial-parse single-bits) and h=BF2 (the
   14.5KB UNKNOWN_OBJ, 203 bytes short).
 
+  **H8h-ext-12 — THE ZERO-RESIDUAL LANDING:
+  the last three records closed (the two
+  ASSOC ref-type nibbles + the TABLECONTENT
+  wire capture): 3 → 0 — THE AC1021
+  CONVENTIONAL ARM AT ZERO DIVERGENT RECORDS
+  (2026-09-28, the continuation)**: (1)
+  **h=392/h=393 — the handle-reference TYPE
+  nibbles**: the byte dumps pinned both diffs
+  to single ref-code nibbles in the handle
+  streams. h=392 (ACDBASSOCALIGNEDDIMACTION-
+  BODY): her empty-values pab dependency ref
+  is (4.2.397) — SoftPointer — where our
+  writer emitted 5 (gold's dwg2.spec pab
+  block declares 5; the wire is the authority
+  — the same spec-vs-wire split as the
+  H8h-ext-3 deps census {3: 27} and the
+  H8h-ext-4 edge param). h=393 (ACDBASSOC-
+  OSNAPPOINTREFACTIONPARAM): her compound
+  child.parameter (child id=0) is (4.0.0) —
+  SoftPointer — where our writer emitted 3
+  (gold's child_param block declares 3). THE
+  FIX: both writer refs switched to
+  SoftPointer; the child secondary/tertiary
+  refs (child id != 0, no corpus specimen)
+  keep gold's declared 3. (2) **h=BF2 — the
+  TABLECONTENT closure (the ext-8 wire-capture
+  doctrine, third application)**: the class
+  (type 529, 14.5KB) has NO gold spec block
+  ("Unknown Class object 529 TABLECONTENT")
+  and no ODA documentation; our modeled
+  AcDbLinkedTableData emission diverged
+  structurally — her main region 17,587 bits
+  vs our modeled 15,963 (203 bytes,
+  near-full) — while the TEXT region (98,348
+  bits, the cell texts) and the HANDLE stream
+  (0xD8) re-emitted BIT-IDENTICAL, isolating
+  the divergence to the main body. THE FIX:
+  the AC1021 reader captures the body
+  verbatim — the main bits from the body
+  start (after the common fields) to the
+  main-data end, the text-region bits, and
+  the handle tail — and the writer re-emits
+  all three raw (write_bit / write_text_bit /
+  write_handle_bits); the modeled emission
+  stays the DXF/programmatic fallback. (3)
+  **THE PAD LESSON, EXTENDED**: the first
+  capture landing produced the right SIZE
+  but a wrong final byte (her 0x9b vs our
+  0x98) — the merged writer's handle-stream
+  close pads with ZEROS (write_spear_shift)
+  while the author's final partial byte is
+  1s (§19 H8d); every other corpus record's
+  handle stream ends byte-aligned so only
+  h=BF2 exposed it. THE FIX: the writer
+  re-creates the author's 1s pad explicitly —
+  the captured handle bits extended to the
+  byte boundary with 1s (the reader's ≤7-bit
+  trim cut exactly her pad; the corpus
+  records' handle streams end in a 0 bit or
+  aligned, so the trim never over-cuts). (4)
+  **THE NORMALIZE-LAYER REGRESSION, caught
+  by the family smokes**: the new wire_*
+  model fields first leaked into the semantic
+  compare as extra_in_silver rows on the
+  R2000/R2004 smokes (6+6 diffs) — popped in
+  the UNKNOWN_ENT path (the dwg_raw_tail_bits
+  precedent: writer-side fidelity channels
+  have no gold counterpart). **MEASURED:
+  example_2007 540/540 (streams 417109 =
+  417109); THE FULL 58-FILE AC1021 SURVEY AT
+  ZERO DIVERGENT RECORDS — 58/58 files at
+  100%; the only remaining her-only set is
+  ATMOS's 84 broken-map orphans
+  (pre-existing, documented).** GATES: serde
+  1602/0, gold_roundtrip ok, issue80 7/0,
+  four family smokes 0/0/0/0, corpus 280
+  files 0/0/0/0, generation identity
+  UNCHANGED (`84374e73ddcf1d6143877c4100b81e48`,
+  25,375 bytes, feature-independent), the
+  echo byte-identity held (circle cmp clean).
+  THE HONEST FRAMING, FINAL: the conventional
+  arm is now record-identical to the author's
+  stream on EVERY AC1021 corpus file — the
+  residual named-record inventory is EMPTY;
+  what remains outside the survey's reach:
+  the ATMOS 84 her-only orphans (the
+  broken-map pre-existing issue), the
+  pre-2007 constraint-group conventional arms
+  (echo-covered, ungated), and the
+  unattested/dead rows (the subcurve action
+  types, the MT crc_seed draws, LoftD, BREP).
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape

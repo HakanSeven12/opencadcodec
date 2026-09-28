@@ -126,7 +126,13 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.values.len() as i32);
         if value.values.is_empty() {
             self.writer.write_bit_long(value.empty_value_marker);
-            self.write_assoc_handle(DwgReferenceType::HardPointer, value.dependency);
+            // §19 H8h-ext-12: the author codes the empty-values
+            // dependency ref 4 (SoftPointer) — her h=392 (example_2007,
+            // ACDBASSOCALIGNEDDIMACTIONBODY) writes (4.2.397) where this
+            // emitted 5 (gold's dwg2.spec pab block declares 5; the wire
+            // is the authority — the same spec-vs-wire split as the
+            // H8h-ext-3 deps census and the H8h-ext-4 edge param).
+            self.write_assoc_handle(DwgReferenceType::SoftPointer, value.dependency);
         }
         self.write_assoc_values(&value.values);
     }
@@ -260,7 +266,14 @@ impl<'a> DwgObjectWriter<'a> {
         if let Some(child) = &value.child_parameter {
             self.writer.write_bit_short(child.status);
             self.writer.write_bit_long(child.id);
-            self.write_assoc_handle(DwgReferenceType::HardOwnership, child.parameter);
+            // §19 H8h-ext-12: the author codes the child parameter ref 4
+            // (SoftPointer) — her h=393 (example_2007,
+            // ACDBASSOCOSNAPPOINTREFACTIONPARAM, child id=0) writes
+            // (4.0.0) where this emitted 3 (gold's dwg2.spec child_param
+            // block declares 3; the wire is the authority). The
+            // secondary/tertiary refs (child id != 0) have no corpus
+            // specimen — they keep gold's declared 3.
+            self.write_assoc_handle(DwgReferenceType::SoftPointer, child.parameter);
             if child.id != 0 {
                 self.write_assoc_handle(DwgReferenceType::HardOwnership, child.secondary_parameter);
                 self.writer.write_bit_long(child.marker);

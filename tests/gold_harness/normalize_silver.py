@@ -1208,7 +1208,14 @@ def normalize_silver(
             for sk in ("dxf_name", "cpp_class_name", "type_name",
                        "dwg_type_code", "dwg_handle_bits", "graphic_data",
                        "raw_dwg_data", "raw_dwg_handle_bits",
-                       "raw_dwg_version", "source_version"):
+                       "raw_dwg_version", "source_version",
+                       # §19 H8h-ext-12: the AC1021 TABLECONTENT wire
+                       # captures (writer-side fidelity channels, the
+                       # dwg_raw_tail_bits precedent — gold's unknown-class
+                       # decode has no counterpart).
+                       "wire_main", "wire_main_bit_len",
+                       "wire_text", "wire_text_bit_len",
+                       "wire_handles", "wire_handles_bit_len"):
                 payload.pop(sk, None)
 
         common = payload.get("common", {})

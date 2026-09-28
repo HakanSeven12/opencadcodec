@@ -1400,6 +1400,38 @@ pub struct Table {
     pub dwg_r2010_unknown_bit: Option<bool>,
     pub dwg_unknown_long2: i32,
     pub dwg_unknown_short: i16,
+    /// §19 H8h-ext-12: the AC1021 TABLECONTENT wire captures. Gold has
+    /// NO spec block for the class (its decoder prints "Unknown Class
+    /// object 529 TABLECONTENT"), and the ODA spec does not document
+    /// the AcDbLinkedTableData wire; the modeled emission diverges from
+    /// the author's stream structurally (example_2007 h=BF2: her main
+    /// region 17,587 bits vs our modeled 15,963 — a 203-byte,
+    /// near-full divergence while the text region and handle stream
+    /// re-emit bit-identical). A DWG read captures the class body
+    /// verbatim — the main bits from the body start (after the common
+    /// fields) to the main-data end, the text region bits, and the
+    /// handle bits from the drain position after the record's own
+    /// head reads to the record end minus the author's closing 1s pad
+    /// — so the conventional rewrite re-emits her bytes. The modeled
+    /// emission stays the DXF/programmatic fallback (`wire_main`
+    /// absent).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_main: Option<Vec<u8>>,
+    /// Exact bit width of `wire_main`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_main_bit_len: u32,
+    /// MSB-first packed text-region bits (the cell-text TUs).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_text: Option<Vec<u8>>,
+    /// Exact bit width of `wire_text`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_text_bit_len: u32,
+    /// MSB-first packed handle-stream tail bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handles: Option<Vec<u8>>,
+    /// Exact bit width of `wire_handles`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handles_bit_len: u32,
 }
 
 fn visit_table_value_handles(value: &mut CellValue, visit: &mut impl FnMut(&mut Handle)) {
@@ -1642,6 +1674,12 @@ impl Table {
             dwg_r2010_unknown_bit: None,
             dwg_unknown_long2: 0,
             dwg_unknown_short: 38,
+            wire_main: None,
+            wire_main_bit_len: 0,
+            wire_text: None,
+            wire_text_bit_len: 0,
+            wire_handles: None,
+            wire_handles_bit_len: 0,
         }
     }
 
