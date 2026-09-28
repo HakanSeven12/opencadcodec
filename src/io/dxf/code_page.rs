@@ -199,15 +199,33 @@ pub fn encode_legacy_string(text: &str, encoding: &'static Encoding) -> Vec<u8> 
     out
 }
 
-/// Decode AutoCAD MIF `\U+XXXX` escapes (exactly four hex digits) into
-/// Unicode characters.
+/// Whether `text` holds an AutoCAD MIF escape (`\U+XXXX` or `\M+nXXXX`).
+pub fn has_mif_escape(text: &str) -> bool {
+    text.contains("\\U+") || text.contains("\\M+")
+}
+
+/// The code page a MIF multibyte escape `\M+nXXXX` names by its digit `n`.
+/// Johab (4) has no decoder here and is left as literal text.
+fn mif_multibyte_encoding(n: char) -> Option<&'static encoding_rs::Encoding> {
+    match n {
+        '1' => Some(encoding_rs::SHIFT_JIS),
+        '2' => Some(encoding_rs::BIG5),
+        '3' => Some(encoding_rs::EUC_KR),
+        '5' => Some(encoding_rs::GBK),
+        _ => None,
+    }
+}
+
+/// Decode AutoCAD MIF escapes into Unicode characters: `\U+XXXX` (exactly
+/// four hex digits) and the double-byte `\M+nXXXX`, where `n` names the code
+/// page (1 Shift-JIS, 2 Big5, 3 Wansung, 5 GB) and `XXXX` its two bytes.
 ///
 /// A high-surrogate escape followed by a low-surrogate escape combines into
 /// a scalar value. Malformed or unterminated escapes are left as literal
 /// text, and invalid code points are dropped — matching the MTEXT
 /// formatter's behavior for the same escapes.
 pub fn decode_mif_escapes(text: &str) -> String {
-    if !text.contains("\\U+") {
+    if !has_mif_escape(text) {
         return text.to_string();
     }
     let chars: Vec<char> = text.chars().collect();
@@ -222,6 +240,20 @@ pub fn decode_mif_escapes(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut i = 0;
     while i < len {
+        if chars[i] == '\\' && i + 8 <= len && chars[i + 1] == 'M' && chars[i + 2] == '+' {
+            let decoded = mif_multibyte_encoding(chars[i + 3]).zip(hex_at(i + 4)).and_then(
+                |(encoding, code)| {
+                    let bytes = code.to_be_bytes();
+                    let (text, _, malformed) = encoding.decode(&bytes);
+                    (!malformed && text.chars().count() == 1).then(|| text.into_owned())
+                },
+            );
+            if let Some(decoded) = decoded {
+                out.push_str(&decoded);
+                i += 8;
+                continue;
+            }
+        }
         if chars[i] == '\\' && i + 7 <= len && chars[i + 1] == 'U' && chars[i + 2] == '+' {
             if let Some(unit) = hex_at(i + 3) {
                 i += 7;
@@ -303,6 +335,10 @@ mod tests {
     #[test]
     fn test_decode_mif_escapes() {
         assert_eq!(decode_mif_escapes("ab\\U+4E2Dcd"), "ab中cd");
+        // Double-byte escapes: Shift-JIS "技术要求" as SolidWorks writes it.
+        assert_eq!(decode_mif_escapes("\\M+18B5A术\\M+19776\\M+18B81"), "技术要求");
+        assert_eq!(decode_mif_escapes("\\M+5D6D0"), "中");
+        assert_eq!(decode_mif_escapes("\\M+4ABCD"), "\\M+4ABCD");
         assert_eq!(decode_mif_escapes("\\U+0041\\U+0042"), "AB");
         // Exactly four hex digits: a fifth character stays literal.
         assert_eq!(decode_mif_escapes("\\U+00412"), "A2");

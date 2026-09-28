@@ -748,7 +748,7 @@ impl DwgBitReader {
                         .chunks_exact(2)
                         .map(|c| u16::from_le_bytes([c[0], c[1]]))
                         .collect();
-                    String::from_utf16_lossy(&utf16).replace('\0', "")
+                    decode_mif(String::from_utf16_lossy(&utf16).replace('\0', ""))
                 };
                 // Save updated text stream position
                 self.text_stream_pos = self.position_in_bits();
@@ -767,7 +767,7 @@ impl DwgBitReader {
                     .chunks_exact(2)
                     .map(|c| u16::from_le_bytes([c[0], c[1]]))
                     .collect();
-                String::from_utf16_lossy(&utf16).replace('\0', "")
+                decode_mif(String::from_utf16_lossy(&utf16).replace('\0', ""))
             }
         } else {
             // Pre-R2007: BS length + encoded bytes
@@ -1308,5 +1308,15 @@ mod tests {
         assert!((v1 - 3.14).abs() < 1e-10, "v1 = {}", v1);
         let v2 = r.read_bit_double_with_default(reference);
         assert!((v2 - 100.5).abs() < 1e-10, "v2 = {}", v2);
+    }
+}
+
+/// Unicode strings (R2007+) can still carry MIF escapes, written by
+/// producers that encode double-byte text as `\M+nXXXX`.
+fn decode_mif(text: String) -> String {
+    if crate::io::dxf::code_page::has_mif_escape(&text) {
+        crate::io::dxf::code_page::decode_mif_escapes(&text)
+    } else {
+        text
     }
 }
