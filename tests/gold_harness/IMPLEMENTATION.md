@@ -6263,6 +6263,37 @@ Signature) — the parse side is further along than the emission side.
   her-only; example_2007's 9 marginal forms; Constraints
   3E3; PolyLine3D 1C2.
 
+  **H8h-ext-7 — the SEQEND captured-flags fix: 15 → 14
+  (2026-09-28, the continuation; the PolyLine3D 1C2
+  single)**: the ODA-authored PolyLine3D SEQEND carries
+  shadow_flags=0 with NO shadow ref (her Hdlsize 25 =
+  owner 8 + layer 16 + 1 pad) where our writer emitted
+  the era convention (3, 0) — `seqend_era_flags()`'s
+  "verified per owner across the example corpus" was a
+  per-AUTHOR form mistaken for an era law (the example_*
+  corpus SEQENDs carry (3,0); the ODA test-data
+  PolyLine3D carries (0,0)). THE FIX: the four
+  polyline-family writers (Polyline2D/3D, PolyfaceMesh,
+  PolygonMesh) now use the READ-CAPTURED flag pair
+  (`e.seqend_shadow_flags`/`e.seqend_plotstyle_flags` —
+  the pending.seqend_flags capture, transferred with the
+  seqend handle) whenever the read retained a wire
+  SEQEND; the era convention is the DXF-built fallback
+  only. The INSERT path (literal (0,0), no corpus
+  divergence) untouched. **MEASURED: 15 → 14; 55/58 at
+  100%** — PolyLine3D 218/218; Polyline/Polygon/example_*
+  held (their captured (3,0) equals the era form, so the
+  switch is a no-op there). GATES: serde 1602/0,
+  gold_roundtrip ok, issue80 7/0, four family smokes
+  0/0, corpus 280 files 0/0/0/0, generation identity
+  UNCHANGED (`84374e73…`, 25,375 bytes,
+  feature-independent — the generator's programmatic
+  polylines take the era fallback). THE RESIDUAL 14:
+  example_2007's 9 marginal forms; ATMOS 4 + 84
+  her-only; Constraints 3E3 (the ASSOC2DCONSTRAINTGROUP —
+  ours 204 bytes LONGER; gold parks 5249 unknown bits in
+  her record — a fresh dissection packet).
+
   **THE R2004_Header RE-SCOPE (2026-09-27, the maintenance-review
   probes — the accepted residue re-measured and re-scoped under
   the gold-vs-silver mechanism)**: the H7g AC18 container-shape
