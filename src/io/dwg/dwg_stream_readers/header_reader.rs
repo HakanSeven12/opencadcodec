@@ -815,8 +815,8 @@ fn read_header_fields(r: &mut SectionReader, v: DxfVersion, h: &mut HeaderVariab
         h.timezone = r.read_bit_long();
         let _ = r.read_byte(); // LIGHTGLYPHDISPLAY
         let _ = r.read_byte(); // TILEMODELIGHTSYNCH
-        let _ = r.read_byte(); // DWFFRAME
-        let _ = r.read_byte(); // DGNFRAME
+        h.dwf_frame = r.read_byte() as i16;
+        h.dgn_frame = r.read_byte() as i16;
 
         let _ = r.read_bit(); // unknown
 

@@ -1849,6 +1849,20 @@ impl<'a> SectionReader<'a> {
                         }
                     }
                 }
+                "$DWFFRAME" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.dwf_frame = v;
+                        }
+                    }
+                }
+                "$DGNFRAME" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.dgn_frame = v;
+                        }
+                    }
+                }
                 "$HALOGAP" => {
                     if let Some(p) = self.reader.read_pair()? {
                         if let Some(v) = p.as_i16() {
