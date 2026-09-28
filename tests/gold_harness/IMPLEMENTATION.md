@@ -24,17 +24,16 @@ across the covered corpus.
 gold DWG, re-encodes it, and the result is re-decoded — with LibreDWG acting as
 the independent oracle on both the original and the rewritten file.
 
-The header is tested **laxly** (out of strict-diff scope — only entity/object
-non-header parts must match exactly). The loop is **bounded to the test-data
-corpus** and must respect the **R2000–R2018 version scope**. **Phase 2
-(planned 2026-09-25, §19): the laxly-tested header itself comes under a
-second, separately-gated structure axis — the OBJECTS zero stays frozen
-while the 17 structure keys get their own drive to 0, with a
-whole-structure audit matrix proving every section is diffed or
-excluded-with-reason.**
-
-The immediate blocker is an AutoCAD `AcDbVisualStyle` "Object improperly read"
-error on rewritten DWGs (see §7).
+The loop is **bounded to the test-data corpus** and respects the
+**R2000–R2018 version scope**. **Phase 2 (§19, landed 2026-09-25 →
+2026-09-28): the formerly lax header came under a second, separately-gated
+structure axis — the OBJECTS zero held frozen while the 17 structure keys
+drove to 0 (the READ axis ZERO corpus-wide, H0–H7), the write-target closed
+(H8g), and the conventional arm reached byte-level record identity (the
+H8h arc: the AC1021 survey 58/58 files / 0 divergent records; the era
+censuses all-zero).** The original AutoCAD `AcDbVisualStyle` "Object
+improperly read" blocker (§7) was resolved early in the campaign — §7's
+baseline records are historical.
 
 ---
 
@@ -175,17 +174,26 @@ Inventoried `test/test-data` at commit `34f02f54…`. Per-version `.dwg` counts:
 2000=23, 2004=21, 2007=18, 2010=18, 2013=19, 2018=19, plus top-level
 `example_*.dwg`/`sample_*.dwg`.
 
-- **Covered entity types (loop CAN fix):** LINE, CIRCLE, ARC, ELLIPSE, TEXT,
-  LWPOLYLINE, POLYLINE_2D, POLYLINE_3D, SPLINE, HATCH (2004 `HatchG`), MLINE,
-  LEADER, HELIX, XLINE, RAY, POINT, 3DSOLID (2000 `Cone`), SURFACE (2004),
-  UNDERLAY (2004), MATERIAL (2004), geometric/dimensional constraints, dynamic
-  blocks (2018 `Dynblocks`), LIVESECTION (2018), plus broad mixed coverage via
-  2000 `entities-2d`/`entities-3d` and `example_*`/`sample_*`.
-- **Coverage gaps (loop CANNOT fix — no gold file):** MTEXT, DIMENSION (all
-  kinds), TABLE, REGION, dedicated static INSERT/BLOCK, MLEADER/MULTILEADER,
-  VIEWPORT, IMAGE, MESH/POLYFACEMESH, 3DFACE, SOLID (2D), ATTDEF/ATTRIB,
-  TOLERANCE, WIPEOUT, XREF, OLE2, LIGHT, CAMERA, ARCDIMENSION. These are
-  logged as `no gold coverage — out of loop`.
+- **Covered entity types (the loop's final state — every listed type at
+  0/0):** LINE, CIRCLE, ARC, ELLIPSE, TEXT, MTEXT, LWPOLYLINE,
+  POLYLINE_2D, POLYLINE_3D, SPLINE, HATCH (2004 `HatchG`), MLINE,
+  LEADER, MLEADER, HELIX, XLINE, RAY, POINT, 3DSOLID (the full SH
+  genus — the §18.5–18.7 campaign), REGION, BODY, SURFACE (2004),
+  DIMENSION (the era specimens, incl. the ordinate wire-exactness
+  work — §19.2 H8h-ext-11), TABLE/TABLECONTENT (§19.2 H8h-ext-12),
+  VIEWPORT, IMAGE/IMAGEDEF, ATTDEF/ATTRIB, UNDERLAY (2004), MATERIAL
+  (2004), geometric/dimensional constraints (the ASSOC genus —
+  §19.2 H8h-ext-8/-12/-15), dynamic blocks (2018 `Dynblocks`),
+  LIVESECTION (2018), plus broad mixed coverage via 2000
+  `entities-2d`/`entities-3d` and `example_*`/`sample_*`. The
+  original day-one gap list (MTEXT, DIMENSION, TABLE, REGION,
+  INSERT/BLOCK, MLEADER, VIEWPORT, IMAGE, ATTDEF/ATTRIB, …) closed
+  through the §8.1.6 packets and the §19 campaign; the §F2.1 fixture
+  tree added the authored specimens the corpus lacked.
+- **Remaining out-of-loop types (no gold file, no authored specimen):**
+  MESH/POLYFACEMESH, 3DFACE, SOLID (2D), TOLERANCE, WIPEOUT, XREF,
+  OLE2, LIGHT, CAMERA, ARCDIMENSION — logged as `no gold coverage —
+  out of loop` (the §F2 authoring path stands if coverage is wanted).
 - **Richest dirs:** 2000 (widest entity set) and 2007 (best DXF companions).
   2010/2013 are near-minimal.
 
@@ -276,7 +284,7 @@ Inventoried `test/test-data` at commit `34f02f54…`. Per-version `.dwg` counts:
 
 ---
 
-## 7. Current baseline and blockers
+## 7. Current baseline and blockers (HISTORICAL — the campaign target completed 2026-09-20; §19's structure arc completed 2026-09-28; the blockers below are the resolved record)
 
 ### How to start cold (read this first in a fresh session)
 
@@ -886,18 +894,16 @@ Given a diff `(type, field, kind)`:
 
 ### 8.1.6 Current work queue (ordered)
 
-> **Next major arc (planned 2026-09-25, not yet started): the header &
-> whole-structure campaign — §19.** The OBJECTS axis (this queue's
-> completed 0/0 target) extends to a second structure axis: the 17
-> top-level keys the normalizers currently drop (FILEHEADER, HEADER
-> variables, R2004_Header, SecondHeader/AuxHeader, SummaryInfo,
-> AppInfo/History, Template, FileDepList, RevHistory, Security,
-> ObjFreeSpace, THUMBNAILIMAGE, AcDs, CLASSES, created_by), with
-> separate corpus counters and the whole-structure audit matrix (H6)
-> as the standing deliverable. First packet: H0 (the axis skeleton +
-> the day-one census). The OBJECTS axis is frozen at 0 throughout.
-> Before this arc: check the live decoder rows (§18/next-session
-> notes) — they may be interleaved.
+> **The header & whole-structure campaign — §19 — LANDED (2026-09-25 →
+> 2026-09-28).** The OBJECTS axis (this queue's completed 0/0 target)
+> extended to the structure axis: the 17 top-level keys drove to 0 (the
+> READ axis ZERO corpus-wide, H0–H7), the write-target closed (H8g), and
+> the conventional arm reached byte-level record identity (the H8h arc —
+> the AC1021 survey 58/58 / 0 divergent; the era censuses all-zero).
+> This queue stays empty; any OBJECTS row that resurfaces after a codec
+> change goes back through the per-packet §8.1.2 workflow. The active
+> campaign records live in §19.2; the next designed layer is §20 (the
+> genus gates).
 
 > **Reading the counts:** corpus `report.md`/`report.json` counts are
 > stem-collision inflated (§7 "How to start cold"). Use them for *ranking*
@@ -3193,10 +3199,14 @@ large, license-distinct, or runtime-level.
 
 ## 17. Future work (explicitly out of current scope)
 
-### F1 — Header silver-vs-gold comparison
+### F1 — Header silver-vs-gold comparison (LANDED as §19's structure axis — kept for the record)
 
-The header is lax/out-of-scope for the current loop. A later phase can extend
-the same differ to header variables, reusing all existing machinery:
+The original future-work sketch below became §19's campaign and is
+fully landed (2026-09-25 → 2026-09-28): FILEHEADER landed in H2,
+the HEADER variables in H3 (ZERO read gaps, 138,021 matched fields),
+the metadata blocks in H4, the bulk sections in H5, the audit matrix
+in H6, and the write-target in H7g/H8g — the structure READ axis is
+ZERO corpus-wide. The original sketch (kept for lineage):
 
 - **Gold source:** `dwgread -O JSON` top-level `FILEHEADER` (version string,
   `maint_rel_version`, `codepage` int, section addresses, R2004+ unknowns) and
@@ -3212,14 +3222,18 @@ the same differ to header variables, reusing all existing machinery:
   `EXTMIN`/`EXTMAX`, `DWGCODEPAGE`, `HANDSEED` ordering sanity), then widen.
 - **Caution:** `HANDSEED`/section addresses in `FILEHEADER` legitimately
   change on rewrite — exclude them from the write-fidelity header diff,
-  include them only in read-fidelity.
+  include them only in read-fidelity. (All of these cautions are
+  implemented in the landed normalize/compare paths.)
 
-### F2 — Manually generating coverage-gap files with AutoCAD/BricsCAD
+### F2 — Manually generating coverage-gap files with AutoCAD/BricsCAD (the §F2.1 tree LANDED; the remaining gaps below stay out of loop)
 
-The corpus gaps (MTEXT, DIMENSION, TABLE, REGION, static INSERT/BLOCK,
-MLEADER, VIEWPORT, IMAGE, MESH, 3DFACE, SOLID, ATTDEF/ATTRIB, TOLERANCE,
-WIPEOUT) can be closed by authoring fixtures in a real CAD application, after
-which the existing loop covers them with **no harness changes**:
+The §F2.1 in-repo fixture tree and the §F2.3 sh_history campaign
+landed and qualified (156 authored files in the corpus at 0/0; the
+§18.7 differential set COMPLETE). What remains genuinely out of
+loop — entity types with neither a gold corpus file nor an authored
+specimen: MESH/POLYFACEMESH, 3DFACE, SOLID (2D), TOLERANCE, WIPEOUT,
+XREF, OLE2, LIGHT, CAMERA, ARCDIMENSION. The original authoring
+recipe (kept for any future campaign):
 
 1. **Author minimal files:** one drawing per gap entity, kept minimal (one or
    two entities on layer 0) so diffs stay localizable.
