@@ -371,6 +371,42 @@ impl SabWriter {
             ],
             // `add_edge` width 9: ... + sense + the @7 unknown tether.
             ("edge", 8) => vec![SatToken::String("unknown".to_string())],
+            // The conic/quadric families (the 2026-09-28 cylinder verdict,
+            // re-confirmed from the 2026-09-24 cylinder_2 autopsy):
+            // cadkernel's exporter emits the geometry spine without the
+            // trailing role idents — its ellipse carries no I I, its cone
+            // no `forward I I I I` — while the acadrust primitives (the
+            // BCAD-accepted genus; gen_all's cylinder) always append them.
+            // The fixed-width class reader desyncs from the first short
+            // record ("missing logical in restore file" → "Data stream is
+            // empty"). Each arm is gated on the exact cadkernel-parsed
+            // width (verified live: ellipse 11, cone 16) and completes to
+            // the primitive's form.
+            ("ellipse-curve", 11) => vec![
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            ("cone-surface", 16) => vec![
+                SatToken::Ident("forward".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            ("sphere-surface", 11) => vec![
+                SatToken::Ident("forward_v".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            ("torus-surface", 12) => vec![
+                SatToken::Ident("forward_v".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
             _ => return None,
         };
         let mut completed = tokens.to_vec();

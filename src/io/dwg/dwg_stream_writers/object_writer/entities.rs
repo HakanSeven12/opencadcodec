@@ -5215,7 +5215,7 @@ impl<'a> DwgObjectWriter<'a> {
                 if matches!(
                     self.document.objects.get(&handle),
                     Some(crate::objects::ObjectType::DynamicBlock(d))
-                        if super::objects::elided_solid_history_class(&d.dxf_name)
+                        if super::objects::elided_solid_history_class(&d.dxf_name, d.captured)
                 ) =>
             {
                 0

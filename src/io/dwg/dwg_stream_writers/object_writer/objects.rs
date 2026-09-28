@@ -302,9 +302,29 @@ fn matrix_to_row_major(m: &crate::types::Matrix4) -> [f64; 12] {
 /// node classes (Wedge, Cylinder, Cone, Torus, Pyramid, and BREP)
 /// stay elided until a fixture lands for each — unverified elide
 /// removals are strict-reader risk.
-pub(crate) fn elided_solid_history_class(dxf_name: &str) -> bool {
-    dxf_name.starts_with("ACSH_")
-        && dxf_name != "ACSH_HISTORY_CLASS"
+pub(crate) fn elided_solid_history_class(dxf_name: &str, captured: bool) -> bool {
+    if !dxf_name.starts_with("ACSH_") {
+        return false;
+    }
+    // Constructed-tree verdict (2026-09-28 cylinder audit): trees
+    // assembled by CadDocument::create_solid_history are not a genus
+    // any strict loader accepts — the authored tree interposes an
+    // ACAD_EVALUATION_GRAPH between history and node (payload owner ->
+    // graph, never the solid), carries the 33/427 class-version trio,
+    // and its history_node_id resolves to a written node. The factory
+    // tree (payload owner duplicating the ownerhandle, a node id
+    // referencing an elided class, the 1/0 genus) audits as "Duplicate
+    // ownership of reference" and drags its solid out with it
+    // ("Data stream is empty"). Constructed records of EVERY class
+    // elide until a constructed probe passes a strict loader; the
+    // discriminating flag is DynamicBlockObject::captured — set by the
+    // DWG reader for decoded records.
+    if !captured {
+        return true;
+    }
+    // Captured records of the calibrated classes pass through
+    // byte-faithfully; the still-uncalibrated classes stay elided.
+    dxf_name != "ACSH_HISTORY_CLASS"
         && dxf_name != "ACSH_SWEEP_CLASS"
         && dxf_name != "ACSH_EXTRUSION_CLASS"
         && dxf_name != "ACSH_LOFT_CLASS"
@@ -335,7 +355,7 @@ impl<'a> DwgObjectWriter<'a> {
         // authority: elided_solid_history_class above (see its doc for
         // the Phase A state of each class).
         if let ObjectType::DynamicBlock(d) = obj {
-            if elided_solid_history_class(&d.dxf_name) {
+            if elided_solid_history_class(&d.dxf_name, d.captured) {
                 return;
             }
         }

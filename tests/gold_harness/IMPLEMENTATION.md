@@ -7261,3 +7261,119 @@ campaign packet.
 declared scope (R2000–R2018) — semantic parity corpus-wide plus
 byte-level record identity on the surveyed surfaces — and the
 out-of-scope tiers are measured, named, and pathed above.
+
+---
+
+## 20. Genus gates — the constructed-content oracle (the fifth validation layer; DESIGN, not yet implemented)
+
+§18's four layers and §19's structure axis share one boundary: every gate
+compares silver against GOLD ON THE SAME BYTES — read fidelity (gold vs
+silver on the original), write fidelity (gold on the original vs gold on
+the rewrite), record identity (raw byte spans), structure parity (§19).
+**Constructed content has no gold counterpart**: gold never wrote
+anything, so there are no gold bytes to diff against a document silver
+authored from scratch. The census is structurally blind there, and the
+blindness is not hypothetical — it shipped two defects in one day:
+
+- **The 2026-09-28 cylinder audit** (user-run BricsCAD, the strict
+  loader): a host-authored solid carried (a) a factory-assembled
+  `ACSH_HISTORY_CLASS` whose payload `owner` duplicated the record's own
+  ownerhandle (the native genus interposes an `ACAD_EVALUATION_GRAPH`
+  and never points the payload at the solid), a `history_node_id`
+  referencing an elided class, and the 1/0 version trio where every
+  authored specimen carries 33/427 — BricsCAD audit: "Duplicate
+  ownership of reference" + "Data stream is empty"; and (b) SAB
+  conic/quadric records at cadkernel's short widths (cone 138, ellipse
+  109/110) where the authored genus carries the role-ident tails
+  (cone 143, ellipse 111/112) — "missing logical in restore file" x17.
+  Both passed the corpus 280/0/0 the same morning.
+- **The 2026-09-24/25 constructed-solid campaign**: three consecutive
+  BricsCAD-failing rounds, each green on every internal gate.
+
+### 20.1 The principle
+
+The corpus's authored specimens ARE the genus reference — the campaign
+has used them as such manually from the start (every "census" comment
+in the codec cites them). Silver is the ONLY complete decoder of the
+surfaces gold cannot read: the SAB blobs (gold: "0 AcDs SAB data" even
+on natives), the SH node regions (gold's flat REPEAT desyncs at
+node[1] — §19's own finding), and silver's R2013+ 3DSOLID read is the
+BricsCAD-verified interpretation where gold's is the known-divergent
+one. So the gates decode the specimens SILVER-side, extract their
+invariants, and assert silver's CONSTRUCTED output against the result.
+This mechanizes the manual autopsies the campaigns ran by hand.
+
+### 20.2 The three gate families
+
+**G-A — SAB form genus.** From the sh_history fixture family's authored
+SABs (and any ACIS-bearing corpus file): per-class record widths, the
+header triple, the magic/version pair, record-class ordering. Asserted
+on: the gen_all canonical file's ACIS entities + a constructed-fixture
+family (see 20.3). Catch demonstrated: cone 138 vs authored {143},
+ellipse 109 vs {111, 112} — the short-width desync ranks as
+`(sab_form, cone-surface, width)` the moment the arm goes missing.
+
+**G-B — SH tree genus.** From the authored fixtures: the tree topology
+invariants (history payload owner resolves to a graph object, never the
+solid; payload owner != ownerhandle; the version trio 33/427; the
+history_node_id resolves to a written node; the node's owner is the
+graph) + the scalar root fields. Asserted on: constructed trees from
+`create_solid_history` (the probe family). Catch demonstrated: the
+factory genus ranks on four invariants at once.
+
+**G-C — container genus.** The AcDs `jard`/`segidx` fields on
+CONSTRUCTED AcDs sections vs the authored-container invariants
+(ds_version, segidx position/ordering, num_segidx scale). This is the
+constructed-content complement of §19's read-axis structure parity:
+§19 lands gold-vs-silver on what gold decodes; G-C asserts
+silver-authored sections against the authored-specimen shape. The
+known day-one divergence: silver's ds_version=1 container vs the
+native 16 (segidx-first, 91 entries) — the ranked queue for the
+container campaign.
+
+### 20.3 Mechanics
+
+1. **Expectation extraction** — `genus_extract.py` (new): runs
+   `dwg2json` + the SAB/SH projections over the fixture specimens,
+   emits `genus_expectations.json` — per-class width SETS (not single
+   values: authored width variance is legitimate, e.g. ellipse
+   111/112), topology invariants as predicates, container field
+   values. Regenerable; the pinned copy is diffed in CI so expectation
+   drift is itself a reviewable change.
+2. **The gate run** — `genus_gates.py` (new): decodes the constructed
+   corpus (the gen_all canonical + a small constructed-fixture family
+   the codec emits: one solid per primitive family, one
+   `create_solid_history` tree, one region), asserts against the
+   expectations, and emits ranked report sections — `sab_form_diffs`,
+   `sh_genus_diffs`, `acds_genus_diffs` — in the corpus report's
+   existing (type, field, count) shape.
+3. **Integration** — `run_corpus.py` gains the sections as ADDITIONAL
+   output; the 0/0 read/write-fidelity semantics and totals are
+   untouched (the differ stays frozen). The gates land NONZERO on
+   purpose: the initial counts ARE the work queue (G-C's container
+   divergence ranks day one), exactly as §19's audit matrix did.
+4. **Workflow** — the genus run joins the zero-keeping checklist after
+   the corpus run, and mirrors as an env-gated `cargo test --features
+   gold-harness` test alongside `gold_roundtrip.rs`.
+
+### 20.4 The stability-baseline rule (the campaign's hardest lesson)
+
+Where gold's interpretation is known-wrong — the R2013+ 3DSOLID
+entity stream (the 2026-09-25 verdict: gold's "clean" native decode
+carries garbage revision fields; BricsCAD accepts what gold rejects) —
+the genus reference is NOT gold but the last BricsCAD-verified byte
+form (the canonical-md5 class of baseline). A genus expectation for
+that surface may change ONLY through a recorded strict-loader probe
+verdict, never through an oracle trace alone. The G3 caveat from the
+recovered expansion brief (commit 8757a7c, amended 635ed18) generalizes
+to every genus gate: the gates rank divergence; they do not decide
+fatality (this campaign proved some divergences fatal, some tolerated);
+BricsCAD probe verdicts stay the final authority for genus CHANGES.
+
+### 20.5 Scope guard
+
+Genus gates never modify the differ, the normalizers, or the fidelity
+totals (AGENTS.md). Expectations come from specimens, not hand-pinned
+magic numbers. A new genus arm requires the same evidence bar as a
+codec census comment: specimen lineage, the divergence it ranks, and
+the strict-loader verdict that adjudicates it.

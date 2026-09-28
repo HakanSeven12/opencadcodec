@@ -128,7 +128,7 @@ fn dwg_save_elides_sh_history_records_for_strict_loaders() {
 }
 
 #[test]
-fn dwg_save_writes_history_root_but_elides_operation_nodes() {
+fn dwg_save_elides_constructed_history_trees_entirely() {
     let sat = acadrust::entities::acis::primitives::build_box(
         [0.0, 0.0, 0.0],
         2.0,
@@ -155,24 +155,26 @@ fn dwg_save_writes_history_root_but_elides_operation_nodes() {
         roundtrip.get_entity(entity),
         Some(EntityType::Solid3D(_))
     ));
-    // The HISTORY root record is now written (Phase A 2026-09-23, per
-    // gold dwg2.spec ACSH_HISTORY_CLASS: 2 BLs + handle + BL + 2 Bs):
-    // the entity's history soft-pointer must survive the round-trip
-    // as non-null (it was the elide that wrote it NULL).
+    // Constructed-tree verdict (2026-09-28 cylinder audit): trees
+    // assembled by the factory — whose genus (payload owner duplicating
+    // the ownerhandle, a node id referencing an elided class, the 1/0
+    // version trio, no eval-graph interposition) no strict loader
+    // accepts ("Duplicate ownership of reference" dragging the solid
+    // out with it) — elide in EVERY class until a constructed probe
+    // passes a strict loader. The discriminating flag is
+    // DynamicBlockObject::captured (set by the DWG reader); the
+    // history soft-pointer is written NULL rather than dangling.
     match roundtrip.get_entity(entity) {
         Some(EntityType::Solid3D(s)) => {
             assert!(
-                s.history_handle.map_or(false, |h| h.value() != 0),
-                "the ACSH_HISTORY_CLASS root pointer must survive \
-                 the round-trip (not written NULL): got {:?}",
+                s.history_handle.map_or(true, |h| h.value() == 0),
+                "the constructed ACSH_HISTORY_CLASS root pointer must be \
+                 written NULL (the constructed tree elides): got {:?}",
                 s.history_handle
             );
         }
         other => panic!("expected Solid3D, got {other:?}"),
     }
-    // The BREP operation node is still elided: its layout is not yet
-    // calibrated, so the node classes stay behind the elide and the
-    // operations (node tree) remain empty.
     assert!(roundtrip
         .solid_history_operations(entity)
         .map_or(true, |operations| operations.is_empty()));

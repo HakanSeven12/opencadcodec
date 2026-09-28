@@ -20,6 +20,19 @@ pub struct DynamicBlockObject {
     pub dxf_name: String,
     pub cpp_class_name: String,
     pub data: DynamicBlockData,
+    /// Byte-captured provenance: true when the DWG reader decoded this
+    /// record from an authored stream. The SH save-guard
+    /// (elided_solid_history_class) writes only captured records of the
+    /// calibrated classes — constructed trees (assembled by
+    /// CadDocument::create_solid_history) elide until a constructed probe
+    /// passes a strict loader (2026-09-28 cylinder verdict: the
+    /// constructed ACSH_HISTORY_CLASS record — payload owner duplicating
+    /// the ownerhandle, a dangling node id, the 1/0 genus — audits as
+    /// "Duplicate ownership of reference" and drags its solid out with
+    /// it; the native tree interposes an eval graph and carries 33/427,
+    /// a genus the factory does not model).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub captured: bool,
 }
 
 impl DynamicBlockObject {

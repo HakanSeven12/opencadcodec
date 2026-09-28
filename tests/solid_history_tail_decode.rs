@@ -25,6 +25,28 @@ use acadrust::types::DxfVersion;
 use acadrust::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
+/// Mark the constructed SH tree of `entity` as byte-captured content.
+///
+/// The Phase B tests verify the re-emit rule on records whose tails are
+/// verbatim specimen spans (the unhex'ed captured payloads) — the
+/// save-guard reserves the DWG write path for byte-captured genus
+/// (constructed trees elide by default; the 2026-09-28 cylinder
+/// verdict: the factory genus audits as "Duplicate ownership of
+/// reference"). Marking keeps these write-path assertions exercising
+/// the re-emit pipeline.
+fn mark_tree_captured(document: &mut CadDocument, entity: acadrust::types::Handle) {
+    let graph = document.solid_history_graph(entity).expect("tree exists");
+    let mut handles = graph.nodes.clone();
+    handles.push(graph.root);
+    for handle in handles {
+        if let Some(acadrust::objects::ObjectType::DynamicBlock(value)) =
+            document.objects.get_mut(&handle)
+        {
+            value.captured = true;
+        }
+    }
+}
+
 fn unhex(value: &str) -> Vec<u8> {
     (0..value.len())
         .step_by(2)
@@ -345,6 +367,7 @@ fn loft_named_section_edits_land_bit_locally() {
     section.draft_angles[0] = Some(0.75);
     document.update_solid_history_step(entity, replacement).unwrap();
 
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Loft(loft) =
@@ -460,6 +483,7 @@ fn revolve_profile_edits_land_bit_locally() {
         .profile_radius = Some(0.75);
     document.update_solid_history_step(entity, replacement).unwrap();
 
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Revolve(revolve) =
@@ -526,6 +550,7 @@ fn raw_tails_round_trip_verbatim_and_decoded() {
     document
         .create_solid_history(entity, sweep_op(&tail, POLYSOLID_SWEEP_BITS))
         .unwrap();
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let ops = roundtrip.solid_history_operations(entity).unwrap();
@@ -567,6 +592,7 @@ fn edited_segment_end_lands_bit_locally() {
     view.segment_end = Some([1000.0, 2000.0]);
     document.update_solid_history_step(entity, replacement).unwrap();
 
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Sweep(sweep) =
@@ -629,6 +655,7 @@ fn edited_post_corner_singles_land_bit_locally() {
     view.post_corner_single = Some(40.5);
     document.update_solid_history_step(entity, replacement).unwrap();
 
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Sweep(sweep) =
@@ -687,6 +714,7 @@ fn loft_and_revolve_tails_round_trip_and_edits_land() {
         )
         .unwrap();
 
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let ops = roundtrip.solid_history_operations(entity).unwrap();
@@ -719,6 +747,7 @@ fn loft_and_revolve_tails_round_trip_and_edits_land() {
         .get_or_insert_with(SolidHistoryRevolveTail::default);
     view.revolve_angle = Some(std::f64::consts::PI);
     document.update_solid_history_step(entity, replacement).unwrap();
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Revolve(revolve) =
@@ -759,6 +788,7 @@ fn loft_and_revolve_tails_round_trip_and_edits_land() {
         .raw_doubles;
     view.raw_doubles[2] = 6.0;
     document.update_solid_history_step(entity, replacement).unwrap();
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Loft(loft) =
@@ -810,6 +840,7 @@ fn undecodable_tails_stay_verbatim_never_modeled() {
             }),
         )
         .unwrap();
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Sweep(sweep) =
@@ -917,6 +948,7 @@ fn extrude_p_polyline_edits_land_bit_locally() {
     // direction vector; the modeled direction splice is the one
     // legitimate non-verbatim re-encode for it). The polyline body
     // itself survives phase 1 untouched.
+    mark_tree_captured(&mut document, entity);
     let first = DwgWriter::write_to_vec(&document).unwrap();
     let mut roundtrip = DwgReader::from_stream(Cursor::new(first)).read().unwrap();
     let (phase1_tail, phase1_points) = {
@@ -1030,6 +1062,7 @@ fn extrude_profile_radius_edits_land_bit_locally() {
     sweep.tail_decode = Some(view);
     document.update_solid_history_step(entity, replacement).unwrap();
 
+    mark_tree_captured(&mut document, entity);
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
     let SolidHistoryOperation::Sweep(sweep) =
