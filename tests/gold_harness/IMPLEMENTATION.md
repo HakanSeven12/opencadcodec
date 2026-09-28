@@ -7196,3 +7196,68 @@ R2004/R2010/R2013/R2018 (the AC18–AC28 family):
   --features serde` and `md5sum
   gen_all_entities_all_versions.dwg`; record the new value in
   the halt — a tracked fact, not a frozen constant.
+
+### 19.5 Future work: the version-parity matrix (the 2026-09-28 audit)
+
+A whole-scope audit (2026-09-28, post H8h-ext-15) of whether
+silver fully matches gold's behavior per file version. The state
+is a three-tier matrix.
+
+**TIER 1 — R2000–R2018 (AC1015–AC1032): AT PARITY (the campaign's
+complete scope).** The 280-file corpus (R2000 24, R2004 22,
+R2007 58, R2010 58, R2013 58, R2018 60) holds 0/0/0/0 on all
+four axes. Byte-level record identity: the AC1021 survey 58/58
+files / 0 divergent records; the era censuses (handle-keyed,
+size + CRC-16) all zero — R2000 235/235, R2004 227/227, R2010
+216/216, R2013 160/160. The in-scope residuals are the named
+optional rows: the unattested subcurve action types (17/19/23/
+42/27 — no corpus specimens), the MT crc_seed draws (§19.4.G —
+the one open algorithmic unknown, the R2007_Header derive family
+only), the dead rows (LoftD; the SH revolve option shorts; BREP
+deferred pending an external authentic ACSH_BREP_CLASS specimen),
+and the era censuses' coverage (today the Constraints specimens,
+one file per era; the full era corpora are the honest next
+surface — the AC1021 survey covers its whole corpus, the era
+censuses do not yet).
+
+**TIER 2 — R13/R14 (AC1012/AC1014): IMPLEMENTED, NOT AT PARITY
+(the recorded scope exclusion).** Silver reads and writes them
+(gold re-reads our R14 output as valid AC1014, maint_rel_version
+decoded), but the three r14 specimens (`r14/Constraints.dwg`,
+`r14/Leader.dwg`, `r14/v.dwg`) measure **89/153/149
+read+write fidelity diffs** — the diff anatomy: record-count
+mismatches (DIMSTYLE 28 extra vs 10 missing, IMAGE 15 vs 5) and
+era-field divergence (the top diff fields `isbylayerlt` ×21,
+`linewt` ×21, `plotstyle_flags` ×21, `ltype_flags` ×21 — R2000-
+era fields silver's model carries where gold's R14 spec block
+lacks them). `run_corpus.py` excludes the era as a recorded
+scope guard ("the R13/R14 examples… a different, out-of-scope
+format"). THE PATH: an R13/R14 parity campaign mirrors the
+landed H8 arc — the fidelity harness already runs on the files
+(the 89–153 rows are the opening census); the record-count
+mismatches (the entities/tables desyncs from gold's R14 walk)
+come first, then the era-field projections, per the H8b/H8d
+tradition. The three-file specimen set is thin — more r14
+fixtures would qualify per the §F2.1 gates.
+
+**TIER 3 — Pre-R13 (AC1009 and older: R11/R10/R9/R2.6/R2.10/
+R1.4): UNSUPPORTED IN SILVER — AND GOLD DECODES NOTHING THERE
+EITHER.** Silver rejects the files outright
+(`UnsupportedVersion("AC1009")`). Gold — the parity oracle —
+IDENTIFIES the version codes (`AC1009`, `AC1006`, `AC1004`,
+`AC1003`, `AC2.10`, `AC1.40`) but decodes ZERO entities: its
+pre-R13 "support" is version identification only (SUCCESS with
+no content). "Matching gold behavior" at this tier means
+matching the non-support; silver's reject is a defensible
+equivalent, though a version-code-then-empty-decode surface
+would mirror gold's observable behavior more literally (gold
+prints "This file's version code is: X"). THE PATH (a format-
+family addition, not a fidelity fix): a pre-R13 reader would be
+new format work with gold itself as an incomplete oracle
+(no decode to compare against) — a maintainer decision, not a
+campaign packet.
+
+**The audit's verdict**: silver fully matches gold within the
+declared scope (R2000–R2018) — semantic parity corpus-wide plus
+byte-level record identity on the surveyed surfaces — and the
+out-of-scope tiers are measured, named, and pathed above.

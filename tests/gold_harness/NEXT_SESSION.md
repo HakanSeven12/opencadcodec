@@ -114,6 +114,12 @@ pre-existing issue), and the unattested/dead rows.
 
 ## The remaining work (all optional — the target stays reached)
 
+- **The version-parity tiers outside the scope** (the §19.5 audit,
+  2026-09-28): R13/R14 is implemented but divergent (89/153/149
+  read+write diffs on the three r14 specimens — record-count
+  mismatches + era fields); pre-R13 is unsupported in silver and
+  gold decodes nothing there either (identification only). Both
+  pathed in §19.5; maintainer decisions.
 - **The era censuses across the full era corpora**: today's proofs
   cover the Constraints specimens (1 file/era). The instrument (the
   handle-keyed -v9 census) applies to any era file; the r2000/
