@@ -362,6 +362,31 @@ a *form* — find the first divergent bit, walk it against gold's
 and remember the golden rule: the harness layers 1–3 are form-blind, so
 only this step protects the strict-load zero.
 
+### Step 7 — the §20 genus gates (constructed content)
+
+The fifth validation layer (IMPLEMENTATION.md §20): constructed
+content — documents silver authors from scratch — has no gold
+counterpart, so layers 1–4 cannot see it. The genus gates decode the
+constructed corpus silver-side and assert it against the
+authored-specimen genus:
+
+```bash
+python3 tests/gold_harness/genus_extract.py   # regenerate + re-pin expectations
+python3 tests/gold_harness/genus_gates.py     # the ranked report
+```
+
+**Expected:** the pipeline completes and the report's three sections
+(`sab_form_diffs`, `sh_genus_diffs`, `acds_genus_diffs`) are
+well-formed. The counts are the **work queue** — they land NONZERO on
+purpose (§20.3) and close row by row through the packet workflow with
+strict-loader verdicts adjudicating (§20.4: the gates rank divergence,
+they do not decide fatality). The four fidelity axes and the differ
+are untouched (§20.5); the corpus report carries the sections as
+ADITIONAL output. The cargo mirror
+`cargo test --features gold-harness --test genus_gates` asserts a
+fresh extraction equals the pinned `genus_expectations.json` — when
+the decode changes, regenerate the pin and review the drift.
+
 ### When a layer trips
 
 - **Step 1 fails** — model/normalizer/budget mismatch: the failing
@@ -381,6 +406,10 @@ only this step protects the strict-load zero.
   stamp + content class, per [Origin quality](#origin-quality-of-the-gold-specimens)),
   keep the value-preserving guards, and re-verify the affected
   strict-consumer behavior.
+- **Step 7's mirror fails on the pin compare** — the decode changed
+  the projections: regenerate `genus_expectations.json` with
+  `genus_extract.py` and review the drift (expectation drift is itself
+  reviewable, §20.3); never hand-edit the pin.
 
 ### Hard rules (inherited, unchanged)
 
@@ -419,6 +448,10 @@ there with `required-features = ["serde"]` alongside them.
 | `src/bin/dwgrewrite.rs` | Silver read→write binary |
 | `src/bin/dump_section_bytes.rs` | Record-framed raw byte dumps (the layer-4 pair-compare instrument) |
 | `src/bin/dump_proxy_graphics.rs` | Proxy-graphics metafile derivation + `--verify` byte-roundtrip proof |
+| `src/bin/genus_constructed.rs` | The §20 constructed-fixture family generator (one solid per SAB surface family, one region, one body, one `create_solid_history` tree) |
+| `genus_extract.py` | The §20 expectation extractor — decodes the specimen family silver-side, projects the SAB/SH/AcDs genus into the pinned expectations |
+| `genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
+| `genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
 
 **Adjacent tracked scripts the harness does not own** — documented for
 completeness:
@@ -426,7 +459,7 @@ completeness:
 | Path | Role |
 |---|---|
 | root `Cargo.toml` | Workspace manifest; registers the harness bins and the feature-gated `entity_atlas` example (`[[bin]]` / `[[example]]` blocks) |
-| `tests/roundtrip.rs`, `tests/gold_roundtrip.rs` | The Rust test surfaces the workflow's steps 1–2 gate on (the harness integration test is feature-gated `gold-harness`) |
+| `tests/roundtrip.rs`, `tests/gold_roundtrip.rs`, `tests/genus_gates.rs` | The Rust test surfaces the workflow's steps 1–2 and 7 gate on (the harness integration tests are feature-gated `gold-harness`) |
 | `tests/issue64/validate_ezdxf.py` | Issue-64 DXF validation helper (fixture pair for `issue64.rs`; not part of the gold-vs-silver harness) |
 
 ---

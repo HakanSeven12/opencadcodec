@@ -7391,3 +7391,75 @@ totals (AGENTS.md). Expectations come from specimens, not hand-pinned
 magic numbers. A new genus arm requires the same evidence bar as a
 codec census comment: specimen lineage, the divergence it ranks, and
 the strict-loader verdict that adjudicates it.
+
+### 20.6 Landed state (2026-09-28 — the implementation session)
+
+The §20.3 mechanics are LANDED, verbatim in shape:
+
+- `genus_extract.py` — the expectation extractor. Decodes the
+  156-file sh_history fixture family silver-side (dwg2json), walks
+  every SAB blob (a framing mirror of `sab.rs`: both magics, the
+  tagged header with the optional resfit double, EOR-framed records,
+  the no-EOR terminator), and projects the three families into
+  `genus_expectations.json` — the PINNED copy is FIXTURES-ONLY so it
+  regenerates identically in every checkout; `--corpus-scan` folds in
+  the ACIS-bearing gold-tree files through the corpus workdir's
+  silver decodes, and extra `.dwg` arguments decode fresh. The
+  day-one extraction: 136 SAB carriers (all four eras — the 2007/2010
+  in-entity SABs carry the 21200/21500 flavors), 136 SH roots, 78 jard
+  containers (the pre-R2013 empty placeholders are skipped, not
+  absorbed), ZERO extraction anomalies. The width sets carry the
+  authored variance honestly: coedge {55, 60}, straight-curve
+  {85, 103}, both terminators, four magic/version pairs.
+- `genus_gates.py` — the gate run. Regenerates the constructed corpus
+  into its workdir (the gen_all canonical via the generator example —
+  its md5 recorded as a FACT, never asserted, the identity canary is
+  a separate gate — plus the `genus_constructed` fixture family: one
+  solid per SAB surface family, one region, one body, one
+  `create_solid_history` tree), decodes it, asserts against the pin,
+  and emits the ranked sections in the corpus report's
+  (type, field, count) shape. `--strict` asserts zero rows for the
+  day the queue closes.
+- `run_corpus.py` — the sections attach as ADDITIONAL output
+  (`sab_form_diffs`, `sh_genus_diffs`, `acds_genus_diffs` + a
+  `genus_gates` summary block, per-file counts, and the md tables);
+  the four fidelity axes, the differ, and the normalizers are
+  untouched (§20.5); a genus pipeline failure degrades to an error
+  note, never a corpus failure.
+- `tests/genus_gates.rs` — the env-gated cargo mirror alongside
+  `gold_roundtrip.rs`: presence-gated (fixtures + pin + python3;
+  skip-pass with a marker file when absent, `GOLD_HARNESS_REQUIRE=1`
+  for CI), asserts a fresh extraction EQUALS the pin (expectation
+  drift is itself reviewable) and the report well-formed; the counts
+  are NOT asserted zero — they are the queue.
+
+The day-one queue (the initial counts, 2026-09-28):
+
+- **G-A (55 rows)**: the vertex short-width (34 vs the authored 39 —
+  the one topology class the conic/quadric completions did not cover),
+  the missing asmheader, the `ACIS|700` flavor vs the authored
+  21200/21500/21800/22300 pairs, the header triple (0,1,0) vs the
+  authored (0,2,\*), the product strings ('acadrust'/'ACIS 7.0' vs
+  'Autodesk AutoCAD'/'ASM 232.6.0.65535 NT'), the tolerance triple
+  (spatial_resolution 10.0 vs the authored 1.0), the missing
+  persubent-acadSolidHistory attribs, and the record-class ordering
+  family (the writer's restore-file rank — surfaces/curves/vertices
+  before loops/faces/shell/lump — vs the authored order: lump, shell,
+  face, loop, then the surfaces). The completions' regression guard
+  HOLDS: cone-surface 149, ellipse-curve 118, plane-surface 112,
+  sphere-surface 122, torus-surface 130, straight-curve 85 all sit AT
+  the authored genus.
+- **G-B (1 row)**: the constructed-tree elide marker — the 2646f05
+  contract (no ACSH records; the solid's history soft-pointer NULL)
+  ranks as the tree's current genus divergence, adjudicated TOLERATED
+  by the cylinder verdict; the topology invariants stay armed for any
+  SH record that appears in a constructed decode.
+- **G-C (11 rows)**: ds_version 1 vs the authored 16/17, the
+  segidx-last position vs the authored segidx-first 128, num_segidx 8
+  vs the authored 91/97, file_header_size 128 vs 65664, the
+  populated-slot tail pattern, the unpopulated prvsav slot — the
+  ranked queue head, exactly as §20.2 predicted.
+
+The queue closes row by row through the §8.1.2 packet workflow; every
+genus change to a known-wrong-gold surface goes through a recorded
+strict-loader probe verdict (§20.4).

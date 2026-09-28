@@ -72,6 +72,15 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
   representative files). Corpus counts are stem-collision inflated — use them
   for *ranking*, and verify the true per-file count before committing to a
   packet.
+- The §20 genus gates (constructed content) are ADDITIONAL output: they never
+  modify the differ, the normalizers, or the fidelity totals. Expectations
+  come from the specimen family via `genus_extract.py` — never hand-edit
+  `genus_expectations.json`; regenerate it and review the drift (the
+  `genus_gates` cargo mirror asserts the pin matches a fresh extraction).
+  The gate counts are a ranked work queue, not pass/fail: `genus_gates.py`
+  exits 0 with nonzero counts by design; a genus expectation for a surface
+  where gold is known-wrong changes only through a recorded strict-loader
+  probe verdict, never an oracle trace alone (§20.4).
 
 ### Commits
 - Commit message format: `fix(harness): <packet> — <gold spec ref>` (or

@@ -279,6 +279,34 @@ def main() -> int:
                 for u in st.get("undeclared_keys", []) or []:
                     undeclared_len[u] = undeclared_len.get(u, 0) + 1
 
+    # ── The §20 genus gates (the constructed-content oracle): ADDITIONAL
+    # output. The four fidelity axes, the differ, and the normalizers stay
+    # untouched (§20.5); the sections land NONZERO on purpose — the
+    # initial counts are the work queue (§20.3). Defensive: a genus
+    # pipeline failure never fails the corpus run.
+    genus_block: Dict[str, Any] = {}
+    try:
+        import genus_gates
+
+        genus_report = genus_gates.run(workdir=workdir / "genus_gates")
+        genus_block = {
+            "counts": genus_report["genus_gates"]["counts"],
+            "constructed_corpus": genus_report["genus_gates"]["constructed_corpus"],
+            "per_file": genus_report["genus_gates"]["per_file"],
+        }
+        genus_sections = {
+            "sab_form_diffs": genus_report["sab_form_diffs"],
+            "sh_genus_diffs": genus_report["sh_genus_diffs"],
+            "acds_genus_diffs": genus_report["acds_genus_diffs"],
+        }
+    except Exception as exc:  # noqa: BLE001 — the genus layer never fails the corpus
+        genus_block = {"error": f"{type(exc).__name__}: {exc}"}
+        genus_sections = {
+            "sab_form_diffs": [],
+            "sh_genus_diffs": [],
+            "acds_genus_diffs": [],
+        }
+
     report = {
         "files": len(results),
         "read_fidelity_total": sum(r["read_fidelity_diffs"] for r in results if r["read_fidelity_diffs"] != -1),
@@ -290,6 +318,10 @@ def main() -> int:
         "struct_census_per_key": struct_census,
         "struct_undeclared_keys": undeclared_len,
         "per_file": results,
+        "genus_gates": genus_block,
+        "sab_form_diffs": genus_sections["sab_form_diffs"],
+        "sh_genus_diffs": genus_sections["sh_genus_diffs"],
+        "acds_genus_diffs": genus_sections["acds_genus_diffs"],
     }
 
     report_json = workdir / "report.json"
@@ -321,6 +353,30 @@ def main() -> int:
             f"| {row.get('read_matched', 0)}+{row['read_value_diffs']}+{row['read_missing_other']} "
             f"| {row['write_matched']}+{row['write_value_diffs']}+{row['write_missing_other']} |\n"
         )
+    md.append("\n## §20 genus gates (the constructed-content work queue)\n")
+    md.append("The constructed-content oracle: silver-authored documents asserted "
+              "against the authored-specimen genus. ADDITIONAL output — the four "
+              "fidelity axes above are untouched. The counts land nonzero on "
+              "purpose: they are the work queue, each row closing through the "
+              "§8.1.2 packet workflow with a strict-loader verdict adjudicating.\n")
+    if "error" in genus_block:
+        md.append(f"Genus pipeline error: `{genus_block['error']}`\n")
+    else:
+        for section, title in (
+            ("sab_form_diffs", "G-A — SAB form genus"),
+            ("sh_genus_diffs", "G-B — SH tree genus"),
+            ("acds_genus_diffs", "G-C — AcDs container genus"),
+        ):
+            rows = genus_sections[section]
+            md.append(f"\n### {title} ({len(rows)} rows)\n\n")
+            if not rows:
+                md.append("No divergences.\n")
+                continue
+            md.append("| type | field | count | detail |\n")
+            md.append("|------|-------|-------|--------|\n")
+            for row in rows:
+                detail = str(row["detail"]).replace("|", "\\|")
+                md.append(f"| {row['type']} | {row['field']} | {row['count']} | {detail} |\n")
     md.append("\n## Top read-fidelity divergences\n")
     for k, v in sorted(read_counts.items(), key=lambda x: -x[1])[:30]:
         md.append(f"- {k[0]}.{k[1]}: {v}\n")
@@ -331,6 +387,13 @@ def main() -> int:
     with open(report_md, "w", encoding="utf-8") as f:
         f.writelines(md)
     print(f"[corpus] wrote {report_md}")
+    if "error" in genus_block:
+        print(f"[corpus] genus gates: pipeline error — {genus_block['error']}")
+    else:
+        print(f"[corpus] genus gates (the §20 work queue): "
+              f"sab_form {genus_block['counts']['sab_form_diffs']} rows, "
+              f"sh_genus {genus_block['counts']['sh_genus_diffs']} rows, "
+              f"acds_genus {genus_block['counts']['acds_genus_diffs']} rows")
     return 0
 
 
