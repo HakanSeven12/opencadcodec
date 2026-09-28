@@ -55,8 +55,7 @@ import os
 import shutil
 import struct
 import subprocess
-import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -467,8 +466,13 @@ def extract(specimens, workdir, binary, corpus_scan):
 
 def pairwise_order(orders):
     """A -> classes that ALWAYS appear after A (across every order where
-    both appear). The record-class ordering genus: a class may never
-    precede a class that always precedes it."""
+    both appear): appeared after A in at least one order and NEVER
+    before it in any order — after[A] minus before[A]. Pairs the
+    authored corpus orders both ways (e.g. cone-surface/plane-surface
+    across specimen families) are variable, not genus, and must pin NO
+    constraint; the raw union would false-positive both directions.
+    The record-class ordering genus: a class may never precede a class
+    that always precedes it."""
     after = defaultdict(set)
     before = defaultdict(set)
     for order in orders:
@@ -476,8 +480,7 @@ def pairwise_order(orders):
             for b in order[i + 1:]:
                 after[a].add(b)
                 before[b].add(a)
-    return {a: sorted(after[a] & before.keys() & set(after.keys()))
-            for a in after}
+    return {a: sorted(after[a] - before[a]) for a in after}
 
 
 def render_expectations(sink, corpus_scan_enabled):

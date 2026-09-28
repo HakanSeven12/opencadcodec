@@ -52,8 +52,6 @@ completion regardless of counts; nonzero only on pipeline failure.
 import argparse
 import hashlib
 import json
-import os
-import shutil
 import subprocess
 import sys
 from collections import Counter
@@ -233,6 +231,27 @@ def gate_sh_genus(stem, doc, expectations, rows, tree_fixture_stems):
             rows.add("show-history", f"{root['show_history']} not in genus")
         if root["record_history"] not in genus["record_history"]:
             rows.add("record-history", f"{root['record_history']} not in genus")
+        # The owning solid's history soft-pointer must name this root
+        # (the pin's solid_history_links_root genus — the cylinder-audit
+        # dangling-link invariant's sibling: every authored specimen
+        # links the solid back to its root).
+        if genus["solid_history_links_root"] == [True]:
+            owner_entity = None
+            for _etype, entity in acis_entities(doc):
+                entity_handle = (entity.get("handle")
+                                 or entity.get("common", {}).get("handle"))
+                if entity_handle == owner_handle:
+                    owner_entity = entity
+                    break
+            if owner_entity is None:
+                rows.add("solid-history-links-root",
+                         f"the root's ownerhandle {owner_handle} resolves to no "
+                         f"ACIS entity")
+            elif owner_entity.get("history_handle") != handle:
+                rows.add("solid-history-links-root",
+                         f"the owning solid's history soft-pointer is "
+                         f"{owner_entity.get('history_handle')}, not the root "
+                         f"{handle}")
         node_id = root["history_node_id"]
         matches = []
         for node_handle, node_payload in dynamic_blocks(doc):

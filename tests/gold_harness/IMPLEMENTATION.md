@@ -7433,9 +7433,17 @@ The §20.3 mechanics are LANDED, verbatim in shape:
   drift is itself reviewable) and the report well-formed; the counts
   are NOT asserted zero — they are the queue.
 
-The day-one queue (the initial counts, 2026-09-28):
+The day-one queue (the initial counts, 2026-09-28, corrected in the
+same day's review pass — the ordering genus originally computed a
+UNION (appeared-after-in-any-order) instead of always-after, pinning
+variable pairs like cone-surface/plane-surface as constraints BOTH
+ways (false positives) and dropping `point` — last in every authored
+first-appearance order — from every constraint set, hiding the
+writer's points-first rank entirely; the review recomputed
+after−before, regenerated the pin, and added the ungated
+`solid_history_links_root` arm to G-B):
 
-- **G-A (55 rows)**: the vertex short-width (34 vs the authored 39 —
+- **G-A (67 rows)**: the vertex short-width (34 vs the authored 39 —
   the one topology class the conic/quadric completions did not cover),
   the missing asmheader, the `ACIS|700` flavor vs the authored
   21200/21500/21800/22300 pairs, the header triple (0,1,0) vs the
@@ -7443,17 +7451,24 @@ The day-one queue (the initial counts, 2026-09-28):
   'Autodesk AutoCAD'/'ASM 232.6.0.65535 NT'), the tolerance triple
   (spatial_resolution 10.0 vs the authored 1.0), the missing
   persubent-acadSolidHistory attribs, and the record-class ordering
-  family (the writer's restore-file rank — surfaces/curves/vertices
-  before loops/faces/shell/lump — vs the authored order: lump, shell,
-  face, loop, then the surfaces). The completions' regression guard
+  family (the writer's restore-file rank — points/surfaces/curves
+  first, then vertices/edges/coedges, then loops/faces/shell/lump —
+  vs the authored order: lump, shell, face, loop, then the surfaces,
+  the vertices, and the points LAST; the point-rank rows are the
+  family's largest arm). The completions' regression guard
   HOLDS: cone-surface 149, ellipse-curve 118, plane-surface 112,
   sphere-surface 122, torus-surface 130, straight-curve 85 all sit AT
   the authored genus.
 - **G-B (1 row)**: the constructed-tree elide marker — the 2646f05
   contract (no ACSH records; the solid's history soft-pointer NULL)
   ranks as the tree's current genus divergence, adjudicated TOLERATED
-  by the cylinder verdict; the topology invariants stay armed for any
-  SH record that appears in a constructed decode.
+  by the cylinder verdict; the topology invariants — now including
+  the solid-history-links-root arm (the owning solid's history
+  soft-pointer must name the root; the pin's [True] genus) — stay
+  armed for any SH record that appears in a constructed decode.
+  Tree-ABSENCE on a constructed solid is deliberately NOT ranked:
+  the specimen family is selected for trees (136 carriers = 136
+  roots), so always-linked is selection bias, not genus.
 - **G-C (11 rows)**: ds_version 1 vs the authored 16/17, the
   segidx-last position vs the authored segidx-first 128, num_segidx 8
   vs the authored 91/97, file_header_size 128 vs 65664, the

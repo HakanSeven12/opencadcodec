@@ -2252,7 +2252,9 @@
     "lump",
     "persubent-acadSolidHistory-attrib",
     "plane-surface",
+    "point",
     "shell",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "transform",
@@ -2268,33 +2270,36 @@
     "lump",
     "persubent-acadSolidHistory-attrib",
     "plane-surface",
+    "point",
     "shell",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "transform",
     "vertex"
    ],
    "coedge": [
-    "cone-surface",
     "edge",
     "ellipse-curve",
+    "point",
     "straight-curve",
     "vertex"
    ],
    "cone-surface": [
-    "coedge",
     "edge",
     "ellipse-curve",
-    "plane-surface",
+    "point",
     "straight-curve",
     "vertex"
    ],
    "edge": [
     "ellipse-curve",
+    "point",
     "straight-curve",
     "vertex"
    ],
    "ellipse-curve": [
+    "point",
     "straight-curve"
    ],
    "face": [
@@ -2305,6 +2310,8 @@
     "loop",
     "persubent-acadSolidHistory-attrib",
     "plane-surface",
+    "point",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "vertex"
@@ -2315,6 +2322,7 @@
     "edge",
     "ellipse-curve",
     "plane-surface",
+    "point",
     "straight-curve",
     "torus-surface",
     "vertex"
@@ -2328,7 +2336,9 @@
     "loop",
     "persubent-acadSolidHistory-attrib",
     "plane-surface",
+    "point",
     "shell",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "transform",
@@ -2341,15 +2351,17 @@
     "ellipse-curve",
     "loop",
     "plane-surface",
+    "point",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "vertex"
    ],
    "plane-surface": [
     "coedge",
-    "cone-surface",
     "edge",
     "ellipse-curve",
+    "point",
     "straight-curve",
     "vertex"
    ],
@@ -2362,16 +2374,21 @@
     "loop",
     "persubent-acadSolidHistory-attrib",
     "plane-surface",
+    "point",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "vertex"
    ],
-   "straight-curve": [],
+   "straight-curve": [
+    "point"
+   ],
    "torus-surface": [
     "coedge",
     "edge",
     "ellipse-curve",
     "plane-surface",
+    "point",
     "vertex"
    ],
    "transform": [
@@ -2383,13 +2400,16 @@
     "loop",
     "persubent-acadSolidHistory-attrib",
     "plane-surface",
+    "point",
     "shell",
+    "sphere-surface",
     "straight-curve",
     "torus-surface",
     "vertex"
    ],
    "vertex": [
     "ellipse-curve",
+    "point",
     "straight-curve"
    ]
   },

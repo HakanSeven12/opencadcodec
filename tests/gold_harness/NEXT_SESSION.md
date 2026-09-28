@@ -12,10 +12,14 @@
 > R2013 160/160). The ACS/SH campaign stays COMPLETE at 0/0. The §19
 > structure campaign's READ axis stays ZERO corpus-wide. **THE ACTIVE
 > WORK IS NOW THE §20 GENUS-GATE QUEUE — the fifth validation layer is
-> LANDED (§20.6): the gates decode the constructed corpus silver-side,
+> LANDED (§20.6) and REVIEWED (the same day's review pass fixed the
+> ordering genus — it computed a union, not always-after, pinning
+> variable pairs both ways and hiding the writer's points-first rank —
+> and gated the ungated solid-history-links-root invariant): the gates
+> decode the constructed corpus silver-side,
 > assert it against the authored-specimen genus pinned in
 > genus_expectations.json, and emit the ranked sections
-> sab_form_diffs (55 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
+> sab_form_diffs (67 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
 > (11 rows). THE COUNTS ARE THE WORK QUEUE.** Read
 > `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now with
 > the §20.6 landed state), then §19.4 + §19.5, then §18.6 + §F2.1–F2.3,
@@ -51,37 +55,64 @@
    types), ZERO extraction anomalies. The width sets carry the
    authored variance honestly: coedge {55, 60}, straight-curve
    {85, 103}, both terminators, four magic/version pairs.
-3. **The day-one queue (the initial counts — the designed nonzero)**:
-   - **G-A (55 rows)**: the vertex short-width (34 vs the authored 39
-     — the one topology class the conic/quadric completions did not
-     cover), the missing asmheader, the `ACIS|700` flavor vs the
-     authored 21200/21500/21800/22300 pairs, the header triple
-     (0,1,0) vs the authored (0,2,*), the product strings
-     ('acadrust'/'ACIS 7.0' vs 'Autodesk AutoCAD'/'ASM 232.6.0.65535
-     NT'), the tolerance triple (spatial_resolution 10.0 vs the
-     authored 1.0), the missing persubent-acadSolidHistory attribs,
-     and the record-class ordering family (the writer's restore-file
-     rank vs the authored order). **The completions' regression guard
-     HOLDS: cone-surface 149, ellipse-curve 118, plane-surface 112,
-     sphere-surface 122, torus-surface 130, straight-curve 85 all sit
-     AT the authored genus.**
-   - **G-B (1 row)**: the constructed-tree elide marker — the
-     2646f05 contract (no ACSH records; the solid's history
-     soft-pointer NULL) ranks as the tree's current genus divergence,
-     adjudicated TOLERATED by the cylinder verdict; the topology
-     invariants stay armed for any SH record that appears in a
-     constructed decode.
-   - **G-C (11 rows)**: ds_version 1 vs the authored 16/17, the
-     segidx-last position vs the authored segidx-first 128,
-     num_segidx 8 vs the authored 91/97, file_header_size 128 vs
-     65664, the populated-slot tail pattern, the unpopulated prvsav
-     slot — the ranked queue head, exactly as §20.2 predicted.
-4. **The zero-keeping rule held through the landing**: the full corpus
-   re-ran at 280 files with ALL FOUR AXES 0 and the genus sections
-   attached; the generation identity is UNCHANGED
-   (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes); the AC21 echo
-   is clean; the hermetic suites are green; the four family smokes are
-   0/0.
+ 3. **The day-one queue (the initial counts — the designed nonzero)**:
+    - **G-A (67 rows)**: the vertex short-width (34 vs the authored 39
+      — the one topology class the conic/quadric completions did not
+      cover), the missing asmheader, the `ACIS|700` flavor vs the
+      authored 21200/21500/21800/22300 pairs, the header triple
+      (0,1,0) vs the authored (0,2,*), the product strings
+      ('acadrust'/'ACIS 7.0' vs 'Autodesk AutoCAD'/'ASM 232.6.0.65535
+      NT'), the tolerance triple (spatial_resolution 10.0 vs the
+      authored 1.0), the missing persubent-acadSolidHistory attribs,
+      and the record-class ordering family (the writer's restore-file
+      rank vs the authored order — with the point-rank rows its
+      largest arm: the writer emits points FIRST, every authored
+      specimen emits them LAST). **The completions' regression guard
+      HOLDS: cone-surface 149, ellipse-curve 118, plane-surface 112,
+      sphere-surface 122, torus-surface 130, straight-curve 85 all sit
+      AT the authored genus.**
+    - **G-B (1 row)**: the constructed-tree elide marker — the
+      2646f05 contract (no ACSH records; the solid's history
+      soft-pointer NULL) ranks as the tree's current genus divergence,
+      adjudicated TOLERATED by the cylinder verdict; the topology
+      invariants — including the solid-history-links-root arm — stay
+      armed for any SH record that appears in a constructed decode.
+      Tree-ABSENCE on a constructed solid is deliberately NOT ranked
+      (the specimen family is selected for trees: 136 carriers = 136
+      roots — selection bias, not genus).
+    - **G-C (11 rows)**: ds_version 1 vs the authored 16/17, the
+      segidx-last position vs the authored segidx-first 128,
+      num_segidx 8 vs the authored 91/97, file_header_size 128 vs
+      65664, the populated-slot tail pattern, the unpopulated prvsav
+      slot — the ranked queue head, exactly as §20.2 predicted.
+ 4. **The review pass (the same day, the OCS lens — "review that the
+    genus gates validate what OpenstudioCad constructs against the
+    golden genus") found and fixed two instrument defects**: (a) the
+    ordering genus computed `after ∩ keys` — a UNION — instead of
+    always-after (`after − before`): variable pairs (coedge↔cone-
+    surface, cone-surface↔plane-surface) were pinned as constraints
+    BOTH ways (false positives against constructed orders the
+    authored genus itself shows), and `point` — last in every
+    authored first-appearance order — fell out of every constraint
+    set, hiding the writer's points-first rank (the largest true
+    ordering divergence) entirely; the fix recomputed after−before,
+    regenerated the pin, and the corrected G-A queue grew 55→67 rows
+    (false rows gone, the point-rank rows in). (b) the pin carried
+    `solid_history_links_root: [True]` (the cylinder-audit
+    dangling-link sibling: every authored root is named by its
+    owning solid's history soft-pointer) but the gate never asserted
+    it — the arm landed, armed for any constructed tree that
+    survives save. Also verified in the pass: the constructed family
+    exercises ONLY the public API surface (the OCS command path —
+    the primitive builders, from_sat, add_entity,
+    create_solid_history), and the unused-import residue was
+    cleaned from both instruments.
+ 5. **The zero-keeping rule held through the landing**: the full corpus
+    re-ran at 280 files with ALL FOUR AXES 0 and the genus sections
+    attached; the generation identity is UNCHANGED
+    (`84374e73ddcf1d6143877c4100b81e48`, 25,375 bytes); the AC21 echo
+    is clean; the hermetic suites are green; the four family smokes are
+    0/0.
 
 ## THE NEXT WORK: work down the genus-gate queue (§8.1.2 packets, strict-loader verdicts)
 
@@ -162,7 +193,7 @@ era specimens (the era censuses all-zero).
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative: all four axes 0, WITH the
-  genus sections (`sab_form_diffs` 55 / `sh_genus_diffs` 1 /
+  genus sections (`sab_form_diffs` 67 / `sh_genus_diffs` 1 /
   `acds_genus_diffs` 11) as additional output.
 - The generation identity is `84374e73ddcf1d6143877c4100b81e48`,
   25,375 bytes (UNCHANGED through the §20 landing). The generator
@@ -260,7 +291,7 @@ python3 tests/gold_harness/run_roundtrip.py \
 # 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 work queue): sab_form 55 rows,
+#    ... genus gates (the §20 work queue): sab_form 67 rows,
 #        sh_genus 1 rows, acds_genus 11 rows (the day-one queue)
 
 # 4. Generation identity (re-run if the writer changes)
@@ -314,12 +345,19 @@ a99ccc6 <docs> the version-parity matrix as future work (§19.5)
 da78f79 docs(harness): the IMPLEMENTATION.md review + the stale-claim
        reconciliation (§1 goal, §5 coverage, §7 title, §8.1.6 pointer,
        §17 F1/F2) + the genus-gates handover
-<feat> §20 genus gates: genus_extract.py + genus_gates.py + the
+ba12a2f <feat> §20 genus gates: genus_extract.py + genus_gates.py + the
        genus_constructed fixture-family bin + the pinned
        genus_expectations.json + the run_corpus additional sections +
        the tests/genus_gates.rs cargo mirror + §20.6 (the landed state)
        + the README step 7 + the AGENTS.md fifth-layer contract +
-       this halt record (THIS SESSION'S LANDING)
+       this halt record
+<fix> the genus-gate review (the OCS lens): the ordering genus
+       recomputed as always-after (after − before, not the union that
+       pinned variable pairs both ways and hid the points-first rank;
+       the pin regenerated, G-A 55 -> 67 rows — false rows out, the
+       point-rank rows in) + the solid-history-links-root arm gated +
+       the unused-import residue cleaned + the docs reconciled
+       (THIS SESSION'S REVIEW LANDING)
 ```
 
 **PUSH STATE (2026-09-28)**: push after each landing per the
@@ -335,10 +373,17 @@ containers, zero anomalies) → the constructed-fixture family built
 HistoryTree, the elide verified live) → the extractor + gates + pin
 landed → the ordering-check inversion caught and fixed on the first
 report → the corpus re-run at 280/0/0/0 with the sections attached →
-the identity + echo + suites green → the halt record written (this
-file). **The maintainer's loop instruction — "repeat process until
+the identity + echo + suites green → the halt record written → **the
+review pass (the OCS lens)**: the ordering genus's union defect found
+by probing the pin's constraint symmetry (variable pairs pinned both
+ways = false positives; `point` dropped from every constraint set =
+the writer's points-first rank invisible), recomputed as
+after−before, the pin regenerated, the ungated
+solid-history-links-root invariant armed, the corrected queue verified
+(false rows gone, point-rank rows in), the docs reconciled. **The
+maintainer's loop instruction — "repeat process until
 target = zero" — remains satisfied on its own terms: the corpus is at
 zero on every axis, the conventional arm is record-identical
-everywhere surveyed, and the fifth layer's queue is now MEASURED and
-ranked — the next sessions work it down packet by packet with the
-strict loaders adjudicating.**
+everywhere surveyed, and the fifth layer's queue is now MEASURED,
+REVIEWED, and ranked — the next sessions work it down packet by packet
+with the strict loaders adjudicating.**
