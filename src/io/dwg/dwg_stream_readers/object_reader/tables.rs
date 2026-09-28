@@ -516,7 +516,9 @@ pub fn read_layer(
     let off;
     let frozen_in_new_vp;
     let locked;
-    let mut plottable = false;
+    // R13/R14 records carry no plot flag (it arrived with R2000), so a layer
+    // plots unless the record says otherwise — as a new layer and DXF do.
+    let mut plottable = true;
     let mut line_weight: i16 = 0;
 
     if version.r2000_plus() {
