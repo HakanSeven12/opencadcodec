@@ -60,12 +60,17 @@
 # constructed-SAB, constructed-wrapper + authored-SAB, both now
 # openable, so a MODELED chimera localizes the B-rep blocker to
 # one side)
-# THE ORACLES: BricsCAD V26 (the directed default) + AUTOCAD 2027
+# THE ORACLES: BricsCAD V26 (the directed default — "C:\Program
+# Files\Bricsys\BricsCAD V26 en_US\bricscad.exe", also the probe's
+# built-in DEFAULT_BCAD so a bare run uses it) + AUTOCAD 2027
 # (the format AUTHOR — "C:\Program Files\Autodesk\AutoCAD 2027\
-# acad.exe", the /b+LISP mechanism validated, PROGRAM=acad,
-# ACADVER 26.0s; its dialogs stall /b scripts — kill the stalled
-# instance BY PID, never by name: acad.exe is shared with the
-# maintainer's Civil 3D); THE DEFECT MAP (V18/V26/ACAD2027):
+# acad.exe", pass via --bcad; the /b+LISP mechanism validated,
+# PROGRAM=acad, ACADVER 26.0s; its dialogs stall /b scripts — kill
+# the stalled instance BY PID, never by name: acad.exe is shared
+# with the maintainer's Civil 3D); V18 is LEGACY-ONLY (its
+# 2017-era modeler rejects content V26 accepts cleanly — the
+# maintainer hand-verified the split); THE DEFECT MAP
+# (V18/V26/ACAD2027):
 #   1. THE FILE-LEVEL REJECTION — CLOSED (the wireframe-synthesis
 #      fix above; the ACAD2027 "Errors found" dialog was the
 #      naming evidence);
@@ -973,11 +978,16 @@ python3 tests/gold_harness/genus_extract.py   # regenerate expectations
 python3 tests/gold_harness/genus_gates.py     # the ranked report
 # lands NONZERO on purpose — the counts are the work queue
 
-# 7b. THE STRICT-LOAD PROBE (the mechanized BricsCAD audit)
-#     (Windows-visible host required; the BricsCAD V18 path is the default)
+# 7b. THE STRICT-LOAD PROBE (the mechanized loader audit)
+#     (Windows-visible host required; the DEFAULT is BricsCAD V26;
+#      the author-oracle AutoCAD 2027 passes via --bcad
+#      "C:\Program Files\Autodesk\AutoCAD 2027\acad.exe")
 python3 tests/gold_harness/strict_load_probe.py
-# the constructed fixtures currently read NULL-BOX (the restore
-# gap — the new queue head); the authored controls must read MODELED
+# the constructed fixtures currently read NULL-BOX (the B-rep
+# construction gap — the open campaign); the authored controls
+# must read MODELED; the minimal rewrite (Region+LINE) reads
+# CLEAN after the wireframe fix; the big authored rewrite
+# (example_2018+LINE) is the live packet
 ```
 
 ## Commit inventory (this halt)
