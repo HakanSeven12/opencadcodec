@@ -109,24 +109,12 @@ class RowCollector:
 # ADJUDICATED state — kept in the counts as the recorded divergence,
 # annotated in the report, and excluded from the pending work queue.
 # Every entry cites its provenance; nothing is tolerated without a
-# recorded verdict.
+# recorded verdict. (The header-magic-version and header-triple
+# entries were RETIRED at the candidate-4 packet: the constructed
+# header now carries the authored era profile — ASM|22300 + (0,2,4)
+# for R2018 — so both rows closed through the genus match; the
+# history lives in IMPLEMENTATION.md §20.6.)
 ADJUDICATIONS = {
-    ("sab_form", "header-magic-version"): {
-        "verdict": "TOLERATED",
-        "note": "the ACIS|700 binary SAB flavor is silver's native output; "
-                "BricsCAD-ACCEPTED (the 2026-09-21 strict-load zero; the "
-                "2026-09-22 region probe re-confirmed the restorer audits "
-                "the stream clean). The authored 21200/21500/21800/ASM|22300 "
-                "pairs are the author's era stamps — a flavor change is a "
-                "writer-generation change, not a genus defect.",
-    },
-    ("sab_form", "header-triple"): {
-        "verdict": "TOLERATED",
-        "note": "the (0, 1, 0) constructed header triple rides the same "
-                "BricsCAD-ACCEPTED stance (the 2026-09-21 strict-load zero); "
-                "the authored (0, 2, 4/12/24/26) semantics are unexplained "
-                "constants — reproducing them would forge unmeasured fields.",
-    },
     ("sab_form", "product-strings"): {
         "verdict": "TOLERATED",
         "note": "the author's identity rule: silver writes its own product "

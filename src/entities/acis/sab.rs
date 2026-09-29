@@ -90,34 +90,116 @@ const SAB_MAGIC: &[u8] = b"ACIS BinaryFile";
 /// Converts a [`SatDocument`] to SAB binary format.
 pub struct SabWriter;
 
+/// The authored SAB header era profile — the wire flavor a saved file
+/// carries, measured on the specimen corpus (§20: every authored
+/// carrier, all four eras):
+///
+/// - R2007 (AC1021): `ACIS BinaryFile` |21200, header ints (0, 2, 26)
+/// - R2010 (AC1024): `ACIS BinaryFile` |21500, header ints (0, 2, 24)
+/// - R2013 (AC1027): `ACIS BinaryFile` |21800, header ints (0, 2, 12)
+/// - R2018 (AC1032): `ASM BinaryFile`  |22300, header ints (0, 2, 4)
+///
+/// The second int is the CONSTANT 2 across every authored carrier
+/// (even one-body files); the third is era-coded (26/24/12/4). The
+/// product strings stay the writer's own (the author-identity rule) —
+/// the flavor and the ints are format fields, not identity. The
+/// coedge parameter-space slot is era-profiled too: R2007/R2010
+/// carry the legacy 8-field form, R2013+ the `Integer(0), Pointer`
+/// pair (the 55/60-byte width split measured by magic).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SabEra {
+    /// Silver's historical output: `ACIS BinaryFile` |700, the
+    /// body-count declaration, the has_history flag, legacy coedges.
+    Legacy,
+    R2007,
+    R2010,
+    R2013,
+    R2018,
+}
+
+impl SabEra {
+    /// The authored profile for a target DXF version.
+    pub fn for_dxf(version: crate::types::DxfVersion) -> Self {
+        use crate::types::DxfVersion;
+        match version {
+            v if v >= DxfVersion::AC1032 => SabEra::R2018,
+            v if v >= DxfVersion::AC1027 => SabEra::R2013,
+            v if v >= DxfVersion::AC1024 => SabEra::R2010,
+            v if v >= DxfVersion::AC1021 => SabEra::R2007,
+            _ => SabEra::Legacy,
+        }
+    }
+
+    /// The 15-byte magic prefix the version u32 follows: classic
+    /// `ACIS BinaryFile`, or `ASM BinaryFile` + the constant 0x34
+    /// trailing byte (measured: 34/34 authored ASM carriers).
+    fn magic(self) -> &'static [u8] {
+        match self {
+            SabEra::R2018 => b"ASM BinaryFile\x34",
+            _ => b"ACIS BinaryFile",
+        }
+    }
+
+    fn version_number(self, doc_version: u32) -> u32 {
+        match self {
+            SabEra::Legacy => doc_version,
+            SabEra::R2007 => 21200,
+            SabEra::R2010 => 21500,
+            SabEra::R2013 => 21800,
+            SabEra::R2018 => 22300,
+        }
+    }
+
+    /// The second header int: the authored constant 2 (never
+    /// under-declaring a multi-body document).
+    fn bodies_field(self, declared: usize) -> u32 {
+        match self {
+            SabEra::Legacy => declared as u32,
+            _ => declared.max(2) as u32,
+        }
+    }
+
+    /// The third header int: the era code (the authored genus), or
+    /// the legacy has_history flag.
+    fn history_field(self, has_history: bool) -> u32 {
+        match self {
+            SabEra::Legacy => u32::from(has_history),
+            SabEra::R2007 => 26,
+            SabEra::R2010 => 24,
+            SabEra::R2013 => 12,
+            SabEra::R2018 => 4,
+        }
+    }
+
+    fn modern_coedge_pcurve(self) -> bool {
+        matches!(self, SabEra::R2013 | SabEra::R2018)
+    }
+}
+
 impl SabWriter {
-    /// Convert a SAT document to SAB binary data (the legacy coedge
+    /// Convert a SAT document to SAB binary data (the legacy ACIS 7.0
     /// form — the 2007/2010 flavors' single-pointer parameter-space
     /// slot; byte-identical to the historical output).
     pub fn write(doc: &SatDocument) -> Vec<u8> {
-        Self::write_era(doc, false)
+        Self::write_era(doc, SabEra::Legacy)
     }
 
-    /// The modern-era (R2013+ / ACIS|21800 and ASM|22300) SAB form:
-    /// the authored stream's coedges carry the parameter-space slot as
-    /// the pair `Integer(0), Pointer $-1` — the era profile measured on
-    /// the specimen corpus (2007/2010: 55-byte coedges, 8 fields;
-    /// 2013/2018: 60-byte coedges, the extra int before the pcurve
-    /// pointer). The doc's coedge token list keeps the SAT-text
-    /// shape; the pair inserts at the SAB boundary only, so SAT-text
-    /// emission is untouched.
-    pub fn write_modern(doc: &SatDocument) -> Vec<u8> {
-        Self::write_era(doc, true)
+    /// Convert a SAT document to SAB binary data in the authored
+    /// profile of the target era (the header flavor + the era-coded
+    /// header ints + the era-profiled coedge form; the product
+    /// strings stay the writer's own).
+    pub fn write_for_era(doc: &SatDocument, era: SabEra) -> Vec<u8> {
+        Self::write_era(doc, era)
     }
 
-    fn write_era(doc: &SatDocument, modern_coedge_pcurve: bool) -> Vec<u8> {
+    fn write_era(doc: &SatDocument, era: SabEra) -> Vec<u8> {
         let mut buf = Vec::with_capacity(8192);
 
         // The modern coedge form inserts before the reorder machinery
-        // so the emitted stream carries it through the rank sort's
+        // so the emitted stream carries it through the traversal's
         // pointer remap untouched (the Integer is not a pointer).
         let modern_doc;
-        let doc = if modern_coedge_pcurve {
+        let doc = if era.modern_coedge_pcurve() {
             let mut d = doc.clone();
             for record in d.records.iter_mut() {
                 if record.entity_type == "coedge"
@@ -205,7 +287,7 @@ impl SabWriter {
             .count();
 
         // Header
-        Self::write_header(&mut buf, &doc.header, body_count);
+        Self::write_header(&mut buf, &doc.header, body_count, era);
 
         // Entity records
         for record in &doc.records {
@@ -218,15 +300,17 @@ impl SabWriter {
         buf
     }
 
-    fn write_header(buf: &mut Vec<u8>, header: &SatHeader, body_count: usize) {
-        // Magic
-        buf.extend_from_slice(SAB_MAGIC);
+    fn write_header(buf: &mut Vec<u8>, header: &SatHeader, body_count: usize, era: SabEra) {
+        // Magic (the era's 15-byte prefix; the version u32 follows)
+        buf.extend_from_slice(era.magic());
 
-        // Version number (4 bytes LE)
-        let ver = header.version.sat_version_number();
+        // Version number (4 bytes LE) — the era's authored flavor;
+        // Legacy keeps the doc's SAT version number (ACIS 7.0 → 700).
+        let ver = era.version_number(header.version.sat_version_number());
         buf.extend_from_slice(&ver.to_le_bytes());
 
         // num_records field (4 bytes LE) — always 0 for ACIS 7.0+
+        // (and 0 in every authored era carrier).
         let num_records: u32 = if header.version.has_explicit_indices() {
             0
         } else {
@@ -237,20 +321,24 @@ impl SabWriter {
         // num_bodies (4 bytes LE) — the restore-file top-level body
         // declaration: the maximum of the parsed header and the record
         // inventory. A strict restorer (BricsCAD 2026-09-22 region
-        // probe: "Modeling operation error: missing logical in restore
-        // file") rejects a zero declaration even when the records
-        // carry bodies; captured role streams may declare MORE than
-        // the inventory (face/transform-only fragments keep their
+        // probe: "Modeling operation error: missing logical in
+        // restore file") rejects a zero declaration even when the
+        // records carry bodies; captured role streams may declare MORE
+        // than the inventory (face/transform-only fragments keep their
         // native 1) — the maximum keeps both constructed and captured
-        // genus restorable.
+        // genus restorable. The authored era profiles carry the
+        // CONSTANT 2 here (every authored carrier, even one-body
+        // files) — the max never under-declares a multi-body doc.
         let declared = header.num_bodies.max(body_count);
-        buf.extend_from_slice(&(declared as u32).to_le_bytes());
+        buf.extend_from_slice(&era.bodies_field(declared).to_le_bytes());
 
-        // has_history (4 bytes LE)
-        let history: u32 = if header.has_history { 1 } else { 0 };
+        // has_history (4 bytes LE) — the era-coded authored field
+        // (26/24/12/4), or the legacy flag.
+        let history = era.history_field(header.has_history);
         buf.extend_from_slice(&history.to_le_bytes());
 
-        // Product info strings
+        // Product info strings — the writer's own identity (the
+        // author-identity rule: never forge Autodesk stamps).
         Self::write_string(buf, &header.product_id);
         Self::write_string(buf, &header.product_version);
         Self::write_string(buf, &header.date);
@@ -2153,7 +2241,21 @@ mod tests {
                 let crate::EntityType::Solid3D(solid) = read.entities().next().unwrap() else {
                     panic!("missing solid");
                 };
-                assert_eq!(solid.acis_data.sab_data, expected, "DWG {version:?}");
+                // The DWG target's era profile: the record body is the
+                // legacy bytes; the header prefix (magic + version +
+                // the three ints, 31 bytes) is the era's authored form
+                // (Legacy for pre-2007; ACIS|21200/21500/21800 or
+                // ASM|22300 + the constant-2 + the era code after).
+                let era = SabEra::for_dxf(version);
+                let mut era_expected = expected.clone();
+                era_expected[..15].copy_from_slice(era.magic());
+                let ver = era.version_number(doc.header.version.sat_version_number());
+                era_expected[15..19].copy_from_slice(&ver.to_le_bytes());
+                era_expected[19..23].copy_from_slice(&0u32.to_le_bytes());
+                era_expected[23..27].copy_from_slice(&era.bodies_field(1).to_le_bytes());
+                era_expected[27..31]
+                    .copy_from_slice(&era.history_field(doc.header.has_history).to_le_bytes());
+                assert_eq!(solid.acis_data.sab_data, era_expected, "DWG {version:?}");
             }
         }
     }

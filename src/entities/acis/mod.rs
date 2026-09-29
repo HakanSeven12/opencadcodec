@@ -49,7 +49,7 @@ pub mod types;
 pub mod writer;
 
 pub use parser::SatParser;
-pub use sab::{SabReader, SabWriter};
+pub use sab::{SabEra, SabReader, SabWriter};
 pub use types::*;
 pub use writer::SatWriter;
 

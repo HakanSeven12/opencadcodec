@@ -1,12 +1,16 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
-# the restore-gap campaign: candidates 1+2+3 all LANDED and
-# genus-verified, the probe still reads the ±1e80 NULL BOX on every
-# constructed fixture while the authored control reads MODELED —
-# CANDIDATE 4 (the era-profiled SAB header: the flavor + the
-# constant-2 + the era field, all measured) is the designed next
-# packet; the corpus stays 0/0/0/0 on all four axes
+# the restore-gap campaign: candidates 1+2+3+4 ALL LANDED and
+# genus-verified (the era-profiled header closed the last two
+# non-adjudicated rows — sab_form 5 → 3), the probe still reads the
+# ±1e80 NULL BOX on every constructed fixture while the authored
+# control reads MODELED; the era-profile packet's FULL BATTERY is
+# IN FLIGHT (finish it, commit, push); the console mechanism is
+# LANDED (the window-lifecycle scraper); THE NEXT INVESTIGATION:
+# the full record-by-record structural diff (every record, not
+# first-of-class) — the remaining divergence is below the class
+# level
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -336,9 +340,41 @@
 
 ## THE NEXT WORK: the constructed-SAB restore gap (the mechanized probe is the acceptance gate)
 
-**The queue's PENDING axis is ZERO** — `sab_form_diffs` 4 rows /
-`sh_genus_diffs` 1 row / `acds_genus_diffs` 0, every remaining row
-adjudicated-TOLERATED on a recorded verdict. `--strict` passes.
+**The state after candidates 1–4 (2026-09-29, the fifth
+continuation)**: all four landed and genus-verified — (1) the
+era-profiled coedge form, (2) the identity transform, (3) the
+BFS first-mention emission (136/136 authored carriers verified),
+(4) the era-profiled SAB header (`SabEra`: the ASM|22300 flavor +
+the 0x34 trailing byte + the constant-2 bodies field + the
+era-coded history field 26/24/12/4; `write_for_era` at the three
+call sites; the two header rows FELL — sab_form 5 → 3 rows, the
+remaining three all adjudicated: product-strings, persubent, +
+the 1-row gen_all wiring pending). **The probe still reads the
+±1e80 NULL BOX on every constructed fixture; the authored
+control reads MODELED.** The era-profile packet's FULL BATTERY is
+IN FLIGHT at this halt — finish it (suite + mirrors + smokes +
+echoes + corpus + identity), commit, push. The console mechanism
+LANDED alongside (bac227f): the window-lifecycle scraper
+(bricscad_console_scraper.ps1 — the tested channel map: LOGFILENAME
+read-only, WM_GETTEXT empty on the wxWidgets UI, UIA empty,
+GetWindowText works; the transcript captures the run's window
+lifecycle with timestamps).
+
+**THE NEXT INVESTIGATION — the full record-by-record structural
+diff**: every class now matches the authored genus (classes,
+widths, forms, orders, headers, wiring ladder), yet the kernel
+still rejects the B-rep — the remaining divergence is BELOW the
+class level. The designed next packet: align the authored
+Box_2018 and the constructed Box record-by-record THROUGH THE
+GRAPH (body↔body, then lump, shell, faces in order, each face's
+loop, each loop's coedge chain, each coedge's edge, each edge's
+vertices/curve, each surface) and diff the full token lists per
+aligned pair — the suspects: the loop's coedge-chain ORDER and
+sense distribution, the coedge partner wiring (next/prev
+symmetry), the edge parameter values (start/end params), the
+surface normal/direction conventions, the vertex↔point
+association. The probe (now with the window transcript) is the
+acceptance gate: MODELED with the authored controls green.
 
 **The BricsCAD audit is MECHANIZED and its verdict is recorded
 (2026-09-29, the second continuation session)**:
