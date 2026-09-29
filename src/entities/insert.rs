@@ -434,7 +434,7 @@ impl Insert {
                     end_parameter: std::f64::consts::TAU,
                     normal: circle.normal,
                 };
-                Self::apply_full_ellipse_transform(&mut ellipse, transform);
+                super::transform::transform_ellipse(&mut ellipse, transform);
                 self.resolve_properties(&mut ellipse.common);
                 Some(EntityType::Ellipse(ellipse))
             }
@@ -541,78 +541,9 @@ impl Insert {
             end_parameter: arc.end_angle,
             normal: arc.normal,
         };
-        Self::apply_full_ellipse_transform(&mut ellipse, transform);
+        super::transform::transform_ellipse(&mut ellipse, transform);
         self.resolve_properties(&mut ellipse.common);
         EntityType::Ellipse(ellipse)
-    }
-
-    /// Apply transform to an Ellipse with correct minor_axis_ratio recalculation.
-    ///
-    /// Unlike the default Ellipse::apply_transform (which leaves minor_axis_ratio
-    /// unchanged), this properly computes the new ratio by transforming both
-    /// major and minor axis directions independently. The new normal is derived
-    /// from `new_major × new_minor`, which automatically encodes any handedness
-    /// flip introduced by a reflective transform (det < 0), preserving the
-    /// original sweep direction.
-    ///
-    /// ELLIPSE is one of the few WCS entities in DXF: `center` (code 10) and
-    /// `major_axis` (code 11) are world coordinates, NOT OCS — so the transform
-    /// applies to the stored values directly and the results are stored back
-    /// as-is. (An earlier revision round-tripped them through the
-    /// arbitrary-axis OCS, which made files with a non-Z-up result — e.g. a
-    /// mirrored explode — read wrong in other CAD applications.)
-    fn apply_full_ellipse_transform(ellipse: &mut Ellipse, transform: &Transform) {
-        let center_wcs = ellipse.center;
-        let major_wcs = ellipse.major_axis;
-
-        // Original minor axis vector (WCS, perpendicular to major in the ellipse plane).
-        let original_minor_dir = ellipse.normal.cross(&major_wcs).normalize();
-        let original_minor_len = major_wcs.length() * ellipse.minor_axis_ratio;
-        let original_minor = original_minor_dir * original_minor_len;
-
-        // Transform center in WCS
-        let new_center_wcs = transform.apply(center_wcs);
-
-        // Transform both axes through the 3×3 portion (direction + scale, no translation)
-        let new_major_wcs = transform.apply_rotation(major_wcs);
-        let new_minor_wcs = transform.apply_rotation(original_minor);
-
-        let new_major_len = new_major_wcs.length();
-        let new_minor_len = new_minor_wcs.length();
-
-        // DXF convention: major_axis must be the longer axis.
-        // If the minor became longer, swap them.
-        let (final_major_wcs, final_minor_wcs, swapped) = if new_minor_len > new_major_len + 1e-12 {
-            (new_minor_wcs, new_major_wcs, true)
-        } else {
-            (new_major_wcs, new_minor_wcs, false)
-        };
-
-        // Derive normal from major × minor so handedness follows the geometry:
-        // a reflective transform automatically produces a flipped normal, and the
-        // CCW parameter sweep (around the new normal) traces the mirrored shape.
-        let cross = final_major_wcs.cross(&final_minor_wcs);
-        let cross_len = cross.length();
-        let new_normal = if cross_len > 1e-12 {
-            cross * (1.0 / cross_len)
-        } else {
-            Self::transform_normal(transform, ellipse.normal)
-        };
-
-        ellipse.center = new_center_wcs;
-        ellipse.major_axis = final_major_wcs;
-        ellipse.minor_axis_ratio = if final_major_wcs.length() > 1e-12 {
-            final_minor_wcs.length() / final_major_wcs.length()
-        } else {
-            1.0
-        };
-        ellipse.normal = new_normal;
-
-        if swapped {
-            // When axes swap, parameters need to shift by π/2
-            ellipse.start_parameter -= std::f64::consts::FRAC_PI_2;
-            ellipse.end_parameter -= std::f64::consts::FRAC_PI_2;
-        }
     }
 
     /// Convenience wrapper that looks up the block in a
