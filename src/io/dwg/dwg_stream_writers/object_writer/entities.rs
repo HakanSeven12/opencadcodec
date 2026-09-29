@@ -855,8 +855,20 @@ impl<'a> DwgObjectWriter<'a> {
         // Extents wid BD (DXF 42, output-only)
         self.writer.write_bit_double(e.extents_width);
 
-        // Text TV 1
-        self.writer.write_variable_text(&e.value);
+        // Text TV 1 — §19 the MTEXT record-identity packet: a DWG-read
+        // record re-emits its VERBATIM pre-2007 wire text (the authored
+        // escape/raw form of a non-ASCII char is author data —
+        // example_2004 `108\U+00B0` escaped, example_2000 raw 0xB0 —
+        // never a derived escape rule); the decoded `value` writes for
+        // constructed/DXF-built records (no capture) and for the
+        // R2007+ UTF-16 targets (whose authored convention carries the
+        // decoded char).
+        if self.version.r2007_plus() {
+            self.writer.write_variable_text(&e.value);
+        } else {
+            let text = e.dwg_wire_text.as_deref().unwrap_or(&e.value);
+            self.writer.write_variable_text(text);
+        }
 
         // H 7 STYLE (hard pointer) — written BEFORE R2000+ block
         let style_handle = self

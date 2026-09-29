@@ -228,6 +228,11 @@ pub struct MTextData {
     pub extents_height: f64,
     pub extents_width: f64,
     pub value: String,
+    /// §19 the MTEXT record-identity packet: the verbatim pre-2007 wire
+    /// text (pre-MIF-decode) — the authored escape/raw form is author
+    /// data (example_2004 `108\U+00B0` vs example_2000 raw 0xB0), so
+    /// the rewrite re-emits it verbatim. `None` on R2007+ reads.
+    pub wire_value: Option<String>,
     pub style_handle: u64,
     pub linespacing_style: i16,
     pub linespacing_factor: f64,
@@ -1569,7 +1574,7 @@ pub fn read_mtext(
     let drawing_direction = reader.read_bit_short();
     let extents_height = reader.read_bit_double();
     let extents_width = reader.read_bit_double();
-    let value = reader.read_variable_text();
+    let (value, wire_value) = reader.read_variable_text_with_wire();
 
     let style_handle = reader.read_handle();
 
@@ -1692,6 +1697,7 @@ pub fn read_mtext(
         extents_height,
         extents_width,
         value,
+        wire_value,
         style_handle,
         linespacing_style,
         linespacing_factor,
@@ -4256,6 +4262,9 @@ pub(crate) fn read_embedded_mtext(
     let extents_width = reader.read_bit_double();
     let extents_height = reader.read_bit_double();
     let value = reader.read_variable_text();
+    // The embedded MTEXT is an R2018+ annotative-context payload: the
+    // UTF-16 wire form IS the model text, no verbatim capture needed.
+    let wire_value: Option<String> = None;
     let style_handle = reader.read_handle();
     let linespacing_style = reader.read_bit_short();
     let linespacing_factor = reader.read_bit_double();
@@ -4318,6 +4327,7 @@ pub(crate) fn read_embedded_mtext(
         extents_height,
         extents_width,
         value,
+        wire_value,
         style_handle,
         linespacing_style,
         linespacing_factor,

@@ -467,6 +467,18 @@ impl DwgMergedReader {
         }
     }
 
+    /// [`read_variable_text`](Self::read_variable_text) plus the verbatim
+    /// pre-2007 wire string (§19 the MTEXT record-identity packet: the
+    /// authored escape/raw form of a non-ASCII char is author data, so a
+    /// DWG-read record rewrites with her text bytes). R2007+ reads
+    /// return `None` — the UTF-16 decode is lossless.
+    pub fn read_variable_text_with_wire(&mut self) -> (String, Option<String>) {
+        match &mut self.text {
+            Some(text_reader) => text_reader.read_variable_text_with_wire(),
+            None => self.main.read_variable_text_with_wire(),
+        }
+    }
+
     /// Bits remaining after the currently decoded fields in the separate
     /// R2007+ text stream.
     pub fn text_remaining_bits(&self) -> i64 {

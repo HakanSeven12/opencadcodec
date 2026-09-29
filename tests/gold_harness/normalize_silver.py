@@ -1132,6 +1132,7 @@ def normalize_silver(
         # these keys on every DWG read; popping them loop-universal
         # keeps the read-axis comparison to semantic structure.
         for _wk in ("dwg_wire_scenario",
+                    "dwg_wire_text",
                     "wire_main", "wire_main_bit_len",
                     "wire_text", "wire_text_bit_len",
                     "wire_handles", "wire_handles_bit_len",

@@ -146,6 +146,19 @@ pub struct MText {
     /// point here; kept raw for wire round-trip fidelity.
     #[cfg_attr(feature = "serde", serde(default))]
     pub ignore_attachment: i32,
+    /// §19 the 2026-09-29 record-identity census (the MTEXT packet): the
+    /// VERBATIM pre-2007 wire text, captured before the MIF `\U+XXXX`
+    /// escape decode. The authored wire form of a non-ASCII char is
+    /// AUTHOR DATA, not a convention — example_2004's `108\U+00B0`
+    /// carries the in-band escape while example_2000's identical text
+    /// carries the raw 0xB0 byte — so a DWG-read record that rewrites
+    /// re-emits the captured string verbatim (the dwg_x_direction
+    /// capture's sibling); the decoded `value` stays the semantic text
+    /// for the API, the JSON comparisons, and conversions to the
+    /// R2007+ UTF-16 era (whose authored convention carries the
+    /// decoded char).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_wire_text: Option<String>,
 }
 
 impl MText {
@@ -180,6 +193,7 @@ impl MText {
             extents_width: 0.0,
             extents_height: 0.0,
             ignore_attachment: 0,
+            dwg_wire_text: None,
         }
     }
 

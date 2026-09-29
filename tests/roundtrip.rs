@@ -1016,6 +1016,18 @@ fn sync_constructed_spline_scenarios(doc: &mut CadDocument, version: DxfVersion)
                 spline.dwg_wire_scenario = Some(storage);
             }
         }
+        // §19 the MTEXT record-identity packet: a pre-2007 write always
+        // produces a wire-read capture (`Some(the wire text)`) — for a
+        // constructed doc without MIF escapes the wire text IS the
+        // value, so pre-compare the constructed model with the capture
+        // its own write emits (the 34c75d0 spline-scenario sync's
+        // sibling). The comparison stays honest for the VALUE: a reader
+        // capturing text that disagrees with the model still fails.
+        if let EntityType::MText(mtext) = entity {
+            if version == DxfVersion::AC1015 && mtext.dwg_wire_text.is_none() {
+                mtext.dwg_wire_text = Some(mtext.value.clone());
+            }
+        }
     }
 }
 

@@ -7870,3 +7870,41 @@ generation identity moved to
 `bb9971a421733e8f09b114bf44b614ee`, 25,473 bytes (the two SAB
 carriers' content changed; an intended content change, re-recorded
 — the no-serde build writes the identical file).
+
+**The MTEXT record-identity packet — the verbatim wire-text
+capture (2026-09-29, the same continuation)**: the widened
+record-size census surfaced the pre-2007 MTEXT drift —
+example_2004 h=44C: her record 100 bytes, the modeled rewrite 94
+(the authored text `108\U+00B0` re-encoded as the raw 0xB0 byte).
+THE INSTRUMENT'S OWN LESSON: the first fix attempt (escape every
+high byte on the pre-2007 write, the reverse-mirror of
+`decode_mif_escapes`) was REFUTED by measurement — example_2000's
+identical text carries the RAW byte on her wire (the attempt grew
+its record 142→148) — **the authored wire form of a non-ASCII char
+is AUTHOR DATA, not a convention** (the two example files, same
+author lineage, opposite forms). The honest fix is the capture
+pattern (the dwg_x_direction sibling): `read_variable_text_with_wire`
+returns (the MIF-decoded semantic text, the code-page-decoded
+string BEFORE the escape decode); `MText.dwg_wire_text` carries
+the capture; the writer's pre-2007 arm re-emits it verbatim (the
+R2007+ UTF-16 targets keep the decoded `value` — the authored
+R2007+ convention carries the decoded char; constructed/DXF-built
+records have no capture and write the value). THE GATES: the era
+censuses — example_2000 749/750 (the MTEXT row fell; her 142 ==
+ours), example_2004 734/735 (her 100 == ours; only the DATATABLE
+row remains); the AC1021 survey 0 divergent (the R2007+ path
+untouched); the identity UNMOVED (`bb9971a4…` — constructed docs
+have no captures); the deep_r2000 roundtrip's capture-artifact
+asymmetry synced test-side (the 34c75d0 spline-scenario sync's
+sibling: the constructed MText is given the `Some(value)` its own
+pre-2007 write emits); the normalizer pops `dwg_wire_text`
+loop-universal (the wire-channel projection). **The remaining
+pre-2007 record-identity row: DATATABLE (type 531) — her 753
+bytes (196 main + a 542-byte HANDLE STREAM of ~192 0x32-coded
+handles) vs the modeled rewrite 1157 (the typed layout writes
+the class data as main bits, LOSES her handle stream entirely,
+and over-emits +404 bytes) — the class has NO authority (gold:
+"Unhandled Class object 531"; the ODA spec documents nothing) so
+the typed layout is an invention: the designed fix is the
+byte-passthrough pattern (the R2018 packet's wire-capture replay
+on the ClassObject path).**

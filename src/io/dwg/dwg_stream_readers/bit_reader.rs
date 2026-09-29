@@ -756,6 +756,19 @@ impl DwgBitReader {
     /// - Pre-R2007: BS length + encoded bytes
     /// - R2007+: BS char_count + UTF-16LE (char_count * 2 bytes)
     pub fn read_variable_text(&mut self) -> String {
+        self.read_variable_text_with_wire().0
+    }
+
+    /// [`read_variable_text`](Self::read_variable_text) plus the VERBATIM
+    /// wire string. Pre-R2007 the returned pair is (the MIF-decoded
+    /// semantic text, `Some(the code-page-decoded string BEFORE the
+    /// `\U+XXXX` escape decode)`) — the authored wire form of a
+    /// non-ASCII char is author data (example_2004 writes `108\U+00B0`
+    /// escaped; example_2000 the raw 0xB0 byte), so a record that must
+    /// re-emit her bytes verbatim writes the capture, never a derived
+    /// escape rule. R2007+ returns (the UTF-16 text, `None`) — the
+    /// UTF-16 decode is lossless, the wire form IS the model text.
+    pub fn read_variable_text_with_wire(&mut self) -> (String, Option<String>) {
         if self.dxf_version >= DxfVersion::AC1021 {
             // R2007+: If we have a separate text stream, read from it.
             // The ENTIRE variable text (BS char_count + UTF-16LE) is in the text stream.
@@ -781,12 +794,12 @@ impl DwgBitReader {
                 self.text_stream_pos = self.position_in_bits();
                 // Restore main stream position
                 self.set_position_in_bits(saved_pos);
-                result
+                (result, None)
             } else {
                 // No separate text stream — read inline
                 let char_count = self.read_bit_short();
                 if char_count <= 0 {
-                    return String::new();
+                    return (String::new(), None);
                 }
                 let byte_count = (char_count as usize) * 2;
                 let bytes = self.read_bytes(byte_count);
@@ -794,19 +807,27 @@ impl DwgBitReader {
                     .chunks_exact(2)
                     .map(|c| u16::from_le_bytes([c[0], c[1]]))
                     .collect();
-                String::from_utf16_lossy(&utf16).replace('\0', "")
+                (
+                    String::from_utf16_lossy(&utf16).replace('\0', ""),
+                    None,
+                )
             }
         } else {
             // Pre-R2007: BS length + encoded bytes
             let length = self.read_bit_short();
             if length <= 0 {
-                return String::new();
+                return (String::new(), Some(String::new()));
             }
             let bytes = self.read_bytes(length as usize);
             let (decoded, _, _) = self.encoding.decode(&bytes);
+            let wire = decoded.replace('\0', "");
             // Legacy strings may embed MIF \U+XXXX escapes for characters
-            // outside the code page — decode them into Unicode chars.
-            crate::io::dxf::code_page::decode_mif_escapes(&decoded.replace('\0', ""))
+            // outside the code page — decode them into Unicode chars for
+            // the semantic text; the wire capture keeps the author's form.
+            (
+                crate::io::dxf::code_page::decode_mif_escapes(&wire),
+                Some(wire),
+            )
         }
     }
 

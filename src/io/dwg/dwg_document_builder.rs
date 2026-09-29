@@ -365,6 +365,10 @@ fn mtext_from_data(data: entities::MTextData, common: EntityCommon, maps: &Handl
     let mut e = MText::new();
     e.common = common;
     e.value = data.value;
+    // §19 the MTEXT record-identity packet: the verbatim pre-2007 wire
+    // text rides the model (the dwg_x_direction capture's sibling) —
+    // the writer re-emits it on same-era rewrites.
+    e.dwg_wire_text = data.wire_value;
     e.insertion_point = data.insertion_point;
     e.height = data.height;
     e.rectangle_width = data.rectangle_width;

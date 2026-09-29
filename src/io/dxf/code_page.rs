@@ -203,6 +203,16 @@ pub fn encoding_from_dwg_code_page(index: u16) -> &'static Encoding {
 /// escapes) instead of `encoding_rs`'s HTML `&#NNNNN;` references, which
 /// no CAD application understands. Well-formed MIF escapes round-trip
 /// through [`decode_mif_escapes`].
+/// Encode text into a legacy (pre-R2007) DWG string using the document's
+/// code page.
+///
+/// Characters the code page cannot represent become MIF `\U+XXXX`
+/// escapes instead of `&#NNNNN;` references. The authored wire form of a
+/// representable non-ASCII char is AUTHOR DATA, not a convention —
+/// example_2004's `108\U+00B0` carries the in-band escape while
+/// example_2000's identical text carries the raw 0xB0 byte — so a
+/// DWG-read record that must re-emit verbatim uses the captured
+/// `dwg_wire_text` (the MText reader), never a derived escape rule.
 pub fn encode_legacy_string(text: &str, encoding: &'static Encoding) -> Vec<u8> {
     let (encoded, _, unmappable) = encoding.encode(text);
     if !unmappable {
