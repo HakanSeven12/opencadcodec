@@ -1,42 +1,60 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
+# THE FILE-LEVEL REJECTION IS CLOSED (2026-09-29, the tenth
+# continuation): the root cause was NEVER the AcDs container (the
+# minimal pair's containers were byte-identical, the SAB payloads
+# identical md5s) — it was the WIREFRAME-BLOCK SYNTHESIS on the
+# rewrite path: silver's reader synthesizes `point_of_reference`
+# (geometry centre / placement) for entities whose wire carries no
+# anchor, and the writer's wireframe gate treated the synthesized
+# point as wire presence (`point != Vector3::ZERO`) — re-emitting a
+# COMMON_3DSOLID wireframe block the original never had (the
+# entity field diff: exactly `wireframe_data_present` +
+# `wireframe_point_present` flipped true on the binary arm). THE
+# FIX (entities.rs `write_acis_wireframe`): the wireframe block
+# is WIRE STATE ONLY (the captured flags, wires, silhouettes) —
+# the two `point != ZERO` arms removed; a captured anchor arrives
+# with `wireframe_point_present` set, so nothing legitimate is
+# lost. THE TRIPLE-ORACLE VERIFICATION: AutoCAD 2027 opens the
+# fixed rewrite with NO dialog (census 1, the audit KEEPS it —
+# the "Errors found" oracle silenced); BricsCAD V26 opens it
+# (census 1 — live-verified with the process poller: pid + window
+# title + PROGRAM=BRICSCAD ver 26.0; the whole /b lifecycle is
+# ~15 s, so the window barely paints — the maintainer confirmed
+# seeing it on the verification run); V26's audit still purges
+# (the B-rep gap — the OTHER defect, unchanged). GATES: the suite
+# 52 green, both mirrors green, the corpus 280 at 0/0/0/0, the
+# identity UNMOVED (0e953809…/25,473 — fresh writes never hit
+# the changed arm). THE NEXT WORK: the B-rep construction gap
+# (defect 2 below) — the fixtures open everywhere but the B-rep
+# never constructs (null-box / audit-purge / LISP-abort under
+# V18/V26/ACAD2027); candidates 1–6 closed every measured SAB
+# genus divergence; the remaining measured suspects: the
+# asmheader version-string genus set {223.0.1.1930,
+# 232.6.0.65535} (one swap probe), and — now unlocked by this
+# fix — the chimera experiments RE-RUN (the SAB-vs-wrapper
+# blame-split the rejection blocked: authored-wrapper +
+# constructed-SAB, constructed-wrapper + authored-SAB, both now
+# openable, so a MODELED chimera localizes the B-rep blocker to
+# one side)
 # THE ORACLES: BricsCAD V26 (the directed default) + AUTOCAD 2027
 # (the format AUTHOR — "C:\Program Files\Autodesk\AutoCAD 2027\
 # acad.exe", the /b+LISP mechanism validated, PROGRAM=acad,
 # ACADVER 26.0s; its dialogs stall /b scripts — kill the stalled
 # instance BY PID, never by name: acad.exe is shared with the
-# maintainer's Civil 3D); THE TRIPLE-ORACLE DEFECT MAP (V18/V26/
-# ACAD2027 all agree):
-#   1. THE FILE-LEVEL REJECTION (the binary-SAB edited-document
-#      arm): V18 rejects, V26 rejects (count 0 at open), and
-#      ACAD2027 OPENS AN EXPLICIT "Open Drawing - Errors found"
-#      DIALOG — the author's own verdict naming the defect (the
-#      maintainer observed the stall live);
-#   2. THE B-REP CONSTRUCTION GAP (the conversion arm): the
-#      fixtures null-box under V18/V26 (V26's audit purges them,
-#      count 1→0); under ACAD2027 the entity LISP loop ABORTS on
-#      them (entget-level failure — stronger than a null box) and
-#      gen_all's audit purges one of three (3→2) — while gen_all
-#      OPENS CLEAN (no dialog: the maintainer's observation
-#      reconciled — clean open ≠ modeled);
+# maintainer's Civil 3D); THE DEFECT MAP (V18/V26/ACAD2027):
+#   1. THE FILE-LEVEL REJECTION — CLOSED (the wireframe-synthesis
+#      fix above; the ACAD2027 "Errors found" dialog was the
+#      naming evidence);
+#   2. THE B-REP CONSTRUCTION GAP (the conversion arm, OPEN):
+#      the fixtures null-box under V18/V26 (V26's audit purges
+#      them, count 1→0); under ACAD2027 the entity LISP loop
+#      ABORTS on them (entget-level failure) and gen_all's audit
+#      purges one of three (3→2) — while gen_all OPENS CLEAN (no
+#      dialog — clean open ≠ modeled);
 #   3. THE AUTHORED CONTROLS: Box_2018 MODELS in ALL THREE
 #      (0,0,0..1,2,3) — the probe discrimination holds everywhere.
-# THE POISON ARM (the file-level defect): the AcDs-section
-# emission for PRE-DECODED (is_binary) SAB entities in EDITED
-# documents — proven by the elimination matrix (REJECTED: both
-# chimeras, read+LINE ×2, fresh+cloned-binary-region+LINE; OPENS:
-# fresh fixtures [conversion arm], line_only, echoes, authored
-# originals); gold+silver parse every rejected file CLEANLY — the
-# rejection is strict-loader-only; THE NEXT WORK: the minimal
-# pair's AcDs container slot diff — Region.dwg (conversion arm,
-# opens) vs swap2/rewrite_control.dwg (binary arm, ACAD2027
-# "Errors found") — slot by slot via the G-C extractor; suspects:
-# the slot framing for pre-decoded SAB, the datavalue pairs, the
-# history/soft-pointer fields on the edit path; acceptance: the
-# binary-arm writes open with the census finding the entities;
-# THEN re-probe the fixtures (the B-rep question; the asmheader
-# version-string genus set is the next measured suspect)
 
 # The sustainer's question at this halt — does the fixture
 # null-box (the B-rep not constructing when the file DOES open) and

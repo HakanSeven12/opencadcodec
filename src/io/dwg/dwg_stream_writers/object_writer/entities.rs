@@ -5913,8 +5913,16 @@ impl<'a> DwgObjectWriter<'a> {
         // Some valid AcDs-backed solids intentionally carry geometry only
         // (no point, isolines, wires or silhouettes). Synthesizing a cache for
         // those changes COMMON_3DSOLID and ODA rejects the object.
+        // The wireframe block is WIRE STATE ONLY (the captured flags, the
+        // wires, the silhouettes) — never the model's point_of_reference:
+        // the reader synthesizes that field (geometry centre / placement)
+        // for entities whose wire carries no anchor, and treating the
+        // synthesized value as wire presence re-emits a block the original
+        // never had — the read→rewrite path then fails the strict loaders
+        // at the file level (the AutoCAD-2027 "Errors found" verdict,
+        // 2026-09-29). A captured anchor arrives with
+        // wireframe_point_present set, so the flag arms carry it.
         let wireframe_present = acis.wireframe_data_present
-            || point != Vector3::ZERO
             || acis.wireframe_isolines != 0
             || !wires.is_empty()
             || !silhouettes.is_empty();
@@ -5924,7 +5932,7 @@ impl<'a> DwgObjectWriter<'a> {
             // Wireframe anchor: the entity's stored reference point (bbox
             // centre in AutoCAD-authored files), falling back to the first
             // wire vertex.
-            let anchor = if acis.wireframe_point_present || point != Vector3::ZERO {
+            let anchor = if acis.wireframe_point_present {
                 point
             } else {
                 wires
@@ -5932,7 +5940,7 @@ impl<'a> DwgObjectWriter<'a> {
                     .and_then(|w| w.points.first().copied())
                     .unwrap_or(Vector3::ZERO)
             };
-            let point_present = acis.wireframe_point_present || point != Vector3::ZERO;
+            let point_present = acis.wireframe_point_present;
             self.writer.write_bit(point_present);
             if point_present {
                 self.writer.write_3bit_double(anchor);
