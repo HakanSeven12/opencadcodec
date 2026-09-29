@@ -35,7 +35,11 @@ The gates land NONZERO on purpose (§20.3): the initial counts ARE the
 work queue — G-C's container divergence ranks day one — and each row
 closes through the §8.1.2 packet workflow with a strict-loader verdict
 adjudicating (§20.4: the gates rank divergence; they do not decide
-fatality). The four fidelity axes and the differ are untouched (§20.5).
+fatality). A row carrying a recorded verdict in ADJUDICATIONS closes
+as TOLERATED: it KEEPS its count (the row is the recorded state) but
+is annotated in the report and excluded from the pending_* counts —
+the pending queue is the remaining work. The four fidelity axes and
+the differ are untouched (§20.5).
 
 The constructed corpus: the gen_all canonical (regenerated into the
 workdir via the generator example; its md5 recorded as a fact, never
@@ -45,7 +49,8 @@ solid per SAB surface family, one create_solid_history tree, one
 region, one body).
 
 CLI: genus_gates.py [--workdir DIR] [--expectations PATH] [--strict]
-`--strict` asserts zero rows (for the day the queue closes). Exit 0 on
+`--strict` asserts zero PENDING rows (adjudicated-TOLERATED rows stay
+as the recorded state; for the day the queue closes). Exit 0 on
 completion regardless of counts; nonzero only on pipeline failure.
 """
 
@@ -70,7 +75,13 @@ from genus_extract import (  # noqa: E402  (the shared SAB walker + helpers)
 
 
 class RowCollector:
-    """The ranked (type, field, count) rows of one gate family."""
+    """The ranked (type, field, count) rows of one gate family.
+
+    A row whose (gate, field) carries an ADJUDICATIONS entry keeps its
+    count (§20.3: the row stays as the recorded state) but is annotated
+    with the recorded strict-loader verdict, so the queue's pending
+    work separates from the adjudicated divergence.
+    """
 
     def __init__(self, gate):
         self.gate = gate
@@ -86,7 +97,51 @@ class RowCollector:
              for (field, detail), count in self.rows.items()),
             key=lambda row: (-row["count"], row["field"], row["detail"]),
         )
+        for row in ranked:
+            verdict = ADJUDICATIONS.get((self.gate, row["field"]))
+            if verdict:
+                row["status"] = verdict["verdict"]
+                row["verdict"] = verdict["note"]
         return ranked
+
+
+# The recorded strict-loader verdicts (§20.4): a row listed here is the
+# ADJUDICATED state — kept in the counts as the recorded divergence,
+# annotated in the report, and excluded from the pending work queue.
+# Every entry cites its provenance; nothing is tolerated without a
+# recorded verdict.
+ADJUDICATIONS = {
+    ("sab_form", "header-magic-version"): {
+        "verdict": "TOLERATED",
+        "note": "the ACIS|700 binary SAB flavor is silver's native output; "
+                "BricsCAD-ACCEPTED (the 2026-09-21 strict-load zero; the "
+                "2026-09-22 region probe re-confirmed the restorer audits "
+                "the stream clean). The authored 21200/21500/21800/ASM|22300 "
+                "pairs are the author's era stamps — a flavor change is a "
+                "writer-generation change, not a genus defect.",
+    },
+    ("sab_form", "header-triple"): {
+        "verdict": "TOLERATED",
+        "note": "the (0, 1, 0) constructed header triple rides the same "
+                "BricsCAD-ACCEPTED stance (the 2026-09-21 strict-load zero); "
+                "the authored (0, 2, 4/12/24/26) semantics are unexplained "
+                "constants — reproducing them would forge unmeasured fields.",
+    },
+    ("sab_form", "product-strings"): {
+        "verdict": "TOLERATED",
+        "note": "the author's identity rule: silver writes its own product "
+                "strings; forging Autodesk identity stamps is forbidden "
+                "(the campaign's standing rule). BricsCAD-ACCEPTED (the "
+                "2026-09-21 strict-load zero).",
+    },
+    ("sh_genus", "constructed-tree"): {
+        "verdict": "TOLERATED",
+        "note": "the 2646f05 cylinder verdict: the constructed-tree elide "
+                "contract (no ACSH records; the solid's history soft-pointer "
+                "NULL). The topology invariants stay armed for any "
+                "constructed tree that survives save.",
+    },
+}
 
 
 # ── The constructed corpus ──
@@ -352,6 +407,27 @@ def gate_acds_genus(stem, doc, expectations, rows):
 TREE_FIXTURE_STEMS = {"HistoryTree"}
 
 
+def _section_counts(section_rows):
+    """The (rows, occurrences, pending, tolerated) split of one section.
+
+    The primary counts keep §20.3's contract (every row counts — the
+    adjudicated rows stay as the recorded state); the pending_* counts
+    are the remaining work queue.
+    """
+    rows = len(section_rows)
+    occurrences = sum(row["count"] for row in section_rows)
+    tolerated_rows = sum(1 for row in section_rows if row.get("status"))
+    tolerated_occ = sum(row["count"] for row in section_rows if row.get("status"))
+    return {
+        "rows": rows,
+        "occurrences": occurrences,
+        "pending_rows": rows - tolerated_rows,
+        "pending_occurrences": occurrences - tolerated_occ,
+        "tolerated_rows": tolerated_rows,
+        "tolerated_occurrences": tolerated_occ,
+    }
+
+
 def run(workdir=None, expectations_path=None, cargo=None):
     """Run the genus gates; returns the report dict.
 
@@ -402,6 +478,11 @@ def run(workdir=None, expectations_path=None, cargo=None):
             "acds_genus_diffs": total(acds_rows) - acds_before,
         })
 
+    sections = {
+        "sab_form_diffs": sab_rows.section(),
+        "sh_genus_diffs": sh_rows.section(),
+        "acds_genus_diffs": acds_rows.section(),
+    }
     report = {
         "genus_gates": {
             "expectations": str(expectations_path),
@@ -413,14 +494,17 @@ def run(workdir=None, expectations_path=None, cargo=None):
             },
             "per_file": files_section,
             "counts": {
-                "sab_form_diffs": len(sab_rows.section()),
-                "sh_genus_diffs": len(sh_rows.section()),
-                "acds_genus_diffs": len(acds_rows.section()),
+                "sab_form_diffs": len(sections["sab_form_diffs"]),
+                "sh_genus_diffs": len(sections["sh_genus_diffs"]),
+                "acds_genus_diffs": len(sections["acds_genus_diffs"]),
+                "sab_form_pending": _section_counts(sections["sab_form_diffs"]),
+                "sh_genus_pending": _section_counts(sections["sh_genus_diffs"]),
+                "acds_genus_pending": _section_counts(sections["acds_genus_diffs"]),
             },
         },
-        "sab_form_diffs": sab_rows.section(),
-        "sh_genus_diffs": sh_rows.section(),
-        "acds_genus_diffs": acds_rows.section(),
+        "sab_form_diffs": sections["sab_form_diffs"],
+        "sh_genus_diffs": sections["sh_genus_diffs"],
+        "acds_genus_diffs": sections["acds_genus_diffs"],
     }
     return report
 
@@ -447,16 +531,27 @@ def write_report(report, workdir):
                                ("sh_genus_diffs", "G-B — SH tree genus"),
                                ("acds_genus_diffs", "G-C — AcDs container genus")):
             rows = report[section]
-            handle.write(f"## {title} ({len(rows)} rows)\n\n")
+            split = report["genus_gates"]["counts"][section.replace("_diffs", "_pending")]
+            handle.write(f"## {title} ({len(rows)} rows — "
+                         f"{split['pending_rows']} pending / "
+                         f"{split['tolerated_rows']} adjudicated-TOLERATED)\n\n")
             if not rows:
                 handle.write("No divergences.\n\n")
                 continue
-            handle.write("| type | field | count | detail |\n")
-            handle.write("|------|-------|-------|--------|\n")
+            handle.write("| type | field | count | status | detail |\n")
+            handle.write("|------|-------|-------|--------|--------|\n")
             for row in rows:
                 detail = str(row["detail"]).replace("|", "\\|")
+                status = row.get("status", "pending")
                 handle.write(f"| {row['type']} | {row['field']} | "
-                             f"{row['count']} | {detail} |\n")
+                             f"{row['count']} | {status} | {detail} |\n")
+            tolerated = [row for row in rows if row.get("status")]
+            if tolerated:
+                handle.write("\nAdjudicated rows (the recorded verdicts, §20.4):\n\n")
+                for row in tolerated:
+                    handle.write(f"- **{row['field']}** ({row['status']}): "
+                                 f"{row['verdict']}\n")
+                handle.write("\n")
             handle.write("\n")
     return json_path, md_path
 
@@ -479,19 +574,24 @@ def main():
     counts = report["genus_gates"]["counts"]
     print(f"genus report -> {json_path}")
     print(f"  (markdown: {md_path})")
-    print(f"  sab_form_diffs:   {counts['sab_form_diffs']} distinct rows, "
-          f"{sum(r['count'] for r in report['sab_form_diffs'])} total occurrences")
-    print(f"  sh_genus_diffs:   {counts['sh_genus_diffs']} distinct rows, "
-          f"{sum(r['count'] for r in report['sh_genus_diffs'])} total occurrences")
-    print(f"  acds_genus_diffs: {counts['acds_genus_diffs']} distinct rows, "
-          f"{sum(r['count'] for r in report['acds_genus_diffs'])} total occurrences")
-    print("  the counts are the work queue (§20.3) — nonzero is the designed state")
+    for section, label in (("sab_form_diffs", "sab_form_diffs"),
+                           ("sh_genus_diffs", "sh_genus_diffs"),
+                           ("acds_genus_diffs", "acds_genus_diffs")):
+        split = counts[section.replace("_diffs", "_pending")]
+        print(f"  {label}:   {counts[section]} distinct rows, "
+              f"{split['occurrences']} total occurrences "
+              f"({split['pending_rows']} rows / {split['pending_occurrences']} "
+              f"occurrences pending; {split['tolerated_rows']} rows / "
+              f"{split['tolerated_occurrences']} occurrences adjudicated-TOLERATED)")
+    print("  the pending counts are the work queue (§20.3/§20.4) — "
+          "adjudicated rows stay as the recorded state")
 
     if args.strict:
-        total = (counts["sab_form_diffs"] + counts["sh_genus_diffs"]
-                 + counts["acds_genus_diffs"])
-        if total:
-            print(f"--strict: {total} rows remain (the queue is not closed)")
+        pending = sum(counts[key]["pending_rows"] for key in
+                      ("sab_form_pending", "sh_genus_pending", "acds_genus_pending"))
+        if pending:
+            print(f"--strict: {pending} pending rows remain "
+                  f"(adjudicated-TOLERATED rows do not close the queue)")
             sys.exit(1)
 
 

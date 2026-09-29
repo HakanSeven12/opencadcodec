@@ -358,7 +358,9 @@ def main() -> int:
               "against the authored-specimen genus. ADDITIONAL output — the four "
               "fidelity axes above are untouched. The counts land nonzero on "
               "purpose: they are the work queue, each row closing through the "
-              "§8.1.2 packet workflow with a strict-loader verdict adjudicating.\n")
+              "§8.1.2 packet workflow with a strict-loader verdict adjudicating. "
+              "Adjudicated-TOLERATED rows keep their counts as the recorded "
+              "state (§20.4); the PENDING rows are the remaining work.\n")
     if "error" in genus_block:
         md.append(f"Genus pipeline error: `{genus_block['error']}`\n")
     else:
@@ -368,15 +370,25 @@ def main() -> int:
             ("acds_genus_diffs", "G-C — AcDs container genus"),
         ):
             rows = genus_sections[section]
-            md.append(f"\n### {title} ({len(rows)} rows)\n\n")
+            split = genus_block["counts"][section.replace("_diffs", "_pending")]
+            md.append(f"\n### {title} ({len(rows)} rows — "
+                      f"{split['pending_rows']} pending / "
+                      f"{split['tolerated_rows']} adjudicated-TOLERATED)\n\n")
             if not rows:
                 md.append("No divergences.\n")
                 continue
-            md.append("| type | field | count | detail |\n")
-            md.append("|------|-------|-------|--------|\n")
+            md.append("| type | field | count | status | detail |\n")
+            md.append("|------|-------|-------|--------|--------|\n")
             for row in rows:
                 detail = str(row["detail"]).replace("|", "\\|")
-                md.append(f"| {row['type']} | {row['field']} | {row['count']} | {detail} |\n")
+                md.append(f"| {row['type']} | {row['field']} | {row['count']} | "
+                          f"{row.get('status', 'pending')} | {detail} |\n")
+            tolerated = [row for row in rows if row.get("status")]
+            if tolerated:
+                md.append("\nAdjudicated rows (the recorded verdicts, §20.4):\n\n")
+                for row in tolerated:
+                    md.append(f"- **{row['field']}** ({row['status']}): "
+                              f"{row['verdict']}\n")
     md.append("\n## Top read-fidelity divergences\n")
     for k, v in sorted(read_counts.items(), key=lambda x: -x[1])[:30]:
         md.append(f"- {k[0]}.{k[1]}: {v}\n")
@@ -390,10 +402,15 @@ def main() -> int:
     if "error" in genus_block:
         print(f"[corpus] genus gates: pipeline error — {genus_block['error']}")
     else:
+        counts = genus_block["counts"]
+        pending = sum(counts[key]["pending_rows"] for key in
+                      ("sab_form_pending", "sh_genus_pending", "acds_genus_pending"))
         print(f"[corpus] genus gates (the §20 work queue): "
-              f"sab_form {genus_block['counts']['sab_form_diffs']} rows, "
-              f"sh_genus {genus_block['counts']['sh_genus_diffs']} rows, "
-              f"acds_genus {genus_block['counts']['acds_genus_diffs']} rows")
+              f"sab_form {counts['sab_form_diffs']} rows, "
+              f"sh_genus {counts['sh_genus_diffs']} rows, "
+              f"acds_genus {counts['acds_genus_diffs']} rows "
+              f"({pending} rows pending; adjudicated-TOLERATED rows keep "
+              f"their counts as the recorded state)")
     return 0
 
 

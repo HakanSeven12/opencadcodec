@@ -1,9 +1,10 @@
 # Zero-context prompt — TARGET ZERO held everywhere; THE NEXT WORK: work
-# down the §20 genus-gate queue (the fourth packet — the tolerance triple
-# — CLOSED this session; the queue stands at sab_form 64 / sh_genus 1 /
-# acds_genus 0)
+# down the §20 genus-gate queue (the fifth packet — the TOLERATED
+# adjudication state — landed this session: the ACIS-700 family and the
+# G-B elide marker are adjudicated on their recorded verdicts; the PENDING
+# queue is the ordering family + the persubent class)
 
-> Campaign state 2026-09-29 (the halt after the fourth queue packet; the
+> Campaign state 2026-09-29 (the halt after the fifth queue packet; the
 > record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT ZERO ON
 > EVERY AXIS: 280 files, read-fidelity 0, write-fidelity 0, read key-gap
 > 0, write-target 0** — re-verified at this halt WITH the genus sections
@@ -13,22 +14,25 @@
 > echo-gated against this packet's constructed-path change). The ACS/SH
 > campaign stays COMPLETE at 0/0. The §19 structure campaign's READ axis
 > stays ZERO corpus-wide. **THE ACTIVE WORK IS THE §20 GENUS-GATE QUEUE
-> — the fifth validation layer is LANDED (§20.6), REVIEWED, and FOUR
+> — the fifth validation layer is LANDED (§20.6), REVIEWED, and FIVE
 > PACKETS CLOSED: the G-C container campaign (`acds_genus_diffs`
 > 11 rows → 0 — the constructed AcDs container sits at the authored
 > genus on every measured invariant, era-profiled for 2013/2018), the
 > vertex role token (its 28 occurrences), the asmheader record (its
-> 11), and the tolerance triple (spatial_resolution 10.0 → the authored
-> 1.0; its 11). The sections stand at sab_form_diffs (64 rows) /
-> sh_genus_diffs (1 row — the elide marker, TOLERATED) /
-> acds_genus_diffs (0 rows — CLOSED). THE COUNTS ARE THE WORK QUEUE.**
-> Read `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now
-> with the §20.6 landed state and its four closed packets), then
-> §19.4 + §19.5, then §18.6 + §F2.1–F2.3, then this file top to
-> bottom.
+> 11), the tolerance triple (spatial_resolution 10.0 → the authored
+> 1.0; its 11), and the TOLERATED adjudication state (the
+> ADJUDICATIONS table in genus_gates.py: rows close on recorded
+> strict-loader verdicts while KEEPING their counts as the recorded
+> state). The sections stand at sab_form_diffs (64 rows — 61 pending /
+> 3 TOLERATED) / sh_genus_diffs (1 row — 0 pending / 1 TOLERATED, the
+> elide marker) / acds_genus_diffs (0 rows — CLOSED). THE PENDING
+> COUNTS ARE THE WORK QUEUE.** Read `tests/gold_harness/AGENTS.md`
+> first, then §20 (all of it — now with the §20.6 landed state and its
+> five closed packets), then §19.4 + §19.5, then §18.6 + §F2.1–F2.3,
+> then this file top to bottom.
 
 ## The arc (2026-09-28, the §20 implementation session; continued
-## 2026-09-29 with the fourth queue packet)
+## 2026-09-29 with the fourth and fifth queue packets)
 
 1. **The genus gates implemented, verbatim in §20.3's shape**:
    `genus_extract.py` (the expectation extractor — decodes the
@@ -178,6 +182,29 @@
     never reaches the writer); the four smokes 0/0 with clean
     echoes; the corpus re-verified at 280/0/0/0 with the sections at
     64/1/0.
+10. **The TOLERATED adjudication packet CLOSED (the fifth queue
+    packet, 2026-09-29)**: §20.3's "close as TOLERATED with the row
+    kept as the recorded state" gained its instrument — the
+    ADJUDICATIONS table in `genus_gates.py` (a `(gate, field)` →
+    recorded-verdict map with provenance; a listed row keeps its
+    count, gains `status`/`verdict` annotations, a status column +
+    an adjudication block in the markdown, and falls out of the new
+    `pending_*` counts; `--strict` now asserts zero PENDING rows).
+    Four rows adjudicated on their recorded verdicts: the three
+    ACIS-700-family rows — `header-magic-version` (the ACIS|700
+    binary flavor is silver's native output, BricsCAD-ACCEPTED per
+    the 2026-09-21 strict-load zero, re-confirmed by the 2026-09-22
+    region probe; the authored era stamps are the author's, not a
+    genus defect), `header-triple` (the (0,1,0) triple rides the same
+    accepted stance; the authored (0,2,4/12/24/26) semantics are
+    unexplained constants — reproducing them would forge unmeasured
+    fields), and `product-strings` (the author's identity rule: never
+    forge Autodesk identity stamps) — plus G-B's `constructed-tree`
+    elide marker (the 2646f05 cylinder verdict). **The primary counts
+    stay 64/1/0; the PENDING queue is now G-A 61 rows / 438
+    occurrences (the 60-row ordering family + the persubent class)
+    and G-B 0.** The mirror green (the row shape is additive; the
+    pin untouched); the instrument change touches no codec surface.
 
 ## THE NEXT WORK: work down the genus-gate queue (§8.1.2 packets, strict-loader verdicts)
 
@@ -196,32 +223,34 @@ TOLERATED with the row kept as the recorded state).
   regresses ds_version, the segidx position, the row scale, the slot
   allocation, the pointers, prvsav, or the two extended header fields
   re-ranks immediately.
-- **G-A NOW FIRST (the SAB form campaign)**: the next family is the
-  ACIS-700 flavor / product-string / header-triple set (a
-  strict-loader question: the 2026-09-21 zero proved the ACIS-700
-  stance BricsCAD-ACCEPTED, so these rows may close TOLERATED; do
-  NOT forge Autodesk identity stamps — the product strings are the
-  author's identity). Then the ordering family (the writer's
-  `reorder_restore_file` rank vs the authored first-appearance genus
-  — the investigation is done: the rank table at `sab.rs` inverts
-  the authored order, points-first/containers-last vs the authored
-  lump → shell → face → loop → surfaces → coedge → edge → vertex →
-  curves → point; the closure is a rank-table rewrite to the
-  authored first-appearance genus, body keeping rank 0 so the
-  strict-restorer's leading-top-level contract holds — but the
-  §8.1.2 workflow demands a strict-loader probe verdict on the
-  re-ranked stream before the row falls, and the 2026-09-22 probe
-  evidence must be re-tested against the new order), and the
-  persubent-attrib class (investigate the tree-correlation with the
-  `--corpus-scan` specimen evidence first — the fixture family is
-  tree-selected, so uniformity may be selection bias).
-  (CLOSED so far: the vertex short-width row — the second packet,
-  arc item 7; the asmheader row — the third packet, arc item 8; the
-  tolerance triple — the fourth packet, arc item 9.)
-- **G-B last (the tree)**: the elide marker closes only when a
+- **G-A NOW FIRST (the SAB form campaign — 61 pending rows / 438
+  pending occurrences)**: the ordering family is the queue's bulk
+  (60 rows) — the writer's `reorder_restore_file` rank vs the
+  authored first-appearance genus; the investigation is done: the
+  rank table at `sab.rs` inverts the authored order,
+  points-first/containers-last vs the authored lump → shell → face →
+  loop → surfaces → coedge → edge → vertex → curves → point; the
+  closure is a rank-table rewrite to the authored first-appearance
+  genus, body keeping rank 0 so the strict-restorer's
+  leading-top-level contract holds — but the §8.1.2 workflow demands
+  a strict-loader probe verdict on the re-ranked stream before the
+  rows fall, and the 2026-09-22 probe evidence must be re-tested
+  against the new order (BricsCAD V18 is on disk at
+  `/mnt/c/Program Files/Bricsys/BricsCAD V18 en_US`). Then the
+  persubent-attrib class (1 row, 11 occurrences — investigate the
+  tree-correlation with the `--corpus-scan` specimen evidence first:
+  the fixture family is tree-selected, so uniformity may be selection
+  bias). (CLOSED so far: the vertex short-width row — the second
+  packet, arc item 7; the asmheader row — the third packet, arc item
+  8; the tolerance triple — the fourth packet, arc item 9; the
+  ACIS-700 family + the G-B elide marker — adjudicated TOLERATED, the
+  fifth packet, arc item 10.)
+- **G-B (the tree — adjudicated TOLERATED, 0 pending)**: the elide
+  marker row keeps its count as the recorded state (the 2646f05
+  cylinder verdict); it leaves the queue entirely only when a
   constructed tree passes a strict loader (the interposition + the
   33/427 trio + the node-id resolution are the authored genus to
-  reproduce); until then the row stands as the recorded state.
+  reproduce); until then the row stands, annotated TOLERATED.
 
 ## The final design (the one thing to understand — unchanged)
 
@@ -274,10 +303,11 @@ era specimens (the era censuses all-zero).
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative: all four axes 0, WITH the
-  genus sections (`sab_form_diffs` 64 / `sh_genus_diffs` 1 /
-  `acds_genus_diffs` 0 — the container campaign CLOSED, the vertex,
-  asmheader, and tolerance rows closed at packets two through four)
-  as additional output.
+  genus sections (`sab_form_diffs` 64 rows — 61 pending / 3
+  adjudicated-TOLERATED; `sh_genus_diffs` 1 row — 0 pending / 1
+  TOLERATED, the elide marker; `acds_genus_diffs` 0 — CLOSED) as
+  additional output. The pending counts are the work queue; the
+  adjudicated rows keep their counts as the recorded state (§20.4).
 - The generation identity is `a7c5f17080891a7c26a380a686e9298a`,
   25,439 bytes (MOVED at the G-C, vertex, asmheader, and tolerance
   packets — the constructed AcDs container, the vertex role token,
@@ -381,9 +411,12 @@ python3 tests/gold_harness/run_roundtrip.py \
 # 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 work queue): sab_form 64 rows,
-#        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED; the vertex,
-#        asmheader, and tolerance rows closed at packets two through four)
+#    ... genus gates (the §20 work queue): sab_form 64 rows (61
+#        pending / 3 TOLERATED), sh_genus 1 row (0 pending / 1
+#        TOLERATED), acds_genus 0 (G-C CLOSED; the vertex, asmheader,
+#        and tolerance rows closed at packets two through four; the
+#        ACIS-700 family + the G-B elide marker adjudicated at the
+#        fifth)
 
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
@@ -471,14 +504,25 @@ c617761 fix(dwg): the G-C genus packet - the constructed AcDs container
        (25,439 bytes)
 590209d docs(harness): the post-queue-session halt refresh - three
        packets landed (G-C, vertex, asmheader), the queue at 65/1/0
-<fix> §20 G-A tolerance packet: the constructed SAB header's
-       spatial_resolution 10.0 -> the authored 1.0 (the pinned genus
-       [[1.0, 1e-06, 1e-10]], uniform 136/136) — the SatHeader::new()
+b9cdd83 fix(dwg): the G-A tolerance packet - the authored 1.0
+       spatial_resolution (sab_form 65 -> 64 rows) — the SatHeader::new()
        default fixed AND the strip_for_sab normalize moved before the
        nothing-to-strip early return so it always runs; the tolerance
        row's 11 occurrences gone (sab_form 65 -> 64 rows,
        482 -> 471 occurrences); the identity moved to a7c5f170...
-       (25,439 bytes)   (THIS SESSION'S TOLERANCE PACKET)
+       (25,439 bytes)
+<fix> §20 the TOLERATED adjudication state: the ADJUDICATIONS table
+       in genus_gates.py (recorded strict-loader verdicts with
+       provenance; a listed row keeps its count as the recorded state,
+       gains status/verdict annotations + a markdown status column and
+       adjudication block, and falls out of the new pending_* counts;
+       --strict now asserts zero PENDING rows) — the ACIS-700 family
+       (header-magic-version, header-triple, product-strings; the
+       2026-09-21 strict-load zero + the 2026-09-22 region probe + the
+       author's identity rule) and G-B's constructed-tree elide marker
+       (the 2646f05 cylinder verdict) adjudicated; the primary counts
+       stay 64/1/0, the pending queue 61/0/0   (THIS SESSION'S
+       ADJUDICATION PACKET)
 ```
 
 **PUSH STATE (2026-09-29)**: push after each landing per the
@@ -516,14 +560,24 @@ the identity re-recorded at the intended move
 (`a7c5f170…`, 25,439 bytes), the suite green (52 segments), the
 genus mirror green (fresh extraction == the untouched pin), the four
 family smokes 0/0 with clean echoes, the corpus re-verified at
-280/0/0/0 with the sections at 64/1/0. **The maintainer's loop
-instruction — "repeat process until target = zero" — remains
-satisfied on its own terms: the corpus is at zero on every axis, the
-conventional arm is record-identical everywhere surveyed, and the
-fifth layer's queue is MEASURED, REVIEWED, and being WORKED DOWN —
-four of its row families closed across the two sessions (G-C, the
-vertex role token, the asmheader record, the tolerance triple), the
-next family designed (the ACIS-700/product-string/header-triple set
-— a strict-loader question that may close TOLERATED; the ordering
-rank table's rewrite mapped for the family after), and the strict
+280/0/0/0 with the sections at 64/1/0 → **the fifth queue packet —
+the TOLERATED adjudication state**: §20.3's "close as TOLERATED with
+the row kept as the recorded state" gained its instrument (the
+ADJUDICATIONS table: recorded verdicts with provenance; the listed
+rows keep their counts, gain status annotations, and fall out of the
+pending_* counts; --strict asserts zero pending) and its first four
+adjudications — the ACIS-700 family (header-magic-version,
+header-triple, product-strings: the 2026-09-21 strict-load zero, the
+2026-09-22 region probe, and the author's identity rule) and G-B's
+elide marker (the cylinder verdict) — the primary counts stay
+64/1/0, the pending queue now 61/0/0, the mirror green. **The
+maintainer's loop instruction — "repeat process until target =
+zero" — remains satisfied on its own terms: the corpus is at zero
+on every axis, the conventional arm is record-identical everywhere
+surveyed, and the fifth layer's queue is MEASURED, REVIEWED, and
+being WORKED DOWN — five packets closed across the two sessions
+(G-C, the vertex role token, the asmheader record, the tolerance
+triple, the adjudication state), the pending queue concentrated in
+the ordering family (60 rows — the rank-table rewrite mapped, the
+strict-loader probe required before it lands), and the strict
 loaders adjudicate the rest.**

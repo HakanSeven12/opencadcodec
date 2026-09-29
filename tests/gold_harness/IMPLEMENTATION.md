@@ -7556,3 +7556,30 @@ The expectations pin is untouched (the specimens ride the echo; the
 extraction surface never reaches the writer), every SAB module test
 is tolerance-value-agnostic, and the era-profile regression tests
 pin the container genus through the changed path unchanged.
+
+**The fifth packet — the TOLERATED adjudication state
+(2026-09-29)**: §20.3's "some rows may close as TOLERATED with the
+row kept as the recorded state" gained its instrument: an
+`ADJUDICATIONS` table in `genus_gates.py` mapping `(gate, field)` to
+a recorded verdict with its provenance — a listed row KEEPS its
+count (the row is the recorded state) but is annotated in the report
+(`status`/`verdict` on the row; a status column + an adjudication
+block in the markdown) and excluded from the new `pending_*` counts
+(per-section `rows`/`occurrences`/`pending_rows`/
+`pending_occurrences`/`tolerated_rows`/`tolerated_occurrences` in the
+report's counts block; `--strict` now asserts zero PENDING rows). The
+first four adjudications, all on recorded verdicts: the three
+ACIS-700-family rows — `header-magic-version` (the ACIS|700 binary
+SAB flavor is silver's native output, BricsCAD-ACCEPTED per the
+2026-09-21 strict-load zero, re-confirmed by the 2026-09-22 region
+probe; the authored 21200/21500/21800/ASM|22300 pairs are the
+author's era stamps), `header-triple` (the (0,1,0) triple rides the
+same accepted stance; the authored (0,2,4/12/24/26) semantics are
+unexplained constants — reproducing them would forge unmeasured
+fields), and `product-strings` (the author's identity rule: never
+forge Autodesk identity stamps) — plus G-B's `constructed-tree` elide
+marker (the 2646f05 cylinder verdict). The primary counts stay
+64/1/0; the PENDING work queue is now G-A 61 rows / 438 occurrences
+(the 60-row ordering family + the persubent-acadSolidHistory class)
+and G-B 0. The cargo mirror's report-shape assertions pass
+unchanged (the row shape is additive); the pin is untouched.
