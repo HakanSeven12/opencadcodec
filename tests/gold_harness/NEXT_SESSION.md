@@ -1,23 +1,37 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
-# the restore-gap campaign LANDED the candidate-6 sheet mirror (the
-# constructed region now matches the authored sheet on EVERY measured
-# invariant — senses ffff, vertex int 2, the era header, the BFS
-# order) and the probe STILL reads the ±1e80 NULL BOX; THE MAJOR NEW
-# FINDING: the payload-swap experiment (examples/sab_swap.rs) proved
-# the conventional arm's read→rewrite output (edited R2018 documents)
-# is REJECTED AT THE FILE LEVEL by BricsCAD — the window transcript
-# shows the OPEN never leaving [Drawing1] — while silver's own
-# reader decodes the same files fine (243 entities, SABs intact) and
-# the FRESH-document writes (the fixtures) open; THE NEXT WORK: the
-# file-level bisect of the fresh-write vs rewrite AC1032 output —
-# the minimal pair is Region.dwg (opens) vs swap_constructed_wrapper
-# .dwg (rejected): the SAME document content through the two write
-# paths; the corpus axes never caught this because every axis runs
-# unmodified roundtrips (the echo) — the edited-document write path
-# was never strict-loader-probed
+# THE MAJOR FINDING (the AcceptNumbered assignment, iterated):
+# BRICSCAD REJECTS AT THE FILE LEVEL every constructed AC1032 write
+# that carries PRE-DECODED (is_binary, pre-carried sab_data) ACIS
+# entities in an EDITED document — the bisect attribution:
+#   REJECTED: both sab_swap chimeras (SAB swaps); read(Region)+LINE;
+#     fresh-doc + read-cloned binary region + LINE (fresh_pair);
+#     read(example_2018)+LINE (rewrite_control)
+#   OPENS:    fresh fixtures (entities carry SAT text → the
+#     SAT→SAB conversion arm runs at write); fresh + LINE only
+#     (line_only); the byte echoes; every authored original
+# THE POISON ARM: the AcDs-section emission for BINARY SAB entities
+# in edited (non-echo) documents — never covered by the corpus (all
+# four axes run unmodified roundtrips = the echo) and never covered
+# by the constructed corpus (the fixtures ride the conversion arm);
+# gold parses every rejected file CLEANLY (headers, CRCs, classes,
+# section_info all verified — no warnings), silver's own reader too
+# — the rejection is BricsCAD-strict-only; THE NEXT WORK: compare
+# the AcDs-container bytes of the minimal pair — Region.dwg (fresh,
+# conversion arm, opens) vs Region+LINE (read+edit, binary-queue
+# arm, rejected) — slot by slot; the suspects: the slot framing for
+# pre-decoded SAB (size fields, the history/slot header), the
+# entity's history/soft-pointer emission on the edit path
 
+# The sustainer's question at this halt — does the fixture
+# null-box (the B-rep not constructing when the file DOES open) and
+# the file rejection share one root? Likely related: both live on
+# the AcDs/SAB write arms; the rejection arm proven above, the
+# B-rep question on the conversion arm. But candidates 1-6 closed
+# every measured SAB genus divergence and the null-box persists
+# — after the AcDs fix, re-probe the fixtures FIRST (the fix may
+# move the null box), then the SAB question stands.
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
 > ZERO ON EVERY AXIS: 280 files, read-fidelity 0, write-fidelity 0,
@@ -382,22 +396,76 @@ remains second — the candidates 1–6 genus work stands as
 genus-matching; the null-box blocker is below the measured
 invariants or in the wrapper.
 
-**THE DESIGNED NEXT PACKET — the file-level bisect**: the minimal
-pair is `target/genus_gates/constructed/Region.dwg` (a
-fresh-document AC1032 write — OPENS) vs
-`…/swap/swap_constructed_wrapper.dwg` (the SAME document content
-read and rewritten — REJECTED): diff the two files' structures —
-the section directory (the CRC/section map), the AcDs section
-presence/layout, the object map, the header fields beyond the
-version marker (all four files carry AC1032; the marker is not
-it). Tools: a byte-level section walker (the corpus's own
-section-dump utilities if present, else a small script using the
-DWG section framing), then probe each structural suspect by
-patching the rewrite toward the fresh-write shape. Acceptance:
-the rewrite control OPENS in BricsCAD (the census finds the
-authored example's three 3D entities + the LINE). THEN re-run the
-chimeras for the SAB-vs-wrapper verdict, and the SAB question
-after that.
+**THE DESIGNED NEXT PACKET — the AcDs two-arm slot diff**: the
+file-level bisect COMPLETED (the ninth continuation's elimination
+matrix, below); the poison arm is precise now: **the AcDs-section
+emission for PRE-DECODED (is_binary, pre-carried sab_data)
+entities in EDITED documents**. The two arms diverge in
+`src/io/dwg/dwg_stream_writers/object_writer/entities.rs`:
+- The conversion arm (`queue_sab_entry`: `acis.is_binary == false`
+  + SAT text → parse→strip→write_for_era→the AcDs slot) — the
+  fixtures ride it, and they OPEN (their entities carry SAT text;
+  the SAB is built at write).
+- The binary arm (`acis.is_binary && sab_data` → verbatim queue of
+  the pre-decoded SAB into the AcDs slot) — every rejected file
+  rode it: a read document's entities carry is_binary SAB, and
+  ANY edit (a LINE, an SAB swap, a cloned region) forces the
+  conventional arm through the binary queue → the emitted file
+  is BricsCAD-rejected at the file level.
+
+The minimal pair for the byte-level diff:
+`target/genus_gates/constructed/Region.dwg` (the conversion arm,
+OPENS) vs `/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/
+kilo/swap2/rewrite_control.dwg` (Region read + LINE = the binary
+arm, REJECTED — same document content, same version, 22,660 vs
+22,724 bytes). Gold parses both clean (headers, CRCs, classes,
+section_info verified; zero warnings) — the divergence is
+BricsCAD-strict-only and lives in the AcDs container's bytes:
+diff the two files' `AcDs:Prototype_1b` section payloads slot by
+slot (the genus gates' AcDs container extractor decodes both:
+`tests/gold_harness/genus_gates.py` / the G-C tools; the container
+sits in the section whose decoding the era censuses verified).
+The suspects: the slot header framing for pre-decoded SAB (the
+size fields, the section/slot metadata), the target-version/
+datavalue pairs around the slot, and the entity's history/
+soft-pointer fields on the edit path.
+
+**THE ELIMINATION MATRIX (the probes, all /b + LOGSEC-lisp
+censuses + the window-transcript title check)**:
+- REJECTED (file never opens — the title stays `[Drawing1]`):
+  sab_swap's two chimeras + read(example_2018)+LINE (this
+  campaign's original control); `read(Region.dwg)+LINE`
+  (swap2/rewrite_control — the pure minimal rewrite);
+  `fresh-doc + read-cloned binary region + LINE` (fresh_pair's
+  fresh_region_plus_line — the fresh-document control that
+  killed the read-state hypothesis); the read_region_plus_line
+  twin.
+- OPENS: the byte echoes (swap2/swap_* — unedited → the echo,
+  byte-identical, 22,660 bytes, census 1 ✓ sanity);
+  `line_only.dwg` (a FRESH doc with ONLY a LINE — 21,113 bytes,
+  census 1 ✓ the LINE is innocent); every fresh fixture (the
+  conversion arm); every authored original.
+- Also cleared along the way: stale .dwl2 locks (none in the
+  staging dir); the section_info descriptors (identical modulo
+  content growth); the classes; the sampled header vars; the
+  tails/section-frame (gold's -v5 full-dump diff shows only
+  address/CRC/size deltas).
+
+The instruments for the next session (committed): the sab_swap /
+fresh_pair / line_only examples; the probe scripts' pattern; the
+minimal pair on disk. Acceptance for the fix: the binary-arm
+writes OPEN in BricsCAD (the rewrite control's census finds the
+region), and the full corpus still 0/0/0/0.
+
+**AFTER THE AcDs FIX — the null-box question returns**: the
+fixtures (conversion arm) OPEN but their B-reps do not construct
+(±1e80). Candidates 1–6 closed every measured SAB genus
+divergence; the null box persists. Two live leads: (1) the AcDs
+fix may also move the null box (the container's slot metadata may
+gate the modeler — re-probe the fixtures immediately after);
+(2) if not, the remaining measured divergence is the asmheader
+version-string genus set {223.0.1.1930, 232.6.0.65535} — the
+slot's datblad/stream identity bytes — worth one swap probe.
 
 **The state after candidates 1–4 (2026-09-29, the fifth
 continuation)**: all four landed and genus-verified — (1) the
