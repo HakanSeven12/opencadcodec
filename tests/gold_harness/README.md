@@ -435,6 +435,20 @@ LOGSEC lines still rank the failure. A Windows-visible host and the
 BricsCAD install are required; stray `bricscad.exe` processes poison
 subsequent launches — kill them before re-running.
 
+**Console capture — the tested limit.** BricsCAD's console text
+(AUDIT's "N errors found", the restorer's messages) is NOT
+captured on this build: `LOGFILENAME` is read-only — a diag run
+trapped `(setvar "LOGFILENAME" path)` with "system variable is
+read-only" — and `LOGFILEON` writes no file at any discoverable
+location. The probe's proxies: the DBMOD/ERRNO record (pre- and
+post-audit; DBMOD gaining bits = the audit found and fixed
+something) and the null-bbox shadow of the OPEN failure dialog
+(the dialog itself blocks before any LISP runs). The designed
+next mechanism for the console: a UI-Automation reader scraping
+the command-line control's text buffer — recorded for the probe's
+next revision. Until then, a hand-run transcript from the
+maintainer remains the highest-fidelity console evidence.
+
 ### When a layer trips
 
 - **Step 1 fails** — model/normalizer/budget mismatch: the failing

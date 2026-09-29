@@ -37,6 +37,17 @@ a GUI process — each launch is bounded and killed on timeout; a
 missing/empty result file marks the fixture AMBIGUOUS, never
 clean.
 
+The console-text limit is TESTED, not presumed (2026-09-29): a
+diag run trapped `(setvar "LOGFILENAME" path)` with "system
+variable is read-only: LOGFILENAME" — the log channel cannot be
+redirected on this build. The designed next mechanism for console
+capture: a UI-Automation reader (PowerShell/UIA scraping the
+command-line control's text buffer after the script's sections,
+before QUIT) — recorded for the probe's next revision. Until then
+the maintainer's hand-run transcripts remain the highest-fidelity
+console evidence (the "General modeling failure / AcDb3dSolid
+(31)" verdict came from one).
+
 The LOGSEC flush discipline (the evidence-survival rule): the
 script's LISP writes EVERY result section through a `LOGSEC`
 helper — `(defun LOGSEC (lines / f) (setq f (open RESULT "a"))
