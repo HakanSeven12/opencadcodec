@@ -360,21 +360,38 @@ read-only, WM_GETTEXT empty on the wxWidgets UI, UIA empty,
 GetWindowText works; the transcript captures the run's window
 lifecycle with timestamps).
 
-**THE NEXT INVESTIGATION — the full record-by-record structural
-diff**: every class now matches the authored genus (classes,
-widths, forms, orders, headers, wiring ladder), yet the kernel
-still rejects the B-rep — the remaining divergence is BELOW the
-class level. The designed next packet: align the authored
-Box_2018 and the constructed Box record-by-record THROUGH THE
-GRAPH (body↔body, then lump, shell, faces in order, each face's
-loop, each loop's coedge chain, each coedge's edge, each edge's
-vertices/curve, each surface) and diff the full token lists per
-aligned pair — the suspects: the loop's coedge-chain ORDER and
-sense distribution, the coedge partner wiring (next/prev
-symmetry), the edge parameter values (start/end params), the
-surface normal/direction conventions, the vertex↔point
-association. The probe (now with the window transcript) is the
-acceptance gate: MODELED with the authored controls green.
+**THE CANDIDATE-5 FINDINGS (2026-09-29, the sixth continuation —
+the orientation audits, landed as
+`tests/gold_harness/restore_gap_diffs.py`)**: the full structural
+diff (BFS-position paired, persubent attribs skipped) surfaced the
+sense-flag family as the suspects, then the three-level audit
+CLEARED every computable invariant in BOTH streams: (1) the face
+orientation — every authored face effectively outward (sense
+compensates the surface normal: fwd+outward or rev+inward), every
+constructed face outward directly (uniform fwd, outward normals)
+— coherent in both; (2) the loop traversal — every loop closed
+and vertex-consistent in both; (3) the travel direction — every
+loop travels CCW around its face's effective normal in both.
+The sense PATTERNS differ (authored top/bottom TTTT, sides Tfff;
+constructed bottom ffff, top TTTT, sides TTff) without either
+being invalid. **The constructed B-rep is demonstrably valid at
+every computable level — the blocker is subtler still.** THE
+REMAINING SUSPECTS, in test order: (a) **probe an authored
+journal-less, attrib-less carrier** — every MODELED control so
+far carries persubent attribs (the sh_history family is
+tree-selected), so "attribs absent is fine" is UNPROVEN;
+example_2004's plain Regions (attrib-less, journal-less) are the
+candidates — if they MODEL, attribs are cleared; if they
+NULL-BOX, BricsCAD's modeler may require the subentity/journal
+machinery and the persubent adjudication reopens; (b) the coedge
+partner/next/prev SYMMETRY invariants (partner.edge == edge,
+partner.sense == !sense, next.prev == self) checked on both
+streams; (c) the semantic pair-diff via a face-chain-anchored
+isomorphism (the BFS-position pairing diverges at the first
+mention-order difference — the pre-divergence rows still
+surfaced: vertex role ints 1 vs 0 at aligned positions). The
+probe (with the window transcript) is the acceptance gate:
+MODELED with the authored controls green.
 
 **The BricsCAD audit is MECHANIZED and its verdict is recorded
 (2026-09-29, the second continuation session)**:
