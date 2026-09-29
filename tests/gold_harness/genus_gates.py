@@ -141,6 +141,22 @@ ADJUDICATIONS = {
                 "NULL). The topology invariants stay armed for any "
                 "constructed tree that survives save.",
     },
+    ("sab_form", "persubent-acadSolidHistory-attrib"): {
+        "verdict": "TOLERATED",
+        "note": "selection bias, journal-correlated (2026-09-29 corpus "
+                "scan): 72 SAB carriers walked outside the tree-selected "
+                "fixture family — 41 carry the attrib, every one in a file "
+                "with journal/ACSH data (example_2004's solid + journaled "
+                "Region carry it while its plain Regions do not; the "
+                "entity's history soft-pointer is not the trigger — the "
+                "doc's journal is; ATMOS's 11 pointer-bearing attribless "
+                "carriers are the known broken-map exception). The fixture "
+                "family's uniform 136/136 is the tree SELECTION, not "
+                "unconditional genus. The constructed primitives are "
+                "journal-less at save (the G-B elide contract) — emitting "
+                "the marker would forge journal presence. The arm stays "
+                "for any constructed journal that survives save.",
+    },
 }
 
 

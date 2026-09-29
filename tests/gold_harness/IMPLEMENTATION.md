@@ -7557,6 +7557,27 @@ extraction surface never reaches the writer), every SAB module test
 is tolerance-value-agnostic, and the era-profile regression tests
 pin the container genus through the changed path unchanged.
 
+**The sixth packet — the persubent adjudication (2026-09-29)**: the
+designed `--corpus-scan` investigation ran as a live probe over the
+corpus decodes (73 SAB carriers outside the tree-selected fixture
+family, 72 walked clean): the persubent-acadSolidHistory attrib is
+**journal-correlated, not unconditional genus**. 41 carriers carry
+it, every one in a file with journal/ACSH data — example_2004's
+Solid3D and its journaled Region carry the attrib while its plain
+Regions do not, and the entity's history soft-pointer is NOT the
+trigger (the pointer reads NULL on those carriers; the DOC's journal
+is); ATMOS's 11 pointer-bearing attribless carriers are the known
+broken-map exception. The fixture family's uniform 136/136 is the
+tree SELECTION. The constructed primitives are journal-less at save
+(the G-B elide contract) — emitting the marker would forge journal
+presence. The row is adjudicated TOLERATED (selection bias,
+journal-correlated) through the ADJUDICATIONS table with the corpus
+evidence in the verdict note; the arm stays for any constructed
+journal that survives save. Pending queue: G-A 61 → 60 rows, 438 →
+427 occurrences. The pin is untouched (the class IS in the specimen
+genus — the fixture facts stand; the gate rows stay as the recorded
+state).
+
 **The fifth packet — the TOLERATED adjudication state
 (2026-09-29)**: §20.3's "some rows may close as TOLERATED with the
 row kept as the recorded state" gained its instrument: an
