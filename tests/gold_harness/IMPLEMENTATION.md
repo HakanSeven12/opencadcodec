@@ -7757,3 +7757,50 @@ marker (the 2646f05 cylinder verdict). The primary counts stay
 (the 60-row ordering family + the persubent-acadSolidHistory class)
 and G-B 0. The cargo mirror's report-shape assertions pass
 unchanged (the row shape is additive); the pin is untouched.
+
+**The restore-gap + rewrite-rejection campaigns (2026-09-29, the
+continuations six through eleven — the consolidated record; the
+per-packet detail lives in NEXT_SESSION.md's arc items 14+)**:
+the §20 queue's pending axis closed (the persubent adjudication;
+the BFS first-mention emission — the authored restore-file order
+PROVEN on 136/136 carriers; the era-profiled SAB header — `SabEra`,
+both adjudicated header rows retired through the genus match), and
+the probe — mechanized, then re-targeted per the maintainer's
+directives (BricsCAD V26 the default; AutoCAD 2027, the format's
+author, the strongest oracle; V18 legacy-only) — exposed TWO
+defects beyond every genus invariant. **(1) THE B-REP CONSTRUCTION
+GAP (open)**: the constructed fixtures open everywhere but the
+B-rep never constructs — the ±1e80 null box under V18/V26 (V26's
+audit purges the entities), the LISP census abort under AutoCAD
+2027; candidates 1–6 (the era-profiled coedge form, the identity
+transform, the BFS order, the era header, the sheet sense mirror
++ vertex int 2) all landed and closed every MEASURED divergence —
+the blocker is below the measured invariants; the orientation
+audits (`restore_gap_diffs.py`) prove the constructed B-rep valid
+at every computable level. **(2) THE FILE-LEVEL REWRITE REJECTION
+(the minimal case CLOSED at 1ad2509)**: read→rewrite output for
+edited documents was rejected at the file level — AutoCAD 2027's
+explicit "Open Drawing - Errors found" dialog named it. The
+elimination matrix (the `sab_swap`/`fresh_pair`/`line_only`
+instruments) localized it; the entity field diff found exactly
+two flipped fields (`wireframe_data_present`/
+`wireframe_point_present`): the reader SYNTHESIZES
+`point_of_reference` for anchor-less entities and the writer's
+wireframe gate treated the synthesized point as wire presence —
+re-emitting a COMMON_3DSOLID block the original never had. The
+fix: the wireframe block is WIRE STATE ONLY (the captured flags,
+wires, silhouettes); the `point != ZERO` arms removed; fresh
+writes unaffected (the identity unmoved). **The big authored
+rewrite (example_2018+LINE) remains rejected** — the R2018
+record-identity census (a NEW instrument: gold `-v9` object
+blocks, handle-keyed, position-normalized — the era the AC1021
+survey never covered) found 7 divergent objects; the SPLINE
+WIRE-SCENARIO fix landed (34c75d0: the authored records carry
+scenario BL=1 over fit-point storage; the reader captures the
+wire BL, the writer re-emits it verbatim while the storage body
+still derives); the remaining poison candidates are the three
+constraint-graph objects (types 520/528/529 — the ACDBASSOC*
+classes of the §19 authority closure) whose re-encoded payloads
+drift. THE NEXT PACKET: byte-passthrough (or field-exact
+re-encode) for the unmodeled ACDBASSOC* classes on the rewrite
+path; then the corpus battery and the B-rep question.

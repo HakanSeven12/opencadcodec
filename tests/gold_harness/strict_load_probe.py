@@ -48,7 +48,8 @@ process's top-level windows and logging each window's class +
 title at first appearance (and on title change), with timestamps.
 Three channels were tested and are CLOSED on this build: the log
 channel (read-only LOGFILENAME); WM_GETTEXT (returns empty — the
-UI is Qt, all text painted, none in window text slots); UI
+UI is wxWidgets (wxWindowNR classes), all text painted, none in
+window text slots); UI
 Automation (no Text/Value patterns, empty Name tree — no
 accessibility bridge). GetWindowText works for TITLES (managed
 by the window manager), so the transcript captures WHICH dialogs

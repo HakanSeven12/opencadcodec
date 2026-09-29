@@ -387,19 +387,40 @@ ADITIONAL output. The cargo mirror
 fresh extraction equals the pinned `genus_expectations.json` — when
 the decode changes, regenerate the pin and review the drift.
 
-### Step 7b — the strict-load probe (the mechanized BricsCAD audit)
+### Step 7b — the strict-load probe (the mechanized loader audit)
 
-The §20.4 verdict instrument: `strict_load_probe.py` drives
-`bricscad.exe /b <script>` headless over the constructed corpus plus
-the authored specimen controls, and the script's LISP records the
-evidence a verdict needs — the 3DSOLID/REGION census, the
+The §20.4 verdict instrument: `strict_load_probe.py` drives the
+loader `/b <script>` over the constructed corpus plus the authored
+specimen controls, and the script's LISP records the evidence a
+verdict needs — the 3DSOLID/REGION/BODY census, the
 modeler-forced bounding box (real extents = a restored body; the
-±1e80 sentinel = the null box), the post-audit census:
+±1e80 sentinel = the null box), the DBMOD/ERRNO pre/post-audit
+record, the post-audit census:
 
 ```bash
 python3 tests/gold_harness/genus_gates.py        # fresh constructed corpus first
 python3 tests/gold_harness/strict_load_probe.py  # the verdict table
 ```
+
+**The loaders under test (the maintainer's directives, 2026-09-29)**:
+the probe default is **BricsCAD V26**
+(`C:\Program Files\Bricsys\BricsCAD V26 en_US\bricscad.exe`) — the
+current-generation modeler; the earlier V18 verdicts were measured
+against a 2017-era restoration that rejects content V26 accepts
+cleanly (V18 remains available via `--bcad`). The alternative
+oracle — the strongest evidence available — is **AutoCAD 2027**
+(`C:\Program Files\Autodesk\AutoCAD 2027\acad.exe`, pass via
+`--bcad`): the format's own author. Its verdicts escalate the
+evidence: an explicit **"Open Drawing - Errors found" dialog**
+(a file-level defect named by the author's tool), an entity that
+aborts the LISP census loop (an entget-level failure), or a clean
+open whose audit still purges entities. CAVEATS: its dialogs stall
+/b scripts — kill a stalled instance BY PID, never by name
+(`acad.exe` is shared with other Autodesk sessions); an unhandled
+LISP error aborts to the script's next line (a missing per-entity
+line is itself a verdict). Every probe launch holds the window
+visible for 10 s (`_.DELAY 10000` before QUIT — the /b lifecycle is
+otherwise a sub-20-second flash).
 
 **The LOGSEC flush discipline (the evidence-survival rule).** The
 script's LISP writes every result section through a `LOGSEC` helper
@@ -432,25 +453,32 @@ when its restore gap closes, NULL-BOX (the ±1e80 sentinel) while the
 gap stands, NO-SOLID when the entity layer fails, and AMBIGUOUS
 (missing `probe-end`) when the run was cut short — the surviving
 LOGSEC lines still rank the failure. A Windows-visible host and the
-BricsCAD install are required; stray `bricscad.exe` processes poison
-subsequent launches — kill them before re-running.
+loader installs are required; stray loader processes poison
+subsequent launches — kill them (by PID for `acad.exe`) before
+re-running. **The current recorded verdicts** (2026-09-29): the
+authored controls MODELED under all three loaders; the constructed
+fixtures NULL-BOX (V26's audit purges them — the B-rep construction
+gap, the open §20 campaign); the minimal rewrite (Region+LINE)
+CLEAN after the wireframe-synthesis fix; the big authored rewrite
+(example_2018+LINE) still rejected — the R2018 record-identity
+census and the constraint-graph payload drift are the live packet.
 
 **Console capture — the window-lifecycle scraper (landed, with the
-tested limits).** BricsCAD's console text is not reachable through
-the classic channels on this build — all tested: `LOGFILENAME` is
+tested limits).** The loaders' console text is not reachable through
+the classic channels on these builds — all tested: `LOGFILENAME` is
 read-only (a diag run trapped the setvar), `WM_GETTEXT` returns
-empty on BricsCAD windows (the UI is Qt; text is painted, not
-stored in window text slots), and UI Automation exposes no
-Text/Value patterns and an empty Name tree (no accessibility
-bridge). What works is `GetWindowText` for window TITLES — so the
-probe ships `bricscad_console_scraper.ps1`: the launcher spawns it
-with the BricsCAD PID and it polls every 250 ms, logging each
-top-level window's class + title at first appearance with
-timestamps into `<name>_console.log`. The transcript captures
-WHICH dialogs appear during a run (the modeling-failure dialog is
-a top-level window), WHEN, and their titles — alongside the
+empty on BricsCAD windows (the UI is wxWidgets — `wxWindowNR`
+classes; text is painted, not stored in window text slots), and UI
+Automation exposes no Text/Value patterns and an empty Name tree
+(no accessibility bridge). What works is `GetWindowText` for window
+TITLES — so the probe ships `bricscad_console_scraper.ps1`: the
+launcher spawns it with the loader PID and it polls every 250 ms,
+logging each top-level window's class + title at first appearance
+with timestamps into `<name>_console.log`. The transcript captures
+WHICH dialogs appear during a run (the modeling-failure dialog is a
+top-level window), WHEN, and their titles — alongside the
 LOGSEC LISP census and the DBMOD/ERRNO pre/post-audit record,
-that is the complete programmatic evidence surface on this build.
+that is the complete programmatic evidence surface on these builds.
 The probe's analyzer digests the transcript against the strict
 loader's message vocabulary (deduped, with repetition counts).
 The console text itself needs a build with a working log channel
@@ -480,6 +508,15 @@ remains the highest-fidelity console evidence.
   the projections: regenerate `genus_expectations.json` with
   `genus_extract.py` and review the drift (expectation drift is itself
   reviewable, §20.3); never hand-edit the pin.
+- **Step 7b reads NULL-BOX / NO-SOLID / a dialog stall** — a
+  strict-loader defect: read the surviving LOGSEC lines and the
+  window transcript first (the census story ranks the failure);
+  then bisect with the chimera/subset instruments (`sab_swap`,
+  `fresh_pair`, `entity_subset`) and the R2018 record-identity
+  census (gold `-v9` object blocks, handle-keyed, position-
+  normalized — the era the AC1021 survey never covered). Kill a
+  stalled loader BY PID (`acad.exe` is shared with other Autodesk
+  sessions).
 
 ### Hard rules (inherited, unchanged)
 
@@ -522,6 +559,13 @@ there with `required-features = ["serde"]` alongside them.
 | `genus_extract.py` | The §20 expectation extractor — decodes the specimen family silver-side, projects the SAB/SH/AcDs genus into the pinned expectations |
 | `genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
 | `genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
+| `strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; default BricsCAD V26, `--bcad` selects AutoCAD 2027 or V18 |
+| `bricscad_console_scraper.ps1` | The window-lifecycle transcript — polls the loader's top-level windows (class + title, timestamps) into `<name>_console.log`; the console-text channel map is tested and closed on these builds |
+| `restore_gap_diffs.py` | The constructed-SAB structural audits — per-face orientation, loop-traversal connectivity, travel-direction (the right-hand rule), record/token alignment |
+| `examples/sab_swap.rs` | The payload-swap chimera generator (authored wrapper + constructed SAB and vice versa, plus the pure-rewrite control) — the file-level rejection bisect instrument |
+| `examples/fresh_pair.rs` | The fresh-vs-read document pair generator (the same entity through the two write paths) |
+| `examples/line_only.rs` | The minimal innocent-file control (a fresh doc with only a LINE) |
+| `examples/entity_subset.rs` | The entity-subset rewrite generator (`first N` / `3d` / `drop3d`) — the second-poison bisect instrument |
 
 **Adjacent tracked scripts the harness does not own** — documented for
 completeness:
