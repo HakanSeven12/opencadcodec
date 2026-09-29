@@ -128,6 +128,11 @@ DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kil
 # missing per-entity bbox line means the loop aborted on that
 # entity — itself a verdict).
 DEFAULT_BCAD = "C:\\Program Files\\Bricsys\\BricsCAD V26 en_US\\bricscad.exe"
+# The author's oracle (the maintainer's alternative directive): the
+# format's own tool. The default run exercises BOTH loaders — every
+# fixture is probed under each, with per-loader verdicts — so a
+# defect that only one modeler surfaces is still caught.
+DEFAULT_ACAD = "C:\\Program Files\\Autodesk\\AutoCAD 2027\\acad.exe"
 WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
                 "'/b','{scr}' -PassThru; "
                 "$sc = Start-Process -FilePath 'powershell.exe' -ArgumentList "
@@ -192,7 +197,10 @@ _.QUIT
 _N
 """
 
-NULL_BOX = "1.0000E+80"
+# The modelers' null-extents sentinels (a failed restore yields the
+# platform's infinite-extents marker): BricsCAD writes ±1e80, AutoCAD
+# writes ±1e20 (measured 2026-09-29, the both-loader verification run).
+NULL_BOXES = ("1.0000E+80", "1.0000E+20")
 
 
 def probe_one(name, source, probe_dir, bcad, timeout_s):
@@ -287,7 +295,7 @@ def verdict(lines):
     if "probe-end" not in text:
         return "AMBIGUOUS"
     bbox = next((l for l in lines if l.startswith("bbox:")), "")
-    if NULL_BOX in bbox:
+    if any(s in bbox for s in NULL_BOXES):
         return "NULL-BOX (the ACIS body did not construct)"
     if "bbox:" in text:
         return "MODELED"
@@ -297,11 +305,25 @@ def verdict(lines):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--probe-dir", type=Path, default=DEFAULT_PROBE_DIR)
-    parser.add_argument("--bcad", default=DEFAULT_BCAD)
+    parser.add_argument("--bcad", default=DEFAULT_BCAD,
+                        help="the BricsCAD executable (default: V26)")
+    parser.add_argument("--acad", default=DEFAULT_ACAD,
+                        help="the AutoCAD executable (default: 2027)")
+    parser.add_argument("--loader", choices=("both", "bcad", "acad"), default="both",
+                        help="which loader(s) exercise the fixtures "
+                             "(default: both — every fixture under each, "
+                             "per-loader verdicts)")
     parser.add_argument("--timeout", type=int, default=150, help="per-launch seconds")
     parser.add_argument("--probe", action="append", default=[], metavar="NAME=DWG",
                         help="extra fixture to probe (repeatable)")
     args = parser.parse_args()
+
+    loaders = {
+        "bcad": args.bcad,
+        "acad": args.acad,
+    }
+    if args.loader != "both":
+        loaders = {args.loader: loaders[args.loader]}
 
     args.probe_dir.mkdir(parents=True, exist_ok=True)
     targets = []
@@ -313,22 +335,25 @@ def main():
     targets += [(name, Path(path)) for name, path in
                 (item.split("=", 1) for item in args.probe)]
 
-    print(f"probing {len(targets)} files through {args.bcad}")
+    print(f"probing {len(targets)} files through {len(loaders)} loader(s): "
+          + ", ".join(f"{tag}={path}" for tag, path in loaders.items()))
     print(f"staging: {args.probe_dir}\n")
     for name, source in targets:
-        lines = probe_one(name, source, args.probe_dir, args.bcad, args.timeout)
-        print(f"== {name}")
-        for line in lines:
-            print(f"   {line}")
-        print(f"   VERDICT: {verdict(lines)}")
-        digest = analyze_console(args.probe_dir / f"{name}_console.log")
-        if digest:
-            print("   console evidence (deduped, the strict loader's vocabulary):")
-            for line in digest:
-                print(f"      | {line[:200]}")
-        else:
-            print("   console evidence: none captured (no matching text)")
-        print()
+        for tag, loader in loaders.items():
+            run = f"{name}__{tag}"
+            lines = probe_one(run, source, args.probe_dir, loader, args.timeout)
+            print(f"== {run}")
+            for line in lines:
+                print(f"   {line}")
+            print(f"   VERDICT: {verdict(lines)}")
+            digest = analyze_console(args.probe_dir / f"{run}_console.log")
+            if digest:
+                print("   console evidence (deduped, the strict loader's vocabulary):")
+                for line in digest:
+                    print(f"      | {line[:200]}")
+            else:
+                print("   console evidence: none captured (no matching text)")
+            print()
     print("the authored control must read MODELED for the run to stand")
     return 0
 

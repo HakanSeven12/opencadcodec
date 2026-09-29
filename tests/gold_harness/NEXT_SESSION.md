@@ -979,15 +979,17 @@ python3 tests/gold_harness/genus_gates.py     # the ranked report
 # lands NONZERO on purpose — the counts are the work queue
 
 # 7b. THE STRICT-LOAD PROBE (the mechanized loader audit)
-#     (Windows-visible host required; the DEFAULT is BricsCAD V26;
-#      the author-oracle AutoCAD 2027 passes via --bcad
-#      "C:\Program Files\Autodesk\AutoCAD 2027\acad.exe")
+#     (Windows-visible host required; the DEFAULT run exercises BOTH
+#      loaders — BricsCAD V26 [DEFAULT_BCAD] and AutoCAD 2027
+#      [DEFAULT_ACAD, the format author] — every fixture under each,
+#      per-loader verdicts; --loader bcad/acad narrows)
 python3 tests/gold_harness/strict_load_probe.py
 # the constructed fixtures currently read NULL-BOX (the B-rep
-# construction gap — the open campaign); the authored controls
-# must read MODELED; the minimal rewrite (Region+LINE) reads
-# CLEAN after the wireframe fix; the big authored rewrite
-# (example_2018+LINE) is the live packet
+# construction gap — the open campaign; the sentinel is ±1e80 under
+# BricsCAD, ±1e20 under AutoCAD — the classifier knows both); the
+# authored controls must read MODELED; the minimal rewrite
+# (Region+LINE) reads CLEAN after the wireframe fix; the big
+# authored rewrite (example_2018+LINE) is the live packet
 ```
 
 ## Commit inventory (this halt)

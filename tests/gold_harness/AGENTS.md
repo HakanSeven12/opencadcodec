@@ -82,14 +82,17 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
   where gold is known-wrong changes only through a recorded strict-loader
   probe verdict, never an oracle trace alone (§20.4).
 - The strict-loader verdicts come from `strict_load_probe.py` (README step
-  7b): the default loader is BricsCAD V26; AutoCAD 2027 — the format's
-  author, the strongest oracle — is passed via `--bcad "C:\Program
-  Files\Autodesk\AutoCAD 2027\acad.exe"`. A stalled loader instance is
-  killed BY PID, never by name (`acad.exe` is shared with other Autodesk
-  sessions). Verdict vocabulary: MODELED (real extents) / NULL-BOX (the
-  ±1e80 sentinel — the B-rep did not construct) / NO-SOLID / AMBIGUOUS;
-  an AutoCAD "Open Drawing - Errors found" dialog is a file-level defect
-  verdict. Every probe launch holds the window visible 10 s before QUIT.
+  7b): the DEFAULT run exercises BOTH loaders — BricsCAD V26
+  (`DEFAULT_BCAD`) and AutoCAD 2027, the format's author
+  (`DEFAULT_ACAD`) — every fixture under each, per-loader verdicts
+  (`--loader bcad`/`acad` narrows; `--bcad`/`--acad` override the paths).
+  A stalled loader instance is killed BY PID, never by name (`acad.exe`
+  is shared with other Autodesk sessions). Verdict vocabulary: MODELED
+  (real extents) / NULL-BOX (the null-extents sentinel — ±1e80 under
+  BricsCAD, ±1e20 under AutoCAD — the B-rep did not construct) /
+  NO-SOLID / AMBIGUOUS; an AutoCAD "Open Drawing - Errors found"
+  dialog is a file-level defect verdict. Every probe launch holds the
+  window visible 10 s before QUIT.
 
 ### Commits
 - Commit message format: `fix(harness): <packet> — <gold spec ref>` (or

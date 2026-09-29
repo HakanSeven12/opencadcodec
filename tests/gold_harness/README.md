@@ -403,24 +403,27 @@ python3 tests/gold_harness/strict_load_probe.py  # the verdict table
 ```
 
 **The loaders under test (the maintainer's directives, 2026-09-29)**:
-the probe default is **BricsCAD V26**
-(`C:\Program Files\Bricsys\BricsCAD V26 en_US\bricscad.exe`) — the
+the default run exercises **BOTH** — every fixture is probed under
+each loader with per-loader verdicts. **BricsCAD V26**
+(`C:\Program Files\Bricsys\BricsCAD V26 en_US\bricscad.exe`) is the
 current-generation modeler; the earlier V18 verdicts were measured
 against a 2017-era restoration that rejects content V26 accepts
-cleanly (V18 remains available via `--bcad`). The alternative
-oracle — the strongest evidence available — is **AutoCAD 2027**
-(`C:\Program Files\Autodesk\AutoCAD 2027\acad.exe`, pass via
-`--bcad`): the format's own author. Its verdicts escalate the
-evidence: an explicit **"Open Drawing - Errors found" dialog**
-(a file-level defect named by the author's tool), an entity that
-aborts the LISP census loop (an entget-level failure), or a clean
-open whose audit still purges entities. CAVEATS: its dialogs stall
-/b scripts — kill a stalled instance BY PID, never by name
-(`acad.exe` is shared with other Autodesk sessions); an unhandled
-LISP error aborts to the script's next line (a missing per-entity
-line is itself a verdict). Every probe launch holds the window
-visible for 10 s (`_.DELAY 10000` before QUIT — the /b lifecycle is
-otherwise a sub-20-second flash).
+cleanly (V18 remains available via `--loader bcad --bcad <path>`).
+**AutoCAD 2027** (`C:\Program Files\Autodesk\AutoCAD 2027\acad.exe`,
+the `DEFAULT_ACAD`) is the format's own author — the strongest
+oracle. Its verdicts escalate the evidence: an explicit
+**"Open Drawing - Errors found" dialog** (a file-level defect named
+by the author's tool), an entity that aborts the LISP census loop
+(an entget-level failure), or a clean open whose audit still purges
+entities. NOTE the sentinel split: a failed restore reads ±1e80
+under BricsCAD but **±1e20 under AutoCAD** — the classifier knows
+both. CAVEATS: AutoCAD's dialogs stall /b scripts — kill a stalled
+instance BY PID, never by name (`acad.exe` is shared with other
+Autodesk sessions); an unhandled LISP error aborts to the script's
+next line (a missing per-entity line is itself a verdict). Every
+probe launch holds the window visible for 10 s (`_.DELAY 10000`
+before QUIT — the /b lifecycle is otherwise a sub-20-second
+flash).
 
 **The LOGSEC flush discipline (the evidence-survival rule).** The
 script's LISP writes every result section through a `LOGSEC` helper
