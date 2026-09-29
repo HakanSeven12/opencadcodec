@@ -1,5 +1,5 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 queue's
-# PENDING axis is ZERO (sab_form 4 rows / sh_genus 1 / acds_genus 0 —
+# PENDING axis is ZERO (sab_form 4 rows / sh_genus 1 / 0 — every row
 # every remaining row adjudicated-TOLERATED on a recorded verdict);
 # THE BRICSCAD AUDIT IS NOW MECHANIZED (strict_load_probe.py) and its
 # verdict is recorded: the ordering packet EXONERATED (the modeling
@@ -329,6 +329,24 @@ the DB/modeler census is the measured surface). Run:
 python3 tests/gold_harness/genus_gates.py    # fresh constructed corpus
 python3 tests/gold_harness/strict_load_probe.py
 ```
+
+**The maintainer's user-run verdicts (2026-09-29, opening the
+constructed fixtures by hand)**: ConstructedCylinder "not showing
+correctly", and ConstructedBox reports **"General modeling failure /
+AcDb3dSolid(31)"** at OPEN — the strict loader's own words, the
+entity layer resolving (AcDb3dSolid identified by id) while the
+modeler rejects the B-rep. The failure MESSAGE BLOCKS the scripted
+runs: the prompt stalls the /b script mid-sequence (the LISP result
+file opens — `#<FILE …>` — but the buffered write-lines never
+reach `(close)` before the launcher's timeout kill), which is why
+strict_load_probe.py's staged runs read 0 bytes; the maintainer
+closed the blocking instances by hand. The tool's next revision
+needs an error-dialog discipline (EXPERT/sysvar suppression or a
+post-error continuation arm) before its runs read clean; the
+recorded verdicts below stand on the validated manual procedure
+plus these user-run confirmations. **The record now carries the
+verbatim kernel verdict — the restore gap is named by the strict
+loader itself.**
 
 **The recorded verdicts**: the authored specimens MODEL across all
 three envelopes (Box_2007 in-entity SAB; Box_2013/Box_2018 AcDs —
