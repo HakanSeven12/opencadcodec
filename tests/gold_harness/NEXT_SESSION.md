@@ -11,8 +11,9 @@
 # both GENUS-VERIFIED, the gates 0-pending) but the probe still reads
 # the ±1e80 NULL BOX: CANDIDATE 3 (the authored traversal-interleaved
 # stream vs the class-grouped order) is the remaining suspect; the
-# working tree is UNCOMMITTED pending the corpus gate (in flight) —
-# finish the battery, commit, then candidate 3
+# packet is COMMITTED at 66d18f8 with the full battery green (corpus
+# 280 at 0/0/0/0, sections 4/1/0, suite + mirrors + smokes + echoes,
+# the identity 0b813a68…/25,473) — the next packet is candidate 3
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -397,10 +398,15 @@ The designed fix: a traversal-order emission at the SAB boundary
 depth-first, emitting each record once) — a per-consumer assembly,
 NOT the class-rank sort; the genus gates' order constraints must
 stay satisfied (verify: the traversal order satisfies the pinned
-constraints — it IS the authored order). THE WORKING TREE IS
-UNCOMMITTED: the corpus gate is IN FLIGHT — finish the battery
-(suite + mirrors + smokes + identity), commit both fixes, then
-candidate 3.
+constraints — it IS the authored order). THE PACKET IS COMMITTED
+(66d18f8) with the full battery green: corpus 280 at 0/0/0/0 with
+the sections 4/1/0 (all TOLERATED, 0 pending), the full serde
+suite green, the gold_roundtrip + genus_gates mirrors green (the
+pin untouched), issue80 green, the four family smokes 0/0 with
+clean echoes, and the generation identity re-recorded at
+`0b813a68f6b8b47dcfe08e29d9b2e862` / 25,473 bytes (intended: the
+coedge form + the transform changed the constructed SAB). THE
+NEXT PACKET IS CANDIDATE 3.
 
 - headers: authored ASM|22300 (0,2,4); constructed ACIS|700
   (0,1,0) — the adjudicated rows.
