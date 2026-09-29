@@ -1,6 +1,25 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
+# THE STRICT LOADER UNDER TEST IS BRICSCAD V26 (the maintainer's
+# directive, 2026-09-29: V18 errors on the gen_all file while V26
+# opens it clean — V18's 2017-era modeler is NOT the acceptance
+# oracle; strict_load_probe.py's DEFAULT_BCAD now points at
+# "C:\Program Files\Bricsys\BricsCAD V26 en_US\bricscad.exe";
+# V18 remains available via --bcad for legacy-era evidence);
+# THE DEFECT MAP RE-VERIFIED UNDER V26 (all verdicts reproduced):
+#   - the fixtures (conversion arm) OPEN but NULL-BOX (±1e80), and
+#     V26's AUDIT PURGES the invalid entities (post-audit count 0,
+#     dbmod 1) — the B-rep still does not construct;
+#   - the binary-arm rewrite control (read(Region)+LINE) still
+#     REJECTED (count 0 at open);
+#   - the authored control Box_2018 MODELS (0,0,0..1,2,3) — the
+#     probe's discrimination holds under V26;
+#   - gen_all's own 3D entities under V26: the BODY null-boxes (and
+#     the census saw only the BODY — the REGION/3DSOLID appear to
+#     drop at open under V26's stricter load) — "clean open" (no
+#     error dialogs) is NOT "modeled": the maintainer's gen_all
+#     observation and the null-box finding are consistent
 # THE MAJOR FINDING (the AcceptNumbered assignment, iterated):
 # BRICSCAD REJECTS AT THE FILE LEVEL every constructed AC1032 write
 # that carries PRE-DECODED (is_binary, pre-carried sab_data) ACIS

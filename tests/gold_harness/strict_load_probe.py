@@ -103,7 +103,15 @@ SPECIMENS = SCRIPT_DIR / "tests" / "sh_history"  # tests/gold_harness/tests/sh_h
 CONSTRUCTED = REPO / "target" / "genus_gates" / "constructed"
 
 DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kilo/strict_load_probe")
-DEFAULT_BCAD = "C:\\Program Files\\Bricsys\\BricsCAD V18 en_US\\bricscad.exe"
+# The strict loader under test (2026-09-29, the maintainer's
+# directive): BricsCAD V26 — the current-generation modeler. The
+# campaign's earlier verdicts (the null-box readings and the
+# file-level rejection matrix) were measured against V18, whose
+# 2017-era ACIS restoration rejects content V26 accepts cleanly
+# (the maintainer hand-verified: V18 errors on the gen_all file,
+# V26 opens it clean). V18 remains available for legacy-era
+# evidence by passing --bcad explicitly.
+DEFAULT_BCAD = "C:\\Program Files\\Bricsys\\BricsCAD V26 en_US\\bricscad.exe"
 WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
                 "'/b','{scr}' -PassThru; "
                 "$sc = Start-Process -FilePath 'powershell.exe' -ArgumentList "
