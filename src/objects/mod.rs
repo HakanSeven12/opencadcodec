@@ -37,7 +37,7 @@ pub use class_object::{
     GeoMapImage, GradientBackground, GroundPlaneBackground, IblBackground, ImageBackground,
     LayerFilter, LightList, LightListEntry, MentalRayRenderSettings, ModelDocViewStyle, MotionPath,
     NavisworksModelDefinition, PartialViewingIndex, PartialViewingIndexEntry,
-    PersistentSubentityManager, PointCloudColorMap, PointCloudColorRamp, PointCloudDefinition,
+    PersistentSubentityManager, PointCloudColorMap, PointCloudColorRamp, PointCloudDefinition, PointCloudRampColor,
     PointCloudDefinitionReactor, PointPath, RapidRtRenderSettings, RenderEntry, RenderEnvironment,
     RenderGlobal, RenderSettings, SectionGeometrySettings, SectionManager, SectionSettings,
     SectionTypeSettings, SectionViewStyle, SkyLightBackground, SolidBackground, SpatialIndex, Sun,

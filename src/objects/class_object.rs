@@ -127,7 +127,7 @@ impl ClassObjectData {
             Self::PointPath(_) => "ACDBPOINTPATH",
             Self::TvDeviceProperties(_) => "TVDEVICEPROPERTIES",
             Self::PointCloudDefinition(_) => "ACDBPOINTCLOUDDEF",
-            Self::PointCloudDefinitionEx(_) => "ACDBPOINTCLOUDDEFEX",
+            Self::PointCloudDefinitionEx(_) => "ACDBPOINTCLOUDDEF_EX",
             Self::PointCloudDefinitionReactor(_) => "ACDBPOINTCLOUDDEF_REACTOR",
             Self::PointCloudDefinitionReactorEx(_) => "ACDBPOINTCLOUDDEF_REACTOR_EX",
             Self::PointCloudColorMap(_) => "ACDBPOINTCLOUDCOLORMAP",
@@ -973,8 +973,20 @@ pub struct PointCloudDefinitionReactor {
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PointCloudColorRamp {
+    /// Identifier of the ramp (a GUID string).
+    pub id: String,
     pub class_version: i16,
-    pub color_schemes: Vec<String>,
+    /// The ramp's colours, each with its visibility.
+    pub colors: Vec<PointCloudRampColor>,
+    /// Display name ("Blues", "LIDAR Classifications", ...).
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PointCloudRampColor {
+    pub color: i32,
+    pub visible: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

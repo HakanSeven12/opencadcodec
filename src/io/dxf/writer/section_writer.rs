@@ -5835,11 +5835,14 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     ) -> Result<()> {
         self.writer.write_i32(90, ramps.len() as i32)?;
         for ramp in ramps {
+            self.writer.write_string(1, &ramp.id)?;
             self.writer.write_i16(70, ramp.class_version)?;
-            self.writer.write_i32(90, ramp.color_schemes.len() as i32)?;
-            for scheme in &ramp.color_schemes {
-                self.writer.write_string(1, scheme)?;
+            self.writer.write_i32(90, ramp.colors.len() as i32)?;
+            for color in &ramp.colors {
+                self.writer.write_i32(91, color.color)?;
+                self.writer.write_bool(290, color.visible)?;
             }
+            self.writer.write_string(1, &ramp.name)?;
         }
         Ok(())
     }

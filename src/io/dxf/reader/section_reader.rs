@@ -492,6 +492,7 @@ fn is_class_object_name(name: &str) -> bool {
             | "TVDEVICEPROPERTIES"
             | "ACDBPOINTCLOUDDEF"
             | "POINTCLOUDDEF"
+            | "ACDBPOINTCLOUDDEF_EX"
             | "ACDBPOINTCLOUDDEFEX"
             | "POINTCLOUDDEFEX"
             | "ACDBPOINTCLOUDDEF_REACTOR"
@@ -747,14 +748,21 @@ fn class_dxf_point_cloud_ramps(
 ) -> Vec<PointCloudColorRamp> {
     let mut result = Vec::new();
     for _ in 0..fields.i32(section, 90).max(0).min(100_000) {
+        let id = fields.string(section, 1);
         let class_version = fields.i16(section, 70);
-        let mut color_schemes = Vec::new();
+        let mut colors = Vec::new();
         for _ in 0..fields.i32(section, 90).max(0).min(100_000) {
-            color_schemes.push(fields.string(section, 1));
+            let color = fields.i32(section, 91);
+            colors.push(crate::objects::PointCloudRampColor {
+                color,
+                visible: fields.bool(section, 290),
+            });
         }
         result.push(PointCloudColorRamp {
+            id,
             class_version,
-            color_schemes,
+            colors,
+            name: fields.string(section, 1),
         });
     }
     result
@@ -5534,7 +5542,7 @@ impl<'a> SectionReader<'a> {
             "ACDBPOINTCLOUDDEF" | "POINTCLOUDDEF" => ClassObjectData::PointCloudDefinition(
                 class_dxf_point_cloud_definition(&mut fields, "AcDbPointCloudDef"),
             ),
-            "ACDBPOINTCLOUDDEFEX" | "POINTCLOUDDEFEX" => ClassObjectData::PointCloudDefinitionEx(
+            "ACDBPOINTCLOUDDEF_EX" | "ACDBPOINTCLOUDDEFEX" | "POINTCLOUDDEFEX" => ClassObjectData::PointCloudDefinitionEx(
                 class_dxf_point_cloud_definition(&mut fields, "AcDbPointCloudDefEx"),
             ),
             "ACDBPOINTCLOUDDEF_REACTOR" | "POINTCLOUDDEF_REACTOR" => {

@@ -51,14 +51,21 @@ fn read_render_settings(
 fn read_point_cloud_ramps(reader: &mut DwgMergedReader) -> Vec<PointCloudColorRamp> {
     let mut result = Vec::new();
     for _ in 0..count(reader.read_bit_long()) {
+        let id = reader.read_variable_text();
         let class_version = reader.read_bit_short();
-        let mut color_schemes = Vec::new();
+        let mut colors = Vec::new();
         for _ in 0..count(reader.read_bit_long()) {
-            color_schemes.push(reader.read_variable_text());
+            let color = reader.read_bit_long();
+            colors.push(PointCloudRampColor {
+                color,
+                visible: reader.read_bit(),
+            });
         }
         result.push(PointCloudColorRamp {
+            id,
             class_version,
-            color_schemes,
+            colors,
+            name: reader.read_variable_text(),
         });
     }
     result
@@ -741,7 +748,7 @@ pub fn read_class_object_data(
         "ACDBPOINTCLOUDDEF" | "POINTCLOUDDEF" => {
             ClassObjectData::PointCloudDefinition(read_point_cloud_definition(reader))
         }
-        "ACDBPOINTCLOUDDEFEX" | "POINTCLOUDDEFEX" => {
+        "ACDBPOINTCLOUDDEF_EX" | "ACDBPOINTCLOUDDEFEX" | "POINTCLOUDDEFEX" => {
             ClassObjectData::PointCloudDefinitionEx(read_point_cloud_definition(reader))
         }
         "ACDBPOINTCLOUDDEF_REACTOR" | "POINTCLOUDDEF_REACTOR" => {
