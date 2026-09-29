@@ -1,21 +1,42 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
-# queue is PENDING-ZERO AGAIN after the EIGHTH QUEUE PACKET (this
-# continuation): the gen_all cylinder wiring row (the BFS ordering
-# packet's one re-opened row, "point before straight-curve", 2
-# occurrences) FELL — the gen_all's Solid3D/Body carried a
-# hand-built SEAM cylinder whose only straight-curve hung on the
-# seam edge (whose BFS token-walk lands after the vertex walks —
-# the points raced ahead of the straight-curve); the shape had NO
-# authored counterpart (Cylinder_2018 carries no vertical seam —
-# its loops are single closed-coedge circles), so the honest fix
-# REMOVED the inauthentic shape: the gen_all now carries the
-# authored-convention seam-less cylinder the primitive builder
-# (build_cylinder) and the §20 fixtures use — sab_form 2 rows
-# (0 pending / 2 TOLERATED) / sh_genus 1 (0 pending / 1 TOLERATED)
-# / acds 0, `--strict` passes, the pin untouched, the identity
-# moved to `bb9971a421733e8f09b114bf44b614ee`/25,473 (the two SAB
-# carriers' content changed, an intended change; identical without
-# --features serde);
+# queue is PENDING-ZERO after the EIGHTH QUEUE PACKET, and the
+# record-identity residue is being worked down (this continuation,
+# two packets landed): (1) THE EIGHTH QUEUE PACKET — the gen_all
+# cylinder wiring row (the BFS ordering packet's one re-opened row,
+# "point before straight-curve", 2 occurrences) FELL: the gen_all's
+# Solid3D/Body carried a hand-built SEAM cylinder whose only
+# straight-curve hung on the seam edge (whose BFS token-walk lands
+# after the vertex walks); the shape had NO authored counterpart
+# (Cylinder_2018 carries no vertical seam), so the honest fix
+# REMOVED the inauthentic shape — the gen_all now carries the
+# authored-convention seam-less cylinder the primitive builder and
+# the §20 fixtures use; sab_form 2 rows (0 pending / 2 TOLERATED) /
+# sh_genus 1 (0/1) / acds 0, `--strict` passes, the identity moved
+# to `bb9971a421733e8f09b114bf44b614ee`/25,473 (identical without
+# serde); (2) THE MTEXT RECORD-IDENTITY PACKET (d81f864) — the
+# pre-2007 MTEXT drift closed with the VERBATIM WIRE-TEXT CAPTURE:
+# her example_2004 text `108\U+00B0` (escaped) vs example_2000's
+# identical text RAW 0xB0 — the authored wire form is AUTHOR DATA,
+# not a convention (the escape-always write rule was tried first
+# and REFUTED by the R2000 census, then reverted);
+# `read_variable_text_with_wire` returns the semantic text + the
+# pre-MIF-decode wire string; `MText.dwg_wire_text` carries it; the
+# writer's pre-2007 arm re-emits it verbatim (R2007+ keeps the
+# decoded value); the era censuses: example_2000 749/750,
+# example_2004 734/735 — the MTEXT rows fell, the identity UNMOVED,
+# the corpus 280 at 0/0/0/0, the suite 52 green;
+# THE DESIGNED NEXT PACKET — DATATABLE (type 531, the LAST
+# pre-2007 record-identity row): her 753 bytes = 196 main + a
+# 542-byte HANDLE STREAM of ~192 0x32-coded handles vs the modeled
+# rewrite 1157 — the typed layout (ClassObjectData::DataTable, an
+# invention: gold "Unhandled Class object 531", the ODA spec
+# documents nothing) LOSES her handle stream entirely and
+# over-emits +404 main bytes; the fix class = the byte-passthrough
+# pattern (the R2018 packet's wire-capture replay) on the
+# ClassObject path: the reader marks the regions after the common
+# parse, the writer replays verbatim, the typed model stays the
+# DXF/programmatic fallback; acceptance: the era censuses read
+# 750/750 + 735/735;
 # THE REWRITE-REJECTION CAMPAIGN IS CLOSED (2026-09-29, the
 # twelfth continuation): THE BYTE-PASSTHROUGH PACKET LANDED — the
 # three divergent-objects' classes (ACDBASSOCALIGNEDDIMACTIONBODY
@@ -1110,8 +1131,9 @@ python3 tests/gold_harness/record_size_census.py \
 # 536/536 (all three poison classes on AC1024); Constraints_2013
 # 160/160; example_2018 474/474 (+LINE rewrite: 473/474 + the
 # edited BLOCK_HEADER); example_2000 749/750 + example_2004
-# 733/735 (the residuals = DATATABLE/MTEXT, pre-existing — the
-# next record-identity packets)
+# 734/735 (the MTEXT rows fell at the wire-text-capture packet
+# d81f864; the one residual on each = DATATABLE, the designed next
+# packet — the byte-passthrough class on the ClassObject path)
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -1147,10 +1169,24 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the halt refresh - the queue-pending-zero + MTEXT packet
+       state (the DATATABLE next-packet design; this commit)
+d81f864 <feat> the MTEXT record-identity packet - the verbatim
+       pre-2007 wire-text capture (read_variable_text_with_wire +
+       MText.dwg_wire_text + the writer's pre-2007 verbatim arm);
+       the escape-always attempt REFUTED by the R2000 census and
+       reverted (the author-data lesson); era censuses 749/750 +
+       734/735 (MTEXT rows fell), corpus 280 0/0/0/0, suite 52,
+       identity UNMOVED; the DATATABLE row = the designed next
+       packet (the byte-passthrough class)
+2128b7d <feat> the eighth genus queue packet - the gen_all cylinder
+       wiring row closes and THE QUEUE IS PENDING-ZERO (the
+       inauthentic seam-cylinder shape removed; the gen_all carries
+       the authored-convention seam-less cylinder; --strict passes;
+       the identity to bb9971a4.../25,473)
 <docs> the post-closure halt refresh (the twelfth continuation:
 the rewrite-rejection campaign CLOSED - the top state + the arc
-item 15 + the verification gate + the standing facts re-recorded;
-this commit)
+item 15 + the verification gate + the standing facts re-recorded)
 29fa2cf <feat> the R2018 record-identity packet - byte-passthrough
        for the unmodeled drift classes (the rewrite-rejection
        closure): the 520/528/529 classes replay their captured wire
