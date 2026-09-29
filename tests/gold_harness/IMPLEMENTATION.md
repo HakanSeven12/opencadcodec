@@ -7766,9 +7766,14 @@ the BFS first-mention emission — the authored restore-file order
 PROVEN on 136/136 carriers; the era-profiled SAB header — `SabEra`,
 both adjudicated header rows retired through the genus match), and
 the probe — mechanized, then re-targeted per the maintainer's
-directives (BricsCAD V26 the default; AutoCAD 2027, the format's
-author, the strongest oracle; V18 legacy-only) — exposed TWO
-defects beyond every genus invariant. **(1) THE B-REP CONSTRUCTION
+directives (the DEFAULT run exercises BOTH loaders: BricsCAD V26
+via `DEFAULT_BCAD` and AutoCAD 2027 — the format's author, the
+strongest oracle — via `DEFAULT_ACAD`, every fixture under each
+with per-loader verdicts; V18 legacy-only via `--bcad`) — exposed
+TWO defects beyond every genus invariant. The null-extents
+sentinel is loader-specific and the classifier knows both:
+±1e80 under BricsCAD, ±1e20 under AutoCAD (measured, the
+both-loader verification run). **(1) THE B-REP CONSTRUCTION
 GAP (open)**: the constructed fixtures open everywhere but the
 B-rep never constructs — the ±1e80 null box under V18/V26 (V26's
 audit purges the entities), the LISP census abort under AutoCAD

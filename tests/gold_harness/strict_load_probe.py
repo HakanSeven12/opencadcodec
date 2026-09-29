@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""§20 strict_load_probe — the mechanized BricsCAD audit (the eighth-layer instrument).
+"""§20 strict_load_probe — the mechanized strict-loader audit (the eighth-layer instrument).
 
 The §20.4 recorded procedure for strict-loader verdicts is the user-run
-BricsCAD audit. This tool mechanizes the verifiable part of that
-procedure: it drives `bricscad.exe /b <script>` headless, and the
-script's LISP records the evidence a verdict needs — the 3DSOLID/
-REGION entity census, the modeler-forced bounding box (a healthy
-restore yields real extents; a failed restore yields the ±1e80 null
-sentinel), the post-audit census, and the drawing extents after
-ZOOM/Extents. The campaign's acceptance — "clean open + clean audit,
-the solids model" — is decided from those.
+loader audit. This tool mechanizes the verifiable part of that
+procedure: it drives the loader `/b <script>` (BricsCAD V26 by default,
+AutoCAD 2027 — the format's author — alongside it; the DEFAULT run
+exercises BOTH), and the script's LISP records the evidence a verdict
+needs — the 3DSOLID/REGION/BODY census, the modeler-forced bounding
+box (a healthy restore yields real extents; a failed restore yields
+the null-extents sentinel — ±1e80 under BricsCAD, ±1e20 under
+AutoCAD), the DBMOD/ERRNO pre/post-audit record, and the post-audit
+census. The campaign's acceptance — "clean open + clean audit, the
+solids model" — is decided from those.
 
-Validation (2026-09-29, BricsCAD V18 en_US, /b-script proven by the
-diag write): authored specimens 2007/2013/2018 all yield real
+Validation (2026-09-29, the /b-script proven by the diag write under
+both loaders): authored specimens 2007/2013/2018 all yield real
 extents (Box 0,0,0..1,2,3 across eras); the constructed corpus
-yields entity-count 1 with the ±1e80 null box at BOTH the current
-rank and the pre-rank code — the constructed-SAB restore gap is
-pre-existing and ordering-independent, and every historical
-BricsCAD reading was the error surface, not the restored-solid
-census (see the G-B/G-A records in IMPLEMENTATION.md §20.6).
+yields the null box at BOTH the current rank and the pre-rank code
+— the constructed-SAB restore gap is pre-existing and
+ordering-independent, and every historical loader reading was the
+error surface, not the restored-solid census (see the G-B/G-A
+records in IMPLEMENTATION.md §20.6).
 
 Limits, recorded: this BricsCAD build leaves LOGFILENAME unset
 (LOGFILEON produces no file), so the probe cannot capture the
@@ -85,9 +87,17 @@ while the surviving lines still tell the census story). The tool
 unlinks each result file before its launch so append mode never
 accumulates across runs.
 
-CLI: strict_load_probe.py [--probe-dir DIR] [--bcad EXE] [--probe NAME:DWG]...
-     Defaults probe the constructed genus corpus (regenerate it first
-     with genus_gates.py) against specimens Box_2007 (the control).
+CLI: strict_load_probe.py [--probe-dir DIR] [--loader both|bcad|acad]
+     [--bcad EXE] [--acad EXE] [--probe NAME:DWG]...
+The DEFAULT run exercises BOTH loaders (BricsCAD V26 via
+DEFAULT_BCAD and AutoCAD 2027 via DEFAULT_ACAD): every fixture is
+probed under each, with per-loader verdicts (the result files and
+report rows carry a __bcad/__acad suffix). Verdict vocabulary:
+MODELED (real extents) / NULL-BOX (the null-extents sentinel —
+±1e80 under BricsCAD, ±1e20 under AutoCAD; the B-rep did not
+construct) / NO-SOLID / AMBIGUOUS. The targets default to the
+constructed genus corpus (regenerate it first with genus_gates.py)
+plus the authored specimen Box_2007 (the control).
 
 Exit 0 prints the verdict table regardless; nonzero on launch failure.
 """

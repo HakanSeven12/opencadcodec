@@ -60,16 +60,19 @@
 # constructed-SAB, constructed-wrapper + authored-SAB, both now
 # openable, so a MODELED chimera localizes the B-rep blocker to
 # one side)
-# THE ORACLES: BricsCAD V26 (the directed default — "C:\Program
-# Files\Bricsys\BricsCAD V26 en_US\bricscad.exe", also the probe's
-# built-in DEFAULT_BCAD so a bare run uses it) + AUTOCAD 2027
-# (the format AUTHOR — "C:\Program Files\Autodesk\AutoCAD 2027\
-# acad.exe", pass via --bcad; the /b+LISP mechanism validated,
-# PROGRAM=acad, ACADVER 26.0s; its dialogs stall /b scripts — kill
-# the stalled instance BY PID, never by name: acad.exe is shared
-# with the maintainer's Civil 3D); V18 is LEGACY-ONLY (its
-# 2017-era modeler rejects content V26 accepts cleanly — the
-# maintainer hand-verified the split); THE DEFECT MAP
+# THE ORACLES: the probe's DEFAULT run exercises BOTH — BricsCAD
+# V26 (DEFAULT_BCAD — "C:\Program Files\Bricsys\BricsCAD V26
+# en_US\bricscad.exe") + AUTOCAD 2027 (DEFAULT_ACAD — the format
+# AUTHOR — "C:\Program Files\Autodesk\AutoCAD 2027\acad.exe"),
+# every fixture under each with per-loader verdicts (--loader
+# bcad/acad narrows; --bcad/--acad override the paths); the /b+
+# LISP mechanism validated under both (PROGRAM=acad, ACADVER
+# 26.0s); the null-extents sentinel is loader-specific (±1e80
+# BricsCAD, ±1e20 AutoCAD — the classifier knows both); an
+# AutoCAD dialog stall is killed BY PID, never by name (acad.exe
+# is shared with the maintainer's Civil 3D); V18 is LEGACY-ONLY
+# (its 2017-era modeler rejects content V26 accepts cleanly —
+# the maintainer hand-verified the split); THE DEFECT MAP
 # (V18/V26/ACAD2027):
 #   1. THE FILE-LEVEL REJECTION — CLOSED (the wireframe-synthesis
 #      fix above; the ACAD2027 "Errors found" dialog was the
