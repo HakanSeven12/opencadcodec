@@ -1,47 +1,42 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
-# THE STRICT LOADER UNDER TEST IS BRICSCAD V26 (the maintainer's
-# directive, 2026-09-29: V18 errors on the gen_all file while V26
-# opens it clean — V18's 2017-era modeler is NOT the acceptance
-# oracle; strict_load_probe.py's DEFAULT_BCAD now points at
-# "C:\Program Files\Bricsys\BricsCAD V26 en_US\bricscad.exe";
-# V18 remains available via --bcad for legacy-era evidence);
-# THE DEFECT MAP RE-VERIFIED UNDER V26 (all verdicts reproduced):
-#   - the fixtures (conversion arm) OPEN but NULL-BOX (±1e80), and
-#     V26's AUDIT PURGES the invalid entities (post-audit count 0,
-#     dbmod 1) — the B-rep still does not construct;
-#   - the binary-arm rewrite control (read(Region)+LINE) still
-#     REJECTED (count 0 at open);
-#   - the authored control Box_2018 MODELS (0,0,0..1,2,3) — the
-#     probe's discrimination holds under V26;
-#   - gen_all's own 3D entities under V26: the BODY null-boxes (and
-#     the census saw only the BODY — the REGION/3DSOLID appear to
-#     drop at open under V26's stricter load) — "clean open" (no
-#     error dialogs) is NOT "modeled": the maintainer's gen_all
-#     observation and the null-box finding are consistent
-# THE MAJOR FINDING (the AcceptNumbered assignment, iterated):
-# BRICSCAD REJECTS AT THE FILE LEVEL every constructed AC1032 write
-# that carries PRE-DECODED (is_binary, pre-carried sab_data) ACIS
-# entities in an EDITED document — the bisect attribution:
-#   REJECTED: both sab_swap chimeras (SAB swaps); read(Region)+LINE;
-#     fresh-doc + read-cloned binary region + LINE (fresh_pair);
-#     read(example_2018)+LINE (rewrite_control)
-#   OPENS:    fresh fixtures (entities carry SAT text → the
-#     SAT→SAB conversion arm runs at write); fresh + LINE only
-#     (line_only); the byte echoes; every authored original
-# THE POISON ARM: the AcDs-section emission for BINARY SAB entities
-# in edited (non-echo) documents — never covered by the corpus (all
-# four axes run unmodified roundtrips = the echo) and never covered
-# by the constructed corpus (the fixtures ride the conversion arm);
-# gold parses every rejected file CLEANLY (headers, CRCs, classes,
-# section_info all verified — no warnings), silver's own reader too
-# — the rejection is BricsCAD-strict-only; THE NEXT WORK: compare
-# the AcDs-container bytes of the minimal pair — Region.dwg (fresh,
-# conversion arm, opens) vs Region+LINE (read+edit, binary-queue
-# arm, rejected) — slot by slot; the suspects: the slot framing for
-# pre-decoded SAB (size fields, the history/slot header), the
-# entity's history/soft-pointer emission on the edit path
+# THE ORACLES: BricsCAD V26 (the directed default) + AUTOCAD 2027
+# (the format AUTHOR — "C:\Program Files\Autodesk\AutoCAD 2027\
+# acad.exe", the /b+LISP mechanism validated, PROGRAM=acad,
+# ACADVER 26.0s; its dialogs stall /b scripts — kill the stalled
+# instance BY PID, never by name: acad.exe is shared with the
+# maintainer's Civil 3D); THE TRIPLE-ORACLE DEFECT MAP (V18/V26/
+# ACAD2027 all agree):
+#   1. THE FILE-LEVEL REJECTION (the binary-SAB edited-document
+#      arm): V18 rejects, V26 rejects (count 0 at open), and
+#      ACAD2027 OPENS AN EXPLICIT "Open Drawing - Errors found"
+#      DIALOG — the author's own verdict naming the defect (the
+#      maintainer observed the stall live);
+#   2. THE B-REP CONSTRUCTION GAP (the conversion arm): the
+#      fixtures null-box under V18/V26 (V26's audit purges them,
+#      count 1→0); under ACAD2027 the entity LISP loop ABORTS on
+#      them (entget-level failure — stronger than a null box) and
+#      gen_all's audit purges one of three (3→2) — while gen_all
+#      OPENS CLEAN (no dialog: the maintainer's observation
+#      reconciled — clean open ≠ modeled);
+#   3. THE AUTHORED CONTROLS: Box_2018 MODELS in ALL THREE
+#      (0,0,0..1,2,3) — the probe discrimination holds everywhere.
+# THE POISON ARM (the file-level defect): the AcDs-section
+# emission for PRE-DECODED (is_binary) SAB entities in EDITED
+# documents — proven by the elimination matrix (REJECTED: both
+# chimeras, read+LINE ×2, fresh+cloned-binary-region+LINE; OPENS:
+# fresh fixtures [conversion arm], line_only, echoes, authored
+# originals); gold+silver parse every rejected file CLEANLY — the
+# rejection is strict-loader-only; THE NEXT WORK: the minimal
+# pair's AcDs container slot diff — Region.dwg (conversion arm,
+# opens) vs swap2/rewrite_control.dwg (binary arm, ACAD2027
+# "Errors found") — slot by slot via the G-C extractor; suspects:
+# the slot framing for pre-decoded SAB, the datavalue pairs, the
+# history/soft-pointer fields on the edit path; acceptance: the
+# binary-arm writes open with the census finding the entities;
+# THEN re-probe the fixtures (the B-rep question; the asmheader
+# version-string genus set is the next measured suspect)
 
 # The sustainer's question at this halt — does the fixture
 # null-box (the B-rep not constructing when the file DOES open) and

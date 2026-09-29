@@ -111,6 +111,21 @@ DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kil
 # (the maintainer hand-verified: V18 errors on the gen_all file,
 # V26 opens it clean). V18 remains available for legacy-era
 # evidence by passing --bcad explicitly.
+#
+# The AUTHOR'S ORACLE (the maintainer's alternative, same day):
+# AutoCAD 2027 — "C:\Program Files\Autodesk\AutoCAD 2027\acad.exe"
+# — the /b + LISP mechanism validated (PROGRAM=acad, ACADVER
+# 26.0s). Its verdicts are the strongest evidence: the binary-arm
+# rewrite control opens an EXPLICIT "Open Drawing - Errors found"
+# DIALOG (the defect named by the format author); the constructed
+# fixtures' entities abort the LISP entity loop (entget-level
+# failure, stronger than the null box); gen_all opens clean but
+# its audit purges one of three (3→2). CAVEATS: its dialogs stall
+# /b scripts (kill the stalled instance BY PID — acad.exe is
+# shared with the maintainer's Civil 3D; NEVER kill by name), and
+# an unhandled LISP error aborts to the script's next line (a
+# missing per-entity bbox line means the loop aborted on that
+# entity — itself a verdict).
 DEFAULT_BCAD = "C:\\Program Files\\Bricsys\\BricsCAD V26 en_US\\bricscad.exe"
 WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
                 "'/b','{scr}' -PassThru; "
