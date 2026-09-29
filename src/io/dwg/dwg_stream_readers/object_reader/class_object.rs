@@ -76,7 +76,12 @@ fn read_point_cloud_definition(reader: &mut DwgMergedReader) -> PointCloudDefini
         class_version: reader.read_bit_long(),
         source_filename: reader.read_variable_text(),
         is_loaded: reader.read_bit(),
-        point_count: reader.read_bit_long_long(),
+        // A 64-bit count stored as two raw longs, low half first.
+        point_count: {
+            let low = reader.read_raw_long() & 0xFFFF_FFFF;
+            let high = reader.read_raw_long();
+            low + (high << 32)
+        },
         extents_min: reader.read_3bit_double(),
         extents_max: reader.read_3bit_double(),
     }

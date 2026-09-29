@@ -71,7 +71,8 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.class_version);
         self.writer.write_variable_text(&value.source_filename);
         self.writer.write_bit(value.is_loaded);
-        self.writer.write_bit_long_long(value.point_count);
+        self.writer.write_raw_long(value.point_count as i32);
+        self.writer.write_raw_long((value.point_count >> 32) as i32);
         self.writer.write_3bit_double(value.extents_min);
         self.writer.write_3bit_double(value.extents_max);
     }
