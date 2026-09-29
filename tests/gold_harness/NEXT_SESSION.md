@@ -1,7 +1,7 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
-# queue is PENDING-ZERO after the EIGHTH QUEUE PACKET, and the
-# record-identity residue is being worked down (this continuation,
-# two packets landed): (1) THE EIGHTH QUEUE PACKET — the gen_all
+# queue is PENDING-ZERO after the EIGHTH QUEUE PACKET, and THE
+# PRE-2007 RECORD-IDENTITY RESIDUE IS CLOSED (this continuation,
+# three packets landed): (1) THE EIGHTH QUEUE PACKET — the gen_all
 # cylinder wiring row (the BFS ordering packet's one re-opened row,
 # "point before straight-curve", 2 occurrences) FELL: the gen_all's
 # Solid3D/Body carried a hand-built SEAM cylinder whose only
@@ -22,21 +22,45 @@
 # `read_variable_text_with_wire` returns the semantic text + the
 # pre-MIF-decode wire string; `MText.dwg_wire_text` carries it; the
 # writer's pre-2007 arm re-emits it verbatim (R2007+ keeps the
-# decoded value); the era censuses: example_2000 749/750,
-# example_2004 734/735 — the MTEXT rows fell, the identity UNMOVED,
-# the corpus 280 at 0/0/0/0, the suite 52 green;
-# THE DESIGNED NEXT PACKET — DATATABLE (type 531, the LAST
-# pre-2007 record-identity row): her 753 bytes = 196 main + a
-# 542-byte HANDLE STREAM of ~192 0x32-coded handles vs the modeled
-# rewrite 1157 — the typed layout (ClassObjectData::DataTable, an
-# invention: gold "Unhandled Class object 531", the ODA spec
-# documents nothing) LOSES her handle stream entirely and
-# over-emits +404 main bytes; the fix class = the byte-passthrough
-# pattern (the R2018 packet's wire-capture replay) on the
-# ClassObject path: the reader marks the regions after the common
-# parse, the writer replays verbatim, the typed model stays the
-# DXF/programmatic fallback; acceptance: the era censuses read
-# 750/750 + 735/735;
+# decoded value); (3) THE DATATABLE PACKET (4f9cd18) — the LAST
+# pre-2007 row fell with the FULL-RECORD RAW PASSTHROUGH (the
+# CsacDocumentOptions/Unknown precedent on the same write
+# dispatch, chosen over the write_wire_body regions replay
+# because her 4337-bit handle stream runs bit-continuous to the
+# byte-aligned record end with NO closing pad — a regions capture
+# could not distinguish her trailing data bits from pad):
+# `ClassObject` gains the `raw_dwg_data`/`raw_dwg_handle_bits`/
+# `raw_dwg_version` envelope fields (serde(skip) — the JSON dump
+# and the differ never see them, the fingerprint parity holds);
+# the builder's generic class dispatch captures the whole record
+# payload for the DATATABLE class at DWG read; the writer's
+# ClassObject arm replays via `register_raw_object` BEFORE the
+# typed emission, gated on `raw_passthrough_compatible`
+# (same-version writes; conversions fall back to the modeled
+# path — the no-authority typed layout stays the
+# DXF/programmatic fallback); **ACCEPTANCE: the era censuses read
+# example_2000 750/750 + example_2004 735/735 — ZERO divergent
+# records; EVERY MEASURED ERA SPECIMEN NOW AT FULL RECORD
+# IDENTITY** (R2000 750/750, R2004 735/735, Constraints_2010
+# 216/216, example_2010 536/536, Constraints_2013 160/160,
+# example_2018 474/474; the +LINE rewrite 473/474 + the edited
+# BLOCK_HEADER); example_2018 carries NO DATATABLE instances so
+# the rewrite-rejection acceptance stands; the battery green
+# end-to-end (suite 52, mirrors, corpus 280 at 0/0/0/0 with the
+# genus sections 2/1/0 pending-zero, identity UNMOVED, AC1021
+# survey 0 divergent);
+# THE NEXT WORK — the B-rep construction gap (defect 2, the
+# conversion arm, OPEN): the constructed fixtures still read
+# NULL-BOX/NO-SOLID under ACAD 2027 (re-probed at the
+# byte-passthrough halt: unchanged — the file-level fixes did NOT
+# move the null box; the B-rep gap is a SEPARATE root); the
+# remaining measured lead: the asmheader version-string genus
+# swap probe {223.0.1.1930 / 232.6.0.65535} (the slot's
+# datblad/stream identity bytes) — worth one swap probe; then the
+# chimera experiments RE-RUN (the SAB-vs-wrapper blame-split the
+# rejection blocked: authored-wrapper + constructed-SAB,
+# constructed-wrapper + authored-SAB, both now openable, so a
+# MODELED chimera localizes the B-rep blocker to one side);
 # THE REWRITE-REJECTION CAMPAIGN IS CLOSED (2026-09-29, the
 # twelfth continuation): THE BYTE-PASSTHROUGH PACKET LANDED — the
 # three divergent-objects' classes (ACDBASSOCALIGNEDDIMACTIONBODY
@@ -1130,10 +1154,11 @@ python3 tests/gold_harness/record_size_census.py \
 # measured at this halt: Constraints_2010 216/216; example_2010
 # 536/536 (all three poison classes on AC1024); Constraints_2013
 # 160/160; example_2018 474/474 (+LINE rewrite: 473/474 + the
-# edited BLOCK_HEADER); example_2000 749/750 + example_2004
-# 734/735 (the MTEXT rows fell at the wire-text-capture packet
-# d81f864; the one residual on each = DATATABLE, the designed next
-# packet — the byte-passthrough class on the ClassObject path)
+# edited BLOCK_HEADER); example_2000 750/750 + example_2004
+# 735/735 — ZERO divergent records (the MTEXT rows fell at the
+# wire-text-capture packet d81f864; the DATATABLE row fell at the
+# full-record raw-passthrough packet 4f9cd18; EVERY MEASURED ERA
+# SPECIMEN AT FULL RECORD IDENTITY)
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -1169,8 +1194,22 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
-<docs> the halt refresh - the queue-pending-zero + MTEXT packet
-       state (the DATATABLE next-packet design; this commit)
+<docs> the halt refresh - the pre-2007 record-identity residue
+       CLOSED (the DATATABLE packet 4f9cd18; every measured era
+       specimen at full record identity; the B-rep gap the next
+       work; this commit)
+4f9cd18 <feat> the DATATABLE record-identity packet - the
+       full-record raw passthrough (the CsacDocumentOptions/
+       Unknown precedent on the ClassObject path; the
+       raw_dwg_data/raw_dwg_handle_bits/raw_dwg_version envelope
+       fields, serde(skip); register_raw_object replay gated on
+       raw_passthrough_compatible); ACCEPTANCE: example_2000
+       750/750 + example_2004 735/735 - ZERO divergent records;
+       the battery green end-to-end (suite 52, mirrors, corpus
+       280 0/0/0/0 genus 2/1/0 pending-zero, identity UNMOVED,
+       AC1021 survey 0 divergent)
+0c2b9e9 <docs> the halt refresh - the queue-pending-zero + MTEXT packet
+       state (the DATATABLE next-packet design)
 d81f864 <feat> the MTEXT record-identity packet - the verbatim
        pre-2007 wire-text capture (read_variable_text_with_wire +
        MText.dwg_wire_text + the writer's pre-2007 verbatim arm);
