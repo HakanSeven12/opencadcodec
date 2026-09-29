@@ -13992,10 +13992,17 @@ impl<'a> SectionReader<'a> {
                     ucs_z_direction.add_coordinate(&pair);
                 }
                 290 if crop.is_none() => locked = pair.as_i16().unwrap_or(0) != 0,
-                330 if current_subclass == "AcDbPointCloud" => {
+                // The definition is 340 under AcDbPointCloudEx (330 in files
+                // written with the older AcDbPointCloud subclass).
+                330 | 340
+                    if current_subclass == "AcDbPointCloud"
+                        || current_subclass == "AcDbPointCloudEx" =>
+                {
                     definition_handle = parse_dxf_handle(&pair.value_string)
                 }
-                360 if current_subclass == "AcDbPointCloud" => {
+                360 if current_subclass == "AcDbPointCloud"
+                    || current_subclass == "AcDbPointCloudEx" =>
+                {
                     reactor_handle = parse_dxf_handle(&pair.value_string)
                 }
                 1 => {

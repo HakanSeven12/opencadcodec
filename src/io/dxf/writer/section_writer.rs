@@ -3339,7 +3339,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     }
 
     fn write_point_cloud_ex_dxf(&mut self, data: &PointCloudExData) -> Result<()> {
-        self.writer.write_subclass("AcDbPointCloud")?;
+        self.writer.write_subclass("AcDbPointCloudEx")?;
         self.writer.write_i16(70, data.class_version)?;
         self.writer.write_point3d(10, data.extents_min)?;
         self.writer.write_point3d(11, data.extents_max)?;
@@ -3348,7 +3348,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_point3d(211, data.ucs_y_direction)?;
         self.writer.write_point3d(212, data.ucs_z_direction)?;
         self.writer.write_bool(290, data.locked)?;
-        self.writer.write_handle(330, data.definition_handle)?;
+        self.writer.write_handle(340, data.definition_handle)?;
         self.writer.write_handle(360, data.reactor_handle)?;
         self.writer.write_string(1, &data.name)?;
         self.writer.write_bool(291, data.show_intensity)?;
@@ -3383,6 +3383,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_point3d(13, *point)?;
             }
         }
+        // Two further lists the reference writes empty.
+        self.writer.write_i32(93, 0)?;
+        self.writer.write_i32(93, 0)?;
         Ok(())
     }
 
