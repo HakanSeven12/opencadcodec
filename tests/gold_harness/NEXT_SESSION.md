@@ -1,99 +1,121 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
-# THE REWRITE-REJECTION CAMPIGN, mid-state (2026-09-29, the
-# eleventh continuation): the MINIMAL rewrite (Region+LINE) is
-# CLEARED (the wireframe-synthesis fix, 1ad2509 — AutoCAD 2027
-# opens it clean, the audit keeps the entity); the BIG authored
-# rewrite (example_2018+LINE) is STILL REJECTED by AutoCAD 2027
-# (the maintainer observed the stalled open live); THE R2018
-# RECORD-IDENTITY CENSUS (NEW — the era was never record-verified;
-# the survey is AC1021-only) found 7 divergent objects and TWO
-# fixes LANDED: the wireframe synthesis + the SPLINE WIRE-SCENARIO
-# capture (34c75d0: the authored splines carry scenario BL=1 over
-# fit-point storage; the reader now captures the wire BL and the
-# writer re-emits it verbatim while the storage body still
-# derives); THE REMAINING POISON CANDIDATES: the three
-# constraint-graph objects (types 520/528/529 — the ACDBASSOC*
-# classes of the §19 authority closure) with PAYLOAD DRIFT on
-# re-encode (26105→25410, 14290→14087, bitsize 55→53 — silver
-# re-encodes them from its model and the bytes drift); THE
-# DESIGNED NEXT PACKET: byte-passthrough (or field-exact
-# re-encode) for the unmodeled ACDBASSOC* classes on the rewrite
-# path; acceptance: the example_2018+LINE rewrite opens in
-# AutoCAD 2027 with the census finding the entities; then the
-# corpus battery + the B-rep question (the fixtures still
-# null-box — the conversion arm's own defect, unchanged)
+# THE REWRITE-REJECTION CAMPAIGN IS CLOSED (2026-09-29, the
+# twelfth continuation): THE BYTE-PASSTHROUGH PACKET LANDED — the
+# three divergent-objects' classes (ACDBASSOCALIGNEDDIMACTIONBODY
+# 520, ACAD_TABLE 528, TABLECONTENT 529) replay their captured wire
+# VERBATIM on the rewrite path (the reader marks the three body
+# regions after the common parse — main bits from the body start to
+# the main-data end, the text-region bits, the handle-tail from the
+# post-common drain position with the author's closing 1s pad
+# trimmed — and the writer re-emits the bits, re-creating the pad;
+# the replay gates on the captured source DxfVersion so a
+# conversion to another era falls back to the modeled emission);
+# THE ACCEPTANCE LANDED LIVE: the example_2018+LINE rewrite OPENS
+# IN AUTOCAD 2027 — census 3 (all solids/regions found), real
+# extents, NO error dialog in the window transcript, probe-end
+# reached, and the audit behavior is IDENTICAL to the authored
+# original (dbmod 1 on BOTH files — the author's own audit trait,
+# measured by the Original2018 baseline probe; the post-audit
+# census keeps 3 with extents preserved); the rewrite's record
+# census: 473/474 records BYTE-IDENTICAL (size + CRC-16), the one
+# divergent record = the model-space BLOCK_HEADER carrying the
+# added LINE (the edit's own footprint) + the our-only LINE handle;
+# THE GATE WIDENED BY MEASUREMENT: the TableContent
+# modeled-emission drift exists on EVERY era the class rides
+# (AC1015 example_2000 h=9BC her 8317 bits vs our modeled 8114;
+# AC1018 example_2004 h=ADB 8316 vs 8113 — the 203-byte class
+# signature the AC1021 landing measured on h=BF2; AC1024+ the
+# R2018 poison) — the capture covers them all: example_2000
+# 749/750, example_2004 733/735, example_2010 536/536 (the file
+# that carries ALL THREE classes on the AC1024 frame — the replay
+# verified byte-exact there), Constraints_2010 216/216,
+# Constraints_2013 160/160, example_2018 474/474; THE
+# NEWLY-VISIBLE RESIDUE (the widened census instrument walks every
+# record now — the old era censuses' smaller populations never
+# saw these rows): DATATABLE (example_2000 754→1167;
+# example_2004 753→1157 — a modeled over-emission) + MTEXT
+# (example_2004 h=44C 100→94) — the NEXT record-identity packets,
+# pre-existing (proven by the stash A/B), out of today's scope;
+# THE SUSTAINER'S QUESTION ANSWERED (the same battery): the
+# constructed fixtures re-probed under ACAD 2027 — every one
+# NULL-BOX/NO-SOLID (the entity aborts the modeler with
+# "Automation Error. Invalid input"; the audit purges) — the
+# AcDs/wireframe fix did NOT move the null box: THE B-REP
+# CONSTRUCTION GAP IS A SEPARATE ROOT on the conversion arm, still
+# open (the candidates 1–6 genus work stands as genus-matching; the
+# remaining measured lead: the asmheader version-string genus swap
+# probe {223.0.1.1930 / 232.6.0.65535}); THE BATTERY GREEN
+# END-TO-END: the suite 52 segments 0 failed — INCLUDING the four
+# PRE-EXISTING reds the 34c75d0 spline packet left (deep_r2000/
+# r2013/r2018 + rt_spline: the constructed model's dwg_wire_scenario
+# None vs the wire-decoded Some(storage) asymmetry — proven
+# pre-existing by the stash A/B, then FIXED test-side: the
+# constructed doc is given the derived Some(storage) its own write
+# emits, mirroring write_spline_data, so the value comparison stays
+# armed while the None≡Some wire-capture artifact stops reading
+# as a regression), the mirrors green, the four family smokes
+# 0/0/0/0 (after the normalizer's wire-channel projection: the
+# wire captures are writer-side codec channels with no gold
+# counterpart — the source_version precedent — popped
+# loop-universal for every object/entity so the read axis stays
+# semantic), the corpus 280 at 0/0/0/0 with the genus sections
+# 3/1/0 (the one pending row the known gen_all wiring), the AC1021
+# survey 58/58 / 0 divergent, the identity UNMOVED
+# (0e953809…/25,473 — fresh writes never hit the capture-replay
+# arm), the circle echo byte-identical; THE INSTRUMENT LANDED:
+# tests/gold_harness/record_size_census.py — the handle-keyed
+# record-identity census (size + hdlsize + bitsize + CRC-16) for
+# ANY pair on ANY era (the pre-2010 [BS] block form + the R2010+
+# [BOT]/UMC form; a new block header is the record-flush boundary
+# for the pre-2010 logs that print no `< Next object:` separator),
+# the era-census + rewrite-acceptance gate; DWG_NO_ECHO=1
+# target/debug/dwgrewrite stages the conventional-arm rewrite to
+# census against; the README step-7b + inventory entries updated
 
-# [THE WIREFRAME FIX DETAIL, 1ad2509 — cleared the MINIMAL case]
-# The root cause was NEVER the AcDs container — it was the
-# WIREFRAME-BLOCK SYNTHESIS on the rewrite path: silver's reader synthesizes `point_of_reference`
-# (geometry centre / placement) for entities whose wire carries no
-# anchor, and the writer's wireframe gate treated the synthesized
-# point as wire presence (`point != Vector3::ZERO`) — re-emitting a
-# COMMON_3DSOLID wireframe block the original never had (the
-# entity field diff: exactly `wireframe_data_present` +
-# `wireframe_point_present` flipped true on the binary arm). THE
-# FIX (entities.rs `write_acis_wireframe`): the wireframe block
-# is WIRE STATE ONLY (the captured flags, wires, silhouettes) —
-# the two `point != ZERO` arms removed; a captured anchor arrives
-# with `wireframe_point_present` set, so nothing legitimate is
-# lost. THE TRIPLE-ORACLE VERIFICATION: AutoCAD 2027 opens the
-# fixed rewrite with NO dialog (census 1, the audit KEEPS it —
-# the "Errors found" oracle silenced); BricsCAD V26 opens it
-# (census 1 — live-verified with the process poller: pid + window
-# title + PROGRAM=BRICSCAD ver 26.0; the whole /b lifecycle is
-# ~15 s, so the window barely paints — the maintainer confirmed
-# seeing it on the verification run); V26's audit still purges
-# (the B-rep gap — the OTHER defect, unchanged). GATES: the suite
-# 52 green, both mirrors green, the corpus 280 at 0/0/0/0, the
-# identity UNMOVED (0e953809…/25,473 — fresh writes never hit
-# the changed arm). THE NEXT WORK: the B-rep construction gap
-# (defect 2 below) — the fixtures open everywhere but the B-rep
-# never constructs (null-box / audit-purge / LISP-abort under
-# V18/V26/ACAD2027); candidates 1–6 closed every measured SAB
-# genus divergence; the remaining measured suspects: the
-# asmheader version-string genus set {223.0.1.1930,
-# 232.6.0.65535} (one swap probe), and — now unlocked by this
-# fix — the chimera experiments RE-RUN (the SAB-vs-wrapper
-# blame-split the rejection blocked: authored-wrapper +
-# constructed-SAB, constructed-wrapper + authored-SAB, both now
-# openable, so a MODELED chimera localizes the B-rep blocker to
-# one side)
-# THE ORACLES: the probe's DEFAULT run exercises BOTH — BricsCAD
-# V26 (DEFAULT_BCAD — "C:\Program Files\Bricsys\BricsCAD V26
-# en_US\bricscad.exe") + AUTOCAD 2027 (DEFAULT_ACAD — the format
-# AUTHOR — "C:\Program Files\Autodesk\AutoCAD 2027\acad.exe"),
-# every fixture under each with per-loader verdicts (--loader
-# bcad/acad narrows; --bcad/--acad override the paths); the /b+
-# LISP mechanism validated under both (PROGRAM=acad, ACADVER
-# 26.0s); the null-extents sentinel is loader-specific (±1e80
-# BricsCAD, ±1e20 AutoCAD — the classifier knows both); an
-# AutoCAD dialog stall is killed BY PID, never by name (acad.exe
-# is shared with the maintainer's Civil 3D); V18 is LEGACY-ONLY
-# (its 2017-era modeler rejects content V26 accepts cleanly —
-# the maintainer hand-verified the split); THE DEFECT MAP
-# (V18/V26/ACAD2027):
-#   1. THE FILE-LEVEL REJECTION — CLOSED (the wireframe-synthesis
-#      fix above; the ACAD2027 "Errors found" dialog was the
-#      naming evidence);
-#   2. THE B-REP CONSTRUCTION GAP (the conversion arm, OPEN):
-#      the fixtures null-box under V18/V26 (V26's audit purges
-#      them, count 1→0); under ACAD2027 the entity LISP loop
-#      ABORTS on them (entget-level failure) and gen_all's audit
-#      purges one of three (3→2) — while gen_all OPENS CLEAN (no
-#      dialog — clean open ≠ modeled);
-#   3. THE AUTHORED CONTROLS: Box_2018 MODELS in ALL THREE
-#      (0,0,0..1,2,3) — the probe discrimination holds everywhere.
-
-# The sustainer's question at this halt — does the fixture
-# null-box (the B-rep not constructing when the file DOES open) and
-# the file rejection share one root? Likely related: both live on
-# the AcDs/SAB write arms; the rejection arm proven above, the
-# B-rep question on the conversion arm. But candidates 1-6 closed
-# every measured SAB genus divergence and the null-box persists
-# — after the AcDs fix, re-probe the fixtures FIRST (the fix may
-# move the null box), then the SAB question stands.
+# [THE BYTE-PASSTHROUGH MECHANISM — the packet's one design]
+# The §19 H8h-ext-12 AC1021 TABLECONTENT capture was the template:
+# for the classes whose typed re-encode drifts from the author's
+# bytes (silver's model walks the frame but drops form content the
+# model never retained — 528 loses the cell-style/border
+# sub-structures it reads only "to stay positioned"; 529 loses
+# the same content class; 520 loses 2 body bits), the read marks
+# the record's class-specific regions BEFORE the typed walk
+# (dwg_document_builder.rs wire_capture_marks: body_start = the
+# main cursor after the common fields; main_end; text_len;
+# handle_from = the handle cursor after the common handle reads)
+# and peeks them AFTER (capture_wire_body — peek does not move
+# the cursors); the write replays them verbatim
+# (dwg_stream_writers/object_writer/common.rs write_wire_body:
+# the main bits bit-for-bit, the text bits raw into the text
+# stream, the handle bits with the author's final 1s pad
+# re-created — the reader trimmed exactly her pad, corpus records
+# end byte-aligned or in a 0 bit so the trim never over-cuts).
+# THE GATES: the TABLE entity + the ALIGNEDDIM body capture on the
+# R2010+ frames (AC1024/AC1027/AC1032 — where the drift was
+# measured); TABLECONTENT on every era ≥ AC1015 (the widened
+# census measured the drift on every era the class exists);
+# AC1021 keeps its record-identity attested behavior (the 58/58
+# survey ran with the capture in place). The writer replays only
+# when the write targets the captured source DxfVersion
+# (wire_dxf_version) — a conversion falls back to the modeled
+# emission rather than emit foreign-frame bytes. The fields ride
+# the models (Table gains wire_dxf_version; AssociativeObject
+# gains the seven wire fields), serde-default so the fingerprint
+# sees them (read-only captures: parity holds), and the dump side
+# never sees them as comparison payload (the normalizer pops them
+# loop-universal). THE DEFECT MAP, FINAL (V18/V26/ACAD2027):
+# 1. THE FILE-LEVEL REJECTION — CLOSED (the wireframe synthesis +
+# the SPLINE wire-scenario + this byte-passthrough packet — ACAD
+# 2027 opens the edited R2018 rewrite with the census finding the
+# entities and the audit indistinguishable from her own file);
+# 2. THE B-REP CONSTRUCTION GAP (the conversion arm, OPEN): the
+# fixtures null-box under V18/V26 (V26's audit purges) and under
+# ACAD2027 the entity LISP aborts on them and the audit purges —
+# re-probed at this halt: UNCHANGED by the file-level fixes (the
+# separate-root answer); 3. THE AUTHORED CONTROLS: Box_2018
+# MODELS in all three loaders — the discrimination holds.
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
 > ZERO ON EVERY AXIS: 280 files, read-fidelity 0, write-fidelity 0,
@@ -420,7 +442,66 @@
     (pre/post-audit; gen_all's audit CHANGES the drawing — dbmod
     1 — while the standalone fixtures read 0).
 
+15. **The byte-passthrough packet (the twelfth continuation,
+    2026-09-29 — THE REWRITE-REJECTION CLOSURE)**: the designed
+    packet landed as specified: the three divergent-objects'
+    classes (520 ACDBASSOCALIGNEDDIMACTIONBODY, 528 ACAD_TABLE,
+    529 TABLECONTENT) capture their class body at read
+    (dwg_document_builder.rs wire_capture_marks + capture_wire_body —
+    the H8h-ext-12 TableContent template generalized; Table gains
+    wire_dxf_version; AssociativeObject gains the seven wire
+    fields) and replay it verbatim at write
+    (write_wire_body in the object_writer common — the main bits,
+    the text-region bits, the handle tail with the author's 1s pad
+    re-created; the replay gates on the captured source DxfVersion).
+    The gates widened by measurement: TABLECONTENT's drift exists on
+    every era the class rides — AC1015 example_2000 h=9BC (8317 vs
+    our modeled 8114) and AC1018 example_2004 h=ADB (8316 vs 8113),
+    the same 203-byte signature as the AC1021 h=BF2 landing — so the
+    capture covers ≥ AC1015; the TABLE entity + the aligned-dim
+    body capture on the R2010+ frames. THE ACCEPTANCE (the probe,
+    AutoCAD 2027): the example_2018+LINE rewrite OPENS — census 3,
+    real extents, no error dialog, probe-end; the authored-original
+    baseline probe reads IDENTICALLY (dbmod 1 on both files — the
+    author's own audit trait); the record census (the new
+    record_size_census.py): 473/474 byte-identical, only the edited
+    BLOCK_HEADER + the new LINE diverging. THE BATTERY: suite 52
+    (the four pre-existing 34c75d0 deep/rt-spline reds fixed
+    test-side — the wire-scenario sync), the mirrors green, the
+    four smokes 0/0 (the normalizer's loop-universal wire-channel
+    projection — the source_version precedent), the corpus 280 at
+    0/0/0/0 with the genus sections 3/1/0, the AC1021 survey
+    58/58, the era censuses 216+536+160+474+749/750+733/735 (the
+    two residuals = the newly-visible pre-existing DATATABLE/MTEXT
+    rows), the identity UNMOVED (0e953809…/25,473). THE SUSTAINER'S
+    QUESTION ANSWERED: the constructed fixtures re-probed under
+    ACAD 2027 — all NULL-BOX/NO-SOLID (the entity aborts the
+    modeler; the audit purges) — the file-level fixes did NOT move
+    the null box; the B-rep construction gap is a separate root on
+    the conversion arm, still open.
+
 ## THE NEXT WORK: the file-level rewrite rejection (the payload-swap experiment's finding) — THEN the SAB question
+
+**[CLOSED 2026-09-29, the twelfth continuation — the sections below
+are the historical mid-state]**: the rewrite rejection fell in
+three packets — the wireframe-block synthesis (1ad2509), the
+SPLINE wire-scenario capture (34c75d0), and the byte-passthrough
+packet (this session): the three divergent classes (520/528/529)
+replay their captured wire verbatim on the rewrite path; the
+example_2018+LINE rewrite opens in AutoCAD 2027 with the census
+finding all 3 solids/regions and the audit indistinguishable from
+her authored original (dbmod 1 on both — her own audit trait); the
+record census: 473/474 byte-identical, the one divergence the
+edited BLOCK_HEADER's own footprint. THE REMAINING WORK in this
+territory: (1) the B-rep construction gap (defect 2 — re-probed at
+this halt, the null box did NOT move; the asmheader version-string
+genus swap probe {223.0.1.1930 / 232.6.0.65535} is the remaining
+measured lead); (2) the newly-visible record-identity residue (the
+widened census walks every record now, populations the old era
+censuses never saw): DATATABLE (example_2000 754→1167, example_2004
+753→1157 — a modeled over-emission) + MTEXT (example_2004 h=44C
+100→94) — pre-existing per the stash A/B, the next censused
+packets.
 
 **THE CANDIDATE-6 RESULTS (2026-09-29, the eighth continuation)**:
 the sheet mirror LANDED in `build_region_sat` (the constructed
@@ -841,16 +922,16 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `e4cd19603fddc0eea8c91d407ed54af6`,
-  25,473 bytes (MOVED at the G-C, vertex, asmheader, tolerance, and
-  ordering packets — the constructed AcDs container, the vertex
-  role token, the asmheader record, the 1.0 res double, and the
-  authored-genus SAB record order changed; intended content
-  changes, re-recorded; the identity history: `84374e73…`/25,375
-  through the §20 landing → `4265c04a…`/25,407 at G-C →
-  `0e8b23cd…`/25,439 at the vertex packet → `a8f227e0…`/25,439 at
-  the asmheader packet → `a7c5f170…`/25,439 at the tolerance packet
-  → `e4cd1960…`/25,473 at the ordering packet). The generator
+- The generation identity is `0e9538092e37bedb44bc98e67f87d254`,
+  25,473 bytes (UNMOVED through the rewrite-campaign packets — the
+  wireframe fix, the spline wire-scenario, and the byte-passthrough
+  packet never touch a fresh write's bytes; verified fresh at this
+  halt; the identity history: `84374e73…`/25,375 through the §20
+  landing → `4265c04a…`/25,407 at G-C → `0e8b23cd…`/25,439 at the
+  vertex packet → `a8f227e0…`/25,439 at the asmheader packet →
+  `a7c5f170…`/25,439 at the tolerance packet → `e4cd1960…`/25,473
+  at the ordering packet → `0e953809…`/25,473 at the era-profiled
+  SAB header packet d1dd5ee). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -956,9 +1037,10 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# e4cd19603fddc0eea8c91d407ed54af6, 25,473 bytes (G-C + the vertex
-# role token + the asmheader record + the 1.0 res double + the
-# authored-genus record order moved it)
+# 0e953809…, 25,473 bytes (UNMOVED through the wireframe/spline/
+# byte-passthrough packets — fresh writes never hit the changed
+# arms; earlier history: e4cd1960… at the ordering packet, moved
+# by the era-profiled SAB header packet d1dd5ee)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -966,8 +1048,17 @@ python3 tests/gold_harness/record_identity_survey.py \
     "$GOLD_TESTDATA"/2007/*.dwg "$GOLD_TESTDATA"/example_2007.dwg \
     tests/gold_harness/tests/sh_history/*_2007.dwg
 
-# 4c. The era censuses (the handle-keyed -v9 comparison)
-# R2000 235/235, R2004 227/227, R2010 216/216, R2013 160/160
+# 4c. The era/record-identity censuses (record_size_census.py,
+#     handle-keyed, size+hdlsize+bitsize+CRC-16; DWG_NO_ECHO=1
+#     dwgrewrite stages the conventional rewrite)
+python3 tests/gold_harness/record_size_census.py \
+    <ORIG.dwg> <REWRITE.dwg>
+# measured at this halt: Constraints_2010 216/216; example_2010
+# 536/536 (all three poison classes on AC1024); Constraints_2013
+# 160/160; example_2018 474/474 (+LINE rewrite: 473/474 + the
+# edited BLOCK_HEADER); example_2000 749/750 + example_2004
+# 733/735 (the residuals = DATATABLE/MTEXT, pre-existing — the
+# next record-identity packets)
 
 # 5. The byte-identity check (the echo's acceptance, per family)
 cmp "$GOLD_TESTDATA/2007/circle.dwg" <RT_DIR>/circle_rt.dwg
@@ -987,17 +1078,36 @@ python3 tests/gold_harness/genus_gates.py     # the ranked report
 #      [DEFAULT_ACAD, the format author] — every fixture under each,
 #      per-loader verdicts; --loader bcad/acad narrows)
 python3 tests/gold_harness/strict_load_probe.py
-# the constructed fixtures currently read NULL-BOX (the B-rep
-# construction gap — the open campaign; the sentinel is ±1e80 under
-# BricsCAD, ±1e20 under AutoCAD — the classifier knows both); the
-# authored controls must read MODELED; the minimal rewrite
-# (Region+LINE) reads CLEAN after the wireframe fix; the big
-# authored rewrite (example_2018+LINE) is the live packet
+# the constructed fixtures still read NULL-BOX/NO-SOLID under ACAD
+# 2027 (re-probed at this halt — the B-rep construction gap is the
+# OPEN campaign, the null box did NOT move with the file-level
+# fixes; the sentinel is ±1e80 under BricsCAD, ±1e20 under
+# AutoCAD); the authored controls read MODELED; the
+# example_2018+LINE rewrite reads MODELED — census 3, real
+# extents, the audit indistinguishable from her authored original
 ```
 
 ## Commit inventory (this halt)
 
 ```
+<docs> the post-closure halt refresh (the twelfth continuation:
+the rewrite-rejection campaign CLOSED - the top state + the arc
+item 15 + the verification gate + the standing facts re-recorded;
+this commit)
+29fa2cf <feat> the R2018 record-identity packet - byte-passthrough
+       for the unmodeled drift classes (the rewrite-rejection
+       closure): the 520/528/529 classes replay their captured wire
+       verbatim; TableContent widened to >= AC1015 by measurement;
+       record_size_census.py the new instrument; the 34c75d0
+       spline test asymmetry fixed test-side; the normalizer's
+       wire-channel projection; ACCEPTANCE: the example_2018+LINE
+       rewrite opens in AutoCAD 2027 (census 3, real extents, the
+       audit identical to her authored original; record census
+       473/474 + the edited BLOCK_HEADER); corpus 280 at 0/0/0/0,
+       suite 52 green, era censuses all-identical except the
+       newly-visible pre-existing DATATABLE/MTEXT rows; the
+       fixtures re-probed NULL-BOX unchanged (the B-rep gap a
+       separate root)
 574a59e <docs> the post-H8h-ext-6 halt refresh (the prior halt head)
 a1a1506 <feat> H8h-ext-7: the SEQEND captured-flags fix (15 -> 14)
 b5e16b5 <docs> the post-H8h-ext-7 halt refresh
