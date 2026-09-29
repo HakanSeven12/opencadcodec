@@ -1,11 +1,33 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
-# THE FILE-LEVEL REJECTION IS CLOSED (2026-09-29, the tenth
-# continuation): the root cause was NEVER the AcDs container (the
-# minimal pair's containers were byte-identical, the SAB payloads
-# identical md5s) — it was the WIREFRAME-BLOCK SYNTHESIS on the
-# rewrite path: silver's reader synthesizes `point_of_reference`
+# THE REWRITE-REJECTION CAMPIGN, mid-state (2026-09-29, the
+# eleventh continuation): the MINIMAL rewrite (Region+LINE) is
+# CLEARED (the wireframe-synthesis fix, 1ad2509 — AutoCAD 2027
+# opens it clean, the audit keeps the entity); the BIG authored
+# rewrite (example_2018+LINE) is STILL REJECTED by AutoCAD 2027
+# (the maintainer observed the stalled open live); THE R2018
+# RECORD-IDENTITY CENSUS (NEW — the era was never record-verified;
+# the survey is AC1021-only) found 7 divergent objects and TWO
+# fixes LANDED: the wireframe synthesis + the SPLINE WIRE-SCENARIO
+# capture (34c75d0: the authored splines carry scenario BL=1 over
+# fit-point storage; the reader now captures the wire BL and the
+# writer re-emits it verbatim while the storage body still
+# derives); THE REMAINING POISON CANDIDATES: the three
+# constraint-graph objects (types 520/528/529 — the ACDBASSOC*
+# classes of the §19 authority closure) with PAYLOAD DRIFT on
+# re-encode (26105→25410, 14290→14087, bitsize 55→53 — silver
+# re-encodes them from its model and the bytes drift); THE
+# DESIGNED NEXT PACKET: byte-passthrough (or field-exact
+# re-encode) for the unmodeled ACDBASSOC* classes on the rewrite
+# path; acceptance: the example_2018+LINE rewrite opens in
+# AutoCAD 2027 with the census finding the entities; then the
+# corpus battery + the B-rep question (the fixtures still
+# null-box — the conversion arm's own defect, unchanged)
+
+# [THE WIREFRAME FIX DETAIL, 1ad2509 — cleared the MINIMAL case]
+# The root cause was NEVER the AcDs container — it was the
+# WIREFRAME-BLOCK SYNTHESIS on the rewrite path: silver's reader synthesizes `point_of_reference`
 # (geometry centre / placement) for entities whose wire carries no
 # anchor, and the writer's wireframe gate treated the synthesized
 # point as wire presence (`point != Vector3::ZERO`) — re-emitting a
