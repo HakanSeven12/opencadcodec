@@ -7943,3 +7943,46 @@ wire-text capture, this packet): R2000 750/750, R2004 735/735,
 R2010 216/216 + example_2010 536/536, R2013 160/160, R2018
 474/474 (the +LINE rewrite 473/474 + the edited BLOCK_HEADER) —
 every measured era specimen at full record identity.
+
+**The chimera blame-split — the B-rep gap is AT LEAST TWO
+DEFECTS (2026-09-29, the first experiment the closed rejection
+unlocked)**: the sab_swap chimeras re-built with the current code
+and probed under AutoCAD 2027 (the strict loader + the format
+author): both chimeras OPEN cleanly (probe-end, censuses run —
+the file-level closure extends to them) and both read
+NO-SOLID — but the two failures pin on TWO DIFFERENT arms, each
+proven by the same run's control (the rewrite control = her
+file + LINE reads MODELED: census 3, real extents, through the
+same binary arm — her wrapper emission and her SAB re-queue are
+both good): **(A) the authored wrapper + the CONSTRUCTED region
+SAB → NO-SOLID** — in a wrapper context proven good, so the
+CONSTRUCTED SAB STREAM ITSELF is a blocker, below every measured
+genus invariant (the candidate-6 mirror region: the sense chain
+ffff, the vertex int 2, the era-profiled header, the BFS order —
+the modeler rejects the stream anyway); **(B) the constructed
+wrapper + the AUTHORED plain-region SAB → NO-SOLID** — a SAB
+proven good, so the CONSTRUCTED WRAPPER carries a blocker too
+(the fixture's container/journal/entity emission; the G-C
+container is genus-correct yet her SAB dies inside it — and the
+HistoryTree fixture, which carries the SH tree, still
+null-boxes, so the tree alone does not satisfy the wrapper
+requirement). THE SUSTAINER'S SINGLE-ROOT QUESTION, FINAL
+ANSWER: the file rejection and the null box were separate roots
+(the former closed), and the null box itself is not even ONE
+root — it is (at least) TWO: the SAB stream and the wrapper.
+THE DESIGNED NEXT WORK, one packet per arm: (1) the SAB arm —
+the below-invariant record-level pair diff (her plain region's
+SAB vs the constructed region's, token by token per class
+through the shared walk_sab surface, with the face-chain-
+anchored isomorphism that the BFS-position pairing cannot
+provide — the earlier suspects list's last unrun arm); (2) the
+wrapper arm — the container/journal graph investigation (the
+ACAD_EVALUATION_GRAPH interposition 136/136 authored vs none in
+the fixtures; the persubent attrib; the stream identity bytes;
+the asmheader version-string genus set a one-probe candidate).
+The probe improvement for the finer census: per-entity
+vl-catch-all trapping — the current census measures only
+entity[0]'s bbox (the loop aborts on the first failure), so
+multi-entity probes leave later entities unmeasured; the
+chimera verdicts stand by elimination via the control, but the
+per-entity census makes multi-entity probes first-class.

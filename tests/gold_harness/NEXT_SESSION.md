@@ -49,18 +49,52 @@
 # end-to-end (suite 52, mirrors, corpus 280 at 0/0/0/0 with the
 # genus sections 2/1/0 pending-zero, identity UNMOVED, AC1021
 # survey 0 divergent);
-# THE NEXT WORK — the B-rep construction gap (defect 2, the
-# conversion arm, OPEN): the constructed fixtures still read
-# NULL-BOX/NO-SOLID under ACAD 2027 (re-probed at the
-# byte-passthrough halt: unchanged — the file-level fixes did NOT
-# move the null box; the B-rep gap is a SEPARATE root); the
-# remaining measured lead: the asmheader version-string genus
-# swap probe {223.0.1.1930 / 232.6.0.65535} (the slot's
-# datblad/stream identity bytes) — worth one swap probe; then the
-# chimera experiments RE-RUN (the SAB-vs-wrapper blame-split the
-# rejection blocked: authored-wrapper + constructed-SAB,
-# constructed-wrapper + authored-SAB, both now openable, so a
-# MODELED chimera localizes the B-rep blocker to one side);
+# THE CHIMERA BLAME-SPLIT — RUN AND DECISIVE (this continuation,
+# the first experiment the closed rejection unlocked): the sab_swap
+# chimeras re-built with the current code and probed under
+# AutoCAD 2027 — **BOTH SIDES CARRY THE BLOCKER: the B-rep
+# construction gap is AT LEAST TWO DEFECTS**: (A) the authored
+# wrapper + the CONSTRUCTED region SAB → NO-SOLID (entity count 3,
+# the first entity's bbox aborts "Automation Error. Invalid input")
+# — the wrapper is proven good by the rewrite control (her file +
+# LINE reads MODELED, census 3, real extents, through the same
+# binary arm), so **the constructed SAB STREAM itself is a
+# blocker**, below every measured genus invariant (the
+# candidate-6 mirror region: the sense chain ffff, the vertex int
+# 2, the era header, the BFS order — yet the modeler rejects it);
+# (B) the constructed wrapper + the AUTHORED plain-region SAB →
+# NO-SOLID — her SAB is proven good (the control models it), so
+# **the constructed WRAPPER carries a blocker too** (the fixture's
+# container/journal/entity emission — the G-C container is
+# genus-correct yet her SAB dies inside it); the two chimeras
+# OPEN cleanly at the file level (probe-end, censuses run — the
+# rewrite-rejection closure extends to the chimeras);
+# THE DESIGNED NEXT WORK — the two arms, one packet each:
+# (1) THE SAB ARM: the below-invariant record-level pair diff —
+# her plain region's SAB vs the constructed region's, token by
+# token per class through the walk_sab surface with the
+# face-chain-anchored isomorphism (the BFS-position pairing
+# diverges at the first mention-order difference — the
+# restore_gap_diffs.py instrument exists; the pre-divergence
+# rows + the semantic pair-diff are the surfaces; the earlier
+# suspects list's item (c) is the last unrun arm);
+# (2) THE WRAPPER ARM: the container/journal graph investigation
+# — the fixture's AcDs container + SH records vs her plain
+# region's (the G-C extraction tools walk both): the
+# ACAD_EVALUATION_GRAPH interposition (136/136 authored carriers
+# carry it; the fixtures carry none — even the HistoryTree
+# fixture, which carries the SH tree but still null-boxes, so
+# the tree alone does not satisfy the wrapper requirement);
+# the persubent attrib (journal-correlated) + the stream identity
+# bytes; the asmheader version-string genus set {223.0.1.1930,
+# 232.6.0.65535} (the slot's datblad/stream identity) remains a
+# one-probe candidate on this arm; the probe improvement for the
+# finer census: per-entity vl-catch-all trapping (the current
+# census measures only entity[0]'s bbox — the loop aborts on the
+# first failure, so a multi-entity file's later entities go
+# unmeasured; the chimeras' verdicts stand by elimination via
+# the control, but the per-entity census makes multi-entity
+# probes first-class);
 # THE REWRITE-REJECTION CAMPAIGN IS CLOSED (2026-09-29, the
 # twelfth continuation): THE BYTE-PASSTHROUGH PACKET LANDED — the
 # three divergent-objects' classes (ACDBASSOCALIGNEDDIMACTIONBODY
@@ -1194,10 +1228,22 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
-<docs> the halt refresh - the pre-2007 record-identity residue
-       CLOSED (the DATATABLE packet 4f9cd18; every measured era
-       specimen at full record identity; the B-rep gap the next
-       work; this commit)
+<docs> the halt refresh - the CHIMERA BLAME-SPLIT RUN (this
+       commit): the sab_swap chimeras re-built + probed under
+       ACAD 2027 — BOTH NO-SOLID with each arm proven by the
+       control: the constructed SAB stream is a blocker (A:
+       her wrapper + constructed SAB) AND the constructed
+       wrapper carries one (B: her SAB + constructed wrapper;
+       the HistoryTree fixture still null-boxes so the tree
+       alone is not it) — the B-rep gap is AT LEAST TWO
+       DEFECTS; the next work pinned one packet per arm (the
+       below-invariant SAB pair-diff + the container/journal
+       graph investigation); the per-entity census noted as the
+       probe improvement
+c24bc24 <docs> the halt refresh - the pre-2007 record-identity
+       residue CLOSED (the DATATABLE packet 4f9cd18; every
+       measured era specimen at full record identity; the B-rep
+       gap the next work)
 4f9cd18 <feat> the DATATABLE record-identity packet - the
        full-record raw passthrough (the CsacDocumentOptions/
        Unknown precedent on the ClassObject path; the
