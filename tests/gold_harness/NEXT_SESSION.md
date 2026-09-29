@@ -228,15 +228,23 @@ TOLERATED with the row kept as the recorded state).
   (60 rows) — the writer's `reorder_restore_file` rank vs the
   authored first-appearance genus; the investigation is done: the
   rank table at `sab.rs` inverts the authored order,
-  points-first/containers-last vs the authored lump → shell → face →
-  loop → surfaces → coedge → edge → vertex → curves → point; the
-  closure is a rank-table rewrite to the authored first-appearance
-  genus, body keeping rank 0 so the strict-restorer's
-  leading-top-level contract holds — but the §8.1.2 workflow demands
-  a strict-loader probe verdict on the re-ranked stream before the
-  rows fall, and the 2026-09-22 probe evidence must be re-tested
-  against the new order (BricsCAD V18 is on disk at
-  `/mnt/c/Program Files/Bricsys/BricsCAD V18 en_US`). Then the
+  points-first/containers-last vs the authored order. The designed
+  replacement rank (a verified linearization of the pinned
+  `order_constraints` DAG — zero violations, computed from the pin):
+  body 0, lump 1, transform 2, shell 3, face 4, loop 5, cone-surface
+  6, sphere-surface 7, torus-surface 8, plane-surface 9, coedge 10,
+  edge 11, vertex 12, ellipse-curve 13, straight-curve 14, point 15,
+  else 16 (the pin's persubent class sits between face and loop in
+  the authored order, but strip_for_sab removes attribs before the
+  reorder — it is the separate persubent row, not a rank entry).
+  Body keeps rank 0 so the strict-restorer's leading-top-level
+  contract holds — but the §8.1.2 workflow demands a strict-loader
+  probe verdict on the re-ranked stream before the rows fall, and
+  the 2026-09-22 probe evidence must be re-tested against the new
+  order (BricsCAD V18 is on disk at
+  `/mnt/c/Program Files/Bricsys/BricsCAD V18 en_US`; the recorded
+  probe procedure is USER-RUN BricsCAD — prepare the constructed
+  fixtures, the user opens/audits, the verdict decides). Then the
   persubent-attrib class (1 row, 11 occurrences — investigate the
   tree-correlation with the `--corpus-scan` specimen evidence first:
   the fixture family is tree-selected, so uniformity may be selection
@@ -511,18 +519,19 @@ b9cdd83 fix(dwg): the G-A tolerance packet - the authored 1.0
        row's 11 occurrences gone (sab_form 65 -> 64 rows,
        482 -> 471 occurrences); the identity moved to a7c5f170...
        (25,439 bytes)
-<fix> §20 the TOLERATED adjudication state: the ADJUDICATIONS table
-       in genus_gates.py (recorded strict-loader verdicts with
-       provenance; a listed row keeps its count as the recorded state,
-       gains status/verdict annotations + a markdown status column and
-       adjudication block, and falls out of the new pending_* counts;
-       --strict now asserts zero PENDING rows) — the ACIS-700 family
-       (header-magic-version, header-triple, product-strings; the
-       2026-09-21 strict-load zero + the 2026-09-22 region probe + the
-       author's identity rule) and G-B's constructed-tree elide marker
-       (the 2646f05 cylinder verdict) adjudicated; the primary counts
-       stay 64/1/0, the pending queue 61/0/0   (THIS SESSION'S
-       ADJUDICATION PACKET)
+a8fe585 fix(harness): the TOLERATED adjudication state - the genus
+       queue and its recorded verdicts (the pending queue 61/0/0) —
+       the ADJUDICATIONS table in genus_gates.py (recorded
+       strict-loader verdicts with provenance; a listed row keeps its
+       count as the recorded state, gains status/verdict annotations +
+       a markdown status column and adjudication block, and falls out
+       of the new pending_* counts; --strict now asserts zero PENDING
+       rows) — the ACIS-700 family (header-magic-version,
+       header-triple, product-strings; the 2026-09-21 strict-load
+       zero + the 2026-09-22 region probe + the author's identity
+       rule) and G-B's constructed-tree elide marker (the 2646f05
+       cylinder verdict) adjudicated; the primary counts stay 64/1/0,
+       the pending queue 61/0/0
 ```
 
 **PUSH STATE (2026-09-29)**: push after each landing per the
