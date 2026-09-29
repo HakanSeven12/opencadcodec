@@ -23,10 +23,19 @@ census (see the G-B/G-A records in IMPLEMENTATION.md §20.6).
 Limits, recorded: this BricsCAD build leaves LOGFILENAME unset
 (LOGFILEON produces no file), so the probe cannot capture the
 restorer's TEXT ("Data stream is empty", "missing logical in
-restore file"); the DB/modeler census is the measured surface. The
-app is a GUI process — each launch is bounded and killed on
-timeout; a missing/empty result file marks the fixture AMBIGUOUS,
-never clean.
+restore file") nor AUDIT's console report ("N errors found");
+the DB/modeler census is the measured surface. Two proxies stand
+in for the console text: (a) the modeling-failure DIALOG at OPEN
+is not console and not capturable by any script — it blocks before
+LISP runs; its measurable shadow is the ±1e80 null bbox (the
+authored controls' real extents prove the probe's discrimination);
+(b) AUDIT's effect is captured via DBMOD/ERRNO, recorded pre- and
+post-audit — DBMOD gaining bits means the audit CHANGED the
+drawing (found and fixed errors), which distinguishes a clean
+audit from a repairing one without the console text. The app is
+a GUI process — each launch is bounded and killed on timeout; a
+missing/empty result file marks the fixture AMBIGUOUS, never
+clean.
 
 The LOGSEC flush discipline (the evidence-survival rule): the
 script's LISP writes EVERY result section through a `LOGSEC`
@@ -65,7 +74,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO = SCRIPT_DIR.parents[1]
-SPECIMENS = REPO / "tests" / "sh_history"
+SPECIMENS = SCRIPT_DIR / "tests" / "sh_history"  # tests/gold_harness/tests/sh_history
 CONSTRUCTED = REPO / "target" / "genus_gates" / "constructed"
 
 DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kilo/strict_load_probe")
@@ -93,7 +102,7 @@ SCR_TEMPLATE = """_.OPEN
   (foreach l lines (write-line l f))
   (close f))
 (LOGSEC (list "probe: {name}"))
-(setq solids (ssget "_X" (list (cons 0 "3DSOLID,REGION"))))
+(setq solids (ssget "_X" (list (cons 0 "3DSOLID,REGION,BODY"))))
 (LOGSEC (list (strcat "open-entity-count: " (if solids (itoa (sslength solids)) "0"))))
 (if (and solids (> (sslength solids) 0))
   (progn
@@ -104,8 +113,12 @@ SCR_TEMPLATE = """_.OPEN
     (if (vl-catch-all-error-p r)
       (LOGSEC (list (strcat "bbox-FAIL: " (vl-catch-all-error-message r))))
       (LOGSEC (list r)))))
+(LOGSEC (list (strcat "pre-audit-dbmod: " (itoa (getvar "DBMOD")))
+        (strcat "pre-audit-errno: " (itoa (getvar "ERRNO")))))
 (command "_.AUDIT" "_Y")
-(setq solids2 (ssget "_X" (list (cons 0 "3DSOLID,REGION"))))
+(LOGSEC (list (strcat "post-audit-dbmod: " (itoa (getvar "DBMOD")))
+        (strcat "post-audit-errno: " (itoa (getvar "ERRNO")))))
+(setq solids2 (ssget "_X" (list (cons 0 "3DSOLID,REGION,BODY"))))
 (LOGSEC (list (strcat "post-audit-entity-count: " (if solids2 (itoa (sslength solids2)) "0"))))
 (if (and solids2 (> (sslength solids2) 0))
   (progn

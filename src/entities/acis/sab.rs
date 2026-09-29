@@ -399,42 +399,74 @@ impl SabWriter {
         out
     }
 
-    /// Restore-file record order: the body first (the strict restorer
-    /// takes the leading records as the top-level entities to restore
-    /// — the 2026-09-22 probe verdict preserved), then the remaining
-    /// classes in the authored first-appearance genus (§20: the pinned
-    /// order_constraints, linearized with zero violations — containers
-    /// before contents, definitions last): lump, transform, shell,
-    /// face, loop, the surface family (cone, sphere, torus, then
-    /// plane), coedge, edge, vertex, the curve family (ellipse, then
-    /// straight), point. Position-based ids are remapped across every
-    /// pointer token and the attribute field.
+    /// Restore-file record order: BFS first-mention traversal — the
+    /// authored genus's own emission rule, verified against the
+    /// authored Box_2018 stream (its full record sequence reproduces
+    /// exactly): seed with every `body` (the strict restorer takes
+    /// the leading records as the top-level entities to restore —
+    /// the 2026-09-22 probe verdict preserved), then walk the graph
+    /// breadth-first, each record emitted once at first mention —
+    /// the attribute pointer mentioned first, then the token
+    /// pointers in token order. Unreachable records follow in
+    /// index order; the `End-of-*` terminator stays last. An
+    /// authored-shaped document is already in BFS order, so the
+    /// traversal is the identity on it. Position-based ids are
+    /// remapped across every pointer token and the attribute field.
     fn reorder_restore_file(doc: &SatDocument) -> SatDocument {
-        let rank = |record: &SatRecord| -> u8 {
-            match record.entity_type.as_str() {
-                "body" => 0,
-                "lump" => 1,
-                "transform" => 2,
-                "shell" => 3,
-                "face" => 4,
-                "loop" => 5,
-                "cone-surface" => 6,
-                "sphere-surface" => 7,
-                "torus-surface" => 8,
-                "ellipse-curve" => 13,
-                _ => match base_entity_type(&record.entity_type) {
-                    "coedge" => 10,
-                    "edge" => 11,
-                    "vertex" => 12,
-                    "point" => 15,
-                    "surface" => 9,
-                    "curve" => 14,
-                    _ => 16,
-                },
+        let is_terminator =
+            |record: &SatRecord| record.entity_type.starts_with("End-of");
+        let in_range = |p: SatPointer| p.0 >= 0 && (p.0 as usize) < doc.records.len();
+
+        let mut order: Vec<usize> = Vec::with_capacity(doc.records.len());
+        let mut mentioned = vec![false; doc.records.len()];
+        let mut queue: Vec<usize> = Vec::with_capacity(doc.records.len());
+        let mut head = 0;
+
+        // Seed: every body record, in index order.
+        for (i, record) in doc.records.iter().enumerate() {
+            if record.entity_type == "body" && !mentioned[i] {
+                mentioned[i] = true;
+                queue.push(i);
             }
-        };
-        let mut order: Vec<usize> = (0..doc.records.len()).collect();
-        order.sort_by_key(|&old| rank(&doc.records[old]));
+        }
+        // BFS first-mention: attribute pointer first, then the token
+        // pointers in token order (the authored emission rule).
+        while head < queue.len() {
+            let i = queue[head];
+            head += 1;
+            order.push(i);
+            let record = &doc.records[i];
+            let mut targets: Vec<usize> = Vec::new();
+            if in_range(record.attribute) {
+                targets.push(record.attribute.0 as usize);
+            }
+            for token in &record.tokens {
+                if let SatToken::Pointer(p) = token {
+                    if in_range(*p) {
+                        targets.push(p.0 as usize);
+                    }
+                }
+            }
+            for target in targets {
+                if !mentioned[target] {
+                    mentioned[target] = true;
+                    queue.push(target);
+                }
+            }
+        }
+        // Orphans: unreachable non-terminators, in index order.
+        for (i, record) in doc.records.iter().enumerate() {
+            if !mentioned[i] && !is_terminator(record) {
+                mentioned[i] = true;
+                order.push(i);
+            }
+        }
+        // The terminator stays last.
+        for (i, record) in doc.records.iter().enumerate() {
+            if is_terminator(record) {
+                order.push(i);
+            }
+        }
         let mut old_to_new = vec![0i32; doc.records.len()];
         for (new_pos, &old) in order.iter().enumerate() {
             old_to_new[old] = new_pos as i32;
@@ -1838,12 +1870,13 @@ mod tests {
         let document = SatDocument::parse(sat).unwrap();
         let roundtrip = SabReader::read(&SabWriter::write(&document)).unwrap();
         // The asmheader record (the authored genus) shifts the stream
-        // by one, and the authored first-appearance genus ranks the
-        // transform before the face (§20: transform always precedes
-        // face in the pinned order) — so the parsed face lands at 2.
-        // The transform roundtrips its matrix as raw tag-20 blobs (the
-        // recorded SAB matrix form); its value arms check below.
-        assert_eq!(roundtrip.records[2].tokens, document.records[0].tokens);
+        // by one. This document carries no body, so the BFS
+        // first-mention traversal has no seed and the records keep
+        // their index order (the orphan rule) — the face stays first
+        // and lands at 1 after the asmheader. The transform
+        // roundtrips its matrix as raw tag-20 blobs (the recorded
+        // SAB matrix form); its value arms check below.
+        assert_eq!(roundtrip.records[1].tokens, document.records[0].tokens);
         assert_eq!(roundtrip.placement(), document.placement());
         let transform = roundtrip
             .records

@@ -1,19 +1,12 @@
-# Zero-context prompt — TARGET ZERO held everywhere; the §20 queue's
-# PENDING axis is ZERO (sab_form 4 rows / sh_genus 1 / 0 — every row
-# every remaining row adjudicated-TOLERATED on a recorded verdict);
-# THE BRICSCAD AUDIT IS NOW MECHANIZED (strict_load_probe.py) and its
-# verdict is recorded: the ordering packet EXONERATED (the modeling
-# failure is pre-existing and order-independent — both the current
-# rank and the pre-rank code yield the identical ±1e80 null box);
-# THE NEXT WORK: the restore gap, mid-campaign — candidates 1 and 2
-# LANDED (the modern coedge (int 0, ptr) form at the SAB boundary for
-# R2013+; the identity transform in the seven primitive builders —
-# both GENUS-VERIFIED, the gates 0-pending) but the probe still reads
-# the ±1e80 NULL BOX: CANDIDATE 3 (the authored traversal-interleaved
-# stream vs the class-grouped order) is the remaining suspect; the
-# packet is COMMITTED at 66d18f8 with the full battery green (corpus
-# 280 at 0/0/0/0, sections 4/1/0, suite + mirrors + smokes + echoes,
-# the identity 0b813a68…/25,473) — the next packet is candidate 3
+# Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
+# queue carries ONE pending row (the gen_all cylinder's loop-wiring
+# order, 2 occurrences — a fixture divergence, not a codec defect);
+# the restore-gap campaign: candidates 1+2+3 all LANDED and
+# genus-verified, the probe still reads the ±1e80 NULL BOX on every
+# constructed fixture while the authored control reads MODELED —
+# CANDIDATE 4 (the era-profiled SAB header: the flavor + the
+# constant-2 + the era field, all measured) is the designed next
+# packet; the corpus stays 0/0/0/0 on all four axes
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -312,6 +305,34 @@
     SAB diff (authored Box_2018 vs constructed Box, token-by-token
     per class through the shared walk_sab surface), with the probe
     as the acceptance gate.**
+14. **The candidate-3 packet — the BFS emission (the fourth
+    continuation session, 2026-09-29)**: the authored restore-file
+    order was derived and PROVEN: BFS first-mention traversal
+    (seed every body; each record emitted once at first mention —
+    the attribute pointer first, then the token pointers in token
+    order; FIFO; orphans in index order; the terminator last) —
+    **136/136 authored carriers reproduce their EXACT record
+    sequence** under it (the first "verification" was VACUOUS: the
+    probe tokenizer was missing the 0x0C pointer tag in its size
+    table, so every pointer read garbage and BFS degenerated to
+    the identity — the lesson is recorded: fix the instrument
+    before trusting its verdict). `reorder_restore_file`'s rank
+    table replaced by the BFS (the remap machinery untouched);
+    the SAB stream now carries the authored traversal-interleaved
+    order. **The probe verdict: still the ±1e80 NULL BOX on every
+    constructed fixture (the authored control MODELED — the
+    SPECIMENS path bug that silently skipped the control is
+    fixed)** — candidate 3 alone does not close the gap either.
+    The BFS re-opened ONE queue row (2 occurrences): the gen_all
+    cylinder's loop wiring reaches its base edges before the seam
+    edge, so its points precede its straight-curve — a FIXTURE
+    divergence (the authored Cylinder_2018 has NO vertical seam at
+    all: its loops are single closed-coedge circles; the example's
+    seam-cylinder shape has no authored counterpart) — the fix is
+    the example's side-loop coedge chain order, a small
+    follow-up. The probe also gained the DBMOD/ERRNO capture
+    (pre/post-audit; gen_all's audit CHANGES the drawing — dbmod
+    1 — while the standalone fixtures read 0).
 
 ## THE NEXT WORK: the constructed-SAB restore gap (the mechanized probe is the acceptance gate)
 
@@ -387,26 +408,38 @@ are genus-verified (gates 0-pending) but the probe STILL reads the
 NULL BOX** — the modeler still rejects the stream. The probe
 itself was fixed (the 0-byte mystery was BUFFERING, not stalls:
 every section now opens→writes→closes via a LOGSEC helper, so
-evidence survives any kill). **CANDIDATE 3 IS THE REMAINING
-SUSPECT**: the authored stream is topology-traversal interleaved
-(each face's loop follows the face, its surface, its coedges, its
-edges — parent-then-children depth-first) while the constructed
-stream is class-grouped (both satisfy the pinned first-appearance
-constraints, but the restorer may require the traversal shape).
-The designed fix: a traversal-order emission at the SAB boundary
-(walk body→lump→shell→faces→loops→coedges→edges→vertices→curves
-depth-first, emitting each record once) — a per-consumer assembly,
-NOT the class-rank sort; the genus gates' order constraints must
-stay satisfied (verify: the traversal order satisfies the pinned
-constraints — it IS the authored order). THE PACKET IS COMMITTED
-(66d18f8) with the full battery green: corpus 280 at 0/0/0/0 with
-the sections 4/1/0 (all TOLERATED, 0 pending), the full serde
-suite green, the gold_roundtrip + genus_gates mirrors green (the
-pin untouched), issue80 green, the four family smokes 0/0 with
-clean echoes, and the generation identity re-recorded at
-`0b813a68f6b8b47dcfe08e29d9b2e862` / 25,473 bytes (intended: the
-coedge form + the transform changed the constructed SAB). THE
-NEXT PACKET IS CANDIDATE 3.
+evidence survives any kill). **CANDIDATE 3 LANDED (the BFS emission, arc item 14)**: the
+authored order proven 136/136, `reorder_restore_file` now emits
+the BFS first-mention traversal, the probe still reads the NULL
+BOX — and the packet re-opened ONE queue row (the gen_all
+cylinder's loop-wiring order, 2 occurrences — a fixture
+divergence; the fix is the example's side-loop coedge chain).
+The candidates-1+2 packet is committed (66d18f8) with its battery
+green (corpus 280 at 0/0/0/0, the identity 0b813a68…/25,473).
+
+**CANDIDATE 4 — THE DESIGNED NEXT PACKET: the era-profiled SAB
+header.** The constructed stream's header is the last measured
+divergence class: the flavor ACIS|700 + the triple (0, 1, 0),
+against the authored era genus (measured on the specimens):
+R2007 (AC1021) ACIS|21200 + (0,2,26); R2010 (AC1024) ACIS|21500
++ (0,2,24); R2013 (AC1027) ACIS|21800 + (0,2,12); R2018
+(AC1032) ASM|22300 + (0,2,4). The second field is the CONSTANT 2
+across every authored carrier (even one-body files); the third
+is era-coded (26/24/12/4); the constructed writes 1 and 0. The
+designed fix: `write_modern` (the R2013 in-entity and AcDs
+paths) emits the era-correct magic + version + triple — R2018:
+ASM|22300 + (0,2,4); R2013: ACIS|21800 + (0,2,12). The PRODUCT
+STRINGS stay silver's own (the author-identity rule — the flavor
+and the triple are format fields, not identity). The
+header-triple adjudication (TOLERATED on the 2026-09-21
+load-acceptance) is SUPERSEDED by the finer probe measurement:
+the ACIS|700 stance LOADS (the entity layer resolves) but has
+never MODELED — the §20.4 rule applies (a genus expectation
+changes through a recorded probe verdict, and the probe now
+measures modeling). The acceptance gate: the probe reads MODELED
+with the authored controls green. If the header closes the gap,
+the gen_all wiring row and the flavor/triple re-pin close as
+follow-ups.
 
 - headers: authored ASM|22300 (0,2,4); constructed ACIS|700
   (0,1,0) — the adjudicated rows.
