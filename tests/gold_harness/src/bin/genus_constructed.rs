@@ -67,13 +67,22 @@ fn build_region_sat() -> SatDocument {
     let lump_idx = base + 7;
 
     let edges = [e0, e1, e2, e3];
+    // The authored sheet convention (2026-09-29, the candidate-6
+    // same-era region pair): the authored R2018 region's loop travels
+    // CW viewed from the plane normal — the mirror of this sheet's
+    // CCW winding — with every coedge REVERSED on the same edge
+    // canonicals and the next/prev ring reversed with them (the
+    // reversed traversal arrows chain head-to-tail only in the
+    // reversed ring order; a bare sense flip would break the loop).
+    // Verified on the authored stream: its traversal is v15→v14→
+    // v18→v20, CW around the +z normal, and it MODELS in BricsCAD.
     for i in 0..4i32 {
         sat.add_coedge(
-            ptr(co((i + 1) % 4)),
             ptr(co((i + 3) % 4)),
+            ptr(co((i + 1) % 4)),
             SatPointer::NULL,
             ptr(edges[i as usize]),
-            Sense::Forward,
+            Sense::Reversed,
             ptr(loop_idx),
         );
     }
@@ -104,6 +113,11 @@ fn build_region_sat() -> SatDocument {
     for i in 0..4usize {
         if let Some(r) = sat.record_mut(verts[i] as usize) {
             r.tokens[1] = SatToken::Pointer(ptr(edges[i]));
+            // The authored sheet convention (the candidate-6 same-era
+            // pair): every authored region vertex carries the int 2 —
+            // not the solid census's 0/1 roles. The authored region
+            // MODELS with 2 on all four vertices.
+            r.tokens[2] = SatToken::Integer(2);
         }
     }
 

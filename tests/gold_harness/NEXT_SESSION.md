@@ -1,16 +1,22 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue carries ONE pending row (the gen_all cylinder's loop-wiring
 # order, 2 occurrences — a fixture divergence, not a codec defect);
-# the restore-gap campaign: candidates 1+2+3+4 ALL LANDED and
-# genus-verified (the era-profiled header closed the last two
-# non-adjudicated rows — sab_form 5 → 3), the probe still reads the
-# ±1e80 NULL BOX on every constructed fixture while the authored
-# control reads MODELED; the era-profile packet's FULL BATTERY is
-# IN FLIGHT (finish it, commit, push); the console mechanism is
-# LANDED (the window-lifecycle scraper); THE NEXT INVESTIGATION:
-# the full record-by-record structural diff (every record, not
-# first-of-class) — the remaining divergence is below the class
-# level
+# the restore-gap campaign LANDED the candidate-6 sheet mirror (the
+# constructed region now matches the authored sheet on EVERY measured
+# invariant — senses ffff, vertex int 2, the era header, the BFS
+# order) and the probe STILL reads the ±1e80 NULL BOX; THE MAJOR NEW
+# FINDING: the payload-swap experiment (examples/sab_swap.rs) proved
+# the conventional arm's read→rewrite output (edited R2018 documents)
+# is REJECTED AT THE FILE LEVEL by BricsCAD — the window transcript
+# shows the OPEN never leaving [Drawing1] — while silver's own
+# reader decodes the same files fine (243 entities, SABs intact) and
+# the FRESH-document writes (the fixtures) open; THE NEXT WORK: the
+# file-level bisect of the fresh-write vs rewrite AC1032 output —
+# the minimal pair is Region.dwg (opens) vs swap_constructed_wrapper
+# .dwg (rejected): the SAME document content through the two write
+# paths; the corpus axes never caught this because every axis runs
+# unmodified roundtrips (the echo) — the edited-document write path
+# was never strict-loader-probed
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -338,7 +344,60 @@
     (pre/post-audit; gen_all's audit CHANGES the drawing — dbmod
     1 — while the standalone fixtures read 0).
 
-## THE NEXT WORK: the constructed-SAB restore gap (the mechanized probe is the acceptance gate)
+## THE NEXT WORK: the file-level rewrite rejection (the payload-swap experiment's finding) — THEN the SAB question
+
+**THE CANDIDATE-6 RESULTS (2026-09-29, the eighth continuation)**:
+the sheet mirror LANDED in `build_region_sat` (the constructed
+region now matches the authored R2018 region on EVERY measured
+invariant: the sense chain `ffff` + the reversed ring, the vertex
+int 2, the era-profiled header, the BFS order) — **the probe STILL
+reads the ±1e80 NULL BOX**. Both bisect arms are negative: the
+measured SAB stream is not the (whole) blocker.
+
+**THE PAYLOAD-SWAP EXPERIMENT (examples/sab_swap.rs — committed)**:
+two chimeras (authored example_2018 wrapper + constructed SAB;
+constructed wrapper + authored SAB) plus a pure-rewrite control
+(the authored doc + one LINE, region untouched). **ALL THREE FAIL
+TO OPEN IN BRICSCAD** — the window-lifecycle transcript (the
+scraper) proves it: the main-window title never leaves
+`[Drawing1]`; the censuses were measuring a BLANK drawing (the
+"zero entities" readings). Silver's own reader decodes the same
+files fine (the control: 243 entities, the regions' SABs intact);
+gold reads them (the corpus axes' design). The FRESH-document
+writes (the fixtures) open fine — the fixture probes' transcripts
+show the real title transitions.
+
+**THE REFRAMED DEFECT MAP**: (1) **the file-level rewrite
+rejection** — the conventional arm's read→rewrite output for
+edited R2018 documents is rejected by the strict loader at the
+FILE level, silently in script mode. NEVER CAUGHT because every
+corpus axis runs unmodified roundtrips (the echo — byte-identical
+by construction) and the record-identity surveys covered the
+echo too; the edited-document write path was never strict-loader-
+probed. This is a real-world correctness defect (an edited R2018
+document does not open in BricsCAD) AND it blocks the chimera
+experiments (the SAB-vs-wrapper blame split). (2) The SAB-level
+question (the fixtures open but the B-rep does not construct)
+remains second — the candidates 1–6 genus work stands as
+genus-matching; the null-box blocker is below the measured
+invariants or in the wrapper.
+
+**THE DESIGNED NEXT PACKET — the file-level bisect**: the minimal
+pair is `target/genus_gates/constructed/Region.dwg` (a
+fresh-document AC1032 write — OPENS) vs
+`…/swap/swap_constructed_wrapper.dwg` (the SAME document content
+read and rewritten — REJECTED): diff the two files' structures —
+the section directory (the CRC/section map), the AcDs section
+presence/layout, the object map, the header fields beyond the
+version marker (all four files carry AC1032; the marker is not
+it). Tools: a byte-level section walker (the corpus's own
+section-dump utilities if present, else a small script using the
+DWG section framing), then probe each structural suspect by
+patching the rewrite toward the fresh-write shape. Acceptance:
+the rewrite control OPENS in BricsCAD (the census finds the
+authored example's three 3D entities + the LINE). THEN re-run the
+chimeras for the SAB-vs-wrapper verdict, and the SAB question
+after that.
 
 **The state after candidates 1–4 (2026-09-29, the fifth
 continuation)**: all four landed and genus-verified — (1) the
