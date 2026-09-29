@@ -7809,3 +7809,64 @@ classes of the §19 authority closure) whose re-encoded payloads
 drift. THE NEXT PACKET: byte-passthrough (or field-exact
 re-encode) for the unmodeled ACDBASSOC* classes on the rewrite
 path; then the corpus battery and the B-rep question.
+
+**The byte-passthrough packet — the rewrite-rejection CLOSED
+(2026-09-29, 29fa2cf)**: the three classes were measured exactly
+(gold has no decoder for ACDBASSOCALIGNEDDIMACTIONBODY/520, and
+ACAD_TABLE/528 + TABLECONTENT/529 are raw UNKNOWNs: the 520 body
+is 15 bits the model re-walks as 13; the 528 modeled emission
+loses the cell-style/border sub-structures — 26105→25410 bits;
+the 529 the same class — 14290→14087). The fix is the H8h-ext-12
+TableContent template generalized: the reader marks the three
+class-body regions after the common parse (`wire_capture_marks` +
+`capture_wire_body` — main bits from the body start to the
+main-data end, the text-region bits, the handle tail from the
+post-common drain position, the author's closing 1s pad trimmed),
+the writer re-emits them verbatim (`write_wire_body` — the pad
+re-created explicitly), gated on the captured source DxfVersion so
+a conversion falls back to the modeled emission. The TableContent
+gate WIDENED BY MEASUREMENT to ≥ AC1015: the same 203-byte
+modeled-emission drift exists on every era the class rides
+(example_2000 h=9BC 8317 vs 8114; example_2004 h=ADB 8316 vs
+8113). THE ACCEPTANCE (AutoCAD 2027, strict_load_probe): the
+example_2018+LINE rewrite OPENS — census 3, real extents, no
+error dialog, probe-end; the authored-original baseline reads
+IDENTICALLY (dbmod 1 on both — the author's own audit trait); the
+record census 473/474 byte-identical (size + CRC-16), the one
+divergence the edited model-space BLOCK_HEADER. THE INSTRUMENT:
+`record_size_census.py` (handle-keyed record identity for any
+pair on any era, the legacy [BS] + R2010+ [BOT]/UMC block forms).
+The widened census surfaced the NEXT record-identity residue —
+pre-existing, stash-A/B-proven: DATATABLE (example_2000 754→1167,
+example_2004 753→1157 — a modeled over-emission) + MTEXT
+(example_2004 h=44C 100→94). The same battery re-probed the
+constructed fixtures under ACAD 2027: all NULL-BOX/NO-SOLID —
+**the file-level fixes did NOT move the null box; the B-rep
+construction gap is a SEPARATE root on the conversion arm** (the
+remaining measured lead: the asmheader version-string genus swap
+probe {223.0.1.1930 / 232.6.0.65535}).
+
+**The eighth genus queue packet — the gen_all cylinder wiring row;
+THE QUEUE AT PENDING-ZERO (2026-09-29)**: the BFS emission packet
+(arc item 14) re-opened exactly one row — the gen_all canonical's
+Solid3D and Body carry a hand-built SEAM cylinder (the example's
+own `build_cylinder_sat`), and its only straight-curve record hung
+on the seam edge, whose BFS token-walk lands after the vertex
+walks — so the two vertex points preceded the seam's
+straight-curve (genus: point always after straight-curve), 2
+occurrences, both in gen_all (the primitive-builder fixtures were
+clean). The row was recorded as a FIXTURE divergence — the
+authored Cylinder_2018 carries no vertical seam at all (its loops
+are single closed-coedge circles) — so the honest fix removed the
+inauthentic shape rather than re-wiring it: the gen_all's
+Solid3D/Body now carry the authored-convention seam-less cylinder
+the primitive builder (`build_cylinder`) and the §20 fixtures use
+(the lateral face in two single-coedge circle loops, matching the
+ACIS convention). **The queue: sab_form 2 rows (0 pending / 2
+TOLERATED) / sh_genus 1 row (0 pending / 1 TOLERATED) / acds 0 —
+`--strict` passes; the pin untouched (the cargo mirror green);
+every remaining count is the ADJUDICATED recorded state.** The
+generation identity moved to
+`bb9971a421733e8f09b114bf44b614ee`, 25,473 bytes (the two SAB
+carriers' content changed; an intended content change, re-recorded
+— the no-serde build writes the identical file).

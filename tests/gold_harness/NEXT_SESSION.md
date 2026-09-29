@@ -1,6 +1,21 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
-# queue carries ONE pending row (the gen_all cylinder's loop-wiring
-# order, 2 occurrences — a fixture divergence, not a codec defect);
+# queue is PENDING-ZERO AGAIN after the EIGHTH QUEUE PACKET (this
+# continuation): the gen_all cylinder wiring row (the BFS ordering
+# packet's one re-opened row, "point before straight-curve", 2
+# occurrences) FELL — the gen_all's Solid3D/Body carried a
+# hand-built SEAM cylinder whose only straight-curve hung on the
+# seam edge (whose BFS token-walk lands after the vertex walks —
+# the points raced ahead of the straight-curve); the shape had NO
+# authored counterpart (Cylinder_2018 carries no vertical seam —
+# its loops are single closed-coedge circles), so the honest fix
+# REMOVED the inauthentic shape: the gen_all now carries the
+# authored-convention seam-less cylinder the primitive builder
+# (build_cylinder) and the §20 fixtures use — sab_form 2 rows
+# (0 pending / 2 TOLERATED) / sh_genus 1 (0 pending / 1 TOLERATED)
+# / acds 0, `--strict` passes, the pin untouched, the identity
+# moved to `bb9971a421733e8f09b114bf44b614ee`/25,473 (the two SAB
+# carriers' content changed, an intended change; identical without
+# --features serde);
 # THE REWRITE-REJECTION CAMPAIGN IS CLOSED (2026-09-29, the
 # twelfth continuation): THE BYTE-PASSTHROUGH PACKET LANDED — the
 # three divergent-objects' classes (ACDBASSOCALIGNEDDIMACTIONBODY
@@ -61,10 +76,14 @@
 # counterpart — the source_version precedent — popped
 # loop-universal for every object/entity so the read axis stays
 # semantic), the corpus 280 at 0/0/0/0 with the genus sections
-# 3/1/0 (the one pending row the known gen_all wiring), the AC1021
-# survey 58/58 / 0 divergent, the identity UNMOVED
-# (0e953809…/25,473 — fresh writes never hit the capture-replay
-# arm), the circle echo byte-identical; THE INSTRUMENT LANDED:
+# 2/1/0 at PENDING-ZERO (the eighth packet — this continuation —
+# closed the last pending row; every remaining count is the
+# ADJUDICATED recorded state), the AC1021
+# survey 58/58 / 0 divergent, the identity
+# `bb9971a421733e8f09b114bf44b614ee`/25,473 (moved at the eighth
+# packet's two SAB carriers — an intended content change; the
+# byte-passthrough packet itself never touched a fresh write),
+# the circle echo byte-identical; THE INSTRUMENT LANDED:
 # tests/gold_harness/record_size_census.py — the handle-keyed
 # record-identity census (size + hdlsize + bitsize + CRC-16) for
 # ANY pair on ANY era (the pre-2010 [BS] block form + the R2010+
@@ -479,6 +498,34 @@
     modeler; the audit purges) — the file-level fixes did NOT move
     the null box; the B-rep construction gap is a separate root on
     the conversion arm, still open.
+
+16. **The eighth genus queue packet — the gen_all cylinder wiring
+    row (this continuation, 2026-09-29): THE QUEUE AT
+    PENDING-ZERO.** The BFS emission packet's one re-opened row
+    ("point before straight-curve", 2 occurrences) attributed
+    precisely: BOTH in the gen_all canonical (its Solid3D + Body),
+    NONE in the primitive fixtures — the gen_all carried the
+    example's hand-built SEAM cylinder (`build_cylinder_sat`),
+    whose only straight-curve record hung on the seam edge, and
+    the BFS walks the seam edge's tokens LAST (its first mentions
+    arrive via the lateral coedge ring, whose walks queue after the
+    cap/vertex walks): the two vertex points won the race against
+    the seam's straight-curve (genus: point always after
+    straight-curve). The shape had NO authored counterpart
+    (Cylinder_2018 carries no vertical seam — its loops are single
+    closed-coedge circles), so the fix REMOVED the inauthentic
+    shape rather than re-wiring it: the gen_all's Solid3D/Body now
+    carry the authored-convention seam-less cylinder the primitive
+    builder and the §20 fixtures use; the local builder deleted.
+    **sab_form 2 rows (0 pending / 2 TOLERATED) / sh_genus 1 (0/1)
+    / acds 0 — `--strict` passes; the pin untouched (the cargo
+    mirror green); the identity moved to
+    `bb9971a421733e8f09b114bf44b614ee`/25,473, identical without
+    --features serde.** The suite 52 green, the mirrors green,
+    the corpus re-verified. The queue's remaining counts are the
+    ADJUDICATED recorded state (the persubent/product-strings
+    classes + the G-B elide) — the fifth layer's designed nonzero
+    is now exactly its recorded verdicts everywhere.
 
 ## THE NEXT WORK: the file-level rewrite rejection (the payload-swap experiment's finding) — THEN the SAB question
 
@@ -922,16 +969,20 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `0e9538092e37bedb44bc98e67f87d254`,
-  25,473 bytes (UNMOVED through the rewrite-campaign packets — the
-  wireframe fix, the spline wire-scenario, and the byte-passthrough
-  packet never touch a fresh write's bytes; verified fresh at this
-  halt; the identity history: `84374e73…`/25,375 through the §20
+- The generation identity is `bb9971a421733e8f09b114bf44b614ee`,
+  25,473 bytes (moved at the eighth genus queue packet — the
+  gen_all's Solid3D/Body cartridge changed from the hand-built
+  seam cylinder to the authored-convention seam-less shape, an
+  intended content change; UNMOVED through the rewrite-campaign
+  packets — the wireframe fix, the spline wire-scenario, and the
+  byte-passthrough packet never touch a fresh write's bytes; the
+  identity history: `84374e73…`/25,375 through the §20
   landing → `4265c04a…`/25,407 at G-C → `0e8b23cd…`/25,439 at the
   vertex packet → `a8f227e0…`/25,439 at the asmheader packet →
   `a7c5f170…`/25,439 at the tolerance packet → `e4cd1960…`/25,473
   at the ordering packet → `0e953809…`/25,473 at the era-profiled
-  SAB header packet d1dd5ee). The generator
+  SAB header packet d1dd5ee → `bb9971a4…`/25,473 at the eighth
+  genus queue packet). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -1037,10 +1088,12 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 0e953809…, 25,473 bytes (UNMOVED through the wireframe/spline/
-# byte-passthrough packets — fresh writes never hit the changed
-# arms; earlier history: e4cd1960… at the ordering packet, moved
-# by the era-profiled SAB header packet d1dd5ee)
+# bb9971a421733e8f09b114bf44b614ee, 25,473 bytes (moved at the
+# eighth genus queue packet — the gen_all cylinder cartridge
+# change; UNMOVED through the wireframe/spline/byte-passthrough
+# rewrite-campaign packets — those never touch a fresh write;
+# earlier history: e4cd1960… at the ordering packet → 0e953809… at
+# the era-profiled SAB header packet d1dd5ee)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -1070,7 +1123,11 @@ cargo build --bin ac21_token_diff --features serde
 # 7. THE GENUS GATES (the §20 layer — LANDED)
 python3 tests/gold_harness/genus_extract.py   # regenerate expectations
 python3 tests/gold_harness/genus_gates.py     # the ranked report
-# lands NONZERO on purpose — the counts are the work queue
+# the queue is PENDING-ZERO (the eighth packet closed the last
+# pending row — the gen_all wiring fixture divergence); the rows
+# that remain are the ADJUDICATED recorded verdicts (persubent +
+# product-strings + the G-B elide) kept as counts on purpose;
+# `--strict` asserts the pending-zero state
 
 # 7b. THE STRICT-LOAD PROBE (the mechanized loader audit)
 #     (Windows-visible host required; the DEFAULT run exercises BOTH

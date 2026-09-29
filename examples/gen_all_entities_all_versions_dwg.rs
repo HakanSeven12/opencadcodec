@@ -738,7 +738,17 @@ fn main() {
         &mut fail,
         &mut skip,
         || {
-            let sat_doc = build_cylinder_sat();
+            // §20 the last pending genus row (the BFS ordering packet):
+            // the hand-built seam cylinder's only straight-curve hung on
+            // the seam edge, whose BFS walk lands after the vertex walks —
+            // its points preceded the straight-curve (genus: point always
+            // after straight-curve), and the shape had no authored
+            // counterpart (Cylinder_2018 has no vertical seam). The
+            // battery now carries the authored-convention shape the
+            // fixtures use (the seam-less two-loop lateral face).
+            let sat_doc = acadrust::entities::acis::primitives::build_cylinder(
+                [0.0, 0.0, 0.0], 5.0, 10.0,
+            );
             EntityType::Solid3D(Solid3D::from_sat(&sat_doc.to_sat_string()))
         },
     );
@@ -769,10 +779,12 @@ fn main() {
         &mut fail,
         &mut skip,
         || {
-            // AcDbBody accepts any modeler body; reuse the valid closed
-            // cylinder solid (lump -> shell -> faces) instead of the
-            // earlier broken hand-typed sheet text.
-            let sat_doc = build_cylinder_sat();
+            // AcDbBody accepts any modeler body; reuse the same
+            // authored-convention cylinder the 3DSOLID carries (the
+            // §20 BFS ordering packet — the seam-cylinder shape left).
+            let sat_doc = acadrust::entities::acis::primitives::build_cylinder(
+                [0.0, 0.0, 0.0], 5.0, 10.0,
+            );
             EntityType::Body(Body::from_sat(&sat_doc.to_sat_string()))
         },
     );
@@ -866,193 +878,6 @@ fn add_insert(doc: &mut CadDocument, ok: &mut u32, _fail: &mut u32, skip: &mut u
 
     println!("  OK   {:<20}", name);
     *ok += 1;
-}
-
-/// Build a cylinder SAT with radius 5, height 10, along Z-axis.
-///
-/// Bottom circle center at (0,0,0), top at (0,0,10).
-/// 3 faces (bottom cap, top cap, lateral), 3 edges, 2 vertices.
-fn build_cylinder_sat() -> SatDocument {
-    let mut sat = SatDocument::new_body();
-    let body_idx = SatPointer::new(0);
-    let ptr = |i: i32| SatPointer::new(i);
-
-    let tau = std::f64::consts::TAU;
-
-    // Points
-    let p0 = sat.add_point(5.0, 0.0, 0.0); // bottom seam
-    let p1 = sat.add_point(5.0, 0.0, 10.0); // top seam
-
-    // Surfaces
-    let surf_bot = sat.add_plane_surface([0.0, 0.0, 0.0], [0.0, 0.0, -1.0], [1.0, 0.0, 0.0]);
-    let surf_top = sat.add_plane_surface([0.0, 0.0, 10.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
-    let surf_cyl = sat.add_cone_surface(
-        [0.0, 0.0, 0.0], // center
-        [0.0, 0.0, 1.0], // axis
-        [5.0, 0.0, 0.0], // major-axis (radius = 5)
-        1.0,             // ratio (circular)
-        1.0,             // cos(half-angle) = 1 → cylinder
-        0.0,             // sin(half-angle) = 0 → cylinder
-    );
-
-    // Curves
-    let crv_bot = sat.add_ellipse_curve([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [5.0, 0.0, 0.0], 1.0);
-    let crv_top = sat.add_ellipse_curve([0.0, 0.0, 10.0], [0.0, 0.0, 1.0], [5.0, 0.0, 0.0], 1.0);
-    let crv_seam = sat.add_straight_curve([5.0, 0.0, 0.0], [0.0, 0.0, 1.0]);
-
-    // Vertices
-    let v0 = sat.add_vertex(SatPointer::NULL, ptr(p0));
-    let v1 = sat.add_vertex(SatPointer::NULL, ptr(p1));
-
-    // Edges
-    let e_bot = sat.add_edge(
-        ptr(v0),
-        0.0,
-        ptr(v0),
-        tau,
-        SatPointer::NULL,
-        ptr(crv_bot),
-        Sense::Forward,
-    );
-    let e_top = sat.add_edge(
-        ptr(v1),
-        0.0,
-        ptr(v1),
-        tau,
-        SatPointer::NULL,
-        ptr(crv_top),
-        Sense::Forward,
-    );
-    let e_seam = sat.add_edge(
-        ptr(v0),
-        0.0,
-        ptr(v1),
-        10.0,
-        SatPointer::NULL,
-        ptr(crv_seam),
-        Sense::Forward,
-    );
-
-    // Coedge indices
-    let base = sat.records.len() as i32;
-    let co = |i: i32| base + i;
-    let loop_base = base + 6;
-    let face_base = base + 9;
-    let shell_idx = base + 12;
-    let lump_idx = base + 13;
-
-    // Bottom cap coedge
-    sat.add_coedge(
-        ptr(co(0)),
-        ptr(co(0)),
-        ptr(co(4)),
-        ptr(e_bot),
-        Sense::Reversed,
-        ptr(loop_base),
-    );
-    // Top cap coedge
-    sat.add_coedge(
-        ptr(co(1)),
-        ptr(co(1)),
-        ptr(co(2)),
-        ptr(e_top),
-        Sense::Forward,
-        ptr(loop_base + 1),
-    );
-    // Lateral face coedges (4)
-    sat.add_coedge(
-        ptr(co(5)),
-        ptr(co(3)),
-        ptr(co(1)),
-        ptr(e_top),
-        Sense::Reversed,
-        ptr(loop_base + 2),
-    );
-    sat.add_coedge(
-        ptr(co(2)),
-        ptr(co(4)),
-        ptr(co(5)),
-        ptr(e_seam),
-        Sense::Forward,
-        ptr(loop_base + 2),
-    );
-    sat.add_coedge(
-        ptr(co(3)),
-        ptr(co(5)),
-        ptr(co(0)),
-        ptr(e_bot),
-        Sense::Forward,
-        ptr(loop_base + 2),
-    );
-    sat.add_coedge(
-        ptr(co(4)),
-        ptr(co(2)),
-        ptr(co(3)),
-        ptr(e_seam),
-        Sense::Reversed,
-        ptr(loop_base + 2),
-    );
-
-    // Loops
-    sat.add_loop(SatPointer::NULL, ptr(co(0)), ptr(face_base));
-    sat.add_loop(SatPointer::NULL, ptr(co(1)), ptr(face_base + 1));
-    sat.add_loop(SatPointer::NULL, ptr(co(2)), ptr(face_base + 2));
-
-    // Faces
-    sat.add_face(
-        ptr(face_base + 1),
-        ptr(loop_base),
-        ptr(shell_idx),
-        ptr(surf_bot),
-        Sense::Forward,
-        Sidedness::Single,
-    );
-    sat.add_face(
-        ptr(face_base + 2),
-        ptr(loop_base + 1),
-        ptr(shell_idx),
-        ptr(surf_top),
-        Sense::Forward,
-        Sidedness::Single,
-    );
-    sat.add_face(
-        SatPointer::NULL,
-        ptr(loop_base + 2),
-        ptr(shell_idx),
-        ptr(surf_cyl),
-        Sense::Forward,
-        Sidedness::Single,
-    );
-
-    // Shell → Lump → Body
-    sat.add_shell(ptr(face_base), ptr(lump_idx));
-    sat.add_lump(ptr(shell_idx), body_idx);
-
-    if let Some(body_rec) = sat.record_mut(0) {
-        body_rec.tokens[1] = SatToken::Pointer(ptr(lump_idx));
-    }
-
-    // Back-pointers the modeler audits demand ("edge without backptr" /
-    // "vertex without edge" are fatal in BricsCAD/AutoCAD): every edge
-    // names one of its coedges, every vertex names an edge that contains
-    // it (both seam endpoints name the seam edge).
-    if let Some(r) = sat.record_mut(e_bot as usize) {
-        r.tokens[5] = SatToken::Pointer(ptr(co(0)));
-    }
-    if let Some(r) = sat.record_mut(e_top as usize) {
-        r.tokens[5] = SatToken::Pointer(ptr(co(1)));
-    }
-    if let Some(r) = sat.record_mut(e_seam as usize) {
-        r.tokens[5] = SatToken::Pointer(ptr(co(3)));
-    }
-    if let Some(r) = sat.record_mut(v0 as usize) {
-        r.tokens[1] = SatToken::Pointer(ptr(e_seam));
-    }
-    if let Some(r) = sat.record_mut(v1 as usize) {
-        r.tokens[1] = SatToken::Pointer(ptr(e_seam));
-    }
-
-    sat
 }
 
 /// A minimal valid planar region: body → lump → shell → one plane face
