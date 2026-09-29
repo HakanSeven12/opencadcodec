@@ -91,9 +91,47 @@ const SAB_MAGIC: &[u8] = b"ACIS BinaryFile";
 pub struct SabWriter;
 
 impl SabWriter {
-    /// Convert a SAT document to SAB binary data.
+    /// Convert a SAT document to SAB binary data (the legacy coedge
+    /// form — the 2007/2010 flavors' single-pointer parameter-space
+    /// slot; byte-identical to the historical output).
     pub fn write(doc: &SatDocument) -> Vec<u8> {
+        Self::write_era(doc, false)
+    }
+
+    /// The modern-era (R2013+ / ACIS|21800 and ASM|22300) SAB form:
+    /// the authored stream's coedges carry the parameter-space slot as
+    /// the pair `Integer(0), Pointer $-1` — the era profile measured on
+    /// the specimen corpus (2007/2010: 55-byte coedges, 8 fields;
+    /// 2013/2018: 60-byte coedges, the extra int before the pcurve
+    /// pointer). The doc's coedge token list keeps the SAT-text
+    /// shape; the pair inserts at the SAB boundary only, so SAT-text
+    /// emission is untouched.
+    pub fn write_modern(doc: &SatDocument) -> Vec<u8> {
+        Self::write_era(doc, true)
+    }
+
+    fn write_era(doc: &SatDocument, modern_coedge_pcurve: bool) -> Vec<u8> {
         let mut buf = Vec::with_capacity(8192);
+
+        // The modern coedge form inserts before the reorder machinery
+        // so the emitted stream carries it through the rank sort's
+        // pointer remap untouched (the Integer is not a pointer).
+        let modern_doc;
+        let doc = if modern_coedge_pcurve {
+            let mut d = doc.clone();
+            for record in d.records.iter_mut() {
+                if record.entity_type == "coedge"
+                    && matches!(record.tokens.last(), Some(SatToken::Pointer(_)))
+                {
+                    let at = record.tokens.len() - 1;
+                    record.tokens.insert(at, SatToken::Integer(0));
+                }
+            }
+            modern_doc = d;
+            &modern_doc
+        } else {
+            doc
+        };
 
         // Restore-file record order (2026-09-22 region probe: the
         // strict restorer takes the leading records as the top-level

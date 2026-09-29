@@ -5716,10 +5716,14 @@ impl<'a> DwgObjectWriter<'a> {
             self.sab_entries
                 .push((entity_handle, acis.sab_data.clone()));
         } else if !acis.sat_data.is_empty() {
-            // Convert SAT text → SAB binary via SatDocument
+            // Convert SAT text → SAB binary via SatDocument. The AcDs
+            // section is the R2013+ domain: the SAB emission uses the
+            // modern-era coedge form (the authored 2013/2018 streams'
+            // 60-byte coedges — the (int 0, ptr) parameter-space slot;
+            // the 2007/2010 in-entity flavors carry the 8-field form).
             if let Ok(mut sat_doc) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 sat_doc.strip_for_sab();
-                let sab = crate::entities::acis::SabWriter::write(&sat_doc);
+                let sab = crate::entities::acis::SabWriter::write_modern(&sat_doc);
                 self.sab_entries.push((entity_handle, sab));
             }
         }
@@ -5751,7 +5755,15 @@ impl<'a> DwgObjectWriter<'a> {
             if let Ok(sat) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 let mut binary = acis.clone();
                 binary.is_binary = true;
-                binary.sab_data = crate::entities::acis::SabWriter::write(&sat);
+                // The in-entity SAB era profile: 2007/2010 flavors
+                // carry the 8-field coedge; R2013+ (AC1027+) matches
+                // the authored modern stream's (int 0, ptr) slot.
+                let sab = if self.dxf_version >= crate::types::DxfVersion::AC1027 {
+                    crate::entities::acis::SabWriter::write_modern(&sat)
+                } else {
+                    crate::entities::acis::SabWriter::write(&sat)
+                };
+                binary.sab_data = sab;
                 return self.write_acis_data_impl(point, &binary, wires, silhouettes, inline);
             }
         }

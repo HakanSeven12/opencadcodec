@@ -11005,7 +11005,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             // which cause ACIS "NOT THAT KIND OF CLASS" errors in SAB.
             if let Ok(mut sat_doc) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 sat_doc.strip_for_sab();
-                let sab = crate::entities::acis::SabWriter::write(&sat_doc);
+                // The ACDSDATA section (AC1027+) matches the authored
+                // modern-era stream's coedge form (the (int 0, ptr)
+                // parameter-space slot; the 2007/2010 in-entity
+                // flavors carry the 8-field legacy form).
+                let sab = crate::entities::acis::SabWriter::write_modern(&sat_doc);
                 self.sab_entries.push((entity_handle, sab));
             }
         }

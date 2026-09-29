@@ -387,6 +387,54 @@ ADITIONAL output. The cargo mirror
 fresh extraction equals the pinned `genus_expectations.json` — when
 the decode changes, regenerate the pin and review the drift.
 
+### Step 7b — the strict-load probe (the mechanized BricsCAD audit)
+
+The §20.4 verdict instrument: `strict_load_probe.py` drives
+`bricscad.exe /b <script>` headless over the constructed corpus plus
+the authored specimen controls, and the script's LISP records the
+evidence a verdict needs — the 3DSOLID/REGION census, the
+modeler-forced bounding box (real extents = a restored body; the
+±1e80 sentinel = the null box), the post-audit census:
+
+```bash
+python3 tests/gold_harness/genus_gates.py        # fresh constructed corpus first
+python3 tests/gold_harness/strict_load_probe.py  # the verdict table
+```
+
+**The LOGSEC flush discipline (the evidence-survival rule).** The
+script's LISP writes every result section through a `LOGSEC` helper
+that opens the result file in APPEND mode, writes its lines, and
+CLOSES the handle — so each line is on disk the moment it is
+written:
+
+```lisp
+(defun LOGSEC (lines / f)
+  (setq f (open RESULT "a"))
+  (foreach l lines (write-line l f))
+  (close f))
+```
+
+A fixture that trips BricsCAD's modeling-failure prompt (the dialog
+blocks the /b script engine mid-sequence) or a launcher timeout kill
+still leaves its partial evidence on disk. The earlier
+single-handle form (`(setq rf (open … "w"))` … one final
+`(close rf)`) buffered everything in the handle and lost ALL evidence
+when the run died before the close — the staged results read 0 bytes
+and a recorded verdict looked AMBIGUOUS. With LOGSEC, a result that
+stops before `probe-end` is itself evidence: the surviving lines tell
+the census story and the classifier reads the truncation. The tool
+unlinks each result file before its launch, so append mode never
+accumulates across runs.
+
+**Expected:** the authored controls read MODELED (real extents —
+e.g. Box_2007 `0,0,0..1,2,3`); a constructed fixture reads MODELED
+when its restore gap closes, NULL-BOX (the ±1e80 sentinel) while the
+gap stands, NO-SOLID when the entity layer fails, and AMBIGUOUS
+(missing `probe-end`) when the run was cut short — the surviving
+LOGSEC lines still rank the failure. A Windows-visible host and the
+BricsCAD install are required; stray `bricscad.exe` processes poison
+subsequent launches — kill them before re-running.
+
 ### When a layer trips
 
 - **Step 1 fails** — model/normalizer/budget mismatch: the failing

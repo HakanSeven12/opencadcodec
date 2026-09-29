@@ -5,12 +5,14 @@
 # verdict is recorded: the ordering packet EXONERATED (the modeling
 # failure is pre-existing and order-independent — both the current
 # rank and the pre-rank code yield the identical ±1e80 null box);
-# THE NEXT WORK: the constructed-SAB restore gap — the record-level
-# SAB diff RAN (token-by-token, the corrected tokenizer): the ladder
-# is fully wired, and the three root-cause candidates are recorded
-# (the coedge pcurve tail form int0/ptr−1 vs single ptr; the missing
-# identity-transform record + body tok3 link; the traversal-vs-
-# class-grouped stream structure) — fix in test order, gate = MODELED
+# THE NEXT WORK: the restore gap, mid-campaign — candidates 1 and 2
+# LANDED (the modern coedge (int 0, ptr) form at the SAB boundary for
+# R2013+; the identity transform in the seven primitive builders —
+# both GENUS-VERIFIED, the gates 0-pending) but the probe still reads
+# the ±1e80 NULL BOX: CANDIDATE 3 (the authored traversal-interleaved
+# stream vs the class-grouped order) is the remaining suspect; the
+# working tree is UNCOMMITTED pending the corpus gate (in flight) —
+# finish the battery, commit, then candidate 3
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -366,14 +368,39 @@ BricsCAD reading was the error surface; once the 2026-09-28 fixes
 landed the surface went quiet, which was read as acceptance while
 the body silently failed to restore.
 
-**The investigation's FIRST FRUITS (2026-09-29, the record-level
-SAB diff, run with the corrected tokenizer — the frame-skip after
-the name chain is mandatory; the first attempt read the name bytes
-as tokens and misaligned everything; ALSO regenerate
-`target/genus_gates/` with the CURRENT code before any comparison
-— the discrimination run had overwritten it with the pre-rank
-build)**. The corrected diff (authored Box_2018 vs constructed Box,
-both ASM/ACIS decoded token-by-token):
+**The restore-gap campaign, mid-state (2026-09-29, the third
+continuation)**: candidate 1 LANDED — the era-profiled coedge form
+(the authored 2013/2018 streams' 60-byte coedges carry the
+parameter-space slot as `int 0, ptr −1`; 2007/2010 carry the
+8-field form — measured on the specimen corpus, 55/60 by magic):
+`SabWriter::write_modern` inserts the pair at the SAB boundary
+(SAT-text emission untouched), the AcDs queue paths and the
+R2013+ in-entity branch call it. Candidate 2 LANDED — the identity
+transform: the per-family census is definitive (Box/Wedge/Pyramid/
+Cylinder/Cone/Sphere/Torus/Chamfer/Fillet/Union ALL exactly 1
+transform, all eras; the operation families 0), so the seven
+primitive builders call `set_placement(identity)` — the
+constructed Box now opens `asmheader, body, lump, transform,
+shell, face…`, byte-shaped like the authored genus. **Both fixes
+are genus-verified (gates 0-pending) but the probe STILL reads the
+NULL BOX** — the modeler still rejects the stream. The probe
+itself was fixed (the 0-byte mystery was BUFFERING, not stalls:
+every section now opens→writes→closes via a LOGSEC helper, so
+evidence survives any kill). **CANDIDATE 3 IS THE REMAINING
+SUSPECT**: the authored stream is topology-traversal interleaved
+(each face's loop follows the face, its surface, its coedges, its
+edges — parent-then-children depth-first) while the constructed
+stream is class-grouped (both satisfy the pinned first-appearance
+constraints, but the restorer may require the traversal shape).
+The designed fix: a traversal-order emission at the SAB boundary
+(walk body→lump→shell→faces→loops→coedges→edges→vertices→curves
+depth-first, emitting each record once) — a per-consumer assembly,
+NOT the class-rank sort; the genus gates' order constraints must
+stay satisfied (verify: the traversal order satisfies the pinned
+constraints — it IS the authored order). THE WORKING TREE IS
+UNCOMMITTED: the corpus gate is IN FLIGHT — finish the battery
+(suite + mirrors + smokes + identity), commit both fixes, then
+candidate 3.
 
 - headers: authored ASM|22300 (0,2,4); constructed ACIS|700
   (0,1,0) — the adjudicated rows.

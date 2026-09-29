@@ -7663,6 +7663,74 @@ surface, compared as decoded payloads — to find what the kernel
 needs that the invariants do not measure), with the probe as the
 acceptance gate: a fixture reads MODELED when the gap closes.
 
+**The user-run verdicts + the LOGSEC flush discipline (2026-09-29,
+the continuation)**: the maintainer opened the constructed fixtures
+by hand — ConstructedCylinder "not showing correctly";
+ConstructedBox opens with **"General modeling failure /
+AcDb3dSolid(31)"** (the strict loader's own message: the entity
+layer resolves, the modeler rejects the B-rep). The failure dialog
+BLOCKS the /b script engine mid-sequence, which exposed the probe's
+evidence bug: the script's LISP held ONE file handle open across
+the whole run (`(setq rf (open … "w"))` … one final `(close rf)`),
+and LISP buffers the writes in the handle — a run that dies before
+the close (the blocked dialog, or the launcher's 150 s timeout kill)
+loses ALL its evidence, staging 0-byte results. **The fix is the
+LOGSEC flush discipline**: every result section now writes through
+a helper that opens the file in APPEND mode, writes its lines, and
+closes — `(defun LOGSEC (lines / f) (setq f (open RESULT "a"))
+(foreach l lines (write-line l f)) (close f))` — so each line is on
+disk the moment it is written, and a killed run leaves its partial
+evidence: a result that stops before `probe-end` is itself a
+verdict (the surviving lines tell the census story; the classifier
+reads the truncation). The tool unlinks each result file before its
+launch so append mode never accumulates across runs. The flushed
+probe re-confirmed the verdicts mechanically: the authored controls
+MODELED, the constructed fixtures NULL-BOX, scripts completing
+past the stall points the dialog had blocked.
+
+**The record-level SAB diff, first fruits (the corrected
+tokenizer)**: two instrument corrections are recorded — the
+tokenizer must skip the record's name-chain frame before decoding
+tokens (the first attempt read the name bytes as tokens and
+misaligned everything), and `target/genus_gates/` must be
+regenerated with the CURRENT code before any comparison (the
+old-order discrimination run had overwritten it with the pre-rank
+build). The corrected diff (authored Box_2018 vs constructed Box):
+the topology ladder is FULLY WIRED in both (the earlier
+"null lump pointer" reading was the body's TRANSFORM slot misread —
+authored tok3 points at a transform record, constructed tok3 was
+−1); the divergences rank as three root-cause candidates — (1) the
+coedge parameter-space tail form, (2) the missing identity
+transform, (3) the traversal-interleaved vs class-grouped stream
+structure.
+
+**Candidates 1 and 2 LANDED (genus-verified; the probe still reads
+NULL-BOX)**: (1) the era-profiled coedge form — the authored
+2013/2018 streams carry 60-byte coedges whose parameter-space slot
+is the pair `int 0, ptr −1` (the 2007/2010 flavors carry the
+8-field 55-byte form; measured across the specimen corpus, 55/60
+split by magic) — `SabWriter::write_modern` inserts the pair at the
+SAB boundary (the doc's coedge token list keeps the SAT-text shape;
+SAT text emission untouched), the AcDs queue paths and the R2013+
+in-entity branch call it; (2) the identity transform — the
+per-family census is definitive (Box/Wedge/Pyramid/Cylinder/Cone/
+Sphere/Torus/Chamfer/Fillet/Union ALL carry exactly one transform,
+all eras; the operation families — Extrude*/Loft*/Polysolid*/
+Revolve* — carry none), so the seven primitive builders call
+`set_placement(identity)`: the constructed Box now opens
+`asmheader, body, lump, transform, shell, face…`, byte-shaped like
+the authored genus, and the gates stay 0-pending (the 60-byte
+coedge and the transform both sit inside the authored genus sets).
+**The probe verdict after both: still the ±1e80 NULL BOX** — the
+modeler still rejects the stream; CANDIDATE 3 (the authored
+traversal-interleaved order — parent-then-children depth-first,
+each face's loop following its face — vs the constructed
+class-grouped order; both satisfy the pinned first-appearance
+constraints) is the remaining suspect; the designed fix is a
+traversal-order emission at the SAB boundary (a per-consumer
+assembly, NOT the class-rank sort), gated on the probe reading
+MODELED with the authored controls green.
+
 **The fifth packet — the TOLERATED adjudication state
 (2026-09-29)**: §20.3's "some rows may close as TOLERATED with the
 row kept as the recorded state" gained its instrument: an

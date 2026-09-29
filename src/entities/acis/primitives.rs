@@ -40,6 +40,15 @@ fn ptr(i: i32) -> SatPointer {
 /// along Z from the center point.
 pub fn build_box(center: [f64; 3], length: f64, width: f64, height: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
 
     let hl = length / 2.0;
@@ -480,6 +489,15 @@ pub fn build_box(center: [f64; 3], length: f64, width: f64, height: f64) -> SatD
 /// Extruded along Z by `height`.
 pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
     let [ox, oy, oz] = origin;
 
@@ -825,6 +843,15 @@ pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> Sa
 /// - `height`: distance from the base plane to the apex along Z
 pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
     let [cx, cy, cz] = center;
 
@@ -1158,6 +1185,15 @@ pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocume
 /// `center.z + height`.
 pub fn build_cylinder(center: [f64; 3], radius: f64, height: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
     let [cx, cy, cz] = center;
     let tau = std::f64::consts::TAU;
@@ -1303,6 +1339,15 @@ pub fn build_cylinder(center: [f64; 3], radius: f64, height: f64) -> SatDocument
 /// (singularity) edge at the apex.
 pub fn build_cone(center: [f64; 3], radius: f64, height: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
     let [cx, cy, cz] = center;
     let tau = std::f64::consts::TAU;
@@ -1421,6 +1466,15 @@ pub fn build_cone(center: [f64; 3], radius: f64, height: f64) -> SatDocument {
 /// Produces a single-face closed surface (no loop entity).
 pub fn build_sphere(center: [f64; 3], radius: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
 
     let surf = sat.add_sphere_surface(center, radius, [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]);
@@ -1457,6 +1511,15 @@ pub fn build_sphere(center: [f64; 3], radius: f64) -> SatDocument {
 /// entity).
 pub fn build_torus(center: [f64; 3], major_radius: f64, minor_radius: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
+        // The authored primitive genus: every primitive-authored
+        // specimen carries exactly one identity transform (the
+        // per-family census: Box/Wedge/Pyramid/Cylinder/Cone/
+        // Sphere/Torus all 1, all eras; the operation families 0).
+        sat.set_placement(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            [0.0, 0.0, 0.0],
+            1.0,
+        );
     let body_idx = SatPointer::new(0);
 
     let surf = sat.add_torus_surface(

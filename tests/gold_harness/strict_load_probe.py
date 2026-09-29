@@ -28,6 +28,28 @@ app is a GUI process — each launch is bounded and killed on
 timeout; a missing/empty result file marks the fixture AMBIGUOUS,
 never clean.
 
+The LOGSEC flush discipline (the evidence-survival rule): the
+script's LISP writes EVERY result section through a `LOGSEC`
+helper — `(defun LOGSEC (lines / f) (setq f (open RESULT "a"))
+(foreach l lines (write-line l f)) (close f))` — so each section
+opens the result file in APPEND mode, writes its lines, and closes
+the handle: every line is on disk the moment it is written. The
+earlier single-handle form (`(setq rf (open … "w"))` … one final
+`(close rf)`) buffered everything in the handle and lost ALL
+evidence whenever the run died before the close — which is
+exactly what happens when a fixture trips BricsCAD's
+modeling-failure prompt (the dialog blocks the /b script engine
+mid-sequence) or the launcher's timeout kill lands: the staged
+results read 0 bytes and the run looked AMBIGUOUS when it was in
+fact a recorded verdict waiting to be flushed. With LOGSEC the
+partial evidence survives any kill — a result that stops after
+`open-entity-count` but never reaches `probe-end` is itself
+evidence (the script stalled at or before the next section; the
+verdict() classifier reads "AMBIGUOUS" for a missing probe-end
+while the surviving lines still tell the census story). The tool
+unlinks each result file before its launch so append mode never
+accumulates across runs.
+
 CLI: strict_load_probe.py [--probe-dir DIR] [--bcad EXE] [--probe NAME:DWG]...
      Defaults probe the constructed genus corpus (regenerate it first
      with genus_gates.py) against specimens Box_2007 (the control).
@@ -58,12 +80,21 @@ WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
 # (the document switch on OPEN clears LISP state — nothing may
 # outlive the switch), forces the modeler via the bounding box,
 # audits, re-censuses, and quits without saving.
+# Flush discipline: every section closes its own handle (open →
+# write → close) so a stalled run (the modeling-failure prompt at
+# OPEN blocks the script engine mid-sequence) still leaves its
+# partial evidence on disk — the buffered single-handle form died
+# with the launcher's 150 s kill and read 0 bytes.
 SCR_TEMPLATE = """_.OPEN
 {win_file}
-(setq rf (open "{win_result}" "w"))
-(write-line "probe: {name}" rf)
+(setq RESULT "{win_result}")
+(defun LOGSEC (lines / f)
+  (setq f (open RESULT "a"))
+  (foreach l lines (write-line l f))
+  (close f))
+(LOGSEC (list "probe: {name}"))
 (setq solids (ssget "_X" (list (cons 0 "3DSOLID,REGION"))))
-(write-line (strcat "open-entity-count: " (if solids (itoa (sslength solids)) "0")) rf)
+(LOGSEC (list (strcat "open-entity-count: " (if solids (itoa (sslength solids)) "0"))))
 (if (and solids (> (sslength solids) 0))
   (progn
     (setq r (vl-catch-all-apply '(lambda ()
@@ -71,21 +102,20 @@ SCR_TEMPLATE = """_.OPEN
       (strcat "bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mn)))
               " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mx)))))))
     (if (vl-catch-all-error-p r)
-      (write-line (strcat "bbox-FAIL: " (vl-catch-all-error-message r)) rf)
-      (write-line r rf)))
+      (LOGSEC (list (strcat "bbox-FAIL: " (vl-catch-all-error-message r))))
+      (LOGSEC (list r)))))
 (command "_.AUDIT" "_Y")
 (setq solids2 (ssget "_X" (list (cons 0 "3DSOLID,REGION"))))
-(write-line (strcat "post-audit-entity-count: " (if solids2 (itoa (sslength solids2)) "0")) rf)
+(LOGSEC (list (strcat "post-audit-entity-count: " (if solids2 (itoa (sslength solids2)) "0"))))
 (if (and solids2 (> (sslength solids2) 0))
   (progn
     (setq r2 (vl-catch-all-apply '(lambda ()
       (vla-getboundingbox (vlax-ename->vla-object (ssname solids2 0)) 'mn2 'mx2)
       (strcat "post-audit-bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mn2)))))))
     (if (vl-catch-all-error-p r2)
-      (write-line (strcat "post-audit-bbox-FAIL: " (vl-catch-all-error-message r2)) rf)
-      (write-line r2 rf))))
-(write-line "probe-end" rf)
-(close rf)
+      (LOGSEC (list (strcat "post-audit-bbox-FAIL: " (vl-catch-all-error-message r2))))
+      (LOGSEC (list r2)))))
+(LOGSEC (list "probe-end"))
 _.QUIT
 _N
 """
