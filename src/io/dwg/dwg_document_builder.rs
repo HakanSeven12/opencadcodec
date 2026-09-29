@@ -6034,6 +6034,9 @@ impl DwgDocumentBuilder {
                                         .xdictionary_handle
                                         .map(Handle::from),
                                     data,
+                                    raw_dwg_data: None,
+                                    raw_dwg_handle_bits: 0,
+                                    raw_dwg_version: None,
                                 },
                             ),
                         );
@@ -6849,6 +6852,25 @@ impl DwgDocumentBuilder {
                             );
                             return;
                         }
+                        // §19 the DATATABLE record-identity packet (the
+                        // 2026-09-29 era census): the class's typed
+                        // layout is an invention with NO authority (gold:
+                        // "Unhandled Class object 531"; the ODA spec
+                        // documents nothing) — her record is 753 bytes
+                        // (196 main + a 542-byte handle stream of ~192
+                        // 0x32-coded handles) while the modeled re-emit
+                        // is 1157 (the handle stream lost, +404 main
+                        // bytes). The CsacDocumentOptions precedent:
+                        // capture the whole merged-record payload at
+                        // read; the writer replays it verbatim on
+                        // same-version rewrites and the typed model
+                        // stays the DXF/programmatic/conversion
+                        // fallback.
+                        let datatable_raw = if dxf_name == "DATATABLE" {
+                            Some((reader.raw_merged_data(), reader.get_handle_bits()))
+                        } else {
+                            None
+                        };
                         if let Some(data) =
                             crate::io::dwg::dwg_stream_readers::object_reader::class_object::read_class_object_data(
                                 &mut reader,
@@ -6892,23 +6914,33 @@ impl DwgDocumentBuilder {
                                     },
                                 );
                             }
+                            let mut class_object = crate::objects::ClassObject {
+                                handle: Handle::from(handle),
+                                owner: owner_handle,
+                                reactors: non_entity_data
+                                    .reactors
+                                    .iter()
+                                    .copied()
+                                    .map(Handle::from)
+                                    .collect(),
+                                xdictionary_handle: non_entity_data
+                                    .xdictionary_handle
+                                    .map(Handle::from),
+                                data,
+                                raw_dwg_data: None,
+                                raw_dwg_handle_bits: 0,
+                                raw_dwg_version: None,
+                            };
+                            if let Some((raw, handle_bits)) = datatable_raw {
+                                class_object.raw_dwg_data = Some(raw);
+                                class_object.raw_dwg_handle_bits = handle_bits;
+                                class_object.raw_dwg_version =
+                                    Some(document.version);
+                            }
                             document.objects.insert(
                                 Handle::from(handle),
                                 crate::objects::ObjectType::ClassObject(
-                                    crate::objects::ClassObject {
-                                        handle: Handle::from(handle),
-                                        owner: owner_handle,
-                                        reactors: non_entity_data
-                                            .reactors
-                                            .iter()
-                                            .copied()
-                                            .map(Handle::from)
-                                            .collect(),
-                                        xdictionary_handle: non_entity_data
-                                            .xdictionary_handle
-                                            .map(Handle::from),
-                                        data,
-                                    },
+                                    class_object,
                                 ),
                             );
                             return;

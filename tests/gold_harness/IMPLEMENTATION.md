@@ -7908,3 +7908,38 @@ and over-emits +404 bytes) — the class has NO authority (gold:
 the typed layout is an invention: the designed fix is the
 byte-passthrough pattern (the R2018 packet's wire-capture replay
 on the ClassObject path).**
+
+**The DATATABLE record-identity packet — the pre-2007 censuses
+at FULL record identity (2026-09-29, the same continuation)**:
+the designed fix landed as the FULL-RECORD raw passthrough — the
+`CsacDocumentOptions`/`Unknown` precedent already on the same
+write dispatch, chosen over the `write_wire_body` regions replay
+because her record's handle stream (4337 bits, ~192 handles)
+runs bit-continuous from the main-data end to the byte-aligned
+record end with NO closing pad, so the regions capture could not
+distinguish her trailing data bits from pad; the whole-record
+capture has no framing derivation to get wrong. THE MECHANISM:
+`ClassObject` gains the `raw_dwg_data`/`raw_dwg_handle_bits`/
+`raw_dwg_version` envelope fields (`serde(skip)` — the Csac
+precedent's attrs, so the JSON dump and the differ never see
+them and the fingerprint's parity holds); the builder's generic
+class dispatch captures `raw_merged_data()` + `get_handle_bits()`
+for the DATATABLE class at DWG read (position-independent — the
+whole decompressed record payload); the writer's
+`ObjectType::ClassObject` arm replays via `register_raw_object`
+BEFORE the typed emission, gated on
+`raw_passthrough_compatible` (same-version writes only — a
+conversion falls back to the modeled path, the no-authority
+invention staying the DXF/programmatic fallback). THE
+ACCEPTANCE: the era censuses read **example_2000 750/750 and
+example_2004 735/735 — ZERO divergent records**: the R2000 and
+R2004 specimens join the fully-attested set (every record:
+size + hdlsize + bitsize + CRC-16 identical through the
+conventional arm). example_2018 carries NO DATATABLE instances
+(the class is registered, zero records), so the
+rewrite-rejection acceptance stands unchanged. THE ERA-CENSUS
+STATE after the three record-identity packets (the MTEXT
+wire-text capture, this packet): R2000 750/750, R2004 735/735,
+R2010 216/216 + example_2010 536/536, R2013 160/160, R2018
+474/474 (the +LINE rewrite 473/474 + the edited BLOCK_HEADER) —
+every measured era specimen at full record identity.

@@ -405,6 +405,22 @@ impl<'a> DwgObjectWriter<'a> {
             ObjectType::DynamicBlock(value) => self.write_dynamic_block(value),
             ObjectType::Associative(value) => self.write_associative_object(value),
             ObjectType::ClassObject(value) => {
+                // §19 the DATATABLE record-identity packet: a DWG-read
+                // record with a verbatim capture replays it whole (the
+                // CsacDocumentOptions/Unknown precedent — the typed
+                // layout of the no-authority classes is an invention
+                // that loses her handle stream); the version gate keeps
+                // conversions on the modeled path.
+                if let Some(raw) = &value.raw_dwg_data {
+                    if self.raw_passthrough_compatible(value.raw_dwg_version) {
+                        self.register_raw_object(
+                            value.handle,
+                            raw,
+                            value.raw_dwg_handle_bits,
+                        );
+                        return;
+                    }
+                }
                 if let ClassObjectData::CsacDocumentOptions(data) = &value.data {
                     if let Some(raw) = &data.raw_dwg_data {
                         if self.raw_passthrough_compatible(data.raw_dwg_version) {

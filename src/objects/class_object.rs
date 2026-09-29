@@ -15,6 +15,25 @@ pub struct ClassObject {
     pub reactors: Vec<Handle>,
     pub xdictionary_handle: Option<Handle>,
     pub data: ClassObjectData,
+    /// §19 the DATATABLE record-identity packet (the 2026-09-29 era
+    /// census): the verbatim merged-record capture for the classes whose
+    /// typed re-encode drifts from the author's bytes — DATATABLE (531)
+    /// first: her record is 753 bytes (196 main + a 542-byte handle
+    /// stream of ~192 0x32-coded handles) while the modeled layout
+    /// re-emits 1157 (it loses her handle stream entirely and
+    /// over-emits +404 main bytes); the class has NO authority (gold:
+    /// "Unhandled Class object 531"; the ODA spec documents nothing) so
+    /// the typed layout is an invention. The CsacDocumentOptions
+    /// precedent: a DWG read captures the whole record payload and the
+    /// rewrite re-emits it verbatim (`register_raw_object`); the typed
+    /// model stays the DXF/programmatic fallback and conversions to
+    /// another era fall back to it (the version gate).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_data: Option<Vec<u8>>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_handle_bits: i64,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_version: Option<crate::types::DxfVersion>,
 }
 
 impl ClassObject {
