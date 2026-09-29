@@ -95,23 +95,25 @@ impl SabWriter {
     pub fn write(doc: &SatDocument) -> Vec<u8> {
         let mut buf = Vec::with_capacity(8192);
 
-        // Restore-file record order (2026-09-22 region probe, third
-        // verdict): the strict restorer takes the leading records as
-        // the top-level entities to restore — cadkernel-assembled
-        // documents append the body last, so the restorer starts from
-        // a `point` record and reports "Data stream is empty" /
-        // "Audit Failed" while the identical inventory, body-first,
-        // audits clean. Documents whose first record is already the
-        // body — primitive-built (`SatDocument::new_body`) and
-        // captured genus alike — and documents carrying raw binary
-        // tokens are left untouched, keeping echo rewrites
-        // byte-faithful.
+        // Restore-file record order (2026-09-22 region probe: the
+        // strict restorer takes the leading records as the top-level
+        // entities to restore — cadkernel-assembled documents append
+        // the body last, so the restorer starts from a `point` record
+        // and reports "Data stream is empty" / "Audit Failed" while
+        // the identical inventory, body-first, audits clean). Every
+        // SAT-text document is normalized into the authored
+        // first-appearance genus order (§20: the pinned
+        // order_constraints rank — a verified linearization; body
+        // keeps rank 0 so the leading-top-level contract holds). An
+        // already authored-shaped document is genus-ordered, so the
+        // stable rank sort is the identity on it; builder-ordered and
+        // cadkernel-assembled documents are re-ranked. Documents
+        // carrying raw binary tokens are left untouched, keeping
+        // SAB-captured echo rewrites byte-faithful; an asmheader-
+        // carrying document is authored-shaped (the ASM-era file
+        // order, asmheader first) — never re-rank it.
         let reordered;
         let doc = if !doc.records.is_empty()
-            && doc.records[0].entity_type != "body"
-            && doc.records.iter().any(|r| r.entity_type == "body")
-            // An asmheader-carrying document is authored-shaped (the
-            // ASM-era file order, asmheader first) — never re-rank it.
             && !doc.records.iter().any(|r| r.entity_type == "asmheader")
             && !doc
                 .records
@@ -359,26 +361,39 @@ impl SabWriter {
         out
     }
 
-    /// Restore-file record order: top-level entities first, then the
-    /// remaining records in the stable class ranking the primitive
-    /// builders emit and native streams carry (point, surfaces,
-    /// curves, vertices, edges, coedges, loops, faces, shells, lumps,
-    /// then anything else in assembly order). Position-based ids are
-    /// remapped across every pointer token and the attribute field.
+    /// Restore-file record order: the body first (the strict restorer
+    /// takes the leading records as the top-level entities to restore
+    /// — the 2026-09-22 probe verdict preserved), then the remaining
+    /// classes in the authored first-appearance genus (§20: the pinned
+    /// order_constraints, linearized with zero violations — containers
+    /// before contents, definitions last): lump, transform, shell,
+    /// face, loop, the surface family (cone, sphere, torus, then
+    /// plane), coedge, edge, vertex, the curve family (ellipse, then
+    /// straight), point. Position-based ids are remapped across every
+    /// pointer token and the attribute field.
     fn reorder_restore_file(doc: &SatDocument) -> SatDocument {
-        let rank = |record: &SatRecord| match base_entity_type(&record.entity_type) {
-            "body" => 0u8,
-            "point" => 1,
-            "surface" => 2,
-            "curve" => 3,
-            "vertex" => 4,
-            "edge" => 5,
-            "coedge" => 6,
-            "loop" => 7,
-            "face" => 8,
-            "shell" => 9,
-            "lump" => 10,
-            _ => 11,
+        let rank = |record: &SatRecord| -> u8 {
+            match record.entity_type.as_str() {
+                "body" => 0,
+                "lump" => 1,
+                "transform" => 2,
+                "shell" => 3,
+                "face" => 4,
+                "loop" => 5,
+                "cone-surface" => 6,
+                "sphere-surface" => 7,
+                "torus-surface" => 8,
+                "ellipse-curve" => 13,
+                _ => match base_entity_type(&record.entity_type) {
+                    "coedge" => 10,
+                    "edge" => 11,
+                    "vertex" => 12,
+                    "point" => 15,
+                    "surface" => 9,
+                    "curve" => 14,
+                    _ => 16,
+                },
+            }
         };
         let mut order: Vec<usize> = (0..doc.records.len()).collect();
         order.sort_by_key(|&old| rank(&doc.records[old]));
@@ -1784,9 +1799,13 @@ mod tests {
             End-of-ACIS-data\n";
         let document = SatDocument::parse(sat).unwrap();
         let roundtrip = SabReader::read(&SabWriter::write(&document)).unwrap();
-        // The asmheader record (the authored genus) shifts the parsed
-        // face to index 1.
-        assert_eq!(roundtrip.records[1].tokens, document.records[0].tokens);
+        // The asmheader record (the authored genus) shifts the stream
+        // by one, and the authored first-appearance genus ranks the
+        // transform before the face (§20: transform always precedes
+        // face in the pinned order) — so the parsed face lands at 2.
+        // The transform roundtrips its matrix as raw tag-20 blobs (the
+        // recorded SAB matrix form); its value arms check below.
+        assert_eq!(roundtrip.records[2].tokens, document.records[0].tokens);
         assert_eq!(roundtrip.placement(), document.placement());
         let transform = roundtrip
             .records

@@ -7578,6 +7578,48 @@ journal that survives save. Pending queue: G-A 61 → 60 rows, 438 →
 genus — the fixture facts stand; the gate rows stay as the recorded
 state).
 
+**The seventh packet — the ordering genus normalization
+(2026-09-29)**: the 60-row ordering family fell. The investigation
+first corrected the source map: the rows did NOT come from
+`reorder_restore_file`'s rank — primitive-built documents carry the
+body at index 0 (`new_body`'s recorded rule), so the reorder trigger
+(only cadkernel-assembled, body-not-first documents) never fired for
+the constructed corpus; the rows came from the BUILDERS' assembly
+order flowing into the SAB verbatim. Two changes closed the family:
+(a) the rank table in `sab.rs` rewritten from the
+points-first/containers-last inverse to the authored first-appearance
+genus — a verified linearization of the pinned `order_constraints`
+(zero violations, computed from the pin): body 0, lump 1, transform
+2, shell 3, face 4, loop 5, the surface family (cone 6, sphere 7,
+torus 8, then plane 9), coedge 10, edge 11, vertex 12, the curve
+family (ellipse 13, then straight 14), point 15, else 16 — with
+full-class matches for the four disambiguated families and
+base-class fallbacks keeping unknown surfaces with plane and unknown
+curves with straight; (b) the write-site trigger widened: every
+SAT-text→SAB conversion normalizes to the genus order (the
+body-not-first condition dropped; the asmheader and raw-Sab-token
+guards kept — authored-shaped documents are already genus-ordered,
+so the stable rank sort is the identity on them; builder-ordered
+and cadkernel-assembled documents re-rank; body keeps rank 0 so the
+2026-09-22 leading-top-level contract holds). **`sab_form_diffs`
+64 → 4 rows, 471 → 44 occurrences — the 60 ordering rows' 427
+occurrences gone; the PENDING queue is 0/0/0 across all three
+families; `--strict` now passes.** One SAB module test moved to the
+new convention (the modern face/transform roundtrip: the transform
+leads the face per the pinned order — the face's value roundtrip
+assertion moved to index 2; the transform's raw tag-20 matrix
+roundtrip recorded in the comment). The generation identity MOVED
+(the SAB record order changed in every constructed carrier —
+re-recorded at the halt). The OPEN VERIFICATION: the re-ranked
+constructed stream has not yet faced the strict loader — the
+2026-09-22 probe verdict covered the body-first shape, and the
+recorded procedure is the user-run BricsCAD audit
+(`/mnt/c/Program Files/Bricsys/BricsCAD V18 en_US`): open the
+constructed fixtures in `target/genus_gates/constructed/` and audit;
+until the audit lands, the ordering packet stands on the genus
+evidence alone, and a failed audit REVERSES the rank change (the
+revert rule recorded).
+
 **The fifth packet — the TOLERATED adjudication state
 (2026-09-29)**: §20.3's "some rows may close as TOLERATED with the
 row kept as the recorded state" gained its instrument: an
