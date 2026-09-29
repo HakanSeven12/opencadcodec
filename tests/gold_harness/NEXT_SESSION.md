@@ -360,7 +360,49 @@ read-only, WM_GETTEXT empty on the wxWidgets UI, UIA empty,
 GetWindowText works; the transcript captures the run's window
 lifecycle with timestamps).
 
-**THE CANDIDATE-5 FINDINGS (2026-09-29, the sixth continuation —
+**THE CANDIDATE-6 FINDINGS (2026-09-29, the seventh continuation
+— the same-era minimal pair)**: the suspects (a) and (b) were
+cleared — (a) an authored journal-less, attrib-less carrier MODELS
+(example_2004/2013/2018's plain Region, 28 records, 0 attribs:
+real extents, all three eras — "attribs absent" does NOT block
+modeling); (b) the coedge wiring symmetry — 0 violations in both
+streams (partner/next/prev all correct). **THE DECISIVE SAME-ERA
+PAIR then landed: the authored R2018 REGION (MODELS) vs the
+CONSTRUCTED REGION (NULL-BOX) — identical 28-record topology,
+identical ASM|22300 header triple, and exactly THREE divergences
+remained**:
+1. **The coedge sense chain: authored `ffff` (all reversed) vs
+   constructed `TTTT` (all forward)** — the two loops travel the
+   same rectangle in OPPOSITE directions. The authored BOX top
+   face travels CCW (TTTT, verified); the authored REGION travels
+   CW with the same +z plane normal — ACIS's sheet (region-face)
+   handedness appears LEFT-HANDED relative to the material-side
+   normal, and the constructed region emits the wrong direction.
+2. **The vertex int token: authored `2` on every sheet vertex vs
+   constructed `0`** — the 580-vertex census's 0/1/2 semantics
+   were derived from SOLIDS; the authored SHEET convention is
+   demonstrably 2 (this region MODELS with role 2 on all four
+   vertices, both endpoints of distinct-parent edges).
+3. The asmheader's version string is a GENUS SET, not one value:
+   example_2018's region carries "223.0.1.1930" while the
+   Box_2018 specimens carry "232.6.0.65535" — BOTH model, so not
+   the blocker, but the asmheader row's pin (era-uniform) came
+   from the tree-selected fixtures only.
+
+**THE DESIGNED EXPERIMENT (candidate 6, the next packet)**: in
+`build_planar_body` — (1) flip each face loop's coedge senses so
+the loop travels CW viewed from the face's material-side normal
+(mirror `Sense::Forward`/`Reversed` in the per-segment
+assignment; verify with `restore_gap_diffs.py`'s travel audit
+against the authored region), and (2) set the vertex int to the
+authored sheet value 2. Regenerate the constructed corpus, then
+`strict_load_probe.py`: acceptance is the CONSTRUCTED REGION
+reading MODELED (the box fixtures are the follow-up — their
+senses/vertex ints need the same authored-mirror treatment
+class by class: authored box top TTTT / sides Tfff / bottom
+TTTT with vertex roles 0/1). One change at a time is fine —
+bisect senses-first (the biggest divergence), then the vertex
+int.
 the orientation audits, landed as
 `tests/gold_harness/restore_gap_diffs.py`)**: the full structural
 diff (BFS-position paired, persubent attribs skipped) surfaced the
