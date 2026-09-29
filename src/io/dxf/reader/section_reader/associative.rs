@@ -1625,6 +1625,7 @@ impl<'a> SectionReader<'a> {
                 .to_string(),
             data,
             source_version: None,
+            ..Default::default()
         })
     }
 }

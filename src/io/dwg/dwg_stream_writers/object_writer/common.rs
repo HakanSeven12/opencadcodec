@@ -280,6 +280,73 @@ impl<'a> DwgObjectWriter<'a> {
         // No need to reset writer — we didn't use it
     }
 
+    // ── write_wire_body ──────────────────────────────────────────────
+    /// §19 H8h-ext-12 + §20 the R2018 record-identity packet: replay a
+    /// verbatim class body captured at DWG read. The reader-side twin
+    /// (the builder's `capture_wire_body`) records the main bits from
+    /// the body start (after the common fields) to the main-data end,
+    /// the text-region bits into the text stream, and the handle bits
+    /// from the post-common drain position to the record end minus the
+    /// author's closing 1s pad — this replay re-creates the pad
+    /// explicitly (the merged writer's own handle pad is 0s). Called
+    /// AFTER the caller wrote the record's common part (type code,
+    /// handle, EED, reactors/…, layer/…); returns false (the modeled
+    /// emission is then the caller's fallback) when there is no
+    /// capture or the write targets a version other than the one the
+    /// capture came from — a conversion falls back rather than emit
+    /// foreign-frame bytes.
+    pub fn write_wire_body(
+        &mut self,
+        main: &Option<Vec<u8>>,
+        main_bit_len: u32,
+        text: &Option<Vec<u8>>,
+        text_bit_len: u32,
+        handles: &Option<Vec<u8>>,
+        handles_bit_len: u32,
+        source_dxf_version: Option<crate::types::DxfVersion>,
+    ) -> bool {
+        if source_dxf_version != Some(self.dxf_version) {
+            return false;
+        }
+        let Some(main_bytes) = main else {
+            return false;
+        };
+        // The main bits (MSB-first packed)
+        let bits = (main_bit_len as usize).min(main_bytes.len() * 8);
+        for index in 0..bits {
+            let byte = main_bytes[index / 8];
+            let bit = (byte >> (7 - index % 8)) & 1;
+            self.writer.write_bit(bit == 1);
+        }
+        // The text region (raw bits into the text stream)
+        if let Some(bytes) = text {
+            let bits = (text_bit_len as usize).min(bytes.len() * 8);
+            for index in 0..bits {
+                let byte = bytes[index / 8];
+                let bit = (byte >> (7 - index % 8)) & 1;
+                self.writer.write_text_bit(bit == 1);
+            }
+        }
+        // The handle tail: extend the captured bits to the byte
+        // boundary with 1s — the author's final-partial-byte convention
+        // (the reader's ≤7-bit trim cut exactly her pad: corpus records
+        // end byte-aligned or in a 0 bit, so the trim never over-cuts).
+        if let Some(bytes) = handles {
+            let mut bytes = bytes.clone();
+            let mut bit_len = handles_bit_len;
+            let rem = bit_len % 8;
+            if rem != 0 {
+                let pad = 8 - rem;
+                if let Some(last) = bytes.last_mut() {
+                    *last |= ((1u16 << pad) - 1) as u8;
+                }
+                bit_len += pad;
+            }
+            self.writer.write_handle_bits(&bytes, bit_len);
+        }
+        true
+    }
+
     // ── write_common_data ───────────────────────────────────────────
     /// Object type + handle + extended-data preamble shared by
     /// every object (entities AND non-graphical objects).

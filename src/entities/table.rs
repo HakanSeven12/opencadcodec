@@ -1432,6 +1432,13 @@ pub struct Table {
     /// Exact bit width of `wire_handles`.
     #[cfg_attr(feature = "serde", serde(default))]
     pub wire_handles_bit_len: u32,
+    /// §20 the R2018 record-identity packet: the DxfVersion whose reader
+    /// frame the `wire_*` captures came from. The writer replays the wire
+    /// only when the write targets that same version — a conversion to
+    /// another era falls back to the modeled emission rather than
+    /// emitting foreign-frame bytes.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_dxf_version: Option<crate::types::DxfVersion>,
 }
 
 fn visit_table_value_handles(value: &mut CellValue, visit: &mut impl FnMut(&mut Handle)) {
@@ -1680,6 +1687,7 @@ impl Table {
             wire_text_bit_len: 0,
             wire_handles: None,
             wire_handles_bit_len: 0,
+            wire_dxf_version: None,
         }
     }
 

@@ -515,9 +515,13 @@ remains the highest-fidelity console evidence.
   strict-loader defect: read the surviving LOGSEC lines and the
   window transcript first (the census story ranks the failure);
   then bisect with the chimera/subset instruments (`sab_swap`,
-  `fresh_pair`, `entity_subset`) and the R2018 record-identity
-  census (gold `-v9` object blocks, handle-keyed, position-
-  normalized — the era the AC1021 survey never covered). Kill a
+  `fresh_pair`, `entity_subset`) and the record-identity census:
+  `python3 tests/gold_harness/record_size_census.py ORIG.dwg
+  REWRITE.dwg` (gold `-v9` object blocks, handle-keyed, per-record
+  identity = size + hdlsize + bitsize + CRC-16; the R2018 + every
+  era the AC1021 survey never covered; `DWG_NO_ECHO=1
+  target/debug/dwgrewrite F conv.dwg` produces the conventional-arm
+  rewrite to census against). Kill a
   stalled loader BY PID (`acad.exe` is shared with other Autodesk
   sessions).
 
@@ -563,6 +567,7 @@ there with `required-features = ["serde"]` alongside them.
 | `genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
 | `genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
 | `strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; the default run exercises BOTH loaders (BricsCAD V26 via `DEFAULT_BCAD`, AutoCAD 2027 via `DEFAULT_ACAD`, per-loader verdicts); `--loader bcad/acad` narrows, `--bcad`/`--acad` override the paths |
+| `record_size_census.py` | The record-identity census for ANY pair on ANY era — gold `-v9` object blocks, handle-keyed, per-record identity = size + hdlsize + bitsize + CRC-16 (the R2018-record battery's instrument, 2026-09-29; the era-census + rewrite-acceptance acceptance gate; `DWG_NO_ECHO=1 target/debug/dwgrewrite` stages the conventional-arm rewrite) |
 | `bricscad_console_scraper.ps1` | The window-lifecycle transcript — polls the loader's top-level windows (class + title, timestamps) into `<name>_console.log`; the console-text channel map is tested and closed on these builds |
 | `restore_gap_diffs.py` | The constructed-SAB structural audits — per-face orientation, loop-traversal connectivity, travel-direction (the right-hand rule), record/token alignment |
 | `examples/sab_swap.rs` | The payload-swap chimera generator (authored wrapper + constructed SAB and vice versa, plus the pure-rewrite control) — the file-level rejection bisect instrument |

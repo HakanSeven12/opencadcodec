@@ -3393,6 +3393,78 @@ impl DwgDocumentBuilder {
             .insert(Handle::from(handle), hex);
     }
 
+    /// §20 the R2018 record-identity packet (the rewrite-rejection
+    /// campaign): the verbatim body capture for class-based records
+    /// whose typed re-encode drifts from the author's bytes — the TABLE
+    /// entity, TABLECONTENT, and the ACDBASSOCALIGNEDDIMACTIONBODY
+    /// classes whose modeled emissions lose form bits the model never
+    /// retained (example_2018: type 528 main 26105→25410 bits, type
+    /// 529 14290→14087, type 520 bitsize 55→53 — the R2018 census,
+    /// 2026-09-29). The reader-side twin of the writer's
+    /// `write_wire_body` replay: the marks are taken AFTER the common
+    /// fields (the main cursor sits at the body start, the handle
+    /// cursor right after the common handle reads), and the regions
+    /// are peeked at the end of the typed parse (peek does not move
+    /// the cursors). The captured bits ride the model; the writer
+    /// re-emits them verbatim when the write targets the same
+    /// version, so an edited document rewrites with her record bytes
+    /// intact — and AutoCAD 2027 (which rejects the drifted rewrites
+    /// at the file level) opens the edit.
+    fn wire_capture_marks(reader: &DwgMergedReader) -> (i64, i64, u32, i64) {
+        let body_start = reader.position_in_bits();
+        let main_end = reader.main_end_bits();
+        let text_len = reader.text_remaining_bits().max(0) as u32;
+        let handle_from = reader.handle_position_in_bits();
+        (body_start, main_end, text_len, handle_from)
+    }
+
+    /// Peek the marked regions: the main bits from the body start to
+    /// the main-data end, the text region, and the handle tail from
+    /// the post-common drain position to the record end — minus the
+    /// author's closing 1s pad, re-created by the writer explicitly
+    /// (the ext-8 lesson: the writer's handle buffer starts at an
+    /// arbitrary bit, so an untrimmed capture double-pads).
+    fn capture_wire_body(
+        reader: &DwgMergedReader,
+        marks: (i64, i64, u32, i64),
+    ) -> (Option<Vec<u8>>, u32, Option<Vec<u8>>, u32, Option<Vec<u8>>, u32) {
+        let (body_start, main_end, text_len, handle_from) = marks;
+        let mut out = (None, 0u32, None, 0u32, None, 0u32);
+        if main_end > body_start {
+            let count = (main_end - body_start) as u32;
+            if let Some(bytes) = reader.peek_window_bytes(body_start, count) {
+                out.0 = Some(bytes);
+                out.1 = count;
+            }
+        }
+        if text_len > 0 {
+            if let Some(bytes) = reader.peek_window_bytes(main_end, text_len) {
+                out.2 = Some(bytes);
+                out.3 = text_len;
+            }
+        }
+        let mut handle_to = reader.record_end_bits();
+        let mut pad_bits: i64 = 0;
+        while pad_bits < 7 && handle_to - pad_bits > handle_from {
+            let bit = reader
+                .peek_window_bytes(handle_to - pad_bits - 1, 1)
+                .map(|bytes| bytes[0] >> 7);
+            if bit != Some(1) {
+                break;
+            }
+            pad_bits += 1;
+        }
+        handle_to -= pad_bits;
+        if handle_to > handle_from {
+            let count = (handle_to - handle_from) as u32;
+            if let Some(bytes) = reader.peek_window_bytes(handle_from, count) {
+                out.4 = Some(bytes);
+                out.5 = count;
+            }
+        }
+        out
+    }
+
     /// Process a single object record in Pass 2.
     fn process_pass2_record(
         &self,
@@ -3692,6 +3764,23 @@ impl DwgDocumentBuilder {
                     // ACAD_TABLE is INSERT-derived: the insert base positions the
                     // table and links it to the block that renders its cells; on
                     // R2010+ the inline table content (columns/rows/cells) follows.
+                    //
+                    // §20 the R2018 record-identity packet: on the R2010+ frames
+                    // (AC1024/AC1027/AC1032) the modeled content emission drops
+                    // the cell-style/border sub-structures the model never
+                    // retained (example_2018 h=4F2 — the 26105→25410-bit
+                    // census row, the AutoCAD-2027 file-level rejection's
+                    // poison), so the typed parse rides a verbatim body
+                    // capture the writer replays. The AC1021 corpus is
+                    // record-identity attested without it (the 58/58 survey)
+                    // and keeps the modeled emission.
+                    let table_wire = if self.obj_reader.dxf_version()
+                        >= crate::types::DxfVersion::AC1024
+                    {
+                        Some(Self::wire_capture_marks(&reader))
+                    } else {
+                        None
+                    };
                     let data = entities::read_table(
                         &mut reader,
                         self.obj_reader.version(),
@@ -3740,6 +3829,17 @@ impl DwgDocumentBuilder {
                     e.legacy_border_colors = data.legacy_border_colors;
                     e.legacy_border_line_weights = data.legacy_border_line_weights;
                     e.legacy_border_visibility = data.legacy_border_visibility;
+                    if let Some(marks) = table_wire {
+                        let (main, main_bits, text, text_bits, handles, handles_bits) =
+                            Self::capture_wire_body(&reader, marks);
+                        e.wire_main = main;
+                        e.wire_main_bit_len = main_bits;
+                        e.wire_text = text;
+                        e.wire_text_bit_len = text_bits;
+                        e.wire_handles = handles;
+                        e.wire_handles_bit_len = handles_bits;
+                        e.wire_dxf_version = Some(self.obj_reader.dxf_version());
+                    }
                     let _ = document.add_entity(EntityType::Table(e));
                 }
                 OBJ_LWPOLYLINE => {
@@ -6163,20 +6263,30 @@ impl DwgDocumentBuilder {
                     // h=BF2: her main region 17,587 bits vs our
                     // modeled 15,963 — 203 bytes, near-full; the text
                     // region and handle stream re-emit bit-identical).
-                    // Capture the body verbatim — bounds taken BEFORE
+                    // Capture the body verbatim — marks taken BEFORE
                     // the parse advances the text/handle cursors; the
                     // bits peeked after (peek does not disturb the
-                    // cursors). Gated to AC1021, the record-identity
-                    // attested frame; other eras keep the modeled
-                    // emission.
+                    // cursors).
+                    //
+                    // §20 the R2018 record-identity packet: the gate
+                    // widened to the R2010+ frames — the same class
+                    // drifts there too (example_2018 h=89E — the
+                    // 14290→14087-bit census row, the AutoCAD-2027
+                    // file-level rejection's poison) and the AC1024/
+                    // AC1027 table records were never record-attested.
+                    // The widened census then measured the IDENTICAL
+                    // drift on every era that carries the class —
+                    // AC1018 (example_2004 h=ADB: 8316 vs our modeled
+                    // 8113) and AC1015 (example_2000 h=9BC: 8317 vs
+                    // 8114) — the 203-byte class signature the AC1021
+                    // landing measured on h=BF2, so the capture covers
+                    // every era the class exists on; AC1021 keeps its
+                    // record-identity attested behavior (the 58/58
+                    // survey ran with the capture in place).
                     let wire = if self.obj_reader.dxf_version()
-                        == crate::types::DxfVersion::AC1021
+                        >= crate::types::DxfVersion::AC1015
                     {
-                        let body_start = reader.position_in_bits();
-                        let main_end = reader.main_end_bits();
-                        let text_len = reader.text_remaining_bits().max(0) as u32;
-                        let handle_from = reader.handle_position_in_bits();
-                        Some((body_start, main_end, text_len, handle_from))
+                        Some(Self::wire_capture_marks(&reader))
                     } else {
                         None
                     };
@@ -6218,59 +6328,16 @@ impl DwgDocumentBuilder {
                     obj.merged_ranges = merged_ranges;
                     obj.table_style_handle = (style_handle != 0)
                         .then(|| Handle::from(style_handle));
-                    if let Some((body_start, main_end, text_len, handle_from)) =
-                        wire
-                    {
-                        if main_end > body_start {
-                            let count = (main_end - body_start) as u32;
-                            if let Some(bytes) =
-                                reader.peek_window_bytes(body_start, count)
-                            {
-                                obj.wire_main = Some(bytes);
-                                obj.wire_main_bit_len = count;
-                            }
-                        }
-                        if text_len > 0 {
-                            if let Some(bytes) =
-                                reader.peek_window_bytes(main_end, text_len)
-                            {
-                                obj.wire_text = Some(bytes);
-                                obj.wire_text_bit_len = text_len;
-                            }
-                        }
-                        // The handle tail with the author's closing 1s
-                        // pad trimmed (the ext-8 lesson: the writer's
-                        // handle buffer starts at an arbitrary bit, so
-                        // an untrimmed capture double-pads). The writer
-                        // re-creates the pad explicitly with 1s — the
-                        // author's final-partial-byte convention (the
-                        // h=BF2 lesson: the merged writer's own handle
-                        // pad is 0s; every other corpus record ends
-                        // byte-aligned so only this record exposes
-                        // it).
-                        let mut handle_to = reader.record_end_bits();
-                        let mut pad_bits: i64 = 0;
-                        while pad_bits < 7
-                            && handle_to - pad_bits > handle_from
-                        {
-                            let bit = reader
-                                .peek_window_bytes(handle_to - pad_bits - 1, 1)
-                                .map(|bytes| bytes[0] >> 7);
-                            if bit != Some(1) {
-                                break;
-                            }
-                            pad_bits += 1;
-                        }
-                        handle_to -= pad_bits;
-                        if handle_to > handle_from {
-                            let count = (handle_to - handle_from) as u32;
-                            if let Some(bytes) =
-                                reader.peek_window_bytes(handle_from, count)
-                            {
-                                obj.wire_handles = Some(bytes);
-                                obj.wire_handles_bit_len = count;
-                            }
-                        }
+                    if let Some(marks) = wire {
+                        let (main, main_bits, text, text_bits, handles, handles_bits) =
+                            Self::capture_wire_body(&reader, marks);
+                        obj.wire_main = main;
+                        obj.wire_main_bit_len = main_bits;
+                        obj.wire_text = text;
+                        obj.wire_text_bit_len = text_bits;
+                        obj.wire_handles = handles;
+                        obj.wire_handles_bit_len = handles_bits;
+                        obj.wire_dxf_version = Some(self.obj_reader.dxf_version());
                     }
                     document.objects.insert(
                         Handle::from(handle),
@@ -6478,6 +6545,27 @@ impl DwgDocumentBuilder {
                         .map(|name| name.to_uppercase());
                     if let Some(dxf_name) = class_name.as_deref() {
                         if crate::objects::is_associative_object_name(dxf_name) {
+                            // §20 the R2018 record-identity packet: the
+                            // 520-class wire capture. The modeled
+                            // ACDBASSOCALIGNEDDIMACTIONBODY emission loses
+                            // form bits the model never retained
+                            // (example_2018 h=392: her bitsize 55, our
+                            // rewrite 53 — the AutoCAD-2027 file-level
+                            // rejection's poison); gold has no decoder
+                            // for the class and the ODA spec documents
+                            // nothing. Capture the class body verbatim
+                            // on the R2010+ frames — the only eras with
+                            // the measured drift; AC1021's records are
+                            // 58/58 record-identical through the
+                            // modeled path.
+                            let assoc_wire = if dxf_name == "ACDBASSOCALIGNEDDIMACTIONBODY"
+                                && self.obj_reader.dxf_version()
+                                    >= crate::types::DxfVersion::AC1024
+                            {
+                                Some(Self::wire_capture_marks(&reader))
+                            } else {
+                                None
+                            };
                             if let Some(data) =
                                 crate::io::dwg::dwg_stream_readers::object_reader::associative::read_associative_data(
                                     &mut reader,
@@ -6495,26 +6583,38 @@ impl DwgDocumentBuilder {
                                             .map(str::to_string)
                                     })
                                     .unwrap_or_default();
+                                let mut assoc = crate::objects::AssociativeObject {
+                                    handle: Handle::from(handle),
+                                    owner: owner_handle,
+                                    reactors: non_entity_data
+                                        .reactors
+                                        .iter()
+                                        .map(|&value| Handle::from(value))
+                                        .collect(),
+                                    xdictionary_handle: non_entity_data
+                                        .xdictionary_handle
+                                        .map(Handle::from),
+                                    dxf_name: dxf_name.to_string(),
+                                    cpp_class_name,
+                                    data,
+                                    source_version: Some(document.version),
+                                    ..Default::default()
+                                };
+                                if let Some(marks) = assoc_wire {
+                                    let (main, main_bits, text, text_bits, handles, handles_bits) =
+                                        Self::capture_wire_body(&reader, marks);
+                                    assoc.wire_main = main;
+                                    assoc.wire_main_bit_len = main_bits;
+                                    assoc.wire_text = text;
+                                    assoc.wire_text_bit_len = text_bits;
+                                    assoc.wire_handles = handles;
+                                    assoc.wire_handles_bit_len = handles_bits;
+                                    assoc.wire_dxf_version =
+                                        Some(self.obj_reader.dxf_version());
+                                }
                                 document.objects.insert(
                                     Handle::from(handle),
-                                    crate::objects::ObjectType::Associative(
-                                        crate::objects::AssociativeObject {
-                                            handle: Handle::from(handle),
-                                            owner: owner_handle,
-                                            reactors: non_entity_data
-                                                .reactors
-                                                .iter()
-                                                .map(|&value| Handle::from(value))
-                                                .collect(),
-                                            xdictionary_handle: non_entity_data
-                                                .xdictionary_handle
-                                                .map(Handle::from),
-                                            dxf_name: dxf_name.to_string(),
-                                            cpp_class_name,
-                                            data,
-                                            source_version: Some(document.version),
-                                        },
-                                    ),
+                                    crate::objects::ObjectType::Associative(assoc),
                                 );
                                 return;
                             }

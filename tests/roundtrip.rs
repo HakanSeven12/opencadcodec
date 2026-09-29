@@ -990,6 +990,35 @@ fn dwg_roundtrip(doc: &CadDocument) -> CadDocument {
     reader.read().expect("DWG read failed")
 }
 
+/// The deep-compare wire-scenario sync (the 34c75d0 capture's test-side
+/// twin): every written SPLINE record carries a scenario BL — an
+/// authored capture re-emits verbatim, a constructed spline falls back
+/// to the derived storage scenario — so every WIRE-DECODED spline model
+/// carries `dwg_wire_scenario: Some(_)` while a constructed model in
+/// memory carries `None`. That asymmetry is a wire-capture artifact,
+/// not a regression, so pre-compare the constructed doc is given the
+/// value its own write emits (the same derivation as
+/// `write_spline_data`). The comparison stays honest for the VALUE: a
+/// reader capturing a BL that disagrees with the derived storage still
+/// fails the compare.
+fn sync_constructed_spline_scenarios(doc: &mut CadDocument, version: DxfVersion) {
+    let r2013_plus = matches!(version, DxfVersion::AC1027 | DxfVersion::AC1032);
+    for entity in doc.entities_mut() {
+        if let EntityType::Spline(spline) = entity {
+            if spline.dwg_wire_scenario.is_none() {
+                let storage: i32 = if !spline.fit_points.is_empty()
+                    && (!r2013_plus || spline.knot_parameterization != 15)
+                {
+                    2
+                } else {
+                    1
+                };
+                spline.dwg_wire_scenario = Some(storage);
+            }
+        }
+    }
+}
+
 // ── AcDs SAB round-trip (issue 225) ───────────────────────────────────────
 //
 // On R2013+ a 3DSOLID/REGION/BODY's geometry is not inline — it lives as a SAB
@@ -1440,7 +1469,8 @@ fn dwg_roundtrip_entity_count_all_versions() {
 
 #[test]
 fn dwg_roundtrip_deep_r2018() {
-    let (doc, _) = build_rich_document(DxfVersion::AC1032);
+    let (mut doc, _) = build_rich_document(DxfVersion::AC1032);
+    sync_constructed_spline_scenarios(&mut doc, DxfVersion::AC1032);
     let rt = dwg_roundtrip(&doc);
     let report = compare_documents(&doc, &rt);
     // Known issues: Shape name not resolvable in DWG (1)
@@ -1463,7 +1493,8 @@ fn dwg_roundtrip_deep_r2018() {
 
 #[test]
 fn dwg_roundtrip_deep_r2000() {
-    let (doc, _) = build_rich_document(DxfVersion::AC1015);
+    let (mut doc, _) = build_rich_document(DxfVersion::AC1015);
+    sync_constructed_spline_scenarios(&mut doc, DxfVersion::AC1015);
     let rt = dwg_roundtrip(&doc);
     let report = compare_documents(&doc, &rt);
     assert_eq!(rt.classes.len(), 38);
@@ -1507,7 +1538,8 @@ fn dwg_roundtrip_deep_r2000() {
 
 #[test]
 fn dwg_roundtrip_deep_r2013() {
-    let (doc, _) = build_rich_document(DxfVersion::AC1027);
+    let (mut doc, _) = build_rich_document(DxfVersion::AC1027);
+    sync_constructed_spline_scenarios(&mut doc, DxfVersion::AC1027);
     let rt = dwg_roundtrip(&doc);
     let report = compare_documents(&doc, &rt);
     // Known issues: Shape name not resolvable in DWG (1)
@@ -1591,7 +1623,8 @@ macro_rules! dwg_entity_roundtrip {
         #[test]
         fn $test_name() {
             let entity = $entity_expr;
-            let doc = build_minimal_document(DxfVersion::AC1032, entity);
+            let mut doc = build_minimal_document(DxfVersion::AC1032, entity);
+            sync_constructed_spline_scenarios(&mut doc, DxfVersion::AC1032);
             let rt = dwg_roundtrip(&doc);
 
             assert_eq!(

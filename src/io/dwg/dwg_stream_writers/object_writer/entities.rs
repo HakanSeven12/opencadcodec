@@ -3949,6 +3949,28 @@ impl<'a> DwgObjectWriter<'a> {
         let type_code = self.class_type_code("ACAD_TABLE", common::OBJ_TABLE);
         self.entity_preamble(type_code, &e.common);
 
+        // §20 the R2018 record-identity packet (the rewrite-rejection
+        // campaign): a DWG-read table on the R2010+ frames replays its
+        // captured body verbatim — the modeled content emission drops
+        // the cell-style/border sub-structures the model never held
+        // (example_2018 h=4F2 — the 26105→25410-bit census drift, the
+        // AutoCAD-2027 file-level rejection's poison). The modeled
+        // emission stays the fallback for DXF-built and programmatic
+        // tables (no capture) and for conversions that target another
+        // version.
+        if self.write_wire_body(
+            &e.wire_main,
+            e.wire_main_bit_len,
+            &e.wire_text,
+            e.wire_text_bit_len,
+            &e.wire_handles,
+            e.wire_handles_bit_len,
+            e.wire_dxf_version,
+        ) {
+            self.register_object(e.common.handle);
+            return;
+        }
+
         // Insert base (mirrors read_insert; tables carry no attributes).
         self.writer.write_3bit_double(e.insertion_point);
         if self.version.r13_14_only() {

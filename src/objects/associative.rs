@@ -19,6 +19,38 @@ pub struct AssociativeObject {
     pub data: AssociativeData,
     #[cfg_attr(feature = "serde", serde(skip))]
     pub source_version: Option<DxfVersion>,
+    /// §20 the R2018 record-identity packet: the wire capture for the
+    /// classes whose typed re-encode drifts from the author's bytes.
+    /// ACDBASSOCALIGNEDDIMACTIONBODY (520) is first: gold has no decoder
+    /// for the class ("Unhandled Class object 520"), the ODA spec
+    /// documents nothing, and the modeled emission loses form bits the
+    /// model never retained (example_2018 h=392: her bitsize 55, our
+    /// rewrite 53). A DWG read captures the class body verbatim — the
+    /// main bits after the common fields, the text region, and the
+    /// handle tail — so the conventional rewrite re-emits her bytes;
+    /// the modeled emission stays the DXF/programmatic fallback
+    /// (`wire_main` absent).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_main: Option<Vec<u8>>,
+    /// Exact bit width of `wire_main`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_main_bit_len: u32,
+    /// MSB-first packed text-region bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_text: Option<Vec<u8>>,
+    /// Exact bit width of `wire_text`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_text_bit_len: u32,
+    /// MSB-first packed handle-stream tail bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handles: Option<Vec<u8>>,
+    /// Exact bit width of `wire_handles`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handles_bit_len: u32,
+    /// The DxfVersion whose reader frame the `wire_*` captures came
+    /// from (the writer's replay gate).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_dxf_version: Option<DxfVersion>,
 }
 
 impl AssociativeObject {

@@ -1091,50 +1091,22 @@ impl<'a> DwgObjectWriter<'a> {
             &value.common.reactors,
             &value.common.xdictionary_handle,
         );
-        // §19 H8h-ext-12: DWG-read AC1021 records re-emit their
-        // captured body verbatim — the main bits, the text-region bits
-        // (raw, into the text stream), and the handle tail. The
-        // modeled emission stays the fallback for DXF-built and
-        // programmatic records (no capture).
-        if value.wire_main.is_some() {
-            if let Some(bytes) = &value.wire_main {
-                let bits = (value.wire_main_bit_len as usize).min(bytes.len() * 8);
-                for index in 0..bits {
-                    let byte = bytes[index / 8];
-                    let bit = (byte >> (7 - index % 8)) & 1;
-                    self.writer.write_bit(bit == 1);
-                }
-            }
-            if let Some(bytes) = &value.wire_text {
-                let bits = (value.wire_text_bit_len as usize).min(bytes.len() * 8);
-                for index in 0..bits {
-                    let byte = bytes[index / 8];
-                    let bit = (byte >> (7 - index % 8)) & 1;
-                    self.writer.write_text_bit(bit == 1);
-                }
-            }
-            if let Some(bytes) = &value.wire_handles {
-                // §19 H8h-ext-12: re-create the author's closing 1s
-                // pad explicitly — extend the captured bits to the
-                // byte boundary with 1s (the DWG final-partial-byte
-                // convention, §19 H8d) so the merged writer's own
-                // zero-pad never fires. The reader's ≤7-bit trim cut
-                // exactly her pad (the corpus records' handle streams
-                // end in a 0 bit or byte-aligned, so the trim never
-                // over-cuts).
-                let mut bytes = bytes.clone();
-                let mut bit_len = value.wire_handles_bit_len;
-                let rem = bit_len % 8;
-                if rem != 0 {
-                    let pad = 8 - rem;
-                    if let Some(last) = bytes.last_mut() {
-                        *last |= ((1u16 << pad) - 1) as u8;
-                    }
-                    bit_len += pad;
-                }
-                self.writer.write_handle_bits(&bytes, bit_len);
-            }
-        } else {
+        // §19 H8h-ext-12 + §20 the R2018 record-identity packet:
+        // DWG-read records re-emit their captured body verbatim — the
+        // main bits, the text-region bits (raw, into the text stream),
+        // and the handle tail. The modeled emission stays the fallback
+        // for DXF-built and programmatic records (no capture) and for
+        // conversions that target another version (the replay gate
+        // inside write_wire_body).
+        if !self.write_wire_body(
+            &value.wire_main,
+            value.wire_main_bit_len,
+            &value.wire_text,
+            value.wire_text_bit_len,
+            &value.wire_handles,
+            value.wire_handles_bit_len,
+            value.wire_dxf_version,
+        ) {
             self.write_table_content(value);
         }
         self.register_object(value.common.handle);

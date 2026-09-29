@@ -450,6 +450,28 @@ impl<'a> DwgObjectWriter<'a> {
                 &object.xdictionary_handle,
             );
         }
+        // §20 the R2018 record-identity packet (the rewrite-rejection
+        // campaign): a DWG-read body replays its captured wire
+        // verbatim when the class's modeled emission drifts from the
+        // author's bytes — ACDBASSOCALIGNEDDIMACTIONBODY (520) first:
+        // gold has no decoder for the class, the ODA spec documents
+        // nothing, and the modeled emission loses form bits the model
+        // never retained (example_2018 h=392: her bitsize 55, our
+        // rewrite 53). The modeled emission stays the fallback for
+        // DXF-built and programmatic records (no capture) and for
+        // conversions that target another version.
+        if self.write_wire_body(
+            &object.wire_main,
+            object.wire_main_bit_len,
+            &object.wire_text,
+            object.wire_text_bit_len,
+            &object.wire_handles,
+            object.wire_handles_bit_len,
+            object.wire_dxf_version,
+        ) {
+            self.register_object(object.handle);
+            return;
+        }
         match &object.data {
             AssociativeData::Unknown => {}
             AssociativeData::Dependency(value) => self.write_assoc_dependency(value),

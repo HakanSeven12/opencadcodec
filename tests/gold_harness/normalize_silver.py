@@ -1124,6 +1124,19 @@ def normalize_silver(
         payload = entity[silver_type]
         if not isinstance(payload, dict):
             continue
+        # §20 the R2018 record-identity packet: the wire-capture channels
+        # — the reader's spline wire-scenario BL (34c75d0) and the table
+        # entity's captured body — are writer-side codec fields with no
+        # gold counterpart (the source_version precedent), never
+        # comparison payload on any entity type. A captured value rides
+        # these keys on every DWG read; popping them loop-universal
+        # keeps the read-axis comparison to semantic structure.
+        for _wk in ("dwg_wire_scenario",
+                    "wire_main", "wire_main_bit_len",
+                    "wire_text", "wire_text_bit_len",
+                    "wire_handles", "wire_handles_bit_len",
+                    "wire_dxf_version"):
+            payload.pop(_wk, None)
         # DIMENSION entities: silver wraps Dimension.<Kind>.base (common +
         # dim-common) with the kind specifics beside base. Unwrap before the
         # common extraction; the per-kind gold block names per dwg.spec's
@@ -1212,10 +1225,14 @@ def normalize_silver(
                        # §19 H8h-ext-12: the AC1021 TABLECONTENT wire
                        # captures (writer-side fidelity channels, the
                        # dwg_raw_tail_bits precedent — gold's unknown-class
-                       # decode has no counterpart).
+                       # decode has no counterpart). §20 the R2018
+                       # record-identity packet extended the same channels
+                       # to the table entity + the associative aligned-dim
+                       # body and added the replay-gate source version.
                        "wire_main", "wire_main_bit_len",
                        "wire_text", "wire_text_bit_len",
-                       "wire_handles", "wire_handles_bit_len"):
+                       "wire_handles", "wire_handles_bit_len",
+                       "wire_dxf_version"):
                 payload.pop(sk, None)
 
         common = payload.get("common", {})
@@ -4092,6 +4109,17 @@ def normalize_silver(
         payload = obj[silver_type]
         if not isinstance(payload, dict):
             continue
+        # §20 the R2018 record-identity packet: the wire-capture
+        # channels (the associative aligned-dim body, the table
+        # entity/tablecontent bodies) are writer-side codec fields —
+        # gold's decodes carry no counterpart (the source_version
+        # precedent) and they are never comparison payload on any
+        # object type, typed projection or UNKNOWN.
+        for _wk in ("wire_main", "wire_main_bit_len",
+                    "wire_text", "wire_text_bit_len",
+                    "wire_handles", "wire_handles_bit_len",
+                    "wire_dxf_version"):
+            payload.pop(_wk, None)
         if silver_type == "TableContent":
             _tc_common = (payload.get("common")
                           if isinstance(payload.get("common"), dict) else {})
