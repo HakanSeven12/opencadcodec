@@ -581,29 +581,8 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(data.show_intensity);
         self.writer.write_bit(data.show_cropping);
         self.writer.write_bit_long(data.croppings.len() as i32);
-        if data.croppings.is_empty() {
-            self.writer.write_bit_long(data.unknown_bl0);
-            self.writer.write_bit_long(data.unknown_bl1);
-            self.writer.write_bit_short(data.stylization_type);
-            self.writer
-                .write_variable_text(&data.intensity_color_scheme);
-            self.writer.write_variable_text(&data.current_color_scheme);
-            self.writer
-                .write_variable_text(&data.classification_color_scheme);
-            self.writer.write_bit_double(data.elevation_min);
-            self.writer.write_bit_double(data.elevation_max);
-            self.writer.write_bit_long(data.intensity_min);
-            self.writer.write_bit_long(data.intensity_max);
-            self.writer
-                .write_bit_short(data.intensity_out_of_range_behavior);
-            self.writer
-                .write_bit_short(data.elevation_out_of_range_behavior);
-            self.writer.write_bit(data.elevation_apply_to_fixed_range);
-            self.writer.write_bit(data.intensity_as_gradient);
-            self.writer.write_bit(data.elevation_as_gradient);
-        }
         for cropping in &data.croppings {
-            self.writer.write_bit_short(cropping.crop_type);
+            self.writer.write_byte(cropping.crop_type as u8);
             self.writer.write_bit(cropping.inside);
             self.writer.write_bit(cropping.inverted);
             self.writer.write_3bit_double(cropping.plane);
@@ -614,6 +593,25 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_3bit_double(*point);
             }
         }
+        self.writer.write_bit_long(data.unknown_bl0);
+        self.writer.write_bit_long(data.unknown_bl1);
+        self.writer.write_bit_short(data.stylization_type);
+        self.writer
+            .write_variable_text(&data.intensity_color_scheme);
+        self.writer.write_variable_text(&data.current_color_scheme);
+        self.writer
+            .write_variable_text(&data.classification_color_scheme);
+        self.writer.write_bit_double(data.elevation_min);
+        self.writer.write_bit_double(data.elevation_max);
+        self.writer.write_bit_long(data.intensity_min);
+        self.writer.write_bit_long(data.intensity_max);
+        self.writer
+            .write_bit_short(data.intensity_out_of_range_behavior);
+        self.writer
+            .write_bit_short(data.elevation_out_of_range_behavior);
+        self.writer.write_bit(data.elevation_apply_to_fixed_range);
+        self.writer.write_bit(data.intensity_as_gradient);
+        self.writer.write_bit(data.elevation_as_gradient);
     }
 
     // â”€â”€ Point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
