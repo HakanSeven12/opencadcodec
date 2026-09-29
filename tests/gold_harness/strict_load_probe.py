@@ -40,11 +40,25 @@ clean.
 The console-text limit is TESTED, not presumed (2026-09-29): a
 diag run trapped `(setvar "LOGFILENAME" path)` with "system
 variable is read-only: LOGFILENAME" — the log channel cannot be
-redirected on this build. The designed next mechanism for console
-capture: a UI-Automation reader (PowerShell/UIA scraping the
-command-line control's text buffer after the script's sections,
-before QUIT) — recorded for the probe's next revision. Until then
-the maintainer's hand-run transcripts remain the highest-fidelity
+redirected on this build. The console mechanism therefore landed
+as the WINDOW-LIFECYCLE SCRAPER (`bricscad_console_scraper.ps1`,
+staged beside each fixture): the launcher spawns it with the
+BricsCAD PID, and it polls every 250 ms, enumerating the
+process's top-level windows and logging each window's class +
+title at first appearance (and on title change), with timestamps.
+Three channels were tested and are CLOSED on this build: the log
+channel (read-only LOGFILENAME); WM_GETTEXT (returns empty — the
+UI is Qt, all text painted, none in window text slots); UI
+Automation (no Text/Value patterns, empty Name tree — no
+accessibility bridge). GetWindowText works for TITLES (managed
+by the window manager), so the transcript captures WHICH dialogs
+appear during a run (the modeling-failure dialog is a top-level
+window), WHEN, and their titles — the programmatic evidence
+surface, alongside the LOGSEC census and the DBMOD/ERRNO record.
+The analyzer digests the transcript against the strict loader's
+message vocabulary. The console text itself needs a build with a
+working log channel or accessibility bridge; until then the
+maintainer's hand-run transcripts remain the highest-fidelity
 console evidence (the "General modeling failure / AcDb3dSolid
 (31)" verdict came from one).
 
@@ -91,10 +105,16 @@ CONSTRUCTED = REPO / "target" / "genus_gates" / "constructed"
 DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kilo/strict_load_probe")
 DEFAULT_BCAD = "C:\\Program Files\\Bricsys\\BricsCAD V18 en_US\\bricscad.exe"
 WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
-                "'/b','{scr}' -PassThru; if ($pc.WaitForExit({timeout}000)) "
+                "'/b','{scr}' -PassThru; "
+                "$sc = Start-Process -FilePath 'powershell.exe' -ArgumentList "
+                "'-NoProfile','-ExecutionPolicy','Bypass','-File',"
+                "'{scraper}','-ProcId',$pc.Id,'-OutFile','{console}' "
+                "-WindowStyle Hidden -PassThru; "
+                "if ($pc.WaitForExit({timeout}000)) "
                 "{{ Write-Output ('exit: ' + $pc.ExitCode) }} else "
                 "{{ Write-Output 'timeout: killing'; $pc.Kill(); "
-                "$pc.WaitForExit() }}")
+                "$pc.WaitForExit() }}; "
+                "if (-not $sc.HasExited) {{ $sc.Kill(); $sc.WaitForExit() }}")
 
 # The script body: OPEN, then every probe opens its own result file
 # (the document switch on OPEN clears LISP state — nothing may
@@ -152,9 +172,16 @@ def probe_one(name, source, probe_dir, bcad, timeout_s):
     dwg = probe_dir / f"{name}.dwg"
     result = probe_dir / f"{name}_result.txt"
     scr = probe_dir / f"{name}.scr"
+    console = probe_dir / f"{name}_console.log"
+    scraper = probe_dir / "bricscad_console_scraper.ps1"
     shutil.copyfile(source, dwg)
+    # Stage the console scraper next to the fixture (the launcher
+    # spawns it with the BricsCAD PID; it exits when BricsCAD does).
+    shutil.copyfile(SCRIPT_DIR / "bricscad_console_scraper.ps1", scraper)
     if result.exists():
         result.unlink()
+    if console.exists():
+        console.unlink()
     win_probe = str(probe_dir).replace("/mnt/c/", "C:/")
     # The OPEN command line takes single backslashes; the LISP
     # (open ...) string needs them DOUBLED (LISP escape sequences
@@ -169,14 +196,61 @@ def probe_one(name, source, probe_dir, bcad, timeout_s):
     ))
     powershell = [
         "powershell.exe", "-NoProfile", "-Command",
-        WIN_LAUNCHER.format(bcad=bcad, scr=scr.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
-                            timeout=timeout_s),
+        WIN_LAUNCHER.format(
+            bcad=bcad,
+            scr=scr.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
+            scraper=scraper.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
+            console=console.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
+            timeout=timeout_s,
+        ),
     ]
     subprocess.run(powershell, check=False, stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL, timeout=timeout_s + 60)
     if not result.exists():
         return ["probe: " + name, "NO RESULT FILE (AMBIGUOUS)"]
     return result.read_text(errors="replace").strip().splitlines()
+
+
+# The console-analysis patterns: the strict loader's known message
+# vocabulary. The digest is deduped per fixture — a message that
+# repeats continuously (the maintainer's observed "continuous error
+# output") appears once with its repetition count.
+CONSOLE_PATTERNS = (
+    "general modeling failure",
+    "acdb3dsolid",
+    "data stream is empty",
+    "missing logical",
+    "restore file",
+    "audit",
+    "error",
+    "failed",
+    "invalid",
+    "duplicate",
+    "corrupt",
+    "warning",
+)
+
+
+def analyze_console(path, max_lines=16):
+    """Digest the UIA console transcript: deduped lines matching the
+    error vocabulary, each with its repetition count. Returns [] when
+    the log is absent (the scraper could not start)."""
+    if not path.exists():
+        return []
+    counts = {}
+    order = []
+    for line in path.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("===") or line.startswith("---"):
+            continue
+        low = line.lower()
+        if any(p in low for p in CONSOLE_PATTERNS):
+            if line not in counts:
+                counts[line] = 0
+                order.append(line)
+            counts[line] += 1
+    return [f"{line}  [x{counts[line]}]" if counts[line] > 1 else line
+            for line in order[:max_lines]]
 
 
 def verdict(lines):
@@ -218,7 +292,15 @@ def main():
         print(f"== {name}")
         for line in lines:
             print(f"   {line}")
-        print(f"   VERDICT: {verdict(lines)}\n")
+        print(f"   VERDICT: {verdict(lines)}")
+        digest = analyze_console(args.probe_dir / f"{name}_console.log")
+        if digest:
+            print("   console evidence (deduped, the strict loader's vocabulary):")
+            for line in digest:
+                print(f"      | {line[:200]}")
+        else:
+            print("   console evidence: none captured (no matching text)")
+        print()
     print("the authored control must read MODELED for the run to stand")
     return 0
 

@@ -435,19 +435,27 @@ LOGSEC lines still rank the failure. A Windows-visible host and the
 BricsCAD install are required; stray `bricscad.exe` processes poison
 subsequent launches — kill them before re-running.
 
-**Console capture — the tested limit.** BricsCAD's console text
-(AUDIT's "N errors found", the restorer's messages) is NOT
-captured on this build: `LOGFILENAME` is read-only — a diag run
-trapped `(setvar "LOGFILENAME" path)` with "system variable is
-read-only" — and `LOGFILEON` writes no file at any discoverable
-location. The probe's proxies: the DBMOD/ERRNO record (pre- and
-post-audit; DBMOD gaining bits = the audit found and fixed
-something) and the null-bbox shadow of the OPEN failure dialog
-(the dialog itself blocks before any LISP runs). The designed
-next mechanism for the console: a UI-Automation reader scraping
-the command-line control's text buffer — recorded for the probe's
-next revision. Until then, a hand-run transcript from the
-maintainer remains the highest-fidelity console evidence.
+**Console capture — the window-lifecycle scraper (landed, with the
+tested limits).** BricsCAD's console text is not reachable through
+the classic channels on this build — all tested: `LOGFILENAME` is
+read-only (a diag run trapped the setvar), `WM_GETTEXT` returns
+empty on BricsCAD windows (the UI is Qt; text is painted, not
+stored in window text slots), and UI Automation exposes no
+Text/Value patterns and an empty Name tree (no accessibility
+bridge). What works is `GetWindowText` for window TITLES — so the
+probe ships `bricscad_console_scraper.ps1`: the launcher spawns it
+with the BricsCAD PID and it polls every 250 ms, logging each
+top-level window's class + title at first appearance with
+timestamps into `<name>_console.log`. The transcript captures
+WHICH dialogs appear during a run (the modeling-failure dialog is
+a top-level window), WHEN, and their titles — alongside the
+LOGSEC LISP census and the DBMOD/ERRNO pre/post-audit record,
+that is the complete programmatic evidence surface on this build.
+The probe's analyzer digests the transcript against the strict
+loader's message vocabulary (deduped, with repetition counts).
+The console text itself needs a build with a working log channel
+or accessibility bridge; a hand-run transcript from the maintainer
+remains the highest-fidelity console evidence.
 
 ### When a layer trips
 
