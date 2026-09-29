@@ -5,11 +5,12 @@
 # verdict is recorded: the ordering packet EXONERATED (the modeling
 # failure is pre-existing and order-independent — both the current
 # rank and the pre-rank code yield the identical ±1e80 null box);
-# THE NEXT WORK: the constructed-SAB restore gap — the stream never
-# constructs as an ACIS body in the strict kernel (authored
-# specimens model real extents in all three envelopes; every
-# constructed fixture fails); the designed investigation is the
-# record-level SAB diff, with the probe as the acceptance gate
+# THE NEXT WORK: the constructed-SAB restore gap — the record-level
+# SAB diff RAN (token-by-token, the corrected tokenizer): the ladder
+# is fully wired, and the three root-cause candidates are recorded
+# (the coedge pcurve tail form int0/ptr−1 vs single ptr; the missing
+# identity-transform record + body tok3 link; the traversal-vs-
+# class-grouped stream structure) — fix in test order, gate = MODELED
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -365,19 +366,54 @@ BricsCAD reading was the error surface; once the 2026-09-28 fixes
 landed the surface went quiet, which was read as acceptance while
 the body silently failed to restore.
 
-**The designed investigation** (the next session's first packet):
-a record-level SAB diff — walk the authored Box_2018 SAB and the
-constructed Box SAB side-by-side with the shared `walk_sab`
-surface, decoded token-by-token per class (body, lump, shell,
-face, loop, plane-surface, coedge, edge, vertex, straight-curve,
-point) — to find what the kernel needs that the genus invariants
-do not measure (candidate surfaces: the cross-reference WIRING —
-pointer targets, not just presence; the intra-record token
-encoding beyond the class widths; the header's num_bodies/flags
-semantics — the adjudicated (0,1,0) vs authored (0,2,X) triple).
-The acceptance is the probe: **a constructed fixture reads MODELED
-when the gap closes** (real extents, not the null box), and the
-authored controls must read MODELED for the run to stand.
+**The investigation's FIRST FRUITS (2026-09-29, the record-level
+SAB diff, run with the corrected tokenizer — the frame-skip after
+the name chain is mandatory; the first attempt read the name bytes
+as tokens and misaligned everything; ALSO regenerate
+`target/genus_gates/` with the CURRENT code before any comparison
+— the discrimination run had overwritten it with the pre-rank
+build)**. The corrected diff (authored Box_2018 vs constructed Box,
+both ASM/ACIS decoded token-by-token):
+
+- headers: authored ASM|22300 (0,2,4); constructed ACIS|700
+  (0,1,0) — the adjudicated rows.
+- record counts: authored 114 (with 26 persubent attribs + ONE
+  transform); constructed 87 (zero attribs — the adjudicated
+  journal gap; **zero transforms**).
+- the topology ladder is FULLY WIRED in both (body→lump tok1,
+  lump→shell, shell→face, face→loop/surface, loops, coedges,
+  vertices) — the earlier "null lump pointer" reading was the
+  transform slot misread (body tok3: authored ptr 3 = its
+  transform record; constructed ptr -1).
+
+**The three root-cause candidates, in test order**: (1) **the
+coedge tail form** — authored coedges end
+`… ptr <loop> true, ptr <pc-int-slot>, int 0, ptr -1` (9 tokens)
+while constructed end `… ptr <loop> false, ptr 10, ptr -1`
+(8 tokens): the constructed stream's final pcurve slot is ONE
+`ptr` where the authored carries `int 0, ptr -1` — the
+(int,ptr) parameter-space pair the kernel's coedge reader expects;
+candidate-fix in the SAB writer's coedge pcurve arm. (2) **the
+missing transform record** — the authored body links an identity
+transform (body tok3 → transform record; the constructed carries
+NO transform records at all; `set_body_transform` exists
+(`types.rs` ~2596) and the builders never call it); candidate-fix:
+new_body (or the builders) emits the identity transform + wires
+body tok3, mirroring the authored genus (verify transform is
+authored-uniform in the pin's class census first). (3) **the
+stream structure** — the authored stream is TOPOLOGY-TRAVERSAL
+interleaved (face → its loop → its surface → its coedges → its
+edges → vertices/curves), the constructed is CLASS-GROUPED (both
+satisfy the pinned first-appearance constraints — the gates'
+zero-pending was correct — but the restorer may expect traversal
+shape; a reorder to authored interleaving would be per-consumer
+assembly, a different design than the class-rank sort).
+
+The test protocol: fix one candidate, regenerate, run
+`strict_load_probe.py` (a healthy fixture should OPEN WITHOUT the
+"General modeling failure" prompt — which also un-sticks the
+scripted runs); the acceptance gate reads **MODELED** (real
+extents) with the authored controls green.
 
 The standing guards stay armed regardless: the G-C container
 regression tests + gate rows (any writer change that regresses
