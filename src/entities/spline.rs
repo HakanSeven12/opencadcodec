@@ -76,6 +76,16 @@ pub struct Spline {
     /// Complete R2013+ spline flag word, including flags not otherwise
     /// represented by this API.
     pub dwg_flags1: i32,
+    /// The scenario BL exactly as captured on the DWG wire (1 = SPLINE,
+    /// 2 = BEZIER). R2013+ readers re-derive the storage body from
+    /// flags1/knot parameterization, which can legitimately disagree
+    /// with the wire BL (the authored example_2018 splines carry BL=1
+    /// with fit-point storage); the writer re-emits the captured BL so
+    /// a rewrite keeps the author's record (the R2018 census finding:
+    /// the derived value flipped two authored records 1→2). None for
+    /// constructed splines (the derivation then applies, unchanged).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_wire_scenario: Option<i32>,
     /// Complete DXF spline flag word; geometry flags are refreshed when written.
     #[cfg_attr(feature = "serde", serde(default))]
     pub dxf_flags: i16,
@@ -101,6 +111,7 @@ impl Spline {
             knot_parameterization: 0,
             cv_frame_visible: false,
             dwg_flags1: 0,
+            dwg_wire_scenario: None,
             dxf_flags: 0,
         }
     }

@@ -1521,14 +1521,22 @@ impl<'a> DwgObjectWriter<'a> {
     /// embeds a spline as its curve geometry.
     fn write_spline_data(&mut self, e: &Spline) {
         let r2013_plus = self.version.r2013_plus(self.dxf_version);
-        // R2013+ derives the storage scenario from flags1 and knot
-        // parameterization. Custom knots always use control points.
-        let scenario: i32 =
+        // The STORAGE scenario (the body shape) derives from the model:
+        // flags1 and knot parameterization; custom knots always use
+        // control points. The WIRE scenario BL is a separate field:
+        // a captured DWG value wins (the authored records can carry a
+        // BL that legitimately disagrees with the derived storage —
+        // the R2018 census found two example_2018 splines with BL=1
+        // over fit-point storage; a rewrite keeps the author's BL
+        // instead of flipping it to the derived value), and
+        // constructed splines fall back to the derived storage.
+        let storage: i32 =
             if !e.fit_points.is_empty() && (!r2013_plus || e.knot_parameterization != 15) {
                 2
             } else {
                 1
             };
+        let scenario: i32 = e.dwg_wire_scenario.unwrap_or(storage);
 
         if r2013_plus {
             // R2013+: scenario BL, flags1 BL, knot parametrization BL
@@ -1538,7 +1546,7 @@ impl<'a> DwgObjectWriter<'a> {
             } else {
                 flags1 &= !2;
             }
-            if scenario == 2 {
+            if storage == 2 {
                 // Fit-point storage requires both MethodFitPoints and
                 // UseKnotParameter. Omitting bit 8 makes readers parse the
                 // following fit-point body as control-point data.
@@ -1567,7 +1575,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         let has_weights = !e.weights.is_empty();
 
-        match scenario {
+        match storage {
             1 => {
                 // Scenario 1: control-point spline
                 // Rational B (flag bit 2)

@@ -166,6 +166,9 @@ pub struct LwPolylineData {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SplineData {
+    /// The scenario BL exactly as read from the wire (before any
+    /// R2013+ storage re-derivation) — re-emitted verbatim on rewrite.
+    pub wire_scenario: i32,
     pub scenario: i32,
     pub degree: i32,
     pub rational: bool,
@@ -1347,6 +1350,10 @@ pub fn read_spline(
     let mut knot_param = 0i32;
 
     let mut scenario = reader.read_bit_long();
+    // The wire BL, captured before the R2013+ storage re-derivation —
+    // the authored example_2018 splines carry BL=1 with fit-point
+    // storage, and the rewrite must keep the author's record.
+    let wire_scenario = scenario;
     if version.r2013_plus(dxf_version) {
         flags1 = reader.read_bit_long();
         knot_param = reader.read_bit_long();
@@ -1410,6 +1417,7 @@ pub fn read_spline(
     }
 
     SplineData {
+        wire_scenario,
         scenario,
         degree,
         rational,

@@ -148,6 +148,9 @@ WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
 # OPEN blocks the script engine mid-sequence) still leaves its
 # partial evidence on disk — the buffered single-handle form died
 # with the launcher's 150 s kill and read 0 bytes.
+# Visible hold (the maintainer's directive, 2026-09-29): the script
+# DELAYs 10 s before QUIT so each probe window stays observable —
+# the /b lifecycle is otherwise a sub-20-second flash.
 SCR_TEMPLATE = """_.OPEN
 {win_file}
 (setq RESULT "{win_result}")
@@ -183,6 +186,7 @@ SCR_TEMPLATE = """_.OPEN
       (LOGSEC (list (strcat "post-audit-bbox-FAIL: " (vl-catch-all-error-message r2))))
       (LOGSEC (list r2)))))
 (LOGSEC (list "probe-end"))
+_.DELAY 10000
 _.QUIT
 _N
 """
