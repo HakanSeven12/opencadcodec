@@ -7532,3 +7532,27 @@ occurrences. Five SAB module tests updated to the new index
 convention (the asmheader shifts every parsed record by one). The
 identity moved to `a8f227e09d60a17605043f9dedebc30c`, 25,439 bytes
 (the compressed section absorbed the 38-byte record).
+
+**The fourth packet — the tolerance triple (2026-09-29)**: the
+authored SAB header's spatial_resolution is 1.0 everywhere (the
+pinned `tolerance_triples` genus is exactly `[[1.0, 1e-06, 1e-10]]`,
+uniform across all 136 carriers), while the constructed stream
+carried `[10.0, 1e-06, 1e-10]` — sourced at the `SatHeader::new()`
+default (`types.rs`, the constructor pinned 10.0 while the code's own
+recorded comment already stated that IntelliCAD/AutoCAD native SAB
+data always uses 1.0). Two defects closed with the packet: the
+default is 1.0 now, and the `strip_for_sab` normalize pass — written
+for exactly this rule but parked AFTER the `nothing to strip` early
+return that every clean primitive document takes, so it never ran —
+moved BEFORE the return and therefore applies unconditionally (a
+parsed older-ACIS source carrying 10.0 normalizes on conversion
+instead of leaking the value into SAB). The row's 11 occurrences
+gone: `sab_form_diffs` 65 → 64 rows, 482 → 471 occurrences. The
+generation identity moved to
+`a7c5f17080891a7c26a380a686e9298a`, 25,439 bytes (the compressed
+sections absorbed the changed res double per SAB carrier; size
+unchanged, bytes moved — an intended content change, re-recorded).
+The expectations pin is untouched (the specimens ride the echo; the
+extraction surface never reaches the writer), every SAB module test
+is tolerance-value-agnostic, and the era-profile regression tests
+pin the container genus through the changed path unchanged.

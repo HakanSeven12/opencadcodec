@@ -125,7 +125,8 @@ pub struct SatHeader {
     pub product_version: String,
     /// File creation date string.
     pub date: String,
-    /// Spatial resolution (minimum edge length, typically 1e-06).
+    /// Spatial resolution (the authored genus is 1.0 everywhere;
+    /// IntelliCAD/AutoCAD native SAB data always uses 1.0).
     pub spatial_resolution: f64,
     /// Normal tolerance (angular tolerance in radians, typically ~1e-07).
     pub normal_tolerance: f64,
@@ -144,7 +145,7 @@ impl SatHeader {
             product_id: "acadrust".to_string(),
             product_version: "ACIS 7.0".to_string(),
             date: "Thu Jan 01 00:00:00 2023".to_string(),
-            spatial_resolution: 10.0,
+            spatial_resolution: 1.0,
             normal_tolerance: 9.9999999999999995e-07,
             resfit_tolerance: Some(1e-10),
         }
@@ -2887,6 +2888,14 @@ impl SatDocument {
     /// This method removes all non-core entities and remaps pointer
     /// references in the remaining records.
     pub fn strip_for_sab(&mut self) {
+        // Normalize spatial_resolution to 1.0 for SAB output.
+        // IntelliCAD/AutoCAD always use 1.0 in native SAB data.
+        // Source files from older ACIS versions may use different values
+        // (e.g. 10.0) which can cause compatibility issues.
+        // Runs before the nothing-to-strip early return below: a clean
+        // document skips the strip, and the normalize must still apply.
+        self.header.spatial_resolution = 1.0;
+
         // Determine which records to keep.
         // Core ACIS base types (last segment after hyphen split):
         let keep: Vec<bool> = self
@@ -2945,12 +2954,6 @@ impl SatDocument {
 
         self.records = new_records;
         self.header.num_records = self.records.len();
-
-        // Normalize spatial_resolution to 1.0 for SAB output.
-        // IntelliCAD/AutoCAD always use 1.0 in native SAB data.
-        // Source files from older ACIS versions may use different values
-        // (e.g. 10.0) which can cause compatibility issues.
-        self.header.spatial_resolution = 1.0;
     }
 
     /// Check if an entity type is a core ACIS geometry type that should

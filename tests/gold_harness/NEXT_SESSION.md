@@ -1,31 +1,34 @@
 # Zero-context prompt — TARGET ZERO held everywhere; THE NEXT WORK: work
-# down the §20 genus-gate queue (the constructed-content oracle LANDED this
-# session: genus_extract.py + genus_gates.py + the run_corpus additional
-# sections + the cargo mirror; the day-one queue is ranked and live)
+# down the §20 genus-gate queue (the fourth packet — the tolerance triple
+# — CLOSED this session; the queue stands at sab_form 64 / sh_genus 1 /
+# acds_genus 0)
 
-> Campaign state 2026-09-28 (the halt after the §20 implementation; the
+> Campaign state 2026-09-29 (the halt after the fourth queue packet; the
 > record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT ZERO ON
 > EVERY AXIS: 280 files, read-fidelity 0, write-fidelity 0, read key-gap
-> 0, write-target 0** — re-verified this session WITH the genus sections
+> 0, write-target 0** — re-verified at this halt WITH the genus sections
 > attached as additional output; the AC1021 survey 58/58 / 0 divergent
-> records; the era censuses R2000 235/235, R2004 227/227, R2010 216/216,
-> R2013 160/160). The ACS/SH campaign stays COMPLETE at 0/0. The §19
-> structure campaign's READ axis stays ZERO corpus-wide. **THE ACTIVE
-> WORK IS NOW THE §20 GENUS-GATE QUEUE — the fifth validation layer is
-> LANDED (§20.6), REVIEWED, and ONE PACKET CLOSED (the same day's G-C
-> container campaign: `acds_genus_diffs` 11 rows → 0 — the constructed
-> AcDs container now sits at the authored genus on every measured
-> invariant, era-profiled for 2013/2018): the gates
-> decode the constructed corpus silver-side,
-> assert it against the authored-specimen genus pinned in
-> genus_expectations.json, and emit the ranked sections
-> sab_form_diffs (65 rows) / sh_genus_diffs (1 row) / acds_genus_diffs
-> (0 rows — CLOSED). THE COUNTS ARE THE WORK QUEUE.** Read
-> `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now with
-> the §20.6 landed state), then §19.4 + §19.5, then §18.6 + §F2.1–F2.3,
-> then this file top to bottom.
+> records and the era censuses R2000 235/235, R2004 227/227, R2010
+> 216/216, R2013 160/160, last re-verified 2026-09-28 — both gates are
+> echo-gated against this packet's constructed-path change). The ACS/SH
+> campaign stays COMPLETE at 0/0. The §19 structure campaign's READ axis
+> stays ZERO corpus-wide. **THE ACTIVE WORK IS THE §20 GENUS-GATE QUEUE
+> — the fifth validation layer is LANDED (§20.6), REVIEWED, and FOUR
+> PACKETS CLOSED: the G-C container campaign (`acds_genus_diffs`
+> 11 rows → 0 — the constructed AcDs container sits at the authored
+> genus on every measured invariant, era-profiled for 2013/2018), the
+> vertex role token (its 28 occurrences), the asmheader record (its
+> 11), and the tolerance triple (spatial_resolution 10.0 → the authored
+> 1.0; its 11). The sections stand at sab_form_diffs (64 rows) /
+> sh_genus_diffs (1 row — the elide marker, TOLERATED) /
+> acds_genus_diffs (0 rows — CLOSED). THE COUNTS ARE THE WORK QUEUE.**
+> Read `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now
+> with the §20.6 landed state and its four closed packets), then
+> §19.4 + §19.5, then §18.6 + §F2.1–F2.3, then this file top to
+> bottom.
 
-## The arc (2026-09-28, the §20 implementation session)
+## The arc (2026-09-28, the §20 implementation session; continued
+## 2026-09-29 with the fourth queue packet)
 
 1. **The genus gates implemented, verbatim in §20.3's shape**:
    `genus_extract.py` (the expectation extractor — decodes the
@@ -152,6 +155,29 @@
     gone: `sab_form_diffs` 66 → 65 rows, 493 → 482 occurrences.**
     The identity moved to
     `a8f227e09d60a17605043f9dedebc30c`, 25,439 bytes.
+ 9. **The tolerance packet CLOSED (the fourth queue packet,
+    2026-09-29)**: the constructed SAB header carried
+    `[10.0, 1e-06, 1e-10]` against the pinned authored genus
+    `[[1.0, 1e-06, 1e-10]]` (uniform across all 136 carriers). The
+    source was double: the `SatHeader::new()` DEFAULT pinned 10.0
+    (`types.rs`), and the existing "normalize to 1.0 for SAB" pass —
+    written for exactly this rule, with the code's own comment that
+    IntelliCAD/AutoCAD native SAB data always uses 1.0 — sat AFTER
+    `strip_for_sab`'s `nothing to strip` early return, so it never
+    ran on the clean primitive documents the constructed corpus
+    always takes. Both closed: the default is 1.0, and the normalize
+    moved BEFORE the early return so it now applies unconditionally
+    (a parsed older-ACIS source carrying 10.0 normalizes at
+    conversion instead of leaking into SAB). **The tolerance row's 11
+    occurrences gone: `sab_form_diffs` 65 → 64 rows, 482 → 471
+    occurrences.** The generation identity moved to
+    `a7c5f17080891a7c26a380a686e9298a`, 25,439 bytes (the res double
+    changed in every constructed SAB; the compressed sections
+    absorbed it, size unchanged). The suite green (52 segments);
+    the mirror green (the pin untouched — the extraction surface
+    never reaches the writer); the four smokes 0/0 with clean
+    echoes; the corpus re-verified at 280/0/0/0 with the sections at
+    64/1/0.
 
 ## THE NEXT WORK: work down the genus-gate queue (§8.1.2 packets, strict-loader verdicts)
 
@@ -170,26 +196,28 @@ TOLERATED with the row kept as the recorded state).
   regresses ds_version, the segidx position, the row scale, the slot
   allocation, the pointers, prvsav, or the two extended header fields
   re-ranks immediately.
-- **G-A NOW FIRST (the SAB form campaign)**: the tolerance triple is
-  the next cheap packet — spatial_resolution 10.0 vs the authored
-  1.0; the investigation already pinned the source: the SatHeader
-  DEFAULT is 10.0 (`types.rs` ~147) and the existing "normalize to
-  1.0 for SAB" pass sits AFTER a strip-method's early return
-  ("nothing to strip") that clean primitive documents always take,
-  so it never runs — fix the default (the authored genus is 1.0
-  everywhere; IntelliCAD/AutoCAD native SAB data always uses 1.0,
-  per the code's own recorded comment). Then the ACIS-700
-  flavor / product-string / header-triple family (a strict-loader
-  question: the 2026-09-21 zero proved the ACIS-700 stance
-  BricsCAD-ACCEPTED, so these rows may close TOLERATED; do NOT forge
-  Autodesk identity stamps — the product strings are the author's
-  identity), then the ordering family (the writer's
-  `reorder_restore_file` rank vs the authored first-appearance genus),
-  and the persubent-attrib class (investigate the tree-correlation
-  with the `--corpus-scan` specimen evidence first — the fixture
-  family is tree-selected, so uniformity may be selection bias).
+- **G-A NOW FIRST (the SAB form campaign)**: the next family is the
+  ACIS-700 flavor / product-string / header-triple set (a
+  strict-loader question: the 2026-09-21 zero proved the ACIS-700
+  stance BricsCAD-ACCEPTED, so these rows may close TOLERATED; do
+  NOT forge Autodesk identity stamps — the product strings are the
+  author's identity). Then the ordering family (the writer's
+  `reorder_restore_file` rank vs the authored first-appearance genus
+  — the investigation is done: the rank table at `sab.rs` inverts
+  the authored order, points-first/containers-last vs the authored
+  lump → shell → face → loop → surfaces → coedge → edge → vertex →
+  curves → point; the closure is a rank-table rewrite to the
+  authored first-appearance genus, body keeping rank 0 so the
+  strict-restorer's leading-top-level contract holds — but the
+  §8.1.2 workflow demands a strict-loader probe verdict on the
+  re-ranked stream before the row falls, and the 2026-09-22 probe
+  evidence must be re-tested against the new order), and the
+  persubent-attrib class (investigate the tree-correlation with the
+  `--corpus-scan` specimen evidence first — the fixture family is
+  tree-selected, so uniformity may be selection bias).
   (CLOSED so far: the vertex short-width row — the second packet,
-  arc item 7; the asmheader row — the third packet, arc item 8.)
+  arc item 7; the asmheader row — the third packet, arc item 8; the
+  tolerance triple — the fourth packet, arc item 9.)
 - **G-B last (the tree)**: the elide marker closes only when a
   constructed tree passes a strict loader (the interposition + the
   33/427 trio + the node-id resolution are the authored genus to
@@ -246,18 +274,20 @@ era specimens (the era censuses all-zero).
 
 - The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
   report.json totals are authoritative: all four axes 0, WITH the
-  genus sections (`sab_form_diffs` 65 / `sh_genus_diffs` 1 /
-  `acds_genus_diffs` 0 — the container campaign CLOSED) as
-  additional output.
-- The generation identity is `a8f227e09d60a17605043f9dedebc30c`,
-  25,439 bytes (MOVED at the G-C, vertex, and asmheader packets —
-  the constructed AcDs container, the vertex role token, and the
-  asmheader record changed; intended content changes, re-recorded;
-  the identity history: `84374e73…`/25,375 through the §20 landing →
-  `4265c04a…`/25,407 at G-C → `0e8b23cd…`/25,439 at the vertex
-  packet → `a8f227e0…`/25,439 at the asmheader packet). The
-  generator builds and runs identically WITH or WITHOUT
-  `--features serde`.
+  genus sections (`sab_form_diffs` 64 / `sh_genus_diffs` 1 /
+  `acds_genus_diffs` 0 — the container campaign CLOSED, the vertex,
+  asmheader, and tolerance rows closed at packets two through four)
+  as additional output.
+- The generation identity is `a7c5f17080891a7c26a380a686e9298a`,
+  25,439 bytes (MOVED at the G-C, vertex, asmheader, and tolerance
+  packets — the constructed AcDs container, the vertex role token,
+  the asmheader record, and the 1.0 res double changed; intended
+  content changes, re-recorded; the identity history:
+  `84374e73…`/25,375 through the §20 landing → `4265c04a…`/25,407
+  at G-C → `0e8b23cd…`/25,439 at the vertex packet →
+  `a8f227e0…`/25,439 at the asmheader packet → `a7c5f170…`/25,439
+  at the tolerance packet). The generator builds and runs
+  identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
   regenerate with `python3 tests/gold_harness/genus_extract.py` and
@@ -351,15 +381,15 @@ python3 tests/gold_harness/run_roundtrip.py \
 # 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 work queue): sab_form 65 rows,
-#        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED; the vertex
-#        and asmheader rows closed at the second and third packets)
+#    ... genus gates (the §20 work queue): sab_form 64 rows,
+#        sh_genus 1 rows, acds_genus 0 rows (G-C CLOSED; the vertex,
+#        asmheader, and tolerance rows closed at packets two through four)
 
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# a8f227e09d60a17605043f9dedebc30c, 25,439 bytes (G-C + the vertex
-# role token + the asmheader record moved it)
+# a7c5f17080891a7c26a380a686e9298a, 25,439 bytes (G-C + the vertex
+# role token + the asmheader record + the 1.0 res double moved it)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -413,74 +443,87 @@ ba12a2f <feat> §20 genus gates: genus_extract.py + genus_gates.py + the
        the tests/genus_gates.rs cargo mirror + §20.6 (the landed state)
        + the README step 7 + the AGENTS.md fifth-layer contract +
        this halt record
-<fix> the genus-gate review (the OCS lens): the ordering genus
+c21fdff fix(harness): the genus-gate review pass - the ordering genus
        recomputed as always-after (after − before, not the union that
        pinned variable pairs both ways and hid the points-first rank;
        the pin regenerated, G-A 55 -> 67 rows — false rows out, the
        point-rank rows in) + the solid-history-links-root arm gated +
        the unused-import residue cleaned + the docs reconciled
-       (THIS SESSION'S REVIEW LANDING)
-<fix> §20 G-C packet: the constructed AcDs container era-profiles —
-       ds_version 16/17, segidx-first at 128, the 91/97-row scales,
-       the authored slot allocations + pointers, the populated prvsav
-       + 2013 freesp, file_header_size 65664, unknown_1 8, the
-       invented thumbnail _data_ dropped; two extractor arms extended;
-       two era regression tests — acds_genus_diffs 11 -> 0; the
-       generation identity moved to 4265c04a... (25,407 bytes)
-       (THIS SESSION'S G-C PACKET)
-<fix> §20 G-A vertex packet: the authored vertex role token (0=start,
-       1=end, 2=closed-edge; the 580-vertex census) — add_vertex emits
-       the placeholder, add_edge fills the owning records' roles; the
-       vertex row's 28 occurrences gone (sab_form 67 -> 66 rows,
-       521 -> 493 occurrences); the identity moved to 0e8b23cd...
-       (25,439 bytes)        (THIS SESSION'S VERTEX PACKET)
-<fix> §20 G-A asmheader packet: the authored SAB's opening record
-       (asmheader $-1 $-1 "232.6.0.65535", era-uniform 136/136)
+c617761 fix(dwg): the G-C genus packet - the constructed AcDs container
+       at the authored genus (acds_genus_diffs 11 -> 0; ds_version
+       16/17, segidx-first at 128, the 91/97-row scales, the authored
+       slot allocations + pointers, prvsav + 2013 freesp, the header
+       constants, the invented thumbnail dropped; two extractor arms
+       extended; two era regression tests; the identity to 4265c04a...)
+864450d fix(dwg): the G-A vertex packet - the authored vertex role token
+       (0=start, 1=end, 2=closed-edge; the 580-vertex census) —
+       add_vertex emits the placeholder, add_edge fills the owning
+       records' roles; the vertex row's 28 occurrences gone
+       (sab_form 67 -> 66 rows, 521 -> 493 occurrences); the identity
+       moved to 0e8b23cd... (25,439 bytes)
+021ca52 fix(dwg): the G-A asmheader packet - the authored SAB's opening
+       record (asmheader $-1 $-1 "232.6.0.65535", era-uniform 136/136)
        prepended at the SAB-write boundary with the +1 wire-pointer
        shift (the DXF-SAT body-at-0 convention preserved); five SAB
        module tests updated to the shifted indices; the asmheader
        row's 11 occurrences gone (sab_form 66 -> 65 rows,
        493 -> 482 occurrences); the identity moved to a8f227e0...
-       (25,439 bytes) (THIS SESSION'S ASMHEADER PACKET)
+       (25,439 bytes)
+590209d docs(harness): the post-queue-session halt refresh - three
+       packets landed (G-C, vertex, asmheader), the queue at 65/1/0
+<fix> §20 G-A tolerance packet: the constructed SAB header's
+       spatial_resolution 10.0 -> the authored 1.0 (the pinned genus
+       [[1.0, 1e-06, 1e-10]], uniform 136/136) — the SatHeader::new()
+       default fixed AND the strip_for_sab normalize moved before the
+       nothing-to-strip early return so it always runs; the tolerance
+       row's 11 occurrences gone (sab_form 65 -> 64 rows,
+       482 -> 471 occurrences); the identity moved to a7c5f170...
+       (25,439 bytes)   (THIS SESSION'S TOLERANCE PACKET)
 ```
 
-**PUSH STATE (2026-09-28)**: push after each landing per the
+**PUSH STATE (2026-09-29)**: push after each landing per the
 maintainer's loop instruction (`git push origin gold-vs-silver`).
 
-**Session arc, for context**: the continuation from the documentation
-halt → §20 read in full + the extraction surface located (the SAB
-walker facts pinned by live probing: the raw-length type tags, the
-ASM header layout, the optional resfit) → the specimens decoded and
-the genus measured (136 SAB carriers, 136 SH roots, 78 jard
-containers, zero anomalies) → the constructed-fixture family built
-(`genus_constructed`: Box/Sphere/Cylinder/Cone/Torus/Region/Body/
-HistoryTree, the elide verified live) → the extractor + gates + pin
-landed → the ordering-check inversion caught and fixed on the first
-report → the corpus re-run at 280/0/0/0 with the sections attached →
-the identity + echo + suites green → the halt record written → **the
-review pass (the OCS lens)**: the ordering genus's union defect found
-by probing the pin's constraint symmetry (variable pairs pinned both
-ways = false positives; `point` dropped from every constraint set =
-the writer's points-first rank invisible), recomputed as
-after−before, the pin regenerated, the ungated
-solid-history-links-root invariant armed, the corrected queue verified
-(false rows gone, point-rank rows in), the docs reconciled → **the
-queue work (the maintainer's "continue implementation, repeat until
-fully implemented" directive)**: three packets landed, each
-evidence-first, each committed and pushed — G-C (the era-profiled
-AcDs container: ds_version 16/17, segidx-first, the 91/97-row slot
-allocations, prvsav/freesp, the header constants, the invented
-thumbnail dropped; 11 rows → 0), the vertex role token (the
-580-vertex census pinned the semantics: 0 = start, 1 = end, 2 =
-closed-edge; 28 occurrences gone), and the asmheader (the
-era-uniform opening record prepended at the SAB boundary with the
-+1 wire-pointer shift; 11 occurrences gone) — the queue now
-65/1/0, the suite green at every landing, the identity re-recorded
-at each intended move. **The maintainer's loop instruction —
-"repeat process until target = zero" — remains satisfied on its own
-terms: the corpus is at zero on every axis, the conventional arm is
-record-identical everywhere surveyed, and the fifth layer's queue is
-MEASURED, REVIEWED, and being WORKED DOWN — three of its row
-families closed this session, the next packets designed (the
-tolerance default's source pinned), and the strict loaders
-adjudicate the rest.**
+**Session arc, for context**: the 2026-09-28 session — the
+continuation from the documentation halt → §20 read in full + the
+extraction surface located (the SAB walker facts pinned by live
+probing: the raw-length type tags, the ASM header layout, the
+optional resfit) → the specimens decoded and the genus measured (136
+SAB carriers, 136 SH roots, 78 jard containers, zero anomalies) →
+the constructed-fixture family built (`genus_constructed`:
+Box/Sphere/Cylinder/Cone/Torus/Region/Body/HistoryTree, the elide
+verified live) → the extractor + gates + pin landed → the
+ordering-check inversion caught and fixed on the first report → the
+corpus re-run at 280/0/0/0 with the sections attached → the identity
++ echo + suites green → the halt record written → **the review pass
+(the OCS lens)**: the ordering genus's union defect found by probing
+the pin's constraint symmetry (variable pairs pinned both ways =
+false positives; `point` dropped from every constraint set = the
+writer's points-first rank invisible), recomputed as after−before,
+the pin regenerated, the ungated solid-history-links-root invariant
+armed, the corrected queue verified, the docs reconciled → **the
+first three queue packets** (G-C the era-profiled AcDs container: 11
+rows → 0; the vertex role token: 28 occurrences gone; the asmheader:
+11 gone) — the queue left at 65/1/0. The 2026-09-29 session (the
+maintainer's "continue implementation, repeat until fully
+implemented" directive, continued): **the fourth queue packet — the
+tolerance triple** — landed from the halt's own designed next step:
+the SatHeader default 10.0 → the authored 1.0 plus the
+strip_for_sab normalize hoisted before the nothing-to-strip early
+return (the dead pass that never ran on clean primitive documents);
+the row's 11 occurrences gone (sab_form 65 → 64 rows, 482 → 471),
+the identity re-recorded at the intended move
+(`a7c5f170…`, 25,439 bytes), the suite green (52 segments), the
+genus mirror green (fresh extraction == the untouched pin), the four
+family smokes 0/0 with clean echoes, the corpus re-verified at
+280/0/0/0 with the sections at 64/1/0. **The maintainer's loop
+instruction — "repeat process until target = zero" — remains
+satisfied on its own terms: the corpus is at zero on every axis, the
+conventional arm is record-identical everywhere surveyed, and the
+fifth layer's queue is MEASURED, REVIEWED, and being WORKED DOWN —
+four of its row families closed across the two sessions (G-C, the
+vertex role token, the asmheader record, the tolerance triple), the
+next family designed (the ACIS-700/product-string/header-triple set
+— a strict-loader question that may close TOLERATED; the ordering
+rank table's rewrite mapped for the family after), and the strict
+loaders adjudicate the rest.**
