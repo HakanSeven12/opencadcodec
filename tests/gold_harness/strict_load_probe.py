@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""§20 strict_load_probe — the mechanized BricsCAD audit (the eighth-layer instrument).
+
+The §20.4 recorded procedure for strict-loader verdicts is the user-run
+BricsCAD audit. This tool mechanizes the verifiable part of that
+procedure: it drives `bricscad.exe /b <script>` headless, and the
+script's LISP records the evidence a verdict needs — the 3DSOLID/
+REGION entity census, the modeler-forced bounding box (a healthy
+restore yields real extents; a failed restore yields the ±1e80 null
+sentinel), the post-audit census, and the drawing extents after
+ZOOM/Extents. The campaign's acceptance — "clean open + clean audit,
+the solids model" — is decided from those.
+
+Validation (2026-09-29, BricsCAD V18 en_US, /b-script proven by the
+diag write): authored specimens 2007/2013/2018 all yield real
+extents (Box 0,0,0..1,2,3 across eras); the constructed corpus
+yields entity-count 1 with the ±1e80 null box at BOTH the current
+rank and the pre-rank code — the constructed-SAB restore gap is
+pre-existing and ordering-independent, and every historical
+BricsCAD reading was the error surface, not the restored-solid
+census (see the G-B/G-A records in IMPLEMENTATION.md §20.6).
+
+Limits, recorded: this BricsCAD build leaves LOGFILENAME unset
+(LOGFILEON produces no file), so the probe cannot capture the
+restorer's TEXT ("Data stream is empty", "missing logical in
+restore file"); the DB/modeler census is the measured surface. The
+app is a GUI process — each launch is bounded and killed on
+timeout; a missing/empty result file marks the fixture AMBIGUOUS,
+never clean.
+
+CLI: strict_load_probe.py [--probe-dir DIR] [--bcad EXE] [--probe NAME:DWG]...
+     Defaults probe the constructed genus corpus (regenerate it first
+     with genus_gates.py) against specimens Box_2007 (the control).
+
+Exit 0 prints the verdict table regardless; nonzero on launch failure.
+"""
+
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO = SCRIPT_DIR.parents[1]
+SPECIMENS = REPO / "tests" / "sh_history"
+CONSTRUCTED = REPO / "target" / "genus_gates" / "constructed"
+
+DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kilo/strict_load_probe")
+DEFAULT_BCAD = "C:\\Program Files\\Bricsys\\BricsCAD V18 en_US\\bricscad.exe"
+WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
+                "'/b','{scr}' -PassThru; if ($pc.WaitForExit({timeout}000)) "
+                "{{ Write-Output ('exit: ' + $pc.ExitCode) }} else "
+                "{{ Write-Output 'timeout: killing'; $pc.Kill(); "
+                "$pc.WaitForExit() }}")
+
+# The script body: OPEN, then every probe opens its own result file
+# (the document switch on OPEN clears LISP state — nothing may
+# outlive the switch), forces the modeler via the bounding box,
+# audits, re-censuses, and quits without saving.
+SCR_TEMPLATE = """_.OPEN
+{win_file}
+(setq rf (open "{win_result}" "w"))
+(write-line "probe: {name}" rf)
+(setq solids (ssget "_X" (list (cons 0 "3DSOLID,REGION"))))
+(write-line (strcat "open-entity-count: " (if solids (itoa (sslength solids)) "0")) rf)
+(if (and solids (> (sslength solids) 0))
+  (progn
+    (setq r (vl-catch-all-apply '(lambda ()
+      (vla-getboundingbox (vlax-ename->vla-object (ssname solids 0)) 'mn 'mx)
+      (strcat "bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mn)))
+              " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mx)))))))
+    (if (vl-catch-all-error-p r)
+      (write-line (strcat "bbox-FAIL: " (vl-catch-all-error-message r)) rf)
+      (write-line r rf)))
+(command "_.AUDIT" "_Y")
+(setq solids2 (ssget "_X" (list (cons 0 "3DSOLID,REGION"))))
+(write-line (strcat "post-audit-entity-count: " (if solids2 (itoa (sslength solids2)) "0")) rf)
+(if (and solids2 (> (sslength solids2) 0))
+  (progn
+    (setq r2 (vl-catch-all-apply '(lambda ()
+      (vla-getboundingbox (vlax-ename->vla-object (ssname solids2 0)) 'mn2 'mx2)
+      (strcat "post-audit-bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mn2)))))))
+    (if (vl-catch-all-error-p r2)
+      (write-line (strcat "post-audit-bbox-FAIL: " (vl-catch-all-error-message r2)) rf)
+      (write-line r2 rf))))
+(write-line "probe-end" rf)
+(close rf)
+_.QUIT
+_N
+"""
+
+NULL_BOX = "1.0000E+80"
+
+
+def probe_one(name, source, probe_dir, bcad, timeout_s):
+    """Run one fixture through BricsCAD; returns the result lines."""
+    dwg = probe_dir / f"{name}.dwg"
+    result = probe_dir / f"{name}_result.txt"
+    scr = probe_dir / f"{name}.scr"
+    shutil.copyfile(source, dwg)
+    if result.exists():
+        result.unlink()
+    win_probe = str(probe_dir).replace("/mnt/c/", "C:/")
+    # The OPEN command line takes single backslashes; the LISP
+    # (open ...) string needs them DOUBLED (LISP escape sequences
+    # otherwise corrupt the path and every write dies at rf=nil —
+    # the validated scripts all carried the doubled form).
+    win_dir = win_probe.replace("/", "\\")
+    win_result_lisp = (win_dir + f"\\{name}_result.txt").replace("\\", "\\\\")
+    scr.write_text(SCR_TEMPLATE.format(
+        name=name,
+        win_file=win_dir + f"\\{name}.dwg",
+        win_result=win_result_lisp,
+    ))
+    powershell = [
+        "powershell.exe", "-NoProfile", "-Command",
+        WIN_LAUNCHER.format(bcad=bcad, scr=scr.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
+                            timeout=timeout_s),
+    ]
+    subprocess.run(powershell, check=False, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, timeout=timeout_s + 60)
+    if not result.exists():
+        return ["probe: " + name, "NO RESULT FILE (AMBIGUOUS)"]
+    return result.read_text(errors="replace").strip().splitlines()
+
+
+def verdict(lines):
+    """Classify a probe result: modeled / null-box / ambiguous."""
+    text = " ".join(lines)
+    if "probe-end" not in text:
+        return "AMBIGUOUS"
+    bbox = next((l for l in lines if l.startswith("bbox:")), "")
+    if NULL_BOX in bbox:
+        return "NULL-BOX (the ACIS body did not construct)"
+    if "bbox:" in text:
+        return "MODELED"
+    return "NO-SOLID"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--probe-dir", type=Path, default=DEFAULT_PROBE_DIR)
+    parser.add_argument("--bcad", default=DEFAULT_BCAD)
+    parser.add_argument("--timeout", type=int, default=150, help="per-launch seconds")
+    parser.add_argument("--probe", action="append", default=[], metavar="NAME=DWG",
+                        help="extra fixture to probe (repeatable)")
+    args = parser.parse_args()
+
+    args.probe_dir.mkdir(parents=True, exist_ok=True)
+    targets = []
+    if CONSTRUCTED.is_dir():
+        targets += [(f"Constructed{p.stem}", p) for p in sorted(CONSTRUCTED.glob("*.dwg"))]
+    control = SPECIMENS / "Box_2007.dwg"
+    if control.exists():
+        targets.append(("ControlBox2007", control))
+    targets += [(name, Path(path)) for name, path in
+                (item.split("=", 1) for item in args.probe)]
+
+    print(f"probing {len(targets)} files through {args.bcad}")
+    print(f"staging: {args.probe_dir}\n")
+    for name, source in targets:
+        lines = probe_one(name, source, args.probe_dir, args.bcad, args.timeout)
+        print(f"== {name}")
+        for line in lines:
+            print(f"   {line}")
+        print(f"   VERDICT: {verdict(lines)}\n")
+    print("the authored control must read MODELED for the run to stand")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

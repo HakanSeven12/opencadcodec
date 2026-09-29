@@ -7620,6 +7620,49 @@ until the audit lands, the ordering packet stands on the genus
 evidence alone, and a failed audit REVERSES the rank change (the
 revert rule recorded).
 
+**The strict-loader probe MECHANIZED — and the restore-gap finding
+(2026-09-29, the second continuation session)**: the recorded
+user-run audit acquired an automated instrument
+(`tests/gold_harness/strict_load_probe.py`): it drives
+`bricscad.exe /b` headless with a per-fixture script whose LISP —
+in the POST-OPEN document context, nothing outliving the document
+switch — censuses the 3DSOLID/REGION entities, forces the modeler
+through `vla-getboundingbox` (a healthy restore yields real
+extents; a failed one yields the ±1e80 null sentinel), audits,
+re-censuses, and quits without saving; every launch is bounded and
+killed on timeout, and a missing result file marks the fixture
+AMBIGUOUS, never clean. The mechanism was proven stepwise (the
+diag write; the LOGFILENAME gap — this build leaves it unset, so
+the restorer's TEXT is not captured; the DB/modeler census is the
+measured surface). **The verdicts, from the paired probes**:
+the authored specimens MODEL across all three envelopes — Box_2007
+(AC1021, in-entity SAB) 0,0,0..1,2,3; Box_2013 (AC1027, AcDs) and
+Box_2018 (AC1032, AcDs) the same — while every constructed fixture
+(AC1032) reports entity-count 1 with the ±1e80 NULL BOX, and the
+old-vs-new discrimination (the pre-rank code, `cfe36f6`'s sab.rs,
+regenerated and probed the same way) reports the IDENTICAL
+null box. **Two findings land**: (1) the ordering packet is
+EXONERATED — the modeling failure is pre-existing and
+order-independent, the revert rule's causation condition does not
+engage, and the ordering rows stay closed on the genus axis; (2)
+**the constructed SAB stream has NEVER constructed as an ACIS body
+in the strict kernel** — the DWG entity layer is sound (opens,
+censuses 1, survives audit, both orders), but the B-rep never
+builds; every historical BricsCAD reading was the ERROR SURFACE
+(the 2026-09-28 duplicate-ownership and restore-file errors), and
+once those were fixed the surface went quiet — which was read as
+acceptance while the body silently failed to restore. This is
+§20.1's blindness a third time, and it passes every corpus axis
+(silver's own reader reconstructs the stream) and every genus
+invariant gate (the classes, widths, forms, orders, and headers
+match the genus). THE NEW WORK QUEUE'S HEAD: the constructed-SAB
+restore gap — the designed investigation is a record-level SAB diff
+(walk the authored Box_2018 SAB and the constructed Box SAB
+side-by-side, token by token per class — the same `walk_sab`
+surface, compared as decoded payloads — to find what the kernel
+needs that the invariants do not measure), with the probe as the
+acceptance gate: a fixture reads MODELED when the gap closes.
+
 **The fifth packet — the TOLERATED adjudication state
 (2026-09-29)**: §20.3's "some rows may close as TOLERATED with the
 row kept as the recorded state" gained its instrument: an

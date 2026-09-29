@@ -1,9 +1,15 @@
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 queue's
 # PENDING axis is ZERO (sab_form 4 rows / sh_genus 1 / acds_genus 0 —
 # every remaining row adjudicated-TOLERATED on a recorded verdict);
-# THE NEXT WORK: the user-run BricsCAD audit of the re-ranked
-# constructed stream (the one open strict-loader verification) —
-# a failed audit REVERSES the ordering rank change
+# THE BRICSCAD AUDIT IS NOW MECHANIZED (strict_load_probe.py) and its
+# verdict is recorded: the ordering packet EXONERATED (the modeling
+# failure is pre-existing and order-independent — both the current
+# rank and the pre-rank code yield the identical ±1e80 null box);
+# THE NEXT WORK: the constructed-SAB restore gap — the stream never
+# constructs as an ACIS body in the strict kernel (authored
+# specimens model real extents in all three envelopes; every
+# constructed fixture fails); the designed investigation is the
+# record-level SAB diff, with the probe as the acceptance gate
 
 > Campaign state 2026-09-29 (the halt after the seventh queue packet;
 > the record-identity campaigns are ALL CLOSED: **THE CORPUS STAYS AT
@@ -36,11 +42,14 @@
 > sort is the identity on them). The sections stand at
 > sab_form_diffs (4 rows — 0 pending / 4 TOLERATED) /
 > sh_genus_diffs (1 row — 0 pending / 1 TOLERATED, the elide marker)
-> / acds_genus_diffs (0 — CLOSED); `--strict` passes. THE ONE OPEN
-> VERIFICATION: the re-ranked constructed stream awaits the user-run
-> BricsCAD audit (§20.4: the 2026-09-22 verdict covered the
-> body-first shape — the full re-ranked order needs its own probe;
-> the artifacts are in `target/genus_gates/constructed/`).** Read
+> / acds_genus_diffs (0 — CLOSED); `--strict` passes. THE BRICSCAD
+> AUDIT IS MECHANIZED: strict_load_probe.py drove bricscad.exe /b
+> headless and the verdict is recorded — the authored specimens
+> model real extents in all three envelopes (2007/2013/2018), every
+> constructed fixture yields the ±1e80 null box, and the old-vs-new
+> discrimination shows the failure PRE-EXISTING and order-independent
+> (the ordering packet is exonerated; the new queue head is the
+> constructed-SAB restore gap).** Read
 > `tests/gold_harness/AGENTS.md` first, then §20 (all of it — now
 > with the §20.6 landed state and its seven closed packets), then
 > §19.4 + §19.5, then §18.6 + §F2.1–F2.3, then this file top to
@@ -269,45 +278,88 @@
     end-to-end: suite 52 segments, the mirror (fresh extraction ==
     the untouched pin), the four smokes 0/0 with clean echoes, the
     corpus 280 at 0/0/0/0 with the sections 4/1/0. THE OPEN
-    VERIFICATION: the re-ranked constructed stream awaits the
-    user-run BricsCAD audit; a failed audit REVERSES the rank
-    change (the revert rule recorded in §20.6's packet-seven
-    record).
+    VERIFICATION: the re-ranked constructed stream awaited the
+    strict-loader audit (the revert rule recorded in §20.6's
+    packet-seven record).
+13. **The strict-loader probe MECHANIZED + the restore-gap finding
+    (the second continuation session, 2026-09-29)**:
+    `tests/gold_harness/strict_load_probe.py` — the /b-scripted
+    BricsCAD audit (the LISP census in the post-OPEN document
+    context; `vla-getboundingbox` forces the modeler — real
+    extents = a healthy restore, ±1e80 = the null box; every
+    launch bounded, a missing result = AMBIGUOUS; the build leaves
+    LOGFILENAME unset so the restorer's text is not captured — the
+    DB/modeler census is the measured surface). The paired probes:
+    authored specimens model REAL extents in all three envelopes
+    (Box_2007/2013/2018: 0,0,0..1,2,3); every constructed fixture
+    reports entity-count 1 with the NULL BOX; the old-vs-new
+    discrimination (the pre-rank cfe36f6 sab.rs, regenerated and
+    probed identically) yields the SAME null box. **Two verdicts:
+    (1) the ordering packet EXONERATED — the failure is
+    pre-existing and order-independent, the revert rule's
+    causation condition does not engage, the ordering rows stay
+    closed on the genus axis; (2) the constructed SAB stream has
+    NEVER constructed as an ACIS body in the strict kernel — §20.1's
+    blindness a third time (the entity layer is sound; the B-rep
+    never builds; the historical audits read the error surface,
+    which went quiet after the 2026-09-28 fixes and was mistaken
+    for acceptance). The NEW QUEUE HEAD: the constructed-SAB
+    restore gap; the designed investigation is the record-level
+    SAB diff (authored Box_2018 vs constructed Box, token-by-token
+    per class through the shared walk_sab surface), with the probe
+    as the acceptance gate.**
 
-## THE NEXT WORK: the user-run BricsCAD audit of the re-ranked constructed stream
+## THE NEXT WORK: the constructed-SAB restore gap (the mechanized probe is the acceptance gate)
 
 **The queue's PENDING axis is ZERO** — `sab_form_diffs` 4 rows /
 `sh_genus_diffs` 1 row / `acds_genus_diffs` 0, every remaining row
-adjudicated-TOLERATED on a recorded verdict (the ACIS-700 family on
-the 2026-09-21 strict-load zero + the 2026-09-22 region probe + the
-author-identity rule; the persubent class on the 2026-09-29
-journal-correlation corpus scan; the G-B elide marker on the
-2646f05 cylinder verdict). `--strict` passes.
+adjudicated-TOLERATED on a recorded verdict. `--strict` passes.
 
-THE ONE OPEN VERIFICATION is the seventh packet's strict-loader
-probe: the ordering rank change (arc item 12) re-ranked the
-constructed SAB stream into the authored first-appearance genus —
-the 2026-09-22 probe verdict covered the body-first shape, and the
-full re-ranked order needs its own audit. **The procedure is the
-recorded user-run BricsCAD maneuver** (BricsCAD V18 at
-`/mnt/c/Program Files/Bricsys/BricsCAD V18 en_US`):
+**The BricsCAD audit is MECHANIZED and its verdict is recorded
+(2026-09-29, the second continuation session)**:
+`tests/gold_harness/strict_load_probe.py` drives `bricscad.exe /b`
+headless; the script's LISP censuses the 3DSOLID/REGION entities,
+forces the modeler via `vla-getboundingbox`, audits, re-censuses,
+and quits without saving (nothing outlives the OPEN document
+switch; a missing result file = AMBIGUOUS, never clean; the build
+leaves LOGFILENAME unset, so the restorer's TEXT is not captured —
+the DB/modeler census is the measured surface). Run:
 
-1. Regenerate the fixtures fresh:
-   `python3 tests/gold_harness/genus_gates.py` (the constructed
-   corpus lands in `target/genus_gates/constructed/`).
-2. Open each fixture (Box, Sphere, Cylinder, Cone, Torus, Region,
-   Body, HistoryTree) in BricsCAD and audit
-   (`_AUDIT` / open-time audit): the acceptance is a clean open +
-   a clean audit — no "Data stream is empty", no "Audit Failed",
-   no "missing logical in restore file", no duplicate-ownership
-   errors, and the solids model/render.
-3. Record the verdict in §20.6 (the AUDIT annotation on the packet
-   record). **A FAILED AUDIT REVERSES THE RANK CHANGE** — the revert
-   is the pre-2ebc90f `reorder_restore_file` (the body-first-only
-   trigger + the inverse rank table), the ordering rows re-rank in
-   the gates, and the closure re-enters the queue (the campaign's
-   own shape: the 2026-09-24/25 rounds landed and reverted on probe
-   failures).
+```
+python3 tests/gold_harness/genus_gates.py    # fresh constructed corpus
+python3 tests/gold_harness/strict_load_probe.py
+```
+
+**The recorded verdicts**: the authored specimens MODEL across all
+three envelopes (Box_2007 in-entity SAB; Box_2013/Box_2018 AcDs —
+real extents 0,0,0..1,2,3), while every constructed fixture
+reports entity-count 1 with the ±1e80 NULL BOX, and the old-vs-new
+discrimination (the pre-rank `cfe36f6` sab.rs, regenerated and
+probed identically) yields the SAME null box. **The ordering
+packet is EXONERATED** (the failure is pre-existing and
+order-independent; the revert rule's causation condition does not
+engage; the ordering rows stay closed on the genus axis). **The
+new head of the work queue is the restored gap itself: the
+constructed SAB stream has NEVER constructed as an ACIS body in
+the strict kernel** — the entity layer is sound (opens, censuses,
+survives audit), the B-rep never builds, and every historical
+BricsCAD reading was the error surface; once the 2026-09-28 fixes
+landed the surface went quiet, which was read as acceptance while
+the body silently failed to restore.
+
+**The designed investigation** (the next session's first packet):
+a record-level SAB diff — walk the authored Box_2018 SAB and the
+constructed Box SAB side-by-side with the shared `walk_sab`
+surface, decoded token-by-token per class (body, lump, shell,
+face, loop, plane-surface, coedge, edge, vertex, straight-curve,
+point) — to find what the kernel needs that the genus invariants
+do not measure (candidate surfaces: the cross-reference WIRING —
+pointer targets, not just presence; the intra-record token
+encoding beyond the class widths; the header's num_bodies/flags
+semantics — the adjudicated (0,1,0) vs authored (0,2,X) triple).
+The acceptance is the probe: **a constructed fixture reads MODELED
+when the gap closes** (real extents, not the null box), and the
+authored controls must read MODELED for the run to stand.
 
 The standing guards stay armed regardless: the G-C container
 regression tests + gate rows (any writer change that regresses
@@ -524,6 +576,12 @@ cargo build --bin ac21_token_diff --features serde
 python3 tests/gold_harness/genus_extract.py   # regenerate expectations
 python3 tests/gold_harness/genus_gates.py     # the ranked report
 # lands NONZERO on purpose — the counts are the work queue
+
+# 7b. THE STRICT-LOAD PROBE (the mechanized BricsCAD audit)
+#     (Windows-visible host required; the BricsCAD V18 path is the default)
+python3 tests/gold_harness/strict_load_probe.py
+# the constructed fixtures currently read NULL-BOX (the restore
+# gap — the new queue head); the authored controls must read MODELED
 ```
 
 ## Commit inventory (this halt)
@@ -627,6 +685,26 @@ cfe36f6 fix(harness): the persubent adjudication - the journal-
        e4cd1960... (25,473 bytes); the battery green end-to-end;
        OPEN: the user-run BricsCAD audit of the re-ranked stream
        (a failed audit REVERSES the rank change)
+c760014 docs(harness): the halt refresh - the queue PENDING-ZERO
+       (sab_form 4 / sh_genus 1 / acds_genus 0, all rows
+       adjudicated), the one open verification the user-run
+       BricsCAD audit
+<feat> the strict-loader probe MECHANIZED + the restore-gap
+       finding: tests/gold_harness/strict_load_probe.py (the
+       /b-scripted headless BricsCAD census - the LISP probes in
+       the post-OPEN document context, vla-getboundingbox forces
+       the modeler, real extents vs the +-1e80 null box, every
+       launch bounded, a missing result = AMBIGUOUS) + the paired
+       verdicts recorded (authored specimens model real extents in
+       all three envelopes 2007/2013/2018; every constructed fixture
+       the null box; the old-vs-new discrimination pre-existing
+       and order-independent - the ordering packet EXONERATED, the
+       revert rule's causation condition not engaged) + the new
+       queue head: the constructed-SAB restore gap (the stream has
+       never constructed as an ACIS body in the strict kernel; the
+       record-level SAB diff is the designed next packet; the probe
+       is the acceptance gate)
+       (THIS SESSION'S PROBE LANDING)
 ```
 
 **PUSH STATE (2026-09-29)**: push after each landing per the
@@ -698,9 +776,18 @@ shaped documents sort to themselves; body keeps rank 0 per the
 2026-09-22 contract) — the 60 ordering rows fell, the PENDING queue
 is 0/0/0, `--strict` passes, the identity moved to
 `e4cd1960…`/25,473, and the full battery held green end-to-end
-(suite + mirrors + smokes + echoes + corpus 280 at 0/0/0/0). **The
-queue's remaining five rows are the recorded adjudicated state; the
-ONE open verification is the user-run BricsCAD audit of the
-re-ranked constructed stream — a failed audit reverses the rank
-change and re-opens the ordering family (the recorded revert
-rule).**
+(suite + mirrors + smokes + echoes + corpus 280 at 0/0/0/0) → the
+halt, with the one open item the strict-loader audit → the second
+continuation (the "review, update, commit, push, then continue"
+loop): the audit MECHANIZED (strict_load_probe.py — the /b-scripted
+headless BricsCAD census) and its verdict recorded through the
+paired probes: authored specimens model real extents in all three
+envelopes, every constructed fixture yields the ±1e80 null box,
+and the old-vs-new discrimination shows the failure PRE-EXISTING
+and order-independent — **the ordering packet exonerated (the revert
+rule's causation condition does not engage), and the new queue
+head is the constructed-SAB restore gap: the stream has never
+constructed as an ACIS body in the strict kernel, invisible to
+every corpus axis and every genus invariant — the record-level
+SAB diff is the designed next packet, with the probe as the
+acceptance gate.**
