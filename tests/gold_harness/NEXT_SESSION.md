@@ -16,8 +16,11 @@
 # was the repair's side effect, NO follow-up); **THE PROBE'S
 # CENSUS IS WIDENED TO EVERY KIND** (the ninth addendum — the
 # canonical's every kind has first-class bbox evidence on both
-# loaders; the XLine/Ray pair the one ACAD-selection gap, a probe
-# refinement): every constructed fixture MODELS under BricsCAD
+# loaders; the XLine/Ray pair RESOLVED AS A NON-DEFECT — the
+# eleventh addendum: ACAD's filtered ssget never returns
+# construction lines, HER OWN authored pair absent the same way;
+# the writer exonerated): every constructed fixture MODELS under
+# BricsCAD
 # V26 AND AutoCAD 2027 with real extents and clean audits, the
 # multi-record mispair is GONE, the complete chimera matrix holds
 # on both loaders, the container is at her complete genus; the
@@ -27,11 +30,61 @@
 # entity verification harness, the genus gates + the extended
 # pin, the record census, the chimera coherent-swap instrument.
 # THE FIRST ACTION for the zero-context agent: re-verify the
-# battery (the verification gate section below), read the tenth
-# addendum's record, then the residual queue (the XLine/Ray
-# ACAD-coverage refinement; the MLine verts defect — gold's
-# standing ERROR; the §19.5 version-parity tiers — maintainer
-# decisions; the era censuses across the full era corpora).
+# battery (the verification gate section below), read the
+# eleventh addendum's record, then the residual queue (the MLine
+# verts defect — gold's standing ERROR; the §19.5 version-parity
+# tiers — maintainer decisions; the era censuses across the full
+# era corpora).
+#
+# === THE ELEVENTH-CONTINUATION ADDENDUM (the XLine/Ray question
+# RESOLVED AS A NON-DEFECT; read this first, then the tenth
+# addendum as history): **THE LAST "UNTESTED IN AUTOCAD" PAIR IS
+# EXONERATED BY THE AUTHORED-CONTROL PRECEDENT — THE WRITER IS
+# CLEAN; ACAD'S TYPE-FILTERED `ssget "_X"` SIMPLY DOES NOT RETURN
+# CONSTRUCTION LINES, FOR THE AUTHOR'S OWN BYTES EXACTLY AS FOR
+# OURS.** The tenth addendum's queue head (the XLine/Ray
+# ACAD-coverage refinement), resolved without a single probe
+# launch — the evidence was already in the widened censuses:
+#
+# (1) THE CONTROL COMPARISON (the A2Swap chimera = HER authored
+# wrapper + our SAB — its XLine/Ray records are HER AUTHORED
+# BYTES, byte-for-byte): HER XLine (handle 0x8C) and HER Ray
+# (0x1A9) are ABSENT from ACAD's census of her own file —
+# exactly as ours (0x37/0x36) are absent from ACAD's census of
+# the canonical. ACAD's type-filtered selection does not return
+# XLINE/RAY entities AT ALL (the audit walks them clean — they
+# LOAD; the selection trait is ACAD's, not a divergence in our
+# bytes).
+#
+# (2) THE bcad CROSS-CHECK: bcad's census of the same A2Swap
+# file DOES select her 0x8C/0x1A9 — both reading the healthy
+# ±1e80 INFINITE-EXTENTS BOX (the construction-line semantics),
+# exactly as bcad reads OUR 0x37/0x36. Gold decodes our pair as
+# XLINE/RAY with the full record fields (the point/vector keys
+# present) — the DWG bytes are genus-correct.
+#
+# (3) THE VERDICT: NOTHING IS UNTESTED-BY-DIVERGENCE UNDER ACAD.
+# 29 kinds carry direct real-bbox evidence; the XLine/Ray pair
+# LOADS CLEAN (audit-walked), behaves IDENTICALLY to the
+# author's own construction lines under both loaders (selected +
+# the infinite box under bcad; unselected under ACAD's filtered
+# ssget), and the viewport bbox-FAILs are the known loader
+# trait her own files show. The probe refinement (an unfiltered
+# ssget type dump naming ACAD's internal type for construction
+# lines) remains an OPTIONAL instrument nicety — it can no
+# longer surface a writer defect, so it is retired from the
+# queue.
+#
+# THE NEXT WORK, ranked: (a) the MLine verts defect (gold's
+# standing read-side ERROR — now the sole named content
+# residue, a §19-era read-arm question); (b) the §19.5
+# version-parity tiers (R13/R14 implemented-but-divergent,
+# pre-R13 unsupported — maintainer decisions); (c) the era
+# censuses across the full era corpora; (d) the §19.4/§F2
+# future-work rows.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE TENTH-CONTINUATION ADDENDUM (the MText repair — the
 # widened census's first closure; read this first, then the ninth
@@ -2309,8 +2362,11 @@ python3 tests/gold_harness/strict_load_probe.py
 ## MText attachment-repeat repair (the tenth addendum) closed the
 ## ACAD-side pair ("AcDbMText was repaired / 2 fixed"): the
 ## canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+post
-## on BOTH loaders. The remaining queue: the XLine/Ray ACAD-coverage
-## refinement (a probe filter question); the MLine verts defect
+## on BOTH loaders. The XLine/Ray coverage question is RESOLVED AS
+## A NON-DEFECT (the eleventh addendum: ACAD's filtered ssget
+## never returns construction lines — her authored pair absent the
+## same way; the writer exonerated; the optional type-dump
+## refinement retired). The remaining queue: the MLine verts defect
 ## (gold's standing ERROR — a §19-era read-side residue); the
 ## maintainer-decision tier: the §19.5 version-parity tiers (R13/R14,
 ## pre-R13); the era censuses across the full era corpora.
@@ -2319,6 +2375,19 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the eleventh-continuation halt record (this commit — the
+       operative handover head: THE XLINE/RAY QUESTION RESOLVED
+       AS A NON-DEFECT — the authored-control precedent exonerates
+       the writer [her own XLine 0x8C/Ray 0x1A9 absent from
+       ACAD's census of her own file exactly as ours; bcad
+       selects both hers and ours with the healthy infinite
+       box; gold decodes our pair genus-correct]; NOTHING IS
+       UNTESTED-BY-DIVERGENCE UNDER ACAD; the type-dump probe
+       refinement retired [it can no longer surface a writer
+       defect]; the remaining queue ranked [the MLine verts
+       defect the sole named content residue; the 19.5 tiers;
+       the era censuses]; the reading order stands, STARTING at
+       the eleventh addendum)
 <docs> the tenth-continuation halt record (this commit — the
        operative handover head: THE MTEXT REPAIR CLOSED [the
        empirical path — the probe's QUIT _N saves the staged copy,

@@ -15,11 +15,14 @@ BOTH loaders), the
 record-identity censuses all-zero on every measured era specimen, and
 the rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
-remaining queue: the XLine/Ray ACAD-coverage refinement (a probe
-filter question), the MLine verts defect (gold's standing read-side
-ERROR), and the maintainer-decision tier (§19.5 version parity,
-the era censuses across the full corpora). Location:
-`tests/gold_harness/IMPLEMENTATION.md` — the
+remaining queue: the MLine verts defect (gold's standing
+read-side ERROR — the sole named content residue), and the
+maintainer-decision tier (§19.5 version parity,
+the era censuses across the full corpora). The XLine/Ray
+ACAD-coverage question is RESOLVED AS A NON-DEFECT (ACAD's
+filtered ssget never returns construction lines — her own
+authored pair absent the same way; the writer exonerated).
+Location: `tests/gold_harness/IMPLEMENTATION.md` — the
 single source of truth.
 
 > This file is the only authoritative plan for the gold-vs-silver harness.
@@ -8114,8 +8117,15 @@ PENDING-ZERO with `--strict` (sab_form 0/3, sh_genus 0/1, acds 0),
 the generation identity `36279922…`/25,696 (serde parity), the
 era censuses 474/474 (example_2018) + 735/735 (example_2004)
 re-verified on the MText-bearing specimens. **The remaining
-queue**: the XLine/Ray ACAD-coverage refinement (a probe filter
-question); the MLine verts defect (gold's standing read-side
-ERROR); the maintainer-decision tier — the §19.5 version-parity
-tiers, the era censuses across the full era corpora, the §19.4/§F2
-future-work rows.
+queue**: the MLine verts defect (gold's standing read-side
+ERROR — the sole named content residue); the maintainer-decision
+tier — the §19.5 version-parity tiers, the era censuses across
+the full era corpora, the §19.4/§F2 future-work rows. **The
+XLine/Ray ACAD-coverage question closed as a NON-DEFECT after
+this record was written** (the authored-control precedent: ACAD's
+filtered `ssget "_X"` never returns construction lines — her own
+authored XLine/Ray absent from ACAD's census of her own file
+exactly as ours, while bcad selects both with the healthy
+infinite-extents box; gold decodes our pair genus-correct; the
+writer exonerated — the eleventh-continuation addendum carries
+the record).
