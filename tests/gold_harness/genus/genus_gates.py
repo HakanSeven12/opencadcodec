@@ -63,8 +63,8 @@ from collections import Counter
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO = SCRIPT_DIR.parents[1]
-DEFAULT_EXPECTATIONS = SCRIPT_DIR / "genus_expectations.json"
+REPO = SCRIPT_DIR.parents[2]
+DEFAULT_EXPECTATIONS = SCRIPT_DIR.parent / "config" / "genus_expectations.json"
 DEFAULT_WORKDIR = REPO / "target" / "genus_gates"
 
 sys.path.insert(0, str(SCRIPT_DIR))

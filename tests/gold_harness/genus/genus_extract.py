@@ -59,9 +59,9 @@ from collections import defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO = SCRIPT_DIR.parents[1]
-DEFAULT_FIXTURES = SCRIPT_DIR / "tests" / "sh_history"
-DEFAULT_OUT = SCRIPT_DIR / "genus_expectations.json"
+REPO = SCRIPT_DIR.parents[2]
+DEFAULT_FIXTURES = SCRIPT_DIR.parent / "fixtures" / "sh_history"
+DEFAULT_OUT = SCRIPT_DIR.parent / "config" / "genus_expectations.json"
 DEFAULT_WORKDIR = REPO / "target" / "genus_gates" / "extract"
 CORPUS_WORKDIR = REPO / "target" / "gold_harness_corpus"
 
@@ -423,7 +423,7 @@ def corpus_scan_specimens():
     found = []
     for json_path in sorted(CORPUS_WORKDIR.glob("*/*_silver_orig.json")):
         stem = json_path.name.removesuffix("_silver_orig.json")
-        if (SCRIPT_DIR / "tests" / "sh_history" / f"{stem}.dwg").exists():
+        if (SCRIPT_DIR.parent / "fixtures" / "sh_history" / f"{stem}.dwg").exists():
             continue  # fixtures are decoded fresh, never scanned
         try:
             with open(json_path) as handle:

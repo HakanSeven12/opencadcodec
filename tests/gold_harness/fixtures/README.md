@@ -18,7 +18,7 @@ README is the quick card for landing files.
   per-file workdirs by stem; the gold tree's colliding `Leader.dwg`
   stems are the known count-inflation cautionary tale).
 - The root `.gitignore` blankets `*.dwg` — this tree is negated in via
-  `!tests/gold_harness/tests/**/*.dwg`. If a fixture shows as ignored,
+  `!tests/gold_harness/fixtures/**/*.dwg`. If a fixture shows as ignored,
   the negation rule is missing; never `git add -f` past it silently.
 
 ## Landing a fixture — the checklist

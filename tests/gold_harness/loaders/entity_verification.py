@@ -39,7 +39,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 CANON = REPO / "gen_all_entities_all_versions.dwg"
 WORK = REPO / "target" / "entity_verification"
 GOLD = Path.home() / "work" / "libredwg" / "programs" / "dwgread"

@@ -145,8 +145,8 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO = SCRIPT_DIR.parents[1]
-SPECIMENS = SCRIPT_DIR / "tests" / "sh_history"  # tests/gold_harness/tests/sh_history
+REPO = SCRIPT_DIR.parents[2]
+SPECIMENS = SCRIPT_DIR.parent / "fixtures" / "sh_history"  # tests/gold_harness/fixtures/sh_history
 CONSTRUCTED = REPO / "target" / "genus_gates" / "constructed"
 
 DEFAULT_PROBE_DIR = Path("/mnt/c/Users/SebastianSchoeller/AppData/Local/Temp/kilo/strict_load_probe")

@@ -33,8 +33,8 @@ from struct_axis import census_from_files
 GOLD_DWGREAD = os.environ.get("GOLD_DWGREAD", "")
 CARGO = os.environ.get("CARGO", "cargo")
 SCRIPT_DIR = Path(__file__).resolve().parent
-HARNESS_DIR = SCRIPT_DIR.parent
-REPO_ROOT = HARNESS_DIR.parent
+HARNESS_DIR = SCRIPT_DIR.parent  # the tests/gold_harness/ root
+REPO_ROOT = HARNESS_DIR.parent.parent
 
 
 def run(cmd: List[str], **kwargs: Any) -> subprocess.CompletedProcess:
@@ -145,7 +145,7 @@ def main() -> int:
     workdir.mkdir(parents=True, exist_ok=True)
     stem = re.sub(r"[^A-Za-z0-9_-]+", "_", dwg.stem)
 
-    ignore = SCRIPT_DIR / "ignore_fields.toml"
+    ignore = SCRIPT_DIR.parent / "config" / "ignore_fields.toml"
     if not ignore.exists():
         ignore = None
 

@@ -3,7 +3,7 @@
 //! Runs the constructed-content oracle end to end:
 //!   1. a fresh expectation extraction (genus_extract.py) over the sh_history
 //!      specimen family, compared against the pinned
-//!      tests/gold_harness/genus_expectations.json — expectation drift is
+//!      tests/gold_harness/config/genus_expectations.json — expectation drift is
 //!      itself reviewable (§20.3), so a mismatch fails here until the pin
 //!      is consciously regenerated;
 //!   2. the gate run (genus_gates.py) over the constructed corpus, with the
@@ -40,7 +40,7 @@ fn python3_available() -> bool {
 /// The presence gate: everything the genus pipeline needs. Returns the
 /// reason it is unavailable, when it is.
 fn genus_available() -> Result<(), String> {
-    let fixtures = cargo_root().join("tests/gold_harness/tests/sh_history");
+    let fixtures = cargo_root().join("tests/gold_harness/fixtures/sh_history");
     let has_specimen = std::fs::read_dir(&fixtures)
         .map(|entries| {
             entries
@@ -54,7 +54,7 @@ fn genus_available() -> Result<(), String> {
             fixtures.display()
         ));
     }
-    let pin = cargo_root().join("tests/gold_harness/genus_expectations.json");
+    let pin = cargo_root().join("tests/gold_harness/config/genus_expectations.json");
     if !pin.is_file() {
         return Err(format!(
             "the pinned genus expectations are absent at {} — run genus_extract.py",
@@ -84,7 +84,7 @@ fn genus_gates_pipeline_runs_and_expectations_match_pin() {
                 "genus pipeline unavailable: {}\n\
                  the §20 constructed-content oracle did NOT run.\n\
                  restore the specimen family + the pinned expectations\n\
-                 (tests/gold_harness/genus_extract.py regenerates the pin).\n",
+                 (tests/gold_harness/genus/genus_extract.py regenerates the pin).\n",
                 reason
             ),
         );
@@ -108,7 +108,7 @@ fn genus_gates_pipeline_runs_and_expectations_match_pin() {
     let fresh = workdir.join("genus_expectations_fresh.json");
     let fresh_str = fresh.to_string_lossy().to_string();
     let extract = run_python(
-        &root.join("tests/gold_harness/genus_extract.py"),
+        &root.join("tests/gold_harness/genus/genus_extract.py"),
         &["--out", &fresh_str],
         &root,
     );
@@ -121,22 +121,22 @@ fn genus_gates_pipeline_runs_and_expectations_match_pin() {
     let fresh_json: serde_json::Value =
         serde_json::from_reader(std::fs::File::open(&fresh).unwrap()).unwrap();
     let pin: serde_json::Value = serde_json::from_reader(
-        std::fs::File::open(root.join("tests/gold_harness/genus_expectations.json")).unwrap(),
+        std::fs::File::open(root.join("tests/gold_harness/config/genus_expectations.json")).unwrap(),
     )
     .unwrap();
     assert_eq!(
         fresh_json, pin,
-        "the pinned genus expectations drifted from a fresh extraction — \
-         regenerate tests/gold_harness/genus_expectations.json with \
-         genus_extract.py and review the diff (§20.3: expectation drift \
-         is reviewable)"
+         "the pinned genus expectations drifted from a fresh extraction — \
+          regenerate tests/gold_harness/config/genus_expectations.json with \
+          genus_extract.py and review the diff (§20.3: expectation drift \
+          is reviewable)"
     );
 
     // 2. The gate run over the constructed corpus.
     let report_path = workdir.join("genus_report.json");
     let workdir_str = workdir.to_string_lossy().to_string();
     let gates = run_python(
-        &root.join("tests/gold_harness/genus_gates.py"),
+        &root.join("tests/gold_harness/genus/genus_gates.py"),
         &["--workdir", &workdir_str],
         &root,
     );

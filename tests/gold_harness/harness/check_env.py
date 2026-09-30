@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent.parent
+REPO_ROOT = SCRIPT_DIR.parent.parent.parent
 
 REQUIRED_VERSIONS = ["2000", "2004", "2007", "2010", "2013", "2018"]
 

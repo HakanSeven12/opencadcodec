@@ -14,9 +14,9 @@
 //! suppresses passing tests' output, so the marker file carries the
 //! message). Set GOLD_HARNESS_REQUIRE=1 to turn absence into a hard
 //! failure instead (for CI). To check out and build the oracle on demand:
-//! `bash tests/gold_harness/bootstrap_oracle.sh`.
+//! `bash tests/gold_harness/harness/bootstrap_oracle.sh`.
 //!
-//! With the oracle present it shells out to `tests/gold_harness/run_roundtrip.py`.
+//! With the oracle present it shells out to `tests/gold_harness/harness/run_roundtrip.py`.
 //! By default only checks that the harness runs without crashing. With
 //! GOLD_HARNESS_STRICT=1 it asserts zero `missing_in_silver` diffs for the
 //! representative subset and asserts that the storage-only `EntityCommon`
@@ -28,7 +28,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const DRIVER: &str = "tests/gold_harness/run_roundtrip.py";
+const DRIVER: &str = "tests/gold_harness/harness/run_roundtrip.py";
 
 fn cargo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -110,7 +110,7 @@ fn gold_harness_runs_on_representative_files() {
             format!(
                 "gold oracle unavailable: {}\n\
                  the gold-vs-silver fidelity check did NOT run.\n\
-                 bootstrap the oracle with:  bash tests/gold_harness/bootstrap_oracle.sh\n\
+                 bootstrap the oracle with:  bash tests/gold_harness/harness/bootstrap_oracle.sh\n\
                  then re-run with GOLD_DWGREAD/GOLD_TESTDATA exported.\n",
                 reason
             ),
@@ -118,7 +118,7 @@ fn gold_harness_runs_on_representative_files() {
         if std::env::var_os("GOLD_HARNESS_REQUIRE").is_some() {
             panic!(
                 "gold oracle required (GOLD_HARNESS_REQUIRE=1) but unavailable: {} \
-                 — bootstrap with: bash tests/gold_harness/bootstrap_oracle.sh",
+                 — bootstrap with: bash tests/gold_harness/harness/bootstrap_oracle.sh",
                 reason
             );
         }

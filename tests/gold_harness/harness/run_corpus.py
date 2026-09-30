@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent.parent
+REPO_ROOT = SCRIPT_DIR.parent.parent.parent
 
 GOLD_TESTDATA = os.environ.get("GOLD_TESTDATA", str(Path.home() / "work/libredwg/test/test-data"))
 
@@ -53,7 +53,7 @@ def in_scope_files(testdata: Path) -> List[Path]:
     # before landing. Collected after the gold tree so a fixture stem
     # colliding with a gold stem stays visible in the report (stems
     # are required globally unique; a collision is a fixture bug).
-    files.extend(sorted((SCRIPT_DIR / "tests").rglob("*.dwg")))
+    files.extend(sorted((SCRIPT_DIR.parent / "fixtures").rglob("*.dwg")))
     return sorted(set(files))
 
 
@@ -286,6 +286,7 @@ def main() -> int:
     # pipeline failure never fails the corpus run.
     genus_block: Dict[str, Any] = {}
     try:
+        sys.path.insert(0, str(SCRIPT_DIR.parent / "genus"))
         import genus_gates
 
         genus_report = genus_gates.run(workdir=workdir / "genus_gates")
