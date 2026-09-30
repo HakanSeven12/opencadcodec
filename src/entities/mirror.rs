@@ -23,13 +23,17 @@ pub(crate) fn mirror_arc(e: &mut Arc, transform: &Transform) {
 // ── Ellipse ──────────────────────────────────────────────────────────────────
 
 pub(crate) fn mirror_ellipse(e: &mut Ellipse, transform: &Transform) {
+    // transform_ellipse flips the normal under a reflection. MIRROR keeps it
+    // facing the way the mirrored plane does, which traces the same curve
+    // with the parameters negated and swapped.
     super::transform::transform_ellipse(e, transform);
-
-    if !e.is_full() {
-        let new_start = -e.end_parameter;
-        let new_end = -e.start_parameter;
-        e.start_parameter = new_start;
-        e.end_parameter = new_end;
+    if super::transform::is_reflecting(transform) {
+        e.normal = -e.normal;
+        if !e.is_full() {
+            let start = (-e.end_parameter).rem_euclid(std::f64::consts::TAU);
+            e.end_parameter = start + (e.end_parameter - e.start_parameter);
+            e.start_parameter = start;
+        }
     }
 }
 
