@@ -17,8 +17,8 @@ single AC1032 document carrying every supported entity kind):
   REWRITE        the conventional-arm rewrite (DWG_NO_ECHO) re-read:
                  the kind's count must survive the read->write->read
                  cycle (the edited-document path).
-  MODELER        the strict-loader probe on the canonical (BricsCAD +
-                 AutoCAD): the per-entity census verdicts — the
+  MODELER        the strict-loader probe on the canonical (AutoCAD +
+                 BricsCAD): the per-entity census verdicts — the
                  ent[h] bbox lines (real extents = the entity's model
                  constructs; bbox-FAIL = the modeler refuses it).
 
@@ -118,8 +118,8 @@ def probe_axis(report):
                      "strict_load_probe")
     probe_dir.mkdir(parents=True, exist_ok=True)
     verdicts = {}
-    for tag, (loader, mode) in (("bcad", (mod.DEFAULT_BCAD, "gui")),
-                                 ("acad", (mod.DEFAULT_ACAD, "gui"))):
+    for tag, (loader, mode) in (("acad", (mod.DEFAULT_ACAD, "gui")),
+                                 ("bcad", (mod.DEFAULT_BCAD, "gui"))):
         run_name = f"GenAllCanonical__{tag}"
         lines = mod.probe_one(run_name, CANON, probe_dir, loader, 150, mode)
         v = mod.verdict(lines)
@@ -197,14 +197,14 @@ def main():
                  "read->write->read survival), MODELER (the strict-loader "
                  "per-entity census).")
     lines.append("")
-    lines.append("| Entity | Build | Silver | Gold | Rewrite | Modeler (bcad / acad) |")
+    lines.append("| Entity | Build | Silver | Gold | Rewrite | Modeler (acad / bcad) |")
     lines.append("|--------|-------|--------|------|---------|----------------------|")
 
     def modeler_cell(kind):
         if not modeler:
             return "(skipped)"
         parts = []
-        for tag in ("bcad", "acad"):
+        for tag in ("acad", "bcad"):
             v = modeler[tag]
             if "NO RESULT" in " ".join(v["lines"]) or not v["per_entity"]:
                 parts.append(f"{tag}: {v['verdict']}")

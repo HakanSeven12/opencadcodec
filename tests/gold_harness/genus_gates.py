@@ -109,7 +109,10 @@ class RowCollector:
 # ADJUDICATED state — kept in the counts as the recorded divergence,
 # annotated in the report, and excluded from the pending work queue.
 # Every entry cites its provenance; nothing is tolerated without a
-# recorded verdict. (The header-magic-version and header-triple
+# recorded verdict. Authority ranking for future entries: the AutoCAD 2027
+# census leads (BricsCAD V26 corroborates) — the entries below predate the
+# ranking and stand as recorded history. (The header-magic-version and
+# header-triple
 # entries were RETIRED at the candidate-4 packet: the constructed
 # header now carries the authored era profile — ASM|22300 + (0,2,4)
 # for R2018 — so both rows closed through the genus match; the

@@ -30,6 +30,30 @@ silver bytes, so it can never flag an encoding *form* — only byte-for-byte
 comparison against the authored wire can. Full procedure and worked examples:
 [`IMPLEMENTATION.md` §18](./IMPLEMENTATION.md).
 
+### Oracle authority ranking
+
+When signals disagree, the higher-ranked oracle wins:
+
+1. **AutoCAD 2027 census** — per-kind real-extents bbox + audit totals; the
+   format author's own modeler: **the acceptance signal** for constructed
+   content.
+2. **BricsCAD V26 census** — the same instrument on the second strict
+   modeler; corroborates, governs only where AutoCAD evidence is N/A.
+3. **accoreconsole** — the dialog-free audit transcript; hard-fail evidence
+   (65010), no bbox force (nil ActiveX bridge).
+4. **Genus gates (layer 5)** — the ranked divergence queue: an investigation
+   aid; a row closes only on a recorded strict-loader verdict (§20.4).
+5. **Wire identity (layer 4)** — record size+CRC against the authored bytes.
+6. **Corpus parity (layer 3) + hermetic gates (layers 1–2)** — the
+   regression floor, always green.
+
+The ranking applies in two regimes: **regression floor (authored content)**
+— the L1–L4 zeros never regress; census-blind defect classes live there.
+**Acceptance apex (constructed content)** — the loader axis decides, ranked
+as above; the genus gates rank the work toward it and decide nothing. The
+ranking does not demote corpus parity: the census cannot see a field-level
+parity diff or a record-form divergence on an authored file at all.
+
 Layer 4's wire facts for record walking: the R2000+ object frame is
 `[MS size][R2010+ UMC hdlsize][BOT type][window]` where the window starts at
 the BOT byte; `bitsize = Size*8 − Hdlsize` is the handle-stream start, and
@@ -111,7 +135,7 @@ array (entities + non-entity objects) is diffed exactly.
 
 | Dependency | Purpose | Provided via |
 |---|---|---|
-| Built LibreDWG `dwgread` | gold oracle (`-O JSON`) | `GOLD_DWGREAD` env var — **oracle-optional**: `cargo test` skips gold checks without it; fetch/build on demand with `bash tests/gold_harness/bootstrap_oracle.sh` |
+| Built LibreDWG `dwgread` | gold oracle (`-O JSON`) | `GOLD_DWGREAD` env var — **oracle-optional**: `cargo test` skips gold checks without it; fetch/build on demand with `bash tests/gold_harness/harness/bootstrap_oracle.sh` |
 | LibreDWG `test/test-data` | DWG corpus | `GOLD_TESTDATA` env var |
 | Rust toolchain (`cargo`) | builds silver binaries | system |
 | Python 3.11+ (with `tomllib`; 3.8–3.10 need `tomli`) | normalizers + differ | system |
@@ -165,7 +189,7 @@ registered as Cargo `[[bin]]` targets with sources in `src/bin/`.
 ### 4. Verify the environment
 
 ```bash
-python3 tests/gold_harness/check_env.py
+python3 tests/gold_harness/harness/check_env.py
 ```
 
 It confirms `GOLD_DWGREAD` is executable and supports `-O JSON`, that
@@ -182,7 +206,7 @@ cadcodec repo root.
 ### Single file
 
 ```bash
-python3 tests/gold_harness/run_roundtrip.py \
+python3 tests/gold_harness/harness/run_roundtrip.py \
     "$GOLD_TESTDATA/2000/Line.dwg"
 ```
 
@@ -194,7 +218,7 @@ and a human-readable `*_report.md`.
 ### Whole corpus (batch)
 
 ```bash
-python3 tests/gold_harness/run_corpus.py
+python3 tests/gold_harness/harness/run_corpus.py
 ```
 
 Iterates the in-scope corpus (`test/test-data/{2000,2004,2007,2010,2013,2018}/*.dwg`
@@ -214,7 +238,7 @@ that no prohibited `EntityCommon` storage-only fields appear in the diffs.
 Without a LibreDWG checkout the test skip-passes and writes
 `target/gold_harness_oracle_skipped.txt`; `GOLD_HARNESS_REQUIRE=1` turns
 absence into a hard failure (CI), and
-`bash tests/gold_harness/bootstrap_oracle.sh` clones and builds the oracle
+`bash tests/gold_harness/harness/bootstrap_oracle.sh` clones and builds the oracle
 online when you want the real fidelity run.
 
 **Strict mode** — assert zero `missing_in_silver` fields on the subset:
@@ -268,7 +292,7 @@ cargo test --features gold-harness --test gold_roundtrip
 **Expected:** `ok` with the oracle present, or the skip-pass notice
 `target/gold_harness_oracle_skipped.txt` without. CI sets
 `GOLD_HARNESS_REQUIRE=1` to make oracle absence a hard failure;
-`bash tests/gold_harness/bootstrap_oracle.sh` brings the oracle online
+`bash tests/gold_harness/harness/bootstrap_oracle.sh` brings the oracle online
 on demand.
 
 ### Step 3 — touched-entity pair smoke
@@ -278,7 +302,7 @@ authored file through the pair compare:
 
 ```bash
 cargo build --features serde --bins
-python3 tests/gold_harness/run_roundtrip.py \
+python3 tests/gold_harness/harness/run_roundtrip.py \
     "$GOLD_TESTDATA/2018/Leader.dwg"      # replace with your family's specimen
 ```
 
@@ -291,7 +315,7 @@ diff, fix version-gated, re-run.
 ### Step 4 — the full corpus (the parity zero)
 
 ```bash
-python3 tests/gold_harness/run_corpus.py
+python3 tests/gold_harness/harness/run_corpus.py
 ```
 
 **Expected** in `target/gold_harness_corpus/report.md` (and
@@ -344,7 +368,7 @@ legal-but-different bitcode forms both decoders tolerate and strict
 consumers reject:
 
 ```bash
-python3 tests/gold_harness/run_roundtrip.py \
+python3 tests/gold_harness/harness/run_roundtrip.py \
     "$GOLD_TESTDATA/2018/Leader.dwg"          # rewrite lands in target/gold_harness/
 target/debug/dump_section_bytes "$GOLD_TESTDATA/2018/Leader.dwg" 4907 256 > /tmp/a.txt
 target/debug/dump_section_bytes target/gold_harness/*Leader_rt.dwg 1959 256 > /tmp/b.txt
@@ -371,8 +395,8 @@ constructed corpus silver-side and assert it against the
 authored-specimen genus:
 
 ```bash
-python3 tests/gold_harness/genus_extract.py   # regenerate + re-pin expectations
-python3 tests/gold_harness/genus_gates.py     # the ranked report
+python3 tests/gold_harness/genus/genus_extract.py   # regenerate + re-pin expectations
+python3 tests/gold_harness/genus/genus_gates.py     # the ranked report
 ```
 
 **Expected:** the pipeline completes and the report's three sections
@@ -401,8 +425,8 @@ family — so each kind gains first-class loader evidence**, the
 DBMOD/ERRNO pre/post-audit record, the post-audit census:
 
 ```bash
-python3 tests/gold_harness/genus_gates.py        # fresh constructed corpus first
-python3 tests/gold_harness/strict_load_probe.py  # the verdict table
+python3 tests/gold_harness/genus/genus_gates.py        # fresh constructed corpus first
+python3 tests/gold_harness/loaders/strict_load_probe.py  # the verdict table
 ```
 
 **The loaders under test (the maintainer's directives, 2026-09-29)**:
@@ -468,9 +492,13 @@ double-quote) throws at the harness instead of reaching the
 loader's ANSI codepage. An unbalanced template now fails the launch
 with the defect named, never a stalled window.
 
-**Expected:** the authored controls read MODELED (real extents —
+**Expected:** **the AutoCAD 2027 census is the acceptance signal** — its
+per-kind real-extents verdicts + audit totals decide, BricsCAD V26
+corroborates (the [oracle authority ranking](#oracle-authority-ranking)).
+The authored controls read MODELED (real extents —
 e.g. Box_2007 `0,0,0..1,2,3`); a constructed fixture reads MODELED
-when its restore gap closes, NULL-BOX (the ±1e80 sentinel) while the
+when its restore gap closes, NULL-BOX (the ±1e80 sentinel; ±1e20 under
+AutoCAD) while the
 gap stands, NO-SOLID when the entity layer fails, AUDIT-REPORT for a
 `--loader core` run (the core console's ActiveX bridge is nil — no
 modeler force there; the transcript is the evidence), and AMBIGUOUS
@@ -574,7 +602,7 @@ highest-fidelity console evidence.
   window transcript first (the census story ranks the failure);
   then bisect with the chimera/subset instruments (`sab_swap`,
   `fresh_pair`, `entity_subset`) and the record-identity census:
-  `python3 tests/gold_harness/record_size_census.py ORIG.dwg
+  `python3 tests/gold_harness/analysis/record_size_census.py ORIG.dwg
   REWRITE.dwg` (gold `-v9` object blocks, handle-keyed, per-record
   identity = size + hdlsize + bitsize + CRC-16; the R2018 + every
   era the AC1021 survey never covered; `DWG_NO_ECHO=1
@@ -619,8 +647,67 @@ document carrying all ~29 kinds):
   resolved as a non-defect by the authored-control precedent)
 
 ```bash
-python3 tests/gold_harness/entity_verification.py [--no-probe]
+python3 tests/gold_harness/loaders/entity_verification.py [--no-probe]
 ```
+
+### The 29-kind status snapshot (recorded 2026-09-30, both loaders)
+
+The same matrix, flattened to per-kind status. Build / Silver-read /
+Gold-read / Rewrite are the measured counts on the canonical (Build `OK` =
+the public API accepts the kind; `OK*` = constructed via the typed sibling
+constructor — the example's build list names the exact add_entity verdicts);
+AutoCAD census / BricsCAD census are the per-entity bbox-force verdicts
+(AutoCAD first, per the
+[oracle authority ranking](#oracle-authority-ranking)).
+
+| Entity | Build | Silver-read | Gold-read | Rewrite | AutoCAD census | BricsCAD census |
+|---|---|---|---|---|---|---|
+| Point | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Line | OK | 2 | 2 | 2/2 | real extents | real extents |
+| Circle | OK | 2 | 2 | 2/2 | real extents | real extents |
+| Arc | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Ellipse | OK | 1 | 1 | 1/1 | real extents | real extents |
+| XLine | OK | 1 | 1 | 1/1 | infinite extents (healthy)¹ | infinite extents (healthy) |
+| Ray | OK | 1 | 1 | 1/1 | infinite extents (healthy)¹ | infinite extents (healthy) |
+| Solid | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Shape | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Text | OK | 1 | 1 | 1/1 | real extents | real extents |
+| MText | OK | 2 | 2 | 2/2 | real extents | real extents |
+| Spline | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Polyline2D | OK* | 1 | 3² | 1/1 | real extents | real extents |
+| Polyline3D | OK* | 1 | 3² | 1/1 | real extents | real extents |
+| LwPolyline | OK | 1 | 1 | 1/1 | real extents | real extents |
+| PolyfaceMesh | OK* | 1 | 3² | 1/1 | real extents | real extents |
+| Mesh | OK | 1 | 1 | 1/1 | real extents | real extents |
+| MLine | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Insert | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Viewport | OK | 1 | 1 | 1/1 | bbox-FAIL (loader trait)³ | not selected (paper space) |
+| Tolerance | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Dimension | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Leader | OK* | 1 | 1 | 1/1 | real extents | real extents |
+| MultiLeader | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Hatch | OK* | 2 | 2 | 2/2 | real extents | real extents |
+| Face3D | OK* | 1 | 0⁴ | 1/1 | real extents | real extents |
+| Solid3D | OK* | 1 | 1 | 1/1 | real extents | real extents |
+| Region | OK | 1 | 1 | 1/1 | real extents | real extents |
+| Body | OK | 1 | 1 | 1/1 | real extents | real extents |
+
+¹ AutoCAD's type-filtered `ssget` does not return construction lines at all
+— the authored controls' own XLine/Ray records are absent the same way
+(resolved non-defect, the eleventh-addendum record); the ±1e20/±1e80
+sentinel box IS a construction line's healthy bounding box.
+² Gold censuses polyline-family vertices as separate typed entities
+(display-label overlap; the counts are right per the standing residue note
+below).
+³ AutoCAD's ActiveX bbox force refuses viewport extents — the authored
+controls' viewports show the identical trait (not a writer defect).
+⁴ Gold decodes the constructed 3DFACE as its raw carrier (the cosmetic
+name-map gap; silver-side and both modelers see it typed).
+
+Audit totals on the canonical: **AutoCAD 2027 — Total errors 0, dbmod 0
+pre+post; BricsCAD V26 — 159 objects audited, Total errors 0 fixed 0.**
+Regenerate with the command above; the probe axis requires the Windows host
+with both loaders installed.
 
 The report lands at `target/entity_verification/report.md` with the
 per-kind matrix and the evidence. The standing residue: the
@@ -650,31 +737,32 @@ there with `required-features = ["serde"]` alongside them.
 | Path | Role |
 |---|---|
 | `AGENTS.md` | Durable rules for agents working the harness (the frozen files, the version-gate rule, loop invariants, session workflow); the honor-system contract behind every commit |
-| `README.md` | This file — entry point: oracle layers, origin quality, setup, the zero-keeping workflow |
+| `README.md` | This file — entry point: oracle layers, authority ranking, origin quality, setup, the zero-keeping workflow |
 | `NEXT_SESSION.md` | The cold-start handover brief for the next session (durable findings + census tables); self-replaced at each campaign halt |
 | `IMPLEMENTATION.md` | The single source of truth for the plan (§7 the completed fidelity campaign; §8.1 the fix-loop manual; §18 the validation layers and the strict-load campaign resolution) |
-| `ARCHITECTURE.md` | The structural reference — the component/design map with mermaid diagrams (the five validation layers, the write path's echo vs conventional arm, the AcDs container, the SAB pipeline, the genus-gate loop, the loader instruments, the chimera matrix) |
-| `run_roundtrip.py` | Single-file driver (the three diffs) |
-| `run_corpus.py` | Batch driver + aggregated report |
-| `normalize_gold.py` | LibreDWG JSON → canonical records |
-| `normalize_silver.py` | cadcodec JSON → canonical records (holds the live type/field maps) |
-| `diff_fields.py` | Diff engine (`missing_in_silver`, `wrong_value`, `extra_in_silver`, `count_mismatch`) |
-| `ignore_fields.toml` | Curated fields the differ skips (**frozen** during the fix loop) |
-| `check_env.py` | Environment sanity checker |
-| `bootstrap_oracle.sh` | On-demand LibreDWG checkout + build (the gold oracle), prints the env exports |
+| `docs/ARCHITECTURE.md` | The structural reference — layers, blind-spot map, oracle authority ranking, write path, AcDs/SAB appendices, loader instruments |
+| `harness/run_roundtrip.py` | Single-file driver (the three diffs) |
+| `harness/run_corpus.py` | Batch driver + aggregated report |
+| `harness/normalize_gold.py` | LibreDWG JSON → canonical records |
+| `harness/normalize_silver.py` | cadcodec JSON → canonical records (holds the live type/field maps) |
+| `harness/diff_fields.py` | Diff engine (`missing_in_silver`, `wrong_value`, `extra_in_silver`, `count_mismatch`) |
+| `config/ignore_fields.toml` | Curated fields the differ skips (**frozen** during the fix loop) |
+| `harness/check_env.py` | Environment sanity checker |
+| `harness/bootstrap_oracle.sh` | On-demand LibreDWG checkout + build (the gold oracle), prints the env exports |
 | `src/bin/dwg2json.rs` | Silver JSON dump (re-injects serde-skipped `EntityCommon` fields under `_common_dwg`) |
 | `src/bin/dwgrewrite.rs` | Silver read→write binary |
 | `src/bin/dump_section_bytes.rs` | Record-framed raw byte dumps (the layer-4 pair-compare instrument) |
 | `src/bin/dump_proxy_graphics.rs` | Proxy-graphics metafile derivation + `--verify` byte-roundtrip proof |
 | `src/bin/genus_constructed.rs` | The §20 constructed-fixture family generator (one solid per SAB surface family, one region, one body, one `create_solid_history` tree) |
-| `genus_extract.py` | The §20 expectation extractor — decodes the specimen family silver-side, projects the SAB/SH/AcDs genus into the pinned expectations |
-| `genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
-| `genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
-| `entity_verification.py` | The entity-behavior verification matrix — builds the gen_all canonical (every supported kind), reads it back with silver + gold, rewrites it (the conventional arm), and probes it under both strict loaders; the five-axis report lands at `target/entity_verification/report.md` |
-| `strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; the default run exercises BOTH GUI loaders (BricsCAD V26 via `DEFAULT_BCAD`, AutoCAD 2027 via `DEFAULT_ACAD`, per-loader verdicts); `--loader bcad/acad/core` narrows (`core` = the AutoCAD core console, accoreconsole.exe via `--acore` — the dialog-free transcript channel); `--bcad`/`--acad`/`--acore` override the paths; each GUI run harvests the loader's LOGFILEON session log to `{run}_audit.log` and prints the verbatim AUDIT report (the modeler's own words "Data stream is empty", the audit totals), alongside the census/bbox/DBMOD evidence and the window-title scraper transcript |
-| `record_size_census.py` | The record-identity census for ANY pair on ANY era — gold `-v9` object blocks, handle-keyed, per-record identity = size + hdlsize + bitsize + CRC-16 (the R2018-record battery's instrument, 2026-09-29; the era-census + rewrite-acceptance acceptance gate; `DWG_NO_ECHO=1 target/debug/dwgrewrite` stages the conventional-arm rewrite) |
-| `bricscad_console_scraper.ps1` | The window-lifecycle transcript — polls the loader's top-level windows (class + title, timestamps) into `<name>_console.log`; the console-text channel map is tested and closed on these builds |
-| `restore_gap_diffs.py` | The constructed-SAB structural audits — per-face orientation, loop-traversal connectivity, travel-direction (the right-hand rule), record/token alignment |
+| `genus/genus_extract.py` | The §20 expectation extractor — decodes the specimen family silver-side, projects the SAB/SH/AcDs genus into the pinned expectations |
+| `config/genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
+| `genus/genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
+| `loaders/entity_verification.py` | The entity-behavior verification matrix — builds the gen_all canonical (every supported kind), reads it back with silver + gold, rewrites it (the conventional arm), and probes it under both strict loaders (AutoCAD census first); the five-axis report lands at `target/entity_verification/report.md` |
+| `loaders/strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; the default run exercises BOTH GUI loaders (AutoCAD 2027 via `DEFAULT_ACAD` first, BricsCAD V26 via `DEFAULT_BCAD`, per-loader verdicts); `--loader acad/bcad/core` narrows (`core` = the AutoCAD core console, accoreconsole.exe via `--acore` — the dialog-free transcript channel); `--bcad`/`--acad`/`--acore` override the paths; each GUI run harvests the loader's LOGFILEON session log to `{run}_audit.log` and prints the verbatim AUDIT report (the modeler's own words "Data stream is empty", the audit totals), alongside the census/bbox/DBMOD evidence and the window-title scraper transcript |
+| `analysis/record_size_census.py` | The record-identity census for ANY pair on ANY era — gold `-v9` object blocks, handle-keyed, per-record identity = size + hdlsize + bitsize + CRC-16 (the R2018-record battery's instrument, 2026-09-29; the era-census + rewrite-acceptance acceptance gate; `DWG_NO_ECHO=1 target/debug/dwgrewrite` stages the conventional-arm rewrite) |
+| `analysis/record_identity_survey.py` | The AC1021 record-identity corpus survey |
+| `loaders/bricscad_console_scraper.ps1` | The window-lifecycle transcript — polls the loader's top-level windows (class + title, timestamps) into `<name>_console.log`; the console-text channel map is tested and closed on these builds |
+| `analysis/restore_gap_diffs.py` | The constructed-SAB structural audits — per-face orientation, loop-traversal connectivity, travel-direction (the right-hand rule), record/token alignment |
 | `examples/sab_swap.rs` | The payload-swap chimera generator (authored wrapper + constructed SAB and vice versa, plus the pure-rewrite control) — the file-level rejection bisect instrument |
 | `examples/fresh_pair.rs` | The fresh-vs-read document pair generator (the same entity through the two write paths) |
 | `examples/line_only.rs` | The minimal innocent-file control (a fresh doc with only a LINE) |

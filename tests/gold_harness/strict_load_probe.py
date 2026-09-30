@@ -121,12 +121,12 @@ while the surviving lines still tell the census story). The tool
 unlinks each result file before its launch so append mode never
 accumulates across runs.
 
-CLI: strict_load_probe.py [--probe-dir DIR] [--loader both|bcad|acad|core]
+CLI: strict_load_probe.py [--probe-dir DIR] [--loader both|acad|bcad|core]
       [--bcad EXE] [--acad EXE] [--acore EXE] [--probe NAME:DWG]...
-The DEFAULT run exercises BOTH GUI loaders (BricsCAD V26 via
-DEFAULT_BCAD and AutoCAD 2027 via DEFAULT_ACAD): every fixture is
+The DEFAULT run exercises BOTH GUI loaders (AutoCAD 2027 via
+DEFAULT_ACAD and BricsCAD V26 via DEFAULT_BCAD): every fixture is
 probed under each, with per-loader verdicts (the result files and
-report rows carry a __bcad/__acad suffix). `--loader core` runs
+report rows carry a __acad/__bcad suffix). `--loader core` runs
 the AutoCAD core console (accoreconsole.exe via DEFAULT_ACORE)
 instead — the dialog-free transcript channel. Verdict vocabulary:
 MODELED (real extents) / NULL-BOX (the null-extents sentinel —
@@ -679,7 +679,7 @@ def main():
     parser.add_argument("--acore", default=DEFAULT_ACORE,
                         help="the AutoCAD core console executable "
                              "(accoreconsole.exe, for --loader core)")
-    parser.add_argument("--loader", choices=("both", "bcad", "acad", "core"),
+    parser.add_argument("--loader", choices=("both", "acad", "bcad", "core"),
                         default="both",
                         help="which loader(s) exercise the fixtures "
                              "(default: both GUI loaders — every fixture "
@@ -696,10 +696,10 @@ def main():
         # "both" = the two GUI loaders only — the default run stays
         # bounded; the core console is its own explicit pass.
         loaders = {}
-        if args.loader in ("both", "bcad"):
-            loaders["bcad"] = (args.bcad, "gui")
         if args.loader in ("both", "acad"):
             loaders["acad"] = (args.acad, "gui")
+        if args.loader in ("both", "bcad"):
+            loaders["bcad"] = (args.bcad, "gui")
 
     args.probe_dir.mkdir(parents=True, exist_ok=True)
     targets = []

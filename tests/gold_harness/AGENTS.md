@@ -34,7 +34,7 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
   leading underscore (`_3DFACE`, `_3DSOLID`, `_3DLINE`) — grep the alias if the
   plain name finds nothing.
 - The harness's differ and ignore-list are **frozen during the fix loop**:
-  never edit `diff_fields.py` or `ignore_fields.toml` (this directory) to make
+  never edit `harness/diff_fields.py` or `config/ignore_fields.toml` to make
   a diff pass. Fixes belong in the silver codec (reader/writer/struct), the
   dump (`src/bin/dwg2json.rs` under this directory), or the silver/gold
   normalizers — as faithful projections, never as data-hiding.
@@ -74,18 +74,19 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
   packet.
 - The §20 genus gates (constructed content) are ADDITIONAL output: they never
   modify the differ, the normalizers, or the fidelity totals. Expectations
-  come from the specimen family via `genus_extract.py` — never hand-edit
-  `genus_expectations.json`; regenerate it and review the drift (the
+  come from the specimen family via `genus/genus_extract.py` — never hand-edit
+  `config/genus_expectations.json`; regenerate it and review the drift (the
   `genus_gates` cargo mirror asserts the pin matches a fresh extraction).
-  The gate counts are a ranked work queue, not pass/fail: `genus_gates.py`
+  The gate counts are a ranked work queue, not pass/fail: `genus/genus_gates.py`
   exits 0 with nonzero counts by design; a genus expectation for a surface
   where gold is known-wrong changes only through a recorded strict-loader
   probe verdict, never an oracle trace alone (§20.4).
-- The strict-loader verdicts come from `strict_load_probe.py` (README step
-  7b): the DEFAULT run exercises BOTH GUI loaders — BricsCAD V26
-  (`DEFAULT_BCAD`) and AutoCAD 2027, the format's author
-  (`DEFAULT_ACAD`) — every fixture under each, per-loader verdicts
-  (`--loader bcad`/`acad`/`core` narrows; `--bcad`/`--acad`/`--acore`
+- The strict-loader verdicts come from `loaders/strict_load_probe.py` (README
+  step
+  7b): the DEFAULT run exercises BOTH GUI loaders — AutoCAD 2027, the
+  format's author (`DEFAULT_ACAD`, probed first), and BricsCAD V26
+  (`DEFAULT_BCAD`) — every fixture under each, per-loader verdicts
+  (`--loader acad`/`bcad`/`core` narrows; `--bcad`/`--acad`/`--acore`
   override the paths; `core` = the AutoCAD core console accoreconsole.exe
   — dialog-free, its stdout transcript IS the evidence, and its bbox
   modeler force is unavailable (a nil ActiveX bridge — measured
@@ -100,7 +101,15 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
   BricsCAD, ±1e20 under AutoCAD — the B-rep did not construct) /
   NO-SOLID / AUDIT-REPORT (core runs) / AMBIGUOUS; an AutoCAD "Open
   Drawing - Errors found" dialog is a file-level defect verdict. Every
-  GUI probe launch holds the window visible 10 s before QUIT.
+   GUI probe launch holds the window visible 10 s before QUIT.
+- **Oracle authority is ranked (two regimes).** L1–L4 zeros are the
+  non-negotiable regression floor for authored content — the census cannot
+  see those defect classes. For constructed content the AutoCAD 2027
+  per-kind census + audit totals are the acceptance signal; BricsCAD V26
+  corroborates; accoreconsole is the hard-fail transcript channel. The genus
+  gates are a ranked investigation queue, never a verdict. Where both GUI
+  loaders were exercised and disagree, the AutoCAD verdict governs (§20.4
+  adjudications follow this ranking; already-adjudicated rows stand).
 
 ### Commits
 - Commit message format: `fix(harness): <packet> — <gold spec ref>` (or
