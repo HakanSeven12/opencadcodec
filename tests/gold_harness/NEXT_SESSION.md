@@ -6,25 +6,186 @@
 # --strict passing; THE B-REP CONSTRUCTION GAP CLOSED IN BRICSCAD
 # (the constructed Region + the full gen_all canonical read MODELED
 # with real extents — the entity-form packet, the container
-# round-2 chain, and the datidx fix landed it); the search-segment
-# format defect is THE NEXT PACKET (measured + designed — the
-# multi-record mispairing, the fifth addendum carries the plan);
-# the entity-behavior verification matrix is LANDED and documented
+# round-2 chain, and the datidx fix landed it); THE
+# SEARCH-FORMAT PACKET IS LANDED — THE MULTI-RECORD MISPAIR IS
+# GONE (the search segment rewritten to her grammar + THE
+# `_data_` ROW-LOCATOR ROOT the packet's decode surfaced — the
+# A-2-style distinct-geometry probe reads every entity at ITS OWN
+# SAB's geometry; the sixth addendum carries the record); the
+# entity-behavior verification matrix is LANDED and documented
 # (29/29 kinds verified on five axes — BUILD/SILVER/GOLD/REWRITE
 # all green; the MODELER axis: the canonical MODELED under
-# BricsCAD; the README carries the section); the ACAD residue
-# (the plain fixture still modeler-refuses — the graph/journal
-# arms + the maintainer's ACAD hand-open request) is the ranked
-# queue behind the search packet. ALL INSTRUMENTS CURRENT: the
+# BricsCAD; the README carries the section); THE ACAD RE-PROBE
+# RAN AND ITS VERDICT IS RECORDED (the maintainer's live
+# hand-opens: the fixed bytes trigger AutoCAD's open-time
+# RECOVER prompt where the old form opened — the trigger named
+# as THE EMPTY SCHEMA-0 BLOCK, i.e. THE MISSING THUMBNAIL
+# `_data_` ROW — the thumbnail-row packet is the designed
+# queue head, the sixth addendum item (4) carries the design).
+# ALL INSTRUMENTS CURRENT: the
 # probe (AUDIT-report channels + the launch-time stall guards +
 # the core-console arm), the entity verification harness, the
 # genus gates + the extended pin, the record census, the chimera
 # coherent-swap instrument. THE FIRST ACTION for the zero-context
 # agent: re-verify the battery (the verification gate section
-# below), read the fifth addendum's SEARCH-FORMAT PACKET design,
-# and implement it — the acceptance is the multi-record
-# distinct-geometry probe (every ent[h] bbox matches its OWN
-# SAB's geometry), then the full battery + the ACAD re-probe.
+# below), read the sixth addendum's record, then implement THE
+# THUMBNAIL-ROW PACKET (the addendum's item (4) design — the
+# acceptance: bcad still MODELED, the ACAD RECOVER prompt GONE,
+# the full battery green).
+#
+# === THE SIXTH-CONTINUATION ADDENDUM (the search-format packet
+# LANDED — read this first, then the fifth addendum's design
+# below as history): **THE MULTI-RECORD MISPAIR IS GONE — THE
+# PACKET GREW A SECOND, DEEPER ROOT AND BOTH ARE FIXED.** The
+# fifth addendum designed the search-segment rewrite; its
+# empirical-decode step (96 specimen AcDs sections extracted +
+# decoded batch-wise) both CONFIRMED the search divergence and
+# SURFACED THE REAL ROOT ONE LAYER DOWN — THE `_data_` RECORD
+# ROW'S MISSING CHAIN LOCATOR — and the ONE PACKET closed both:
+#
+# (1) THE SEARCH SEGMENT, HER FORM (the fifth addendum's design,
+# executed): `build_acds_search_segment` (dwg_writer.rs) now emits
+# the authored grammar, decoded across the specimen family
+# (Box_2018/Box_2013 Form-A + example_2018 Form-B + the
+# test-data files — 96 decodable specimens + the 2018
+# originals):
+#   u32 num_search (2)
+#   PER BLOCK: u32 schema_namidx, u32 num_sortedidx, u64
+#     sortedidx[num] ((record row) << 32), u32 num_ididxs = 0,
+#     u32 unknown = 1 (HER CONSTANT — 1 in EVERY block of every
+#     specimen, every schema), u32 zero = 0, u32 num_handles,
+#     then (u64 handle, u64 1, u64 record row) × num_handles —
+#     ROW-SYNCED: the i-th entry's row = the i-th key's row.
+# OUR writes: block 1 = namidx 0 (the layout/thumbnail schema)
+# PRESENT BUT EMPTY — her own empty-block form (her Arc-authored
+# files carry it for the schema they instantiate without
+# records) — because our containers still emit no thumbnail row
+# (the standing ACAD-residue arm); block 2 = namidx 5
+# (ACDS_ASM_SCHEMA_IDX, the slot the datidx rows and the
+# schidx template name) with the SAB rows: keys i<<32 + the
+# handle triples in ROW order (the old writer's handle-SORT
+# and the 24-byte tail are gone — her bytes end after the last
+# triple). The ACDS_ASM_SCHEMA_IDX constant hoisted; the
+# datidx's schidx now shared.
+#
+# (2) THE REAL ROOT — THE `_data_` ROW LOCATOR (the
+# investigation's decisive find, one layer below the addendum's
+# search hypothesis): her record rows are TWENTY bytes —
+# (col0 = 0x14 = the row size, 1, the owner handle AS A U32
+# WORD, the 0 fourth word, AND A FIFTH WORD: THE ROW'S CHUNK
+# LOCATOR) — measured on example_2018 (4 rows: LOCs 0 / 0x7e5
+# / 0xe96 / 0x30f8) and Box_2018 (0 / 0x384): LOC_i = the
+# CUMULATIVE OFFSET of the row's [len u32][blob] chunk within
+# the 16-byte-aligned blob area after the row table (0x62
+# filler to the boundary — her own byte), i.e. the running sum
+# of the previous chunks' total sizes; the segment header's
+# objdata_algn field = data_start/16 (her 6/8 values = the same
+# formula). OUR old writer emitted the row with the handle as a
+# U64 (spreading [handle][0] across her words 2-3) and the
+# trailing word ZERO — so the locator was always 0 and every
+# multi-record row's chunk collapsed toward the blob area's
+# start: THE MODELER, WALKING HER 20-BYTE STRIDE, READ ROWS AND
+# CHUNKS THAT DID NOT EXIST — the A-2's "37D renders row 0's
+# blob / 176+2E1 Data stream is empty" and the canonical's
+# region null-box + purge were BOTH this. The row now carries
+# the true locator (row 0 always 0 — the single-record
+# containers byte-identical, which is WHY every plain fixture
+# modeled all along: one record cannot collapse), the unit test
+# re-pinned to the measured shape (the locator == the chain's
+# cumulative position, plus the row/frame checks).
+#
+# (3) THE ACCEPTANCE, LANDED LIVE (2026-09-30, BricsCAD V26,
+# the full battery + the multi-record distinct-geometry probe):
+# THE A-2 PROBE (her wrapper + OUR SAB in 0x176; three
+# DISTINCT geometries): ent[176] at OUR (0,0)-(10,10) — the
+# swapped region carries OUR B-rep; ent[2E1] at HER SOLID's OWN
+# extents (2229..4237, 13562..14169, 0..4); ent[37D] at HER
+# SECOND REGION'S OWN extents (-2199..-54, 10344..12535) —
+# EVERY ENTITY AT ITS OWN SAB'S GEOMETRY, no purge, dbmod 0,
+# the audit CLEAN (441 objects, Total errors 0). THE FULL
+# CANONICAL RECOVERED: all 3 modeler entities at their own
+# extents — the region (0,0)-(10,10) BACK from the null-box
+# (the audit keeps 3; the one MLeader fix = the standing
+# gen-all trait). The +LINE rewrite control and the authored
+# original all three at HER own extents; the nine single-record
+# constructed fixtures + both authored controls MODELED with
+# clean audits (the run stands).
+#
+# (4) THE ACAD RE-PROBE — RUN, AND ITS VERDICT IS DECISIVE NEW
+# EVIDENCE (the maintainer's live hand-opens ARE the probe): the
+# scripted ACAD pass on the FIXED bytes stalled at AutoCAD's
+# open-time RECOVER prompt — THE MAINTAINER REPORTED IT LIVE ON
+# TWO FIXTURES (ConstructedCylinder + ConstructedRegion, "asked me
+# for RECOVER, i chose no" both) — the dialogs block the scripted
+# runs (no result files; the launcher timeout kills the stalled
+# instances). THE DISCRIMINATION THAT NAMES THE TRIGGER: the OLD
+# search form NEVER blocked ACAD's scripted opens (the same
+# morning's pre-packet result files COMPLETED: the file opened,
+# the audit clean, the modeler refusing "Automation Error.
+# Invalid input"); the NEW her-grammar form prompts RECOVER —
+# and the ONE remaining deviation from her genus is THE EMPTY
+# SCHEMA-0 BLOCK: our search's thumbnail-schema block carries
+# ZERO handles because we emit NO thumbnail `_data_` row, while
+# HER ROW 0 IS ALWAYS THE MODEL LAYOUT'S PREVIEW RECORD (handle
+# = the layout object's, 0x22 in her files; her schema-0 block
+# always carries its entry — no her specimen has an empty
+# schema-0 block; her empty-block precedent is the ASM schema in
+# her Arc-authored files). NOTE the old form's schema-0 block
+# was NON-EMPTY (it wrongly carried the SAB handles) and ACAD
+# OPENED it — the empty block is the ACAD-strict trip, and
+# bcad reads the same bytes CLEAN (every fixture MODELED, audits
+# 0 errors): the divergence is AutoCAD-only open-time
+# validation. THE RECOVER PROMPT ALSO ANSWERS THE MAINTAINER'S
+# STANDING HAND-OPEN REQUEST with the sharpest residue
+# evidence yet recorded.
+#
+# (5) THE BATTERY at this halt: the suite 1604 green (the one
+# stale-shape unit test re-pinned at the row fix); the mirrors
+# green (gold_roundtrip + the genus cargo mirror + issue80);
+# the four family smokes 0/0 with clean echoes; the genus gates
+# PENDING-ZERO (sab_form 0/3, sh_genus 0/1, acds 0 — the corpus
+# sections at 3/1/0 adjudicated); the identity MOVED to
+# a4a9240df2733e45e7d33d616ba63ab7 (the search content + the
+# row locators — intended content changes; identical without
+# --features serde; the history: 751a1a81 pre-packet →
+# 1dfaff0a search-only → a4a9240d full); the corpus 280 at
+# 0/0/0/0 on all four axes.
+#
+# THE NEXT WORK, evidence-ranked: (a) **THE THUMBNAIL-ROW
+# PACKET — THE ACAD-RESIDUE QUEUE HEAD, NOW CONFIRMED BY THE
+# RECOVER EVIDENCE** (the third addendum's "weakened" note is
+# SUPERSEDED): emit the preview record as `_data_` ROW 0 —
+# (0x14, 1, OUR Model Layout's handle, 0, LOC 0) with chunk 0
+# = [len u32][PNG bytes]; the datidx gains row 0 =
+# (slot_data, 0, schidx 0) ahead of the ASM rows; the search's
+# schema-0 block gains the layout entry (layout_handle, 1, 0)
+# + the key 0<<32; the ASM records SHIFT +1 everywhere (the
+# datidx offsets i*20 for i>=1, the search keys (i+1)<<32,
+# the entries' rows +1, the `_data_` LOCs shifted by
+# 4+png_len) — the container then matches her genus COMPLETELY
+# (her Box_2018: rows [thumbnail, solid], search [schema-0
+# populated, schema-5 populated]). THE PNG: a synthesized
+# minimal valid PNG (the preview container codec [preview.rs]
+# WRAPS images but does not synthesize; hand-code
+# signature+IHDR+IDAT[stored deflate]+IEND with crc32/adler32,
+# ~60 lines — the preview is document sugar, not author
+# identity). THE READER NEEDS NO CHANGE: both `_data_` walk
+# arms skip the PNG chunk naturally (no ASM/ACIS magic) and the
+# positional/locator pairing keeps the SAB rows aligned —
+# verify via the roundtrip suite. THE GATES: check whether the
+# datidx segment's size rides the per-segment pin
+# (content-sized like `_data_` — verify in genus_extract.py)
+# and whether the search interior ranks (it never did). THE
+# ACCEPTANCE: bcad still MODELED (all fixtures + the
+# multi-record distinct-geometry probe), ACAD's RECOVER
+# PROMPT GONE (the scripted probe unblocks), the full battery
+# green. (b) if the prompt persists after the thumbnail row:
+# the evaluation-graph interposition + the journal (the fifth
+# addendum's ranked arms); (c) the gen_all ent[0] `stringp
+# nil` MLeader defect (the standing small follow-up).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE FIFTH-CONTINUATION ADDENDUM (the search defect record
 # this first): **THE SEARCH-SEGMENT FORMAT DEFECT — A REAL
@@ -1581,11 +1742,10 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `751a1a81306433c89fdbbf53d9c7fa9a`,
-  25,567 bytes (moved at the 2026-09-30 wrapper-arm round-2 chain —
-  the ds-coherence fix, the authored Form-A templates, the slot
-  ids, and the datidx fix all changed the constructed containers;
-  the identity history: `84374e73…` through the §20
+- The generation identity is `a4a9240df2733e45e7d33d616ba63ab7`,
+  25,567 bytes (moved at the 2026-09-30 search-format packet —
+  the search segment's her-grammar rewrite + the `_data_` row
+  locators; the identity history: `84374e73…` through the §20
   landing → `4265c04a…` at G-C → `0e8b23cd…` at the vertex packet →
   `a8f227e0…` at the asmheader packet → `a7c5f170…` at the
   tolerance packet → `e4cd1960…` at the ordering packet →
@@ -1594,7 +1754,8 @@ era specimens (the era censuses all-zero).
   genus queue packet → `388f0a71…` at the region-twin
   session → `7b8379b3…` at the entity-form packet → `e52bd724…` at
   the ds fix → `c6788f75…` at the template recapture →
-  `751a1a81…` at the datidx fix). The
+  `751a1a81…` at the datidx fix → `1dfaff0a…` at the search-only
+  rewrite → `a4a9240d…` at the row locator). The
   generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
@@ -1704,12 +1865,11 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 751a1a81306433c89fdbbf53d9c7fa9a, 25,567 bytes (moved at the
-# 2026-09-30 wrapper-arm round-2 chain — the ds-coherence fix, the
-# authored Form-A templates, the slot ids, the datidx fix —
-# ALL changed the constructed containers; earlier history:
-# 7b8379b3…/25,567 at the entity-form packet → e52bd724… at the ds
-# fix → c6788f75… at the template recapture → 751a1a81… here)
+# a4a9240df2733e45e7d33d616ba63ab7, 25,567 bytes (moved at the
+# 2026-09-30 search-format packet — the search segment's
+# her-grammar rewrite + the `_data_` row locators; earlier
+# history: 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
+# search-only rewrite → a4a9240d… here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -1782,6 +1942,52 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the sixth-continuation halt record (this commit — the
+       operative handover head: THE SEARCH-FORMAT PACKET LANDED
+       — the multi-record mispair GONE (the search segment in
+       her grammar + the `_data_` ROW-LOCATOR root the decode
+       surfaced; the A-2 distinct-geometry probe reads every
+       entity at its OWN SAB's geometry; the canonical recovered
+       3/3); THE ACAD RE-PROBE'S VERDICT (the maintainer's live
+       hand-opens: the fixed bytes trigger AutoCAD's open-time
+       RECOVER prompt where the old form opened — the trigger
+       named as the EMPTY SCHEMA-0 BLOCK, i.e. the missing
+       thumbnail `_data_` row; THE THUMBNAIL-ROW PACKET
+       designed as the queue head with the full mechanics);
+       the battery green end-to-end (suite 1604, mirrors,
+       smokes 0/0, corpus 280 at 0/0/0/0, genus 3/1/0
+       pending-zero, identity a4a9240d/25,567 serde-parity);
+       the zero-context reading order stands, STARTING at the
+       sixth-continuation addendum)
+<feat> the search-format packet — THE MULTI-RECORD MISPAIR
+       CLOSED, both roots: (1) build_acds_search_segment
+       rewritten to HER empirically-decoded grammar (96 specimen
+       AcDs sections decoded batch-wise; per block: namidx,
+       num_sortedidx, the (row<<32) keys, num_ididxs=0,
+       unknown=1 (HER CONSTANT in every block of every
+       specimen), zero, num_handles, then (handle,1,row)
+       triples ROW-SYNCED; our layout: the schema-0 block
+       present-but-empty [her Arc empty-block precedent] + the
+       schema-5 ASM block in row order; the handle-sort + the
+       24-byte tail gone; ACDS_ASM_SCHEMA_IDX hoisted + shared
+       with the datidx); (2) THE REAL ROOT ONE LAYER DOWN — the
+       `_data_` record row's FIFTH WORD IS THE CHUNK LOCATOR
+       (measured: example_2018 LOCs 0/0x7e5/0xe96/0x30f8,
+       Box_2018 0/0x384 — the cumulative chunk offsets; our
+       rows carried 0 there with the handle as u64, collapsing
+       every multi-record row's chunk toward the blob area's
+       start); the rows now carry the true locators + her 0x62
+       alignment filler + objdata_algn = data_start/16; the unit
+       test re-pinned to the measured shape; ACCEPTANCE LIVE
+       (BricsCAD V26): the A-2 probe reads all three DISTINCT
+       geometries at their OWN extents (176 ours 0-10, 2E1 her
+       solid, 37D her region — no purge, audit clean 441/0),
+       the full canonical recovered 3/3 (the region back from
+       the null-box), the rewrite + authored controls MODELED,
+       the nine single-record fixtures MODELED with clean
+       audits; identity 751a1a81 → 1dfaff0a → a4a9240d/25,567
+       (identical without serde); corpus 280 at 0/0/0/0, suite
+       1604, mirrors green
 <docs> the fifth-continuation halt record (this commit — the
        operative handover head: THE SEARCH-SEGMENT FORMAT DEFECT
        measured and localized — a real multi-record writer bug

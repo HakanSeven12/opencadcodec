@@ -603,11 +603,13 @@ python3 tests/gold_harness/entity_verification.py [--no-probe]
 
 The report lands at `target/entity_verification/report.md` with the
 per-kind matrix and the evidence. The standing residues: the MLine
-gold error (the known verts defect), the search-segment format
-defect (the fifth-continuation addendum's record — multi-record
-files mispair until the next packet), and the harness's cosmetic
+gold error (the known verts defect), and the harness's cosmetic
 name maps (gold names like 3DFACE/POLYLINE overlap — the counts
-are right, the display labels don't always match).
+are right, the display labels don't always match). The
+search-segment format defect is CLOSED (the 2026-09-30 sixth-
+continuation packet — the search rewritten to her grammar plus the
+`_data_` row-locator root; the multi-record distinct-geometry
+probe reads every entity at its OWN SAB's geometry).
 
 ## File inventory
 
