@@ -144,6 +144,19 @@ struct ParallelEntityBatch {
 impl<'a> DwgObjectWriter<'a> {
     // ── Constructor ─────────────────────────────────────────────────
 
+    /// Resolve a text-style NAME to its table handle. `Table::get`
+    /// normalizes the name (case-insensitive — AutoCAD's table names
+    /// are), so a constructed entity's `MText::new` default "Standard"
+    /// resolves the document's seeded "STANDARD" through the same path
+    /// as an authored read. The single seam keeps every entity writer's
+    /// style resolution uniform.
+    pub(super) fn resolve_text_style_handle(&self, name: &str) -> Option<Handle> {
+        self.document
+            .text_styles
+            .get(name)
+            .map(|style| style.handle)
+    }
+
     /// Create a new object writer for the given document and version.
     pub fn new(document: &'a CadDocument) -> crate::error::Result<Self> {
         let version = DwgVersion::from_dxf_version(document.version)?;

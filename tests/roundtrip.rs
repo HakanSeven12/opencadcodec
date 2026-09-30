@@ -1525,6 +1525,11 @@ fn dwg_roundtrip_deep_r2000() {
                     // pre-R2010 wire counterpart: an AC1015 write drops it
                     // and the read-back legitimately reports None.
                     && !difference.contains("dwg_raw_tail_bits")
+                    // The R2018+ MTEXT redundant block (the repeated
+                    // attachment point) has no pre-R2018 wire slot:
+                    // an AC1015 write drops it and the read-back
+                    // legitimately reports the reader default.
+                    && !difference.contains("ignore_attachment")
             })
             .cloned()
             .collect(),
@@ -1554,8 +1559,11 @@ fn dwg_roundtrip_deep_r2013() {
     sync_constructed_spline_scenarios(&mut doc, DxfVersion::AC1027);
     let rt = dwg_roundtrip(&doc);
     let report = compare_documents(&doc, &rt);
-    // Known issues: Shape name not resolvable in DWG (1)
-    let max_known = 1;
+    // Known issues: Shape name not resolvable in DWG (1) + the MTEXT
+    // redundant-block repeat (the R2018+ attachment-point repetition
+    // has no AC1027 wire slot: the write drops it and the read-back
+    // legitimately reports the reader default) (1)
+    let max_known = 2;
     if !report.is_empty() {
         eprintln!(
             "DWG R2013 roundtrip: {} known issue(s):\n{}",

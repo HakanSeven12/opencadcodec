@@ -282,10 +282,7 @@ impl<'a> DwgObjectWriter<'a> {
                 let style_handle = if data.style_handle != Handle::NULL {
                     data.style_handle
                 } else {
-                    self.document
-                        .text_styles
-                        .get(&data.style_name)
-                        .map(|style| style.handle)
+                    self.resolve_text_style_handle(&data.style_name)
                         .unwrap_or(Handle::NULL)
                 };
                 self.writer
@@ -806,10 +803,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         // Style handle
         let style_handle = self
-            .document
-            .text_styles
-            .get(&e.style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&e.style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -817,7 +811,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ MText â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â”€â”€ MText â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 
 
     fn write_mtext(&mut self, e: &MText) {
         self.entity_preamble(common::OBJ_MTEXT, &e.common);
@@ -872,10 +866,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         // H 7 STYLE (hard pointer) — written BEFORE R2000+ block
         let style_handle = self
-            .document
-            .text_styles
-            .get(&e.style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&e.style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -1363,10 +1354,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit(att.lock_position);
         }
         let style_handle = self
-            .document
-            .text_styles
-            .get(&att.text_style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&att.text_style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -1851,7 +1839,7 @@ impl<'a> DwgObjectWriter<'a> {
         let sh = e
             .style_handle
             .filter(|h| !h.is_null())
-            .or_else(|| self.document.text_styles.get(&e.style_name).map(|ts| ts.handle))
+            .or_else(|| self.resolve_text_style_handle(&e.style_name))
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, sh.value());
@@ -3441,9 +3429,8 @@ impl<'a> DwgObjectWriter<'a> {
             .filter(|value| !value.is_null())
             .or_else(|| {
                 (!name.is_empty())
-                    .then(|| self.document.text_styles.get(name))
+                    .then(|| self.resolve_text_style_handle(name))
                     .flatten()
-                    .map(|style| style.handle)
             })
             .unwrap_or(Handle::NULL)
             .value()
@@ -3893,10 +3880,7 @@ impl<'a> DwgObjectWriter<'a> {
                     .filter(|handle| !handle.is_null())
                     .or_else(|| {
                         value.text_style_names.get(index).and_then(|name| {
-                            self.document
-                                .text_styles
-                                .get(name)
-                                .map(|style| style.handle)
+                            self.resolve_text_style_handle(name)
                         })
                     })
                     .unwrap_or(Handle::NULL);
@@ -4603,7 +4587,7 @@ impl<'a> DwgObjectWriter<'a> {
             let ts = ctx
                 .text_style_handle
                 .filter(|h| !h.is_null())
-                .or_else(|| self.document.text_styles.get("Standard").map(|s| s.handle))
+                .or_else(|| self.resolve_text_style_handle("Standard"))
                 .unwrap_or(Handle::NULL);
             self.writer
                 .write_handle(DwgReferenceType::HardPointer, ts.value());
@@ -4876,10 +4860,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_variable_text(&mtext.value);
 
         let style_handle = self
-            .document
-            .text_styles
-            .get(&mtext.style)
-            .map(|text_style| text_style.handle)
+            .resolve_text_style_handle(&mtext.style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -5003,10 +4984,7 @@ impl<'a> DwgObjectWriter<'a> {
         // The outer TEXT style is the final ATTDEF handle.  For multiline
         // attributes the embedded MTEXT layer/style handles precede it.
         let style_handle = self
-            .document
-            .text_styles
-            .get(&e.text_style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&e.text_style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -5075,10 +5053,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
         // The outer TEXT style follows the embedded MTEXT handles.
         let style_handle = self
-            .document
-            .text_styles
-            .get(&e.text_style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&e.text_style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());

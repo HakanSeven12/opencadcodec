@@ -1417,12 +1417,7 @@ impl<'a> DwgObjectWriter<'a> {
     fn resolve_table_row_text_style(&self, row: &RowCellStyle) -> Handle {
         row.text_style_handle
             .filter(|handle| self.is_text_style_handle(*handle))
-            .or_else(|| {
-                self.document
-                    .text_styles
-                    .get(&row.text_style_name)
-                    .map(|style| style.handle)
-            })
+            .or_else(|| self.resolve_text_style_handle(&row.text_style_name))
             .unwrap_or_else(|| self.resolve_table_text_style(Handle::NULL))
     }
 

@@ -192,7 +192,15 @@ impl MText {
             column_data: MTextColumnData::new(),
             extents_width: 0.0,
             extents_height: 0.0,
-            ignore_attachment: 0,
+            // The redundant block's repeated attachment point — the
+            // honest default mirrors the attachment_point default
+            // (TopLeft = 1). A zero here is a corrupt repetition:
+            // AutoCAD's audit repairs it at every open (2026-09-30:
+            // "AcDbMText was repaired / 2 fixed" on the canonical —
+            // the repaired staged copy carried the true repeat). The
+            // output-copy repair (prepare_database_references) still
+            // guards struct-literal constructions.
+            ignore_attachment: AttachmentPoint::TopLeft as i32,
             dwg_wire_text: None,
         }
     }

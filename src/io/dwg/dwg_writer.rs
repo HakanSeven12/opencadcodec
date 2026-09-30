@@ -261,6 +261,7 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
     let mut table_repairs = Vec::new();
     let mut table_style_repairs = Vec::new();
     let mut mleader_style_repairs = Vec::new();
+    let mut mtext_attachment_repairs = Vec::new();
     let mut mline_repairs = Vec::new();
     let mut underlay_reactors = Vec::new();
     for entity in document.entities() {
@@ -381,6 +382,25 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
                     mleader_style_repairs.push((mleader.common.handle, style));
                 }
             }
+            EntityType::MText(mtext) if mtext.ignore_attachment == 0 => {
+                // The R2018+ redundant-block header BL repeats the
+                // ABSOLUTE ATTACHMENT POINT (despite gold's misleading
+                // `ignore_attachment` name — the census measured the
+                // authored genus: TopLeft→1, MiddleCenter→5). A
+                // DWG-read captures the raw value verbatim; a
+                // CONSTRUCTED MText carries the default 0 — a corrupt
+                // repetition AutoCAD's audit repairs at every open
+                // (2026-09-30: "AcDbMText(3B)/(40) was repaired / 2
+                // fixed"; the audit-repaired staged copy carried
+                // ignore_attachment=1 = TopLeft, the true repeat).
+                // Normalize only the degenerate zero — non-zero
+                // captures write verbatim (the corpus record identity
+                // holds; the era census re-verification is the gate).
+                let repeated = mtext.attachment_point as i32;
+                if repeated != 0 {
+                    mtext_attachment_repairs.push((mtext.common.handle, repeated));
+                }
+            }
             EntityType::MLine(mline)
                 if mline.style_handle.is_none_or(|handle| handle.is_null()) =>
             {
@@ -457,6 +477,7 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
         && table_repairs.is_empty()
         && table_style_repairs.is_empty()
         && mleader_style_repairs.is_empty()
+        && mtext_attachment_repairs.is_empty()
         && mline_repairs.is_empty()
         && underlay_reactors.is_empty()
         && !layout_dictionary_needs_repair
@@ -465,6 +486,11 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
     }
 
     let output = document.to_mut();
+    for (handle, repeated) in mtext_attachment_repairs {
+        if let Some(EntityType::MText(mtext)) = output.get_entity_mut(handle) {
+            mtext.ignore_attachment = repeated;
+        }
+    }
     for (handle, style) in mleader_style_repairs {
         if let Some(EntityType::MultiLeader(mleader)) = output.get_entity_mut(handle) {
             mleader.style_handle = Some(style);
@@ -3622,6 +3648,51 @@ mod tests {
             EntityType::MultiLeader(mleader) => {
                 assert!(mleader.style_handle.is_none_or(|handle| handle.is_null()))
             }
+            other => panic!("unexpected entity {other:?}"),
+        }
+    }
+
+    #[test]
+    fn output_copy_repairs_mtext_attachment_repeat() {
+        use crate::entities::{EntityType, MText};
+
+        // The R2018+ redundant block repeats the ABSOLUTE attachment
+        // point; a constructed MText's default 0 is a corrupt
+        // repetition (AutoCAD's audit repairs it — "AcDbMText was
+        // repaired / 2 fixed" at every open of the canonical). The
+        // output-copy repair fills the repeat; the caller's document
+        // stays untouched.
+        let mut document = CadDocument::with_version(DxfVersion::AC1032);
+        let mtext_handle = document
+            .add_entity(EntityType::MText(MText::with_value(
+                "Note",
+                crate::types::Vector3::new(1.0, 1.0, 0.0),
+            )))
+            .expect("mtext");
+        // The corrupt case the repair guards: a struct-literal
+        // construction bypassing the honest default (MText::new now
+        // mirrors the attachment repeat).
+        if let EntityType::MText(mtext) = document.get_entity_mut(mtext_handle).unwrap() {
+            mtext.ignore_attachment = 0;
+        }
+        let attachment = match document.get_entity(mtext_handle).unwrap() {
+            EntityType::MText(mtext) => mtext.attachment_point as i32,
+            other => panic!("unexpected entity {other:?}"),
+        };
+        assert_ne!(attachment, 0);
+
+        let mut prepared = std::borrow::Cow::Borrowed(&document);
+        prepare_database_references(&mut prepared);
+
+        match prepared.get_entity(mtext_handle).unwrap() {
+            EntityType::MText(mtext) => {
+                assert_eq!(mtext.ignore_attachment, attachment);
+            }
+            other => panic!("unexpected entity {other:?}"),
+        }
+        // The caller's document stays unchanged (the output-copy rule).
+        match document.get_entity(mtext_handle).unwrap() {
+            EntityType::MText(mtext) => assert_eq!(mtext.ignore_attachment, 0),
             other => panic!("unexpected entity {other:?}"),
         }
     }
