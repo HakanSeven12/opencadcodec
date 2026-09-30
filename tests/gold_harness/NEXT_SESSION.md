@@ -3,31 +3,133 @@
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
 # top to bottom): THE CAMPAIGN STATE — the corpus at 280 files
 # 0/0/0/0 on all four axes; the genus gate queue PENDING-ZERO with
-# --strict passing; THE B-REP CONSTRUCTION GAP CLOSED IN BRICSCAD
-# (the constructed Region + the full gen_all canonical read MODELED
-# with real extents); THE SEARCH-FORMAT PACKET + THE ROW-LOCATOR
-# ROOT + THE THUMBNAIL-ROW PACKET ALL LANDED — THE MULTI-RECORD
-# MISPAIR IS GONE (the A-2 distinct-geometry probe reads every
-# entity at ITS OWN SAB's geometry; the container now diffs
-# byte-identical against her Box_2018 on every structural slot);
-# THE ACAD RESIDUE IS ISOLATED TO THE CONSTRUCTED SAB STREAM (the
-# core console's verbatim verdict: ACAD's open-time model
-# regeneration hard-fails on OUR SAB with `Modeling Operation
-# Error: Error Code Number is 65010` — surfaced as the GUI's
-# RECOVER prompt; the chimera core split: OUR SAB fails in HER
-# wrapper [A2 65010], HER SAB regenerates CLEAN in OUR wrapper
-# [B2] — the wrapper-side stack is exonerated on BOTH loaders);
-# the entity-behavior verification matrix is LANDED and documented
-# (29/29 kinds verified on five axes). ALL INSTRUMENTS CURRENT:
-# the probe (AUDIT-report channels + the launch-time stall guards
-# + the core-console arm), the entity verification harness, the
-# genus gates + the extended pin, the record census, the chimera
-# coherent-swap instrument. THE FIRST ACTION for the zero-context
-# agent: re-verify the battery (the verification gate section
-# below), read the sixth addendum's record, then implement THE
-# SAB-LEVEL ACAD-AXIS PACKET (the record-level pair diff with the
-# core console as the acceptance — the addendum's item (4b)
-# carries the matrix and the ranked candidates).
+# --strict passing; **THE B-REP CONSTRUCTION GAP IS CLOSED ON BOTH
+# LOADERS — THE ACAD AXIS FELL AT THE TERMINATOR PACKET** (the
+# final root: the SAB stream's End-of-* record — HER SEGMENTED
+# ERA-CODED FORM `[0e 03 "End"][0e 02 "of"][0e <flavor>][0d 04
+# "data"]` where the flavor is ACIS for the 21200/21500 eras and
+# ASM for 21800/22300 [R2013 carries the ASM terminator under the
+# ACIS magic]; our old single-tag `End-of-ACIS-data` survived every
+# genus invariant and BricsCAD's restorer but ACAD's modeler
+# rejected the stream at the final record — the 65010): EVERY
+# CONSTRUCTED FIXTURE NOW MODELS UNDER AUTOCAD 2027 WITH REAL
+# EXTENTS AND CLEAN AUDITS (Region 0-10, Box ±5, the full gen_all
+# canonical, all nine fixtures), the multi-record mispair is GONE
+# (the A-2 distinct-geometry probe reads every entity at ITS OWN
+# SAB's geometry on BOTH loaders), and the complete chimera matrix
+# holds everywhere (our wrapper + our SAB, her SAB + our wrapper,
+# our SAB + her wrapper — ALL construct in BOTH modelers); the
+# container is at her complete genus (the search her-grammar + the
+# `_data_` row locators + the thumbnail record — byte-identical
+# against her Box_2018 on every structural slot); the
+# entity-behavior verification matrix is LANDED (29/29 kinds on
+# five axes). ALL INSTRUMENTS CURRENT: the probe (AUDIT channels +
+# stall guards + the core-console arm — the 65010 transcript
+# channel that named this root), the entity verification harness,
+# the genus gates + the extended pin, the record census, the
+# chimera coherent-swap instrument. THE FIRST ACTION for the
+# zero-context agent: re-verify the battery (the verification gate
+# section below), read the seventh addendum's record, then the
+# residual queue (the gen_all ent[0] `stringp nil` MLeader defect
+# — the standing small follow-up; the §19.5 version-parity tiers —
+# maintainer decisions; the core-probe verdict vocabulary).
+#
+# === THE SEVENTH-CONTINUATION ADDENDUM (the terminator packet —
+# THE ACAD AXIS CLOSED; read this first, then the sixth addendum
+# as history): **THE B-REP CONSTRUCTION GAP IS CLOSED ON BOTH
+# LOADERS — THE FINAL ROOT WAS THE SAB TERMINATOR RECORD.** The
+# sixth addendum isolated the 65010 to the constructed SAB stream
+# (the core-console verdict + the chimera split); this continuation
+# ran the designed record-level pair diff and the byte arithmetic
+# itself found the root:
+#
+# (1) THE PAIR DIFF + THE SIZE ARITHMETIC: her region SAB (1709
+# bytes) vs our constructed twin (1688) — the identity strings
+# account for 19 of the 21-byte delta; the record-by-record byte
+# diff (the sab_pair_diff instrument, the genus_extract walker)
+# pinned the remaining TWO BYTES to the FINAL RECORD: HERS
+# `[0e 03 "End"][0e 02 "of"][0e 03 "ASM"][0d 04 "data"]` (the
+# name as FOUR chained SUBTYPE/ENTITY_TYPE segments, the ASM
+# flavor, INCLUDING "data") vs OURS `[0d 10 "End-of-ACIS-data"]`
+# (one ENTITY_TYPE tag, the WRONG flavor — ACIS in an ASM-magic
+# file, missing "data"). The terminator survived every genus
+# invariant (the walker normalizes the name chain — the
+# "End-of-ACIS-data" | "End-of-ASM-data" reader arms match both)
+# and BricsCAD's lenient restorer — but the format author's
+# stricter modeler rejects the stream at the final record.
+#
+# (2) THE TERMINATOR GENUS, MEASURED across the specimen family
+# (all four eras): `[11][0e 03 "End"][0e 02 "of"][0e <flavor>]
+# [0d 04 "data"]` — the flavor word ERA-CODED, NOT MAGIC-CODED:
+# the 21200/21500 flavors (R2007/R2010) terminate "End-of-ACIS
+# data"; the 21800/22300 flavors (R2013/R2018) "End-of-ASM data" —
+# R2013's carriers still write the `ACIS BinaryFile` magic yet
+# carry the ASM terminator. THE READER ALREADY KNEW (the
+# dwg_reader's ASM_END_MARKER constant documents the segmented
+# form as "what AutoCAD 2013+ / BricsCAD emit") — the writer never
+# used it. The fix: `SabEra::terminator()` (the era-coded byte
+# form) + the writer emits it at the SAB boundary; the legacy era
+# keeps the segmented ACIS form (the survey found NO her specimen
+# with the single-tag form); the NURBS era test re-pinned (the
+# terminator is era-flavored, one byte shorter for ASM).
+#
+# (3) THE PROBE CHAIN THAT NAMED IT (the session's method): the
+# asmheader version-string flip was RUN FIRST and REFUTED (the
+# 223.0.1.1930 flip changed nothing — still 65010; the probe
+# REVERTED) — the version-string genus row keeps its TOLERATED
+# verdict; the pair diff then found the real two bytes. THE
+# CORE-CONSOLE ACCEPTANCE: the Region fixture's accoreconsole
+# transcript reads `Regenerating model. / Loading Modeler DLLs.`
+# with NO 65010, the full audit pass CLEAN ("Auditing
+# AcDsRecords / Total errors found 0 fixed 0"), the census
+# executed (the bbox force unavailable there — the nil ActiveX
+# bridge, the known core trait).
+#
+# (4) THE GUI ACCEPTANCE, LANDED LIVE (2026-09-30, AutoCAD 2027
+# — the format author's own tool, the fixtures that prompted
+# RECOVER all morning): **EVERY CONSTRUCTED FIXTURE MODELS WITH
+# REAL EXTENTS AND CLEAN AUDITS** — ConstructedRegion (0,0)-(10,10),
+# ConstructedBox (±5)³, Body/Cone/Cylinder/HistoryTree (±5, 0-10),
+# Sphere (±5)³, Torus (±13, ±3), THE FULL gen_all CANONICAL
+# (ent[55] MODELED; the audit's "3 fixed" = the standing MLeader
+# trait, the entities preserved); A2Swap's three DISTINCT
+# geometries each at their OWN extents (176 ours 0-10, 2E1 her
+# solid, 37D her region); B2Swap MODELED at her coordinates
+# ((-6836,-45)-(-3632,3983) — "seems empty" at default zoom: her
+# geometry sits 5000+ units off-origin; the bbox reading is the
+# proof of construction); HerExample2018 + the rewrite control +
+# ControlBox2007 all clean. NO RECOVER PROMPTS. THE COMPLETE
+# MATRIX NOW HOLDS ON BOTH LOADERS: our wrapper + our SAB / our
+# wrapper + her SAB / her wrapper + our SAB / her wrapper + her
+# SAB — ALL CONSTRUCT, in BricsCAD V26 AND AutoCAD 2027.
+#
+# (5) THE BATTERY at this halt: the suite 1606 green (the acis
+# module 58 — the terminator tests re-pinned); the mirrors green
+# (gold_roundtrip + the genus cargo mirror + issue80); the four
+# family smokes 0/0 with clean echoes; the genus gates
+# PENDING-ZERO with --strict (sab_form 0/3, sh_genus 0/1, acds
+# 0); the identity MOVED to fc8be96c57a66d164586cbfb22d6d535
+# (the terminator bytes — an intended content change; identical
+# without --features serde; the history: 751a1a81 pre-packet →
+# 1dfaff0a search-only → a4a9240d + locators → 5ac4ef34
+# thumbnail → fc8be96c terminator); the corpus 280 at 0/0/0/0 on
+# all four axes.
+#
+# THE NEXT WORK, ranked: (a) the gen_all ent[0] `stringp nil`
+# MLeader defect (the standing small follow-up — the audit's "3
+# fixed"); (b) the §19.5 version-parity tiers (R13/R14
+# implemented-but-divergent, pre-R13 unsupported — maintainer
+# decisions); (c) the core-probe verdict vocabulary (the core
+# runs read AMBIGUOUS on hard-fails — a transcript classifier
+# [65010 → REGENERATION-FAILED, clean → REGENERATED] would make
+# the channel a first-class acceptance gate); (d) the era
+# censuses across the full era corpora (today's proofs cover the
+# constraints specimens); (e) the standing §19.4/§F2 future-work
+# rows (the MT-variant pinning, the unattested subcurve actions,
+# the dead rows, the ATMOS orphans).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE SIXTH-CONTINUATION ADDENDUM (the search-format packet
 # LANDED — read this first, then the fifth addendum's design
@@ -1775,12 +1877,13 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `5ac4ef3490e770394bd9b33c72492116`,
+- The generation identity is `fc8be96c57a66d164586cbfb22d6d535`,
   25,567 bytes (moved at the 2026-09-30 search-format +
-  thumbnail-row packets — the search segment's her-grammar
-  rewrite, the `_data_` row locators, and the thumbnail record
-  with its +1 shifts; the identity history: `84374e73…` through
-  the §20 landing → `4265c04a…` at G-C → `0e8b23cd…` at the
+  thumbnail-row + terminator packets — the search segment's
+  her-grammar rewrite, the `_data_` row locators, the thumbnail
+  record with its +1 shifts, and the era-coded segmented
+  terminator; the identity history: `84374e73…` through the §20
+  landing → `4265c04a…` at G-C → `0e8b23cd…` at the
   vertex packet → `a8f227e0…` at the asmheader packet →
   `a7c5f170…` at the tolerance packet → `e4cd1960…` at the
   ordering packet → `0e953809…` at the era-profiled
@@ -1790,7 +1893,7 @@ era specimens (the era censuses all-zero).
   at the ds fix → `c6788f75…` at the template recapture →
   `751a1a81…` at the datidx fix → `1dfaff0a…` at the search-only
   rewrite → `a4a9240d…` at the row locator → `5ac4ef34…` at the
-  thumbnail row). The generator
+  thumbnail row → `fc8be96c…` at the terminator). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -1899,13 +2002,14 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 5ac4ef3490e770394bd9b33c72492116, 25,567 bytes (moved at the
-# 2026-09-30 search-format + thumbnail-row packets — the search
-# her-grammar rewrite, the `_data_` row locators, the thumbnail
-# record + its +1 shifts; earlier history:
+# fc8be96c57a66d164586cbfb22d6d535, 25,567 bytes (moved at the
+# 2026-09-30 search-format + thumbnail-row + terminator packets —
+# the search her-grammar rewrite, the `_data_` row locators, the
+# thumbnail record + its +1 shifts, the era-coded segmented
+# terminator; earlier history:
 # 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
 # search-only rewrite → a4a9240d… at the row locator →
-# 5ac4ef34… here)
+# 5ac4ef34… at the thumbnail row → fc8be96c… here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -1956,32 +2060,78 @@ python3 tests/gold_harness/genus_gates.py     # the ranked report
 #      stream is empty") and the audit totals — first-class verdict
 #      evidence, read before designing a packet.)
 python3 tests/gold_harness/strict_load_probe.py
-## THE 2026-09-30 LATE-SESSION VERDICT SET (supersedes the round-2
-## residue note — the sixth addendum carries the full record):
-## under BricsCAD V26: the constructed fixtures + the full gen_all
-## canonical + the A-2/B-2 coherent chimeras + the rewrite control
-## ALL read MODELED with real extents and clean audits, the
-## multi-record mispair GONE (the A-2 distinct-geometry probe:
-## every entity at ITS OWN SAB's geometry). Under AutoCAD 2027
-## (the accoreconsole transcripts, dialog-free): the
-## wrapper-side stack is EXONERATED — B2Swap (our wrapper + her
-## SAB) regenerates the model CLEAN; the constructed fixtures
-## and A2Swap (her wrapper + our SAB) hard-fail ACAD's open-time
-## model regeneration with `Modeling Operation Error: Error Code
-## Number is 65010` (the GUI surfaces it as the RECOVER prompt;
-## the old broken container never reached regeneration).
-## THE SOLE REMAINING RESIDUE: the constructed SAB stream vs
-## ACAD's stricter ASM modeler — the SAB-level record pair diff
-## is the next packet, the core console the acceptance
-## (`Regenerating model.` with no 65010); the thumbnail row is
-## EMITTED (the container at her complete genus — the empty-block
-## suspect is REFUTED), the evaluation-graph interposition and
-## the identity block remain the ranked secondary arms.
+## THE 2026-09-30 FINAL VERDICT SET (the terminator packet closed
+## the ACAD axis — the seventh addendum carries the full record):
+## **EVERY CONSTRUCTED FIXTURE MODELS UNDER BOTH LOADERS.**
+## BricsCAD V26: all nine fixtures + the full gen_all canonical +
+## the A-2/B-2 chimeras + the controls — real extents, clean
+## audits, the multi-record mispair GONE (every entity at ITS OWN
+## SAB's geometry). AutoCAD 2027 (the format author's own tool):
+## the same — ConstructedRegion (0,0)-(10,10), ConstructedBox
+## (±5)³, the full canonical, A2Swap's three distinct geometries,
+## B2Swap at her coordinates, the controls — NO RECOVER PROMPTS,
+## audits "Total errors found 0". THE ROOT CHAIN, closed in three
+## packets this session: the search her-grammar + the `_data_`
+## row locators (the multi-record mispair) → the thumbnail row
+## (the container at her complete genus) → THE ERA-CODED
+## SEGMENTED TERMINATOR (the 65010 — ACAD's modeler rejected the
+## single-tag `End-of-ACIS-data` at the final record). THE
+## REMAINING RESIDUE: the gen_all ent[0] `stringp nil` MLeader
+## defect (the audit's "3 fixed" — the standing small follow-up);
+## the §19.5 version-parity tiers (maintainer decisions); the
+## core-probe verdict vocabulary.
 ```
 
 ## Commit inventory (this halt)
 
 ```
+<docs> the terminator-packet halt record (this commit — the
+       operative handover head: THE B-REP CONSTRUCTION GAP
+       CLOSED ON BOTH LOADERS — the ACAD axis fell at the
+       era-coded segmented terminator; the complete matrix
+       [our wrapper + our SAB / her SAB + our wrapper / our SAB
+       + her wrapper — ALL construct in BOTH modelers]; the
+       probe chain recorded [the asmheader flip refuted first,
+       the pair diff's two-byte find, the core-console
+       acceptance, the GUI acceptance with every fixture
+       MODELED under ACAD 2027]; the battery green [suite 1606,
+       mirrors, smokes 0/0, corpus 280 at 0/0/0/0, gates
+       pending-zero, identity fc8be96c/25,567 serde-parity];
+       the residual queue ranked [the MLeader defect, the
+       version-parity tiers, the core-probe vocabulary]; the
+       zero-context reading order stands, STARTING at the
+       seventh-continuation addendum)
+<feat> the terminator packet — THE ACAD AXIS CLOSED: the SAB
+       stream's End-of-* record rewritten to HER SEGMENTED
+       ERA-CODED FORM (measured across the specimen family,
+       all four eras: [11][0e 03 "End"][0e 02 "of"][0e
+       <flavor>][0d 04 "data"], the flavor ERA-CODED not
+       magic-coded — ACIS for the 21200/21500 flavors, ASM for
+       21800/22300 [R2013 carries the ASM terminator under the
+       ACIS magic]; our old single-tag `End-of-ACIS-data`
+       survived every genus invariant [the walker normalizes
+       the name chain] and BricsCAD's restorer, but ACAD's
+       modeler rejected the stream at the final record — the
+       65010 at open-time model regeneration, the GUI's
+       RECOVER prompt); `SabEra::terminator()` the era-coded
+       byte form, the writer emits it at the SAB boundary, the
+       reader already recognized both forms (the
+       ASM_END_MARKER constant documented the segmented shape
+       as "what AutoCAD 2013+ / BricsCAD emit" — the writer
+       never used it); the NURBS era test re-pinned (the
+       terminator era-flavored, one byte shorter for ASM);
+       the asmheader version-string flip RUN AND REFUTED first
+       (223.0.1.1930 changed nothing — REVERTED; the row keeps
+       its TOLERATED verdict); ACCEPTANCE: the core console
+       reads `Regenerating model.` with NO 65010 + the full
+       audit pass CLEAN, and the GUI acceptance — EVERY
+       CONSTRUCTED FIXTURE MODELS UNDER AUTOCAD 2027 (Region
+       0-10, Box ±5, the full gen_all canonical, all nine
+       fixtures + both chimeras + the controls — real extents,
+       clean audits, NO RECOVER prompts); identity 5ac4ef34 →
+       fc8be96c/25,567 (identical without serde); suite 1606,
+       mirrors green, corpus 280 at 0/0/0/0, gates
+       pending-zero with --strict
 <docs> the 65010 halt record (this commit — the operative
        handover head: THE ACAD RESIDUE ISOLATED TO THE
        CONSTRUCTED SAB STREAM — the core console's verbatim
