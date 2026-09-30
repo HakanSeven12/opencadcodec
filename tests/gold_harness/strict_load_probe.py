@@ -218,9 +218,16 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
   (progn
     ;; the ActiveX bridge is dead in accoreconsole (2026-09-30,
     ;; measured: vlax-ename->vla-object returns nil even for
-    ;; entities entget reads cleanly) — convert first, force only
+    ;; entities entget reads cleanly) - convert first, force only
     ;; when the object resolved, and log the unavailable force
     ;; honestly so the verdict classifier can name it.
+    ;; ASCII-ONLY in this template: the .scr is read by the
+    ;; loader under the ANSI codepage, where a UTF-8 em-dash's
+    ;; 0x94 byte is a curly double-quote that AutoCAD's
+    ;; smart-quote normalization turns into a bogus string-open -
+    ;; the 2026-09-30 stall (the LISP reader left at depth 2
+    ;; swallowed LOGFILEOFF/DELAY/QUIT and the window hung until
+    ;; the maintainer killed it).
     (setq obj0 (vlax-ename->vla-object (ssname solids 0)))
     (if obj0
       (progn
@@ -232,14 +239,14 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
           (LOGSEC (list (strcat "bbox-FAIL: " (vl-catch-all-error-message r))))
           (LOGSEC (list r))))
       (LOGSEC (list "bbox-force: UNAVAILABLE (nil ActiveX bridge)")))))
-;; the while test is the COUNT COMPARISON — a pickset-typed test
+;; the while test is the COUNT COMPARISON - a pickset-typed test
 ;; (while solids ...) never terminates (the trapped entget below
 ;; can no longer abort the loop, which is the point of the trap).
 (setq eidx 0)
 (while (< eidx (sslength solids))
   (setq pent (ssname solids eidx))
   ;; the whole per-entity body is trapped: a broken-model entity can
-  ;; fail even ENTGET (the recorded entget-level failure — the
+  ;; fail even ENTGET (the recorded entget-level failure - the
   ;; failure aborts the enclosing expression, so a bare entget
   ;; would kill the whole loop). The prefix uses the index; a
   ;; healthy entget upgrades it with the handle.
@@ -251,7 +258,7 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
         (vla-getboundingbox pobj 'pmn 'pmx)
         (strcat "ent[" lhnd "]: bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list pmn)))
                 " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list pmx)))))
-      (strcat "ent[" lhnd "]: bbox-UNAVAILABLE (nil ActiveX bridge)"))))
+      (strcat "ent[" lhnd "]: bbox-UNAVAILABLE (nil ActiveX bridge)")))))
   (if (vl-catch-all-error-p pr)
     (LOGSEC (list (strcat "ent[" (itoa eidx) "]: bbox-FAIL: " (vl-catch-all-error-message pr))))
     (LOGSEC (list pr)))
@@ -287,7 +294,7 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
         (vla-getboundingbox qobj 'qmn 'qmx)
         (strcat "post-ent[" lhnd "]: bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list qmn)))
                 " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list qmx)))))
-      (strcat "post-ent[" lhnd "]: bbox-UNAVAILABLE (nil ActiveX bridge)"))))
+      (strcat "post-ent[" lhnd "]: bbox-UNAVAILABLE (nil ActiveX bridge)")))))
   (if (vl-catch-all-error-p qr)
     (LOGSEC (list (strcat "post-ent[" (itoa qi) "]: bbox-FAIL: " (vl-catch-all-error-message qr))))
     (LOGSEC (list qr)))
@@ -320,6 +327,53 @@ _N
 CORE_SCR_TEMPLATE = "(vl-load-com)\n" + CENSUS_LISP + """_.QUIT
 _N
 """
+
+
+def assert_lisp_balanced(scr_text, label):
+    """The STALL GUARD (2026-09-30): verify the generated .scr's LISP
+    parenthesizes to depth 0 before it is ever handed to a loader.
+    An unbalanced form does not fail loudly - the loader's LISP
+    reader sits at the pending depth, swallows the script's tail
+    (LOGFILEOFF/DELAY/QUIT) as input, and the window stalls until
+    a human kills it (the maintainer caught ConstructedBox__acad
+    exactly so: the reader at ((_> with two whiles unclosed - a
+    one-paren-short else branch). Comments ( ;) and strings (with
+    backslash escapes) are tracked; a negative depth or an
+    unterminated string aborts the launch with the defect named."""
+    depth = 0
+    in_str = False
+    esc = False
+    for line_no, line in enumerate(scr_text.splitlines(), 1):
+        in_comment = False
+        for ch in line:
+            if in_comment:
+                continue
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == ";":
+                in_comment = True
+            elif ch == '"':
+                in_str = True
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth < 0:
+                    raise AssertionError(
+                        f"{label}: unbalanced .scr - extra close paren "
+                        f"at line {line_no} (depth {depth})")
+    if depth != 0 or in_str:
+        raise AssertionError(
+            f"{label}: unbalanced .scr - final paren depth {depth}, "
+            f"string open at EOF: {in_str}; the script would stall "
+            f"the loader's LISP reader mid-run (the 2026-09-30 stall "
+            f"class) - fix the template before launching")
 
 # The modelers' null-extents sentinels (a failed restore yields the
 # platform's infinite-extents marker): BricsCAD writes ±1e80, AutoCAD
@@ -354,10 +408,18 @@ def probe_one(name, source, probe_dir, loader, timeout_s, mode="gui"):
     win_dir = win_probe.replace("/", "\\")
     win_result_lisp = (win_dir + f"\\{name}_result.txt").replace("\\", "\\\\")
     if mode == "core":
-        scr.write_text(CORE_SCR_TEMPLATE.format(
+        # encoding="ascii" is the ENCODING half of the stall guard:
+        # a non-ASCII byte in the template (a UTF-8 em-dash reads
+        # as CP1252 0x94, a curly quote) throws HERE instead of
+        # reaching the loader; assert_lisp_balanced is the PAREN
+        # half (the 2026-09-30 stall was a one-paren-short else
+        # branch - both halves are launch-time assertions now).
+        scr_text = CORE_SCR_TEMPLATE.format(
             name=name,
             win_result=win_result_lisp,
-        ))
+        )
+        assert_lisp_balanced(scr_text, f"{name} (core)")
+        scr.write_text(scr_text, encoding="ascii")
         launcher = CORE_LAUNCHER.format(
             acore=loader,
             dwg=dwg.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
@@ -369,11 +431,13 @@ def probe_one(name, source, probe_dir, loader, timeout_s, mode="gui"):
             timeout=timeout_s,
         )
     else:
-        scr.write_text(SCR_TEMPLATE.format(
+        scr_text = SCR_TEMPLATE.format(
             name=name,
             win_file=win_dir + f"\\{name}.dwg",
             win_result=win_result_lisp,
-        ))
+        )
+        assert_lisp_balanced(scr_text, f"{name} (gui)")
+        scr.write_text(scr_text, encoding="ascii")
         launcher = WIN_LAUNCHER.format(
             bcad=loader,
             scr=scr.as_posix().replace("/mnt/c/", "C:/").replace("/", "\\"),
