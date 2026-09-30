@@ -13,15 +13,21 @@
 # attachment point, our constructed default 0 a corrupt
 # repetition; the honest model default + the output-copy repair;
 # ACAD's audit now reads TOTAL ERRORS 0 — the extents recompute
-# was the repair's side effect, NO follow-up); **THE PROBE'S
+# was the repair's side effect, NO follow-up); **THE MLINE VERTS
+# DEFECT IS CLOSED** (the twelfth addendum: the segment-parameter
+# cache — the modeler reconstructs the multiline from it; the
+# missing cache read as the null-extents box; the formula measured
+# across every corpus specimen and landed in rebuild_geometry —
+# gold's standing ERROR GONE, ent[4F] reads REAL EXTENTS
+# (0,-1)..(51,50) on BOTH loaders); **THE PROBE'S
 # CENSUS IS WIDENED TO EVERY KIND** (the ninth addendum — the
 # canonical's every kind has first-class bbox evidence on both
 # loaders; the XLine/Ray pair RESOLVED AS A NON-DEFECT — the
 # eleventh addendum: ACAD's filtered ssget never returns
 # construction lines, HER OWN authored pair absent the same way;
 # the writer exonerated): every constructed fixture MODELS under
-# BricsCAD
-# V26 AND AutoCAD 2027 with real extents and clean audits, the
+# BricsCAD V26 AND AutoCAD 2027 with real extents and clean
+# audits, the
 # multi-record mispair is GONE, the complete chimera matrix holds
 # on both loaders, the container is at her complete genus; the
 # entity-behavior verification matrix is LANDED (29/29 kinds on
@@ -31,10 +37,100 @@
 # pin, the record census, the chimera coherent-swap instrument.
 # THE FIRST ACTION for the zero-context agent: re-verify the
 # battery (the verification gate section below), read the
-# eleventh addendum's record, then the residual queue (the MLine
-# verts defect — gold's standing ERROR; the §19.5 version-parity
+# twelfth addendum's record, then the residual queue (the
+# Multiline-specimen conventional-arm residue — the newly-visible
+# pre-existing 142/143; the §19.5 version-parity
 # tiers — maintainer decisions; the era censuses across the full
 # era corpora).
+#
+# === THE TWELFTH-CONTINUATION ADDENDUM (the MLine verts packet —
+# THE LAST NAMED CONTENT RESIDUE CLOSED; read this first, then the
+# eleventh addendum as history): **THE MLINE SEGMENT-PARAMETER
+# CACHE IS THE ROOT — MEASURED, FORMULA-DERIVED, LANDED IN THE
+# MODEL, AND ACCEPTED ON BOTH LOADERS.** Gold's standing ERROR
+# (`Invalid MLINE.verts[rcount1].lines x 2`) and the loaders'
+# null-extents box share one root: our constructed MLine carried
+# ZERO segment parameters per element where EVERY authored
+# specimen carries TWO — the authoring cache the modeler
+# reconstructs the multiline from.
+#
+# (1) THE EMPIRICAL DECODE (the survey: every corpus MLINE —
+# example_2000 through example_2018 + the dedicated Multiline
+# 2007/2018 specimens, every vertex, every element): num_segparms
+# = 2 ALWAYS, the values [miter trim, 0]; element 0 (the
+# reference, +offset) carries [0, 0]; the LAST element carries
+# [-(full width)/sin∠(miter, edge), 0]. THE FORMULA, derived
+# geometrically and verified EXACT at every measured vertex:
+# `segparm_k = -(offset_k - offset_0)·scale / sin∠(miter,
+# edge)` — the signed distance along the miter line from the
+# reference element's edge crossing to element k's (an element
+# at perpendicular offset d crosses the miter at parameter
+# d/sin∠). The caps carry the full-width crossing (miter ⊥ edge
+# → sin = 1); interior joints carry the miter crossing of the
+# joint angle. The ODA spec (§20.4.50, the maintainer's pointer)
+# documents the wire shape but not the value semantics — the
+# corpus measurement is the authority.
+#
+# (2) THE FIX — MODEL-LAYER (the MText precedent: the cache lives
+# in the entity, so the roundtrip stays symmetric): MLine gains
+# `style_offsets` (serde-skip — the authoring application's
+# knowledge of its style, defaulting to the Standard ±0.5 both
+# our document and AutoCAD seed) and `rebuild_geometry` computes
+# the per-element per-vertex parameters after the
+# direction/miter pass. THE READER NEVER CALLS rebuild_geometry
+# (verified: no external callers) — authored captures re-emit
+# verbatim, the corpus untouched (the example_2018 era census
+# re-verified 474/474). The writer needs NO change (it already
+# emits the model's parameters); the roundtrip is symmetric by
+# construction (the model computes, the write emits, the read
+# captures, the compare passes — no test allowances needed).
+#
+# (3) THE ACCEPTANCE, LANDED LIVE (2026-09-30, both loaders, the
+# widened census): gold reads the canonical CLEAN — the MLINE
+# ERROR GONE (only the two pre-existing warnings remain: the
+# TABLESTYLE class instability + the schdat segments); the
+# constructed MLine decodes exactly as her genus (element 0
+# [0,0], element 1 [-1,0] at the start cap — the Multiline
+# specimen's measured pattern). **ent[4F] reads REAL EXTENTS
+# (0,-1)..(51,50) — the L-shape's true geometry with the ±0.5
+# element spread — under BricsCAD V26 AND AutoCAD 2027**, the
+# audits clean (TOTAL ERRORS 0), every fixture + chimera +
+# control re-probed MODELED with the only bbox-FAILs the known
+# viewport loader trait (her own controls show it). The
+# canonical's census null-boxes are now EXACTLY the XLine/Ray
+# infinite-extents pair — every other kind real extents on both
+# loaders.
+#
+# (4) THE NEWLY-VISIBLE RESIDUE (pre-existing, out of scope —
+# the stash A/B proof): censusing the Multiline specimen (never
+# in the standing era-census list) shows its conventional-arm
+# rewrite at 142/143 records divergent — the specimen does not
+# ECHO (its fingerprint does not hold) and its records diverge
+# broadly WITHOUT the MLine change (the stash A/B: identical
+# 142/143). A newly-visible pre-existing residue of the same
+# class as the DATATABLE/MTEXT rows when the census widened —
+# recorded for the queue.
+#
+# (5) THE BATTERY at this halt: the suite 1609 green (the new
+# genus test: the L-shape's caps carry the full-width trim, the
+# right-angle joint the √2 miter crossing); the mirrors green;
+# the genus gates PENDING-ZERO with --strict; the identity MOVED
+# to f21875659e7501b099f91f88b37d20c3 (the canonical's MLine
+# records carry the computed cache — an intended content change;
+# identical without --features serde; the history: 36279922 at
+# the MText repair → f2187565 here); the corpus 280 at 0/0/0/0;
+# the four family smokes 0/0; the example_2018 era census
+# 474/474 re-verified.
+#
+# THE NEXT WORK, ranked: (a) the Multiline-specimen
+# conventional-arm residue (the newly-visible 142/143 — a
+# §19-era record-identity question); (b) the §19.5 version-parity
+# tiers (R13/R14 implemented-but-divergent, pre-R13 unsupported —
+# maintainer decisions); (c) the era censuses across the full era
+# corpora; (d) the §19.4/§F2 future-work rows.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE ELEVENTH-CONTINUATION ADDENDUM (the XLine/Ray question
 # RESOLVED AS A NON-DEFECT; read this first, then the tenth
@@ -2147,13 +2243,14 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `36279922e95cd1539cc67562ee1dd082`,
-  25,696 bytes (moved at the 2026-09-30 six-packet session chain —
+- The generation identity is `f21875659e7501b099f91f88b37d20c3`,
+  25,728 bytes (moved at the 2026-09-30 seven-packet session chain —
   the search segment's her-grammar rewrite, the `_data_` row
   locators, the thumbnail record with its +1 shifts, the
   era-coded segmented terminator, the MLeader style
-  repair, and the MText attachment-repeat default; the identity
-  history: `84374e73…` through the §20
+  repair, the MText attachment-repeat default, and the MLine
+  segment-parameter cache; the identity history: `84374e73…` through
+  the §20
   landing → `4265c04a…` at G-C → `0e8b23cd…` at the
   vertex packet → `a8f227e0…` at the asmheader packet →
   `a7c5f170…` at the tolerance packet → `e4cd1960…` at the
@@ -2166,7 +2263,8 @@ era specimens (the era censuses all-zero).
   rewrite → `a4a9240d…` at the row locator → `5ac4ef34…` at the
   thumbnail row → `fc8be96c…` at the terminator → `c09dd7cc…`
   at the MLeader style repair → `36279922…` at the MText
-  attachment repeat). The generator
+  attachment repeat → `f2187565…` at the MLine segment
+  cache). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -2275,16 +2373,18 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 36279922e95cd1539cc67562ee1dd082, 25,696 bytes (moved at the
-# 2026-09-30 six-packet session chain — the search her-grammar
+# f21875659e7501b099f91f88b37d20c3, 25,728 bytes (moved at the
+# 2026-09-30 seven-packet session chain — the search her-grammar
 # rewrite, the `_data_` row locators, the thumbnail record + its
 # +1 shifts, the era-coded segmented terminator, the MLeader
-# style repair, the MText attachment-repeat default; earlier
+# style repair, the MText attachment-repeat default, the MLine
+# segment-parameter cache; earlier
 # history:
 # 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
 # search-only rewrite → a4a9240d… at the row locator →
 # 5ac4ef34… at the thumbnail row → fc8be96c… at the terminator →
-# c09dd7cc… at the MLeader repair → 36279922…/25,696 here)
+# c09dd7cc… at the MLeader repair → 36279922…/25,696 at the
+# MText repair → f2187565…/25,728 here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -2358,23 +2458,75 @@ python3 tests/gold_harness/strict_load_probe.py
 ## per-kind census instrument (all 29 kinds first-class).
 ## REMAINING RESIDUE: NONE ON THE CONSTRUCTED-CONTENT AXIS — the
 ## MLeader style repair (the eighth addendum) closed the canonical's
-## bcad-side repair ("LeaderStyle Id is Null / 3 fixed") and the
-## MText attachment-repeat repair (the tenth addendum) closed the
-## ACAD-side pair ("AcDbMText was repaired / 2 fixed"): the
-## canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+post
-## on BOTH loaders. The XLine/Ray coverage question is RESOLVED AS
-## A NON-DEFECT (the eleventh addendum: ACAD's filtered ssget
-## never returns construction lines — her authored pair absent the
-## same way; the writer exonerated; the optional type-dump
-## refinement retired). The remaining queue: the MLine verts defect
-## (gold's standing ERROR — a §19-era read-side residue); the
-## maintainer-decision tier: the §19.5 version-parity tiers (R13/R14,
-## pre-R13); the era censuses across the full era corpora.
+## bcad-side repair ("LeaderStyle Id is Null / 3 fixed"), the MText
+## attachment-repeat repair (the tenth addendum) closed the
+## ACAD-side pair ("AcDbMText was repaired / 2 fixed"), and THE
+## MLINE SEGMENT-PARAMETER CACHE (the twelfth addendum) closed
+## gold's standing ERROR + the loaders' null-extents box: the
+## canonical's audit reads TOTAL ERRORS 0 with dbmod 0 pre+post on
+## BOTH loaders, gold reads the canonical CLEAN, and every
+## constructed kind reads real extents (the only census null-boxes
+## the XLine/Ray infinite-extents semantics — a non-defect per the
+## eleventh addendum's authored-control precedent). The remaining
+## queue: the Multiline-specimen conventional-arm residue (the
+## newly-visible pre-existing 142/143 — a §19-era record-identity
+## question); the maintainer-decision tier: the §19.5 version-parity
+## tiers (R13/R14, pre-R13); the era censuses across the full era
+## corpora.
 ```
 
 ## Commit inventory (this halt)
 
 ```
+<docs> the twelfth-continuation halt record (this commit — the
+       operative handover head: THE MLINE VERTS DEFECT CLOSED —
+       the segment-parameter cache measured [num_segparms=2
+       always, the miter-trim formula verified exact at every
+       corpus vertex], derived geometrically [the signed miter
+       crossing: segparm_k = -(offset_k - offset_0)·scale /
+       sin∠(miter, edge)], landed in the model [style_offsets +
+       rebuild_geometry; the reader never rebuilds — authored
+       captures verbatim, the corpus untouched], and accepted on
+       BOTH loaders [gold's ERROR GONE, ent[4F] REAL EXTENTS
+       (0,-1)..(51,50) under bcad AND acad, the audits clean];
+       the newly-visible Multiline-specimen residue recorded
+       [pre-existing per the stash A/B]; the battery green [suite
+       1609, corpus 280 at 0/0/0/0, gates pending-zero, identity
+       f2187565/25,728 serde-parity]; the reading order stands,
+       STARTING at the twelfth addendum)
+<feat> the MLine segment-parameter cache — THE LAST NAMED
+       CONTENT RESIDUE CLOSED: the constructed MLine carried ZERO
+       segment parameters per element where every authored
+       specimen carries TWO (the authoring cache the modeler
+       reconstructs the multiline from — its absence read as the
+       null-extents box under both loaders and tripped gold's
+       tail-slack heuristic at the record end); the empirical
+       survey (every corpus MLINE: example_2000–2018 + the
+       Multiline 2007/2018 specimens) pinned the genus
+       [num_segparms=2, values (miter trim, 0); the reference
+       element untrimmed; the last element the full miter
+       crossing] and the formula verified EXACT at every measured
+       vertex: segparm_k = -(offset_k - offset_0)·scale /
+       sin∠(miter, edge) — the signed distance along the miter
+       line between the element edge crossings (the ODA spec
+       documents the wire shape, not the semantics; the corpus is
+       the authority); THE FIX model-layer (the MText precedent):
+       MLine gains style_offsets (serde-skip, default the
+       Standard ±0.5) and rebuild_geometry computes the cache
+       after the direction/miter pass — the reader never calls
+       rebuild (authored captures verbatim; the example_2018
+       census re-verified 474/474), the writer unchanged (it
+       emits the model's parameters), the roundtrip symmetric by
+       construction; the genus unit test pins the L-shape's
+       measured values (the caps -1, the right-angle joint -√2);
+       ACCEPTANCE: gold reads the canonical CLEAN (the MLINE
+       ERROR GONE), the constructed MLine decodes as her genus,
+       and ent[4F] reads REAL EXTENTS (0,-1)..(51,50) under
+       BricsCAD V26 AND AutoCAD 2027 with clean audits — the
+       canonical's census null-boxes now EXACTLY the XLine/Ray
+       infinite pair; identity 36279922 → f2187565/25,728
+       (identical without serde); suite 1609 green, corpus 280
+       at 0/0/0/0, gates pending-zero with --strict
 <docs> the eleventh-continuation halt record (this commit — the
        operative handover head: THE XLINE/RAY QUESTION RESOLVED
        AS A NON-DEFECT — the authored-control precedent exonerates
