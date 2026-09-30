@@ -392,10 +392,13 @@ the decode changes, regenerate the pin and review the drift.
 The §20.4 verdict instrument: `strict_load_probe.py` drives the
 loader `/b <script>` over the constructed corpus plus the authored
 specimen controls, and the script's LISP records the evidence a
-verdict needs — the 3DSOLID/REGION/BODY census, the
-modeler-forced bounding box (real extents = a restored body; the
-±1e80 sentinel = the null box), the DBMOD/ERRNO pre/post-audit
-record, the post-audit census:
+verdict needs — the 3DSOLID/REGION/BODY aggregate (the
+modeler-forced bounding box: real extents = a restored body; the
+±1e80 sentinel = the null box), **the widened per-entity census
+(2026-09-30): every entity kind the canonical carries walks the
+trapped bbox force — `CENSUS_KINDS`, 26 kinds beyond the modeler
+family — so each kind gains first-class loader evidence**, the
+DBMOD/ERRNO pre/post-audit record, the post-audit census:
 
 ```bash
 python3 tests/gold_harness/genus_gates.py        # fresh constructed corpus first

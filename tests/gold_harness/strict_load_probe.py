@@ -205,6 +205,18 @@ WIN_LAUNCHER = ("$pc = Start-Process -FilePath '{bcad}' -ArgumentList "
 # OPEN blocks the script engine mid-sequence) still leaves its
 # partial evidence on disk — the buffered single-handle form died
 # with the launcher's 150 s kill and read 0 bytes.
+# The per-entity census kind list (2026-09-30): every entity kind
+# the gen_all canonical carries (29 kinds; POLYLINE covers the
+# 2D/3D/polyface variants, DIMENSION every dimension flavor). The
+# modeler-family aggregate above keeps the NULL-BOX verdict
+# semantics; this list drives the per-entity census loop - the 26
+# non-modeler kinds gain first-class bbox evidence under both
+# loaders (previously only 3DSOLID/REGION/BODY were walked).
+CENSUS_KINDS = ("POINT,LINE,CIRCLE,ARC,ELLIPSE,XLINE,RAY,SOLID,"
+                "SHAPE,TEXT,MTEXT,SPLINE,POLYLINE,LWPOLYLINE,MESH,"
+                "MLINE,INSERT,VIEWPORT,TOLERANCE,DIMENSION,LEADER,"
+                "MULTILEADER,HATCH,3DFACE,3DSOLID,REGION,BODY")
+
 CENSUS_LISP = """(setq RESULT "{win_result}")
 (defun LOGSEC (lines / f)
   (setq f (open RESULT "a"))
@@ -214,6 +226,13 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
 (LOGSEC (list (strcat "logfilename: " (getvar "LOGFILENAME"))))
 (setq solids (ssget "_X" (list (cons 0 "3DSOLID,REGION,BODY"))))
 (LOGSEC (list (strcat "open-entity-count: " (if solids (itoa (sslength solids)) "0"))))
+;; the widened per-entity census (2026-09-30): the gen_all carries
+;; 29 kinds and the census walks EVERY kind now - the modeler-family
+;; aggregate above keeps the verdict semantics (the NULL-BOX
+;; sentinel arises on the modeler family), the per-entity loop
+;; below carries the full-kind bbox evidence.
+(setq allk (ssget "_X" (list (cons 0 "{kinds}"))))
+(LOGSEC (list (strcat "census-entity-count: " (if allk (itoa (sslength allk)) "0"))))
 (if (and solids (> (sslength solids) 0))
   (progn
     ;; the ActiveX bridge is dead in accoreconsole (2026-09-30,
@@ -243,8 +262,8 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
 ;; (while solids ...) never terminates (the trapped entget below
 ;; can no longer abort the loop, which is the point of the trap).
 (setq eidx 0)
-(while (< eidx (sslength solids))
-  (setq pent (ssname solids eidx))
+(while (< eidx (sslength allk))
+  (setq pent (ssname allk eidx))
   ;; the whole per-entity body is trapped: a broken-model entity can
   ;; fail even ENTGET (the recorded entget-level failure - the
   ;; failure aborts the enclosing expression, so a bare entget
@@ -270,6 +289,8 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
         (strcat "post-audit-errno: " (itoa (getvar "ERRNO")))))
 (setq solids2 (ssget "_X" (list (cons 0 "3DSOLID,REGION,BODY"))))
 (LOGSEC (list (strcat "post-audit-entity-count: " (if solids2 (itoa (sslength solids2)) "0"))))
+(setq allk2 (ssget "_X" (list (cons 0 "{kinds}"))))
+(LOGSEC (list (strcat "post-census-entity-count: " (if allk2 (itoa (sslength allk2)) "0"))))
 (if (and solids2 (> (sslength solids2) 0))
   (progn
     (setq obj0b (vlax-ename->vla-object (ssname solids2 0)))
@@ -284,8 +305,8 @@ CENSUS_LISP = """(setq RESULT "{win_result}")
           (LOGSEC (list r2))))
       (LOGSEC (list "post-audit-bbox-force: UNAVAILABLE (nil ActiveX bridge)")))))
 (setq qi 0)
-(while (< qi (sslength solids2))
-  (setq qent (ssname solids2 qi))
+(while (< qi (sslength allk2))
+  (setq qent (ssname allk2 qi))
   (setq qr (vl-catch-all-apply '(lambda (/ lhnd qobj)
     (setq lhnd (cdr (assoc 5 (entget qent))))
     (setq qobj (vlax-ename->vla-object qent))
@@ -417,6 +438,7 @@ def probe_one(name, source, probe_dir, loader, timeout_s, mode="gui"):
         scr_text = CORE_SCR_TEMPLATE.format(
             name=name,
             win_result=win_result_lisp,
+            kinds=CENSUS_KINDS,
         )
         assert_lisp_balanced(scr_text, f"{name} (core)")
         scr.write_text(scr_text, encoding="ascii")
@@ -435,6 +457,7 @@ def probe_one(name, source, probe_dir, loader, timeout_s, mode="gui"):
             name=name,
             win_file=win_dir + f"\\{name}.dwg",
             win_result=win_result_lisp,
+            kinds=CENSUS_KINDS,
         )
         assert_lisp_balanced(scr_text, f"{name} (gui)")
         scr.write_text(scr_text, encoding="ascii")

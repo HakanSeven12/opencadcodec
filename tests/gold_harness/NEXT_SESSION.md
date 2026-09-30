@@ -14,23 +14,98 @@
 # output-copy repair fills the style pointer from the document's
 # Standard MLEADERSTYLE exactly like the Table/MLine repairs; the
 # canonical's audit now reads TOTAL ERRORS 0 everywhere with
-# dbmod 0 pre+post): every constructed fixture MODELS under
-# BricsCAD V26 AND AutoCAD 2027 with real extents and clean
-# audits, the multi-record mispair is GONE, the complete chimera
-# matrix holds on both loaders, the container is at her complete
-# genus (the search her-grammar + the row locators + the
-# thumbnail record — byte-identical against her Box_2018 on
-# every structural slot); the entity-behavior verification matrix
-# is LANDED (29/29 kinds on five axes). ALL INSTRUMENTS CURRENT:
-# the probe (AUDIT channels + stall guards + the core-console
-# arm), the entity verification harness, the genus gates + the
-# extended pin, the record census, the chimera coherent-swap
-# instrument. THE FIRST ACTION for the zero-context agent:
-# re-verify the battery (the verification gate section below),
-# read the eighth addendum's record, then the residual queue (the
-# §19.5 version-parity tiers — maintainer decisions; the
-# core-probe verdict vocabulary; the era censuses across the
-# full era corpora).
+# dbmod 0 pre+post); **THE PROBE'S CENSUS IS WIDENED TO EVERY
+# KIND** (the ninth addendum: the per-entity census walks all 26
+# non-modeler kinds now — the canonical's every kind has first-class
+# bbox evidence on both loaders; the findings: the MLine verts
+# defect surfaced per-entity, the XLine/Ray null-boxes are the
+# infinite-entity semantics, ACAD's viewport "Invalid extents" is
+# a loader trait HER OWN files show, and ACAD's audit names the
+# MText pair "was repaired" — THE NEW QUEUE HEAD): every
+# constructed fixture MODELS under BricsCAD V26 AND AutoCAD 2027
+# with real extents and clean audits, the multi-record mispair is
+# GONE, the complete chimera matrix holds on both loaders, the
+# container is at her complete genus (the search her-grammar + the
+# row locators + the thumbnail record — byte-identical against
+# her Box_2018 on every structural slot); the entity-behavior
+# verification matrix is LANDED (29/29 kinds on five axes). ALL
+# INSTRUMENTS CURRENT: the probe (AUDIT channels + stall guards +
+# the core-console arm + the widened census), the entity
+# verification harness, the genus gates + the extended pin, the
+# record census, the chimera coherent-swap instrument. THE FIRST
+# ACTION for the zero-context agent: re-verify the battery (the
+# verification gate section below), read the ninth addendum's
+# record, then the residual queue (THE MTEXT REPAIR — ACAD's audit
+# names AcDbMText(3B)/AcDbMText(40) "was repaired", the MLeader
+# investigation pattern applies; the §19.5 version-parity tiers —
+# maintainer decisions; the era censuses across the full era
+# corpora).
+#
+# === THE NINTH-CONTINUATION ADDENDUM (the widened census — every
+# kind walks the loader probes; read this first, then the eighth
+# addendum as history): **THE PROBE'S PER-ENTITY CENSUS COVERS
+# ALL 29 KINDS NOW, AND ITS FIRST FULL RUN SURFACED FOUR FINDINGS
+# THE OLD 3-KIND CENSUS COULD NOT SEE.** The maintainer's question
+# ("which entities are untested in autocad?") named the gap: the
+# census LISP walked only `3DSOLID,REGION,BODY` — 26 kinds had
+# no per-entity loader evidence. THE WIDENING:
+# `CENSUS_KINDS` (strict_load_probe.py) — the 26-kind filter
+# string, the per-entity loop + the post-audit loop now walk the
+# widened pickset (the modeler-family AGGREGATE above keeps the
+# NULL-BOX verdict semantics; the aggregate `bbox:` line still
+# reads entity[0] of the modeler family so the verdict classifier
+# is untouched), the `{kinds}` template slot threaded through both
+# the GUI and core forms. THE FIRST FULL RUN (both loaders, every
+# fixture + chimera + control):
+#
+# (1) THE bcad CANONICAL CENSUS: 31 entities, 28 real bboxes +
+# THREE ±1e80 NULL-BOXES, ZERO bbox-FAILs — ent[4F] MLine (THE
+# KNOWN MLINE VERTS DEFECT — gold's standing ERROR line, now
+# surfaced per-entity on the loader axis), ent[37] XLine +
+# ent[36] Ray (THE INFINITE-ENTITY SEMANTICS — the ±1e80 null box
+# IS a construction line's bounding box in the modeler; NOT a
+# defect). 27 kinds read real extents.
+#
+# (2) THE acad CANONICAL CENSUS: 31 entities, 29 real bboxes +
+# TWO bbox-FAILs — ent[24]/ent[25] VIEWPORT "Automation Error.
+# Invalid extents": A LOADER TRAIT, NOT A WRITER DEFECT — HER
+# OWN FILE'S VIEWPORTS SHOW THE SAME TRAIT (the A2Swap control:
+# her ent[44]/ent[62] viewport bbox-FAILs; the RewriteControl:
+# ent[45]/ent[63]; HER AUTHORED BYTES, her viewport objects —
+# AutoCAD's ActiveX bbox force simply refuses viewport extents).
+# The MLine reads ±1e20 (AutoCAD's infinite sentinel — the same
+# semantic). ACAD'S AUDIT NAMES THE ONE REAL FINDING:
+# `AcDbMText(3B) was repaired / AcDbMText(40) was repaired /
+# Total errors found 2 fixed 2` — THE MTEXT PAIR IS THE NEW QUEUE
+# HEAD (the MLeader investigation pattern applies: read the
+# audit's repair words, diff the MText record against her genus,
+# repair at the write boundary).
+#
+# (3) THE CHIMERA/CONTROL CENSUSES (the authored example_2018
+# family): 63-65 entities each, the mispair GONE (every entity at
+# its OWN geometry — the multi-record fix holding at 64-entity
+# scale), her viewport bbox-FAILs the only failures (the loader
+# trait again). The HerExample2018 acad control timed out on the
+# first pass (the 150 s launch bound vs the 64-entity census) and
+# completed on the re-run: census 64, audit "Total errors found
+# 0", probe-end.
+#
+# (4) THE BATTERY at this halt: the suite 1607 green (the probe
+# is a Python instrument — no Rust surface touched); the corpus
+# 280 at 0/0/0/0 (re-verified this session); the genus gates
+# PENDING-ZERO with --strict; the identity c09dd7cc/25,567
+# (unmoved — the widening touches no writer bytes).
+#
+# THE NEXT WORK, ranked: (a) THE MTEXT REPAIR (the new queue
+# head — ACAD's audit names the pair; the MLeader pattern: the
+# audit words name the field, the genus diff names the bytes);
+# (b) the MLine verts defect (gold's standing ERROR — now
+# per-entity visible on the loader axis; a §19-era residue);
+# (c) the §19.5 version-parity tiers (maintainer decisions); (d)
+# the era censuses across the full era corpora.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE EIGHTH-CONTINUATION ADDENDUM (the MLeader style repair —
 # THE CANONICAL'S AUDIT CLEAN; read this first, then the seventh
@@ -2156,6 +2231,30 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the ninth-continuation halt record (this commit — the
+       operative handover head: THE PROBE'S CENSUS WIDENED TO
+       EVERY KIND + the four findings [the MLine verts defect
+       per-entity, the XLine/Ray infinite semantics, ACAD's
+       viewport bbox-FAIL a loader trait her own files show, THE
+       MTEXT PAIR the new queue head — ACAD's audit names
+       AcDbMText(3B)/AcDbMText(40) "was repaired"]; the battery
+       green; the residual queue ranked [the MText repair first,
+       the MLeader pattern]; the reading order stands, STARTING
+       at the ninth addendum)
+<feat> the widened census — every kind walks the loader probes:
+       CENSUS_KINDS (the 26-kind filter beyond the modeler
+       family), the per-entity + post-audit loops walk the
+       widened pickset, the {kinds} template slot threaded
+       through the GUI + core forms; the modeler-family AGGREGATE
+       keeps the NULL-BOX verdict semantics (the classifier
+       untouched); ACCEPTANCE: the full run on both loaders —
+       every fixture + chimera + control MODELED, the canonical
+       31-entity census clean on both axes (bcad: 28 real + the
+       MLine defect + the XLine/Ray infinite semantics; acad: 29
+       real + the viewport loader trait), the chimera censuses
+       at 63-65 entities each with the mispair GONE at scale;
+       the battery green (suite 1607, corpus 280 at 0/0/0/0,
+       gates pending-zero, identity c09dd7cc unmoved)
 <docs> the eighth-continuation halt record (this commit — the
        operative handover head: THE MLEADER STYLE DEFECT CLOSED
        [the canonical's audit reads TOTAL ERRORS 0 with dbmod 0
