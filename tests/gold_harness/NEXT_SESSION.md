@@ -156,6 +156,60 @@
 # (a hand-run probe by the maintainer with Autodesk-identity
 # stamps would settle the row instantly — the probe tooling
 # supports it via a one-line flip).
+# (3c) THE WRAPPER-ARM ROUND-2 CHAIN (the same continuation, the
+# genus-gate-queue loop — THE PACKET THAT MODELED): (i) THE
+# FORM-A SPECIMENS MODELED MECHANIZED (Box_2018, Cone_2018,
+# Box_2013, both loaders, real extents, clean audits — the form
+# itself exonerated; the delta narrows to the bytes). (ii) THE
+# HYBRID DISCOVERY: the authored R2018 corpus splits into TWO
+# container forms — the specimens' 91-row Form A (ds 16, hdr
+# 65664) vs the libredwg test-data files' 8-row Form B (ds 1,
+# hdr 128; example_2018's own container) — OUR constructed
+# container matched Form A's LAYOUT while carrying Form-B-era
+# per-segment values (every segment declaring ds 1 against the
+# 16/17 file header — an incoherence NEITHER form carries) and
+# the OLD 448-byte INTELLICAD-ERA templates (a SEVEN-column
+# ASM_Data variant where her Form A defines EIGHT). (iii) THE
+# GATES EXTENSION: the extractor + gates now pin the
+# per-segment ds/size/align fields keyed by segment name
+# (`_data_` excluded — content-sized); the pin regenerated; the
+# 5 ranked rows were the real template deltas, enumerated by
+# the instrument. (iv) THE FIXES, all measured on the MODELED
+# specimens: per-segment ds_version era-coherent (16-tail-2018 /
+# 17-tail-2013, the schema pair native 16); the three templates
+# REPLACED with the authored Form-A bytes VERBATIM (schdat-A
+# 384/1/14, schdat-B 256/16/9 — the EIGHT-column ASM_Data
+# schema —, schidx 512/16/15; era-shared bit-for-bit); the
+# segment ids = the SEGIDX SLOT NUMBERS (84-90 / 91-96 — the old
+# 1-9 convention unresolvable); search padded to the authored
+# 256. The gates FELL to zero — our container matches Box_2018
+# field-for-field on every structural slot. (v) THE DATIDX
+# AUDIT — THE DECISIVE DEFECT (the maintainer's "i cannot see a
+# region" hand-open was the visual confirmation): her `_data_`
+# record table ALWAYS carries the THUMBNAIL PNG row (handle
+# 0x22) plus the SAB row, and her datidx entries point `segidx =
+# THE REAL _data_ SLOT` (86/93) with `schidx = 5` (the
+# AcDb3DSolid_ASM_Data schema); OURS pointed `segidx=2` — AN
+# EMPTY ROW in the 91/97-slot table: a loader resolving the
+# region's handle through our datidx landed on NOTHING (the
+# modeler's "Data stream is empty", the maintainer's blank
+# screen) — with `schidx=1`, the wrong schema, and our record
+# rows carried blob OFFSETS in the 4th field where hers carry
+# ZERO. FIXED: the datidx entries (slot + schidx 5), the record
+# rows (field4=0 — the blobs located by the length-prefix
+# chain), the unit test updated to the measured shape.
+# **ACCEPTANCE, THE FIRST MODELED CONSTRUCTED B-REP (2026-09-30):
+# BricsCAD V26 reads the constructed Region fixture MODELED —
+# real extents (0,0)..(10,10) z=0, entity count 1, the audit
+# CLEAN pre+post (dbmod 0), "Data stream is empty" GONE; the
+# authored controls MODELED (the run stands).** AutoCAD 2027
+# still modeler-refuses the same fixture ("Automation Error.
+# Invalid input", the entity surviving the audit — csv: the
+# record layer is accepted, the modeling not) — the RESIDUE
+# queue: the missing THUMBNAIL ROW (her `_data_` always carries
+# the preview PNG record; we emit none), the evaluation-graph
+# interposition, the product strings (the maintainer decision),
+# the revision-guid question.
 # (4) THE BATTERY: suite 52 segments green; gold_roundtrip green;
 # the genus_gates mirror green (fresh extraction == the untouched
 # pin); issue80 green; the four family smokes 0/0/0/0; the corpus
@@ -1240,18 +1294,20 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `7b8379b33d4c691c4cdd4cf5e9478592`,
-  25,567 bytes (moved at the 2026-09-30 COMMON_3DSOLID entity-form
-  packet — the constructed modeler entities' records gained the
-  synthesized authored-genus wireframe cache, an intended content
-  change; the identity history: `84374e73…`/25,375 through the §20
-  landing → `4265c04a…`/25,407 at G-C → `0e8b23cd…`/25,439 at the
-  vertex packet → `a8f227e0…`/25,439 at the asmheader packet →
-  `a7c5f170…`/25,439 at the tolerance packet → `e4cd1960…`/25,473
-  at the ordering packet → `0e953809…`/25,473 at the era-profiled
-  SAB header packet d1dd5ee → `bb9971a4…`/25,473 at the eighth
-  genus queue packet → `388f0a71…`/25,535 at the region-twin
-  session → `7b8379b3…`/25,567 at the entity-form packet). The
+- The generation identity is `751a1a81306433c89fdbbf53d9c7fa9a`,
+  25,567 bytes (moved at the 2026-09-30 wrapper-arm round-2 chain —
+  the ds-coherence fix, the authored Form-A templates, the slot
+  ids, and the datidx fix all changed the constructed containers;
+  the identity history: `84374e73…` through the §20
+  landing → `4265c04a…` at G-C → `0e8b23cd…` at the vertex packet →
+  `a8f227e0…` at the asmheader packet → `a7c5f170…` at the
+  tolerance packet → `e4cd1960…` at the ordering packet →
+  `0e953809…` at the era-profiled
+  SAB header packet d1dd5ee → `bb9971a4…` at the eighth
+  genus queue packet → `388f0a71…` at the region-twin
+  session → `7b8379b3…` at the entity-form packet → `e52bd724…` at
+  the ds fix → `c6788f75…` at the template recapture →
+  `751a1a81…` at the datidx fix). The
   generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
@@ -1361,11 +1417,12 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# 7b8379b33d4c691c4cdd4cf5e9478592, 25,567 bytes (moved at the
-# 2026-09-30 COMMON_3DSOLID entity-form packet — the constructed
-# modeler entities' synthesized wireframe cache;
-# earlier history: bb9971a4…/25,473 at the eighth queue packet →
-# 388f0a71…/25,535 at the region-twin session)
+# 751a1a81306433c89fdbbf53d9c7fa9a, 25,567 bytes (moved at the
+# 2026-09-30 wrapper-arm round-2 chain — the ds-coherence fix, the
+# authored Form-A templates, the slot ids, the datidx fix —
+# ALL changed the constructed containers; earlier history:
+# 7b8379b3…/25,567 at the entity-form packet → e52bd724… at the ds
+# fix → c6788f75… at the template recapture → 751a1a81… here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -1416,22 +1473,63 @@ python3 tests/gold_harness/genus_gates.py     # the ranked report
 #      stream is empty") and the audit totals — first-class verdict
 #      evidence, read before designing a packet.)
 python3 tests/gold_harness/strict_load_probe.py
-# the constructed fixtures still read NULL-BOX under BricsCAD and
-# modeler-refused under AutoCAD (re-probed at this halt, AFTER the
-# entity-form packet: the B-rep construction gap is the OPEN
-# campaign, now LOCALIZED BELOW THE RECORD LAYER — AutoCAD's AUDIT
-# reads the new-form fixtures CLEAN ["Total errors found 0 fixed
-# 0"] where the old form errored, while BricsCAD's audit still
-# names "Data stream is empty" and purges; the sentinel is ±1e80
-# under BricsCAD, ±1e20 under AutoCAD); the authored controls read
-# MODELED; the example_2018+LINE rewrite reads MODELED — census 3,
-# real extents, the audit indistinguishable from her authored
-# original
+## THE 2026-09-30 ROUND-2 VERDICT (the first MODELED constructed
+## B-rep): the constructed Region fixture reads MODELED under
+## BricsCAD V26 — real extents (0,0)..(10,10) z=0, the audit CLEAN
+## pre+post, "Data stream is empty" GONE — after the wrapper-arm
+## round-2 chain (the ds coherence, the authored Form-A templates,
+## the slot ids, THE DATIDX FIX: entries pointing at the real
+## _data_ slot + the ASM schema instead of an empty row + the wrong
+## schema); the authored controls MODELED (the run stands);
+## AutoCAD 2027 still modeler-refuses the same fixture (the entity
+## surviving the audit, the bbox aborting "Automation Error.
+## Invalid input") — THE RESIDUE: the missing thumbnail _data_
+## row (her containers always carry the preview PNG record),
+## the evaluation-graph interposition, the product strings (the
+## maintainer decision), the revision-guid question; the earlier
+## era records: the authored controls read MODELED; the
+## example_2018+LINE rewrite MODELED — census 3, real extents, the
+## audit indistinguishable from her authored original
 ```
 
 ## Commit inventory (this halt)
 
 ```
+<feat> the wrapper-arm round-2 chain — THE FIRST MODELED CONSTRUCTED
+       B-REP (2026-09-30): BricsCAD V26 reads the constructed Region
+       fixture MODELED (real extents, clean audit, "Data stream is
+       empty" GONE) after four measured container fixes against the
+       MODELED Form-A specimens: (1) per-segment ds_version
+       era-coherent (16-tail-2018 / 17-tail-2013; ours declared 1 in
+       every segment against a 16/17 file header — an incoherence
+       neither authored form carries); (2) the three schema
+       templates REPLACED with the authored Form-A bytes VERBATIM
+       (schdat-A 384/1/14, schdat-B 256/16/9 — the EIGHT-column
+       ASM_Data schema the _data_ rows reference (the old
+       448-byte IntelliCAD-era capture defined seven) —, schidx
+       512/16/15; era-shared bit-for-bit Box_2013 vs Box_2018);
+       (3) the segment ids = the SEGIDX SLOT NUMBERS (84-90 /
+       91-96, the old 1-9 convention unresolvable) + search padded
+       to the authored 256; (4) THE DATIDX FIX — her entries point
+       segidx = the real _data_ SLOT (86/93) with schidx = 5 (the
+       AcDb3DSolid_ASM_Data schema); ours pointed at segidx=2, AN
+       EMPTY ROW (the loader resolved the region's handle into the
+       void: "Data stream is empty", the maintainer's blank screen),
+       with schidx=1 the wrong schema; the record rows' 4th field =
+       0 (her form — the blobs located by the length-prefix chain);
+       THE READER taught the same zero-offset chain form (the
+       offset-based regions mis-paired multi-SAB datastores — the
+       roundtrip suite caught region and solid SWAPPING blobs); THE
+       GATES extended to pin the per-segment ds/size/align fields
+       (keyed by name, _data_ excluded) so the hybrid class ranks;
+       the 5 ranked rows fell to 0; THE BATTERY green end-to-end
+       (suite 52, mirrors, corpus 280 at 0/0/0/0, smokes 0/0/0/0);
+       identity 7b8379b3 → 751a1a81/25,567 (identical without
+       serde); AutoCAD 2027 still modeler-refuses — the residue:
+       the missing thumbnail _data_ row (her containers ALWAYS
+       carry the preview PNG record, handle 0x22), the
+       evaluation-graph interposition, the product strings
+       (maintainer decision), the revision guid
 <docs> the asmheader-probe refutation + the next-packet ranking
        (this commit — the one-probe candidate RUN AND REFUTED:
        the version flip 232.6.0.65535 → 223.0.1.1930 moved NOTHING
