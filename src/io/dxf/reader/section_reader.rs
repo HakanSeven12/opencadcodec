@@ -492,6 +492,7 @@ fn is_class_object_name(name: &str) -> bool {
             | "TVDEVICEPROPERTIES"
             | "ACDBPOINTCLOUDDEF"
             | "POINTCLOUDDEF"
+            | "ACDBPOINTCLOUDDEF_EX"
             | "ACDBPOINTCLOUDDEFEX"
             | "POINTCLOUDDEFEX"
             | "ACDBPOINTCLOUDDEF_REACTOR"
@@ -747,14 +748,21 @@ fn class_dxf_point_cloud_ramps(
 ) -> Vec<PointCloudColorRamp> {
     let mut result = Vec::new();
     for _ in 0..fields.i32(section, 90).max(0).min(100_000) {
+        let id = fields.string(section, 1);
         let class_version = fields.i16(section, 70);
-        let mut color_schemes = Vec::new();
+        let mut colors = Vec::new();
         for _ in 0..fields.i32(section, 90).max(0).min(100_000) {
-            color_schemes.push(fields.string(section, 1));
+            let color = fields.i32(section, 91);
+            colors.push(crate::objects::PointCloudRampColor {
+                color,
+                visible: fields.bool(section, 290),
+            });
         }
         result.push(PointCloudColorRamp {
+            id,
             class_version,
-            color_schemes,
+            colors,
+            name: fields.string(section, 1),
         });
     }
     result
@@ -5534,7 +5542,7 @@ impl<'a> SectionReader<'a> {
             "ACDBPOINTCLOUDDEF" | "POINTCLOUDDEF" => ClassObjectData::PointCloudDefinition(
                 class_dxf_point_cloud_definition(&mut fields, "AcDbPointCloudDef"),
             ),
-            "ACDBPOINTCLOUDDEFEX" | "POINTCLOUDDEFEX" => ClassObjectData::PointCloudDefinitionEx(
+            "ACDBPOINTCLOUDDEF_EX" | "ACDBPOINTCLOUDDEFEX" | "POINTCLOUDDEFEX" => ClassObjectData::PointCloudDefinitionEx(
                 class_dxf_point_cloud_definition(&mut fields, "AcDbPointCloudDefEx"),
             ),
             "ACDBPOINTCLOUDDEF_REACTOR" | "POINTCLOUDDEF_REACTOR" => {
@@ -13957,6 +13965,13 @@ impl<'a> SectionReader<'a> {
         let mut crop_point = PointReader::new();
         let mut reading_crop_points = false;
         let mut crop_bool_index = 0;
+        let mut crop_points_expected = 0usize;
+        // After the crops: the hidden scans (count, then 1 each) and the hidden
+        // regions (count, then 93 each).
+        let mut hidden_scans = Vec::new();
+        let mut hidden_regions = Vec::new();
+        let mut tail_stage = 0u8;
+        let mut tail_remaining = 0usize;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -13991,11 +14006,22 @@ impl<'a> SectionReader<'a> {
                     ucs_z_direction.add_coordinate(&pair);
                 }
                 290 if crop.is_none() => locked = pair.as_i16().unwrap_or(0) != 0,
-                330 if current_subclass == "AcDbPointCloud" => {
+                // The definition is 340 under AcDbPointCloudEx (330 in files
+                // written with the older AcDbPointCloud subclass).
+                330 | 340
+                    if current_subclass == "AcDbPointCloud"
+                        || current_subclass == "AcDbPointCloudEx" =>
+                {
                     definition_handle = parse_dxf_handle(&pair.value_string)
                 }
-                360 if current_subclass == "AcDbPointCloud" => {
+                360 if current_subclass == "AcDbPointCloud"
+                    || current_subclass == "AcDbPointCloudEx" =>
+                {
                     reactor_handle = parse_dxf_handle(&pair.value_string)
+                }
+                1 if tail_stage == 1 && tail_remaining > 0 => {
+                    hidden_scans.push(pair.value_string.clone());
+                    tail_remaining -= 1;
                 }
                 1 => {
                     if name.is_empty() {
@@ -14062,7 +14088,34 @@ impl<'a> SectionReader<'a> {
                         crop_y_direction.add_coordinate(&pair);
                     }
                 }
-                93 if crop.is_some() => reading_crop_points = true,
+                93 if crop.is_some() && !reading_crop_points => {
+                    reading_crop_points = true;
+                    crop_points_expected = pair.as_i32().unwrap_or(0).max(0) as usize;
+                    // A crop without points ends here.
+                    if crop_points_expected == 0 {
+                        if let Some(mut value) = crop.take() {
+                            value.plane = crop_plane.get_point().unwrap_or(Vector3::ZERO);
+                            value.x_direction = crop_x_direction.get_point().unwrap_or(Vector3::UNIT_X);
+                            value.y_direction = crop_y_direction.get_point().unwrap_or(Vector3::UNIT_Y);
+                            croppings.push(value);
+                        }
+                    }
+                }
+                93 if crop.is_none() => match tail_stage {
+                    0 => {
+                        tail_stage = 1;
+                        tail_remaining = pair.as_i32().unwrap_or(0).max(0) as usize;
+                    }
+                    1 => {
+                        tail_stage = 2;
+                        tail_remaining = pair.as_i32().unwrap_or(0).max(0) as usize;
+                    }
+                    _ if tail_remaining > 0 => {
+                        hidden_regions.push(pair.as_i32().unwrap_or(0));
+                        tail_remaining -= 1;
+                    }
+                    _ => {}
+                },
                 13 | 23 | 33 if crop.is_some() && reading_crop_points => {
                     crop_point.add_coordinate(&pair);
                     if pair.code == 33 {
@@ -14072,6 +14125,15 @@ impl<'a> SectionReader<'a> {
                                 .push(crop_point.get_point().unwrap_or(Vector3::ZERO));
                         }
                         crop_point = PointReader::new();
+                        // The crop's last point ends it.
+                        if crop.as_ref().is_some_and(|value| value.points.len() >= crop_points_expected) {
+                            if let Some(mut value) = crop.take() {
+                                value.plane = crop_plane.get_point().unwrap_or(Vector3::ZERO);
+                                value.x_direction = crop_x_direction.get_point().unwrap_or(Vector3::UNIT_X);
+                                value.y_direction = crop_y_direction.get_point().unwrap_or(Vector3::UNIT_Y);
+                                croppings.push(value);
+                            }
+                        }
                     }
                 }
                 92 => {}
@@ -14094,8 +14156,8 @@ impl<'a> SectionReader<'a> {
                 name,
                 show_intensity,
                 show_cropping,
-                unknown_bl0: 0,
-                unknown_bl1: 0,
+                hidden_scans,
+                hidden_regions,
                 stylization_type,
                 intensity_color_scheme: strings.first().cloned().unwrap_or_default(),
                 current_color_scheme: strings.get(1).cloned().unwrap_or_default(),

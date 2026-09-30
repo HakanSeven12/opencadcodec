@@ -723,41 +723,9 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
     let show_intensity = reader.read_bit();
     let show_cropping = reader.read_bit();
     let crop_count = safe_count(reader.read_bit_long()) as usize;
-    let mut unknown_bl0 = 0;
-    let mut unknown_bl1 = 0;
-    let mut stylization_type = 0;
-    let mut intensity_color_scheme = String::new();
-    let mut current_color_scheme = String::new();
-    let mut classification_color_scheme = String::new();
-    let mut elevation_min = 0.0;
-    let mut elevation_max = 0.0;
-    let mut intensity_min = 0;
-    let mut intensity_max = 0;
-    let mut intensity_out_of_range_behavior = 0;
-    let mut elevation_out_of_range_behavior = 0;
-    let mut elevation_apply_to_fixed_range = false;
-    let mut intensity_as_gradient = false;
-    let mut elevation_as_gradient = false;
-    if crop_count == 0 {
-        unknown_bl0 = reader.read_bit_long();
-        unknown_bl1 = reader.read_bit_long();
-        stylization_type = reader.read_bit_short();
-        intensity_color_scheme = reader.read_variable_text();
-        current_color_scheme = reader.read_variable_text();
-        classification_color_scheme = reader.read_variable_text();
-        elevation_min = reader.read_bit_double();
-        elevation_max = reader.read_bit_double();
-        intensity_min = reader.read_bit_long();
-        intensity_max = reader.read_bit_long();
-        intensity_out_of_range_behavior = reader.read_bit_short();
-        elevation_out_of_range_behavior = reader.read_bit_short();
-        elevation_apply_to_fixed_range = reader.read_bit();
-        intensity_as_gradient = reader.read_bit();
-        elevation_as_gradient = reader.read_bit();
-    }
     let mut croppings = Vec::with_capacity(crop_count);
     for _ in 0..crop_count {
-        let crop_type = reader.read_bit_short();
+        let crop_type = i16::from(reader.read_byte());
         let inside = reader.read_bit();
         let inverted = reader.read_bit();
         let plane = reader.read_3bit_double();
@@ -778,6 +746,23 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
             points,
         });
     }
+    let scan_count = safe_count(reader.read_bit_long()) as usize;
+    let hidden_scans = (0..scan_count).map(|_| reader.read_variable_text()).collect();
+    let region_count = safe_count(reader.read_bit_long()) as usize;
+    let hidden_regions = (0..region_count).map(|_| reader.read_bit_long()).collect();
+    let stylization_type = reader.read_bit_short();
+    let intensity_color_scheme = reader.read_variable_text();
+    let current_color_scheme = reader.read_variable_text();
+    let classification_color_scheme = reader.read_variable_text();
+    let elevation_min = reader.read_bit_double();
+    let elevation_max = reader.read_bit_double();
+    let intensity_min = reader.read_bit_long();
+    let intensity_max = reader.read_bit_long();
+    let intensity_out_of_range_behavior = reader.read_bit_short();
+    let elevation_out_of_range_behavior = reader.read_bit_short();
+    let elevation_apply_to_fixed_range = reader.read_bit();
+    let intensity_as_gradient = reader.read_bit();
+    let elevation_as_gradient = reader.read_bit();
     ExtendedEntityData::PointCloudEx(PointCloudExData {
         class_version,
         extents_min,
@@ -792,8 +777,8 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
         name,
         show_intensity,
         show_cropping,
-        unknown_bl0,
-        unknown_bl1,
+        hidden_scans,
+        hidden_regions,
         stylization_type,
         intensity_color_scheme,
         current_color_scheme,

@@ -71,7 +71,8 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.class_version);
         self.writer.write_variable_text(&value.source_filename);
         self.writer.write_bit(value.is_loaded);
-        self.writer.write_bit_long_long(value.point_count);
+        self.writer.write_raw_long(value.point_count as i32);
+        self.writer.write_raw_long((value.point_count >> 32) as i32);
         self.writer.write_3bit_double(value.extents_min);
         self.writer.write_3bit_double(value.extents_max);
     }
@@ -79,11 +80,14 @@ impl<'a> DwgObjectWriter<'a> {
     fn write_point_cloud_ramps(&mut self, ramps: &[PointCloudColorRamp]) {
         self.writer.write_bit_long(ramps.len() as i32);
         for ramp in ramps {
+            self.writer.write_variable_text(&ramp.id);
             self.writer.write_bit_short(ramp.class_version);
-            self.writer.write_bit_long(ramp.color_schemes.len() as i32);
-            for scheme in &ramp.color_schemes {
-                self.writer.write_variable_text(scheme);
+            self.writer.write_bit_long(ramp.colors.len() as i32);
+            for color in &ramp.colors {
+                self.writer.write_bit_long(color.color);
+                self.writer.write_bit(color.visible);
             }
+            self.writer.write_variable_text(&ramp.name);
         }
     }
 

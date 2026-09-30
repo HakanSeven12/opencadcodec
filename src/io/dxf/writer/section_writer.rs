@@ -3339,7 +3339,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     }
 
     fn write_point_cloud_ex_dxf(&mut self, data: &PointCloudExData) -> Result<()> {
-        self.writer.write_subclass("AcDbPointCloud")?;
+        self.writer.write_subclass("AcDbPointCloudEx")?;
         self.writer.write_i16(70, data.class_version)?;
         self.writer.write_point3d(10, data.extents_min)?;
         self.writer.write_point3d(11, data.extents_max)?;
@@ -3348,7 +3348,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_point3d(211, data.ucs_y_direction)?;
         self.writer.write_point3d(212, data.ucs_z_direction)?;
         self.writer.write_bool(290, data.locked)?;
-        self.writer.write_handle(330, data.definition_handle)?;
+        self.writer.write_handle(340, data.definition_handle)?;
         self.writer.write_handle(360, data.reactor_handle)?;
         self.writer.write_string(1, &data.name)?;
         self.writer.write_bool(291, data.show_intensity)?;
@@ -3382,6 +3382,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             for point in &crop.points {
                 self.writer.write_point3d(13, *point)?;
             }
+        }
+        // The scans and the regions turned off.
+        self.writer.write_i32(93, data.hidden_scans.len() as i32)?;
+        for scan in &data.hidden_scans {
+            self.writer.write_string(1, scan)?;
+        }
+        self.writer.write_i32(93, data.hidden_regions.len() as i32)?;
+        for region in &data.hidden_regions {
+            self.writer.write_i32(93, *region)?;
         }
         Ok(())
     }
@@ -5835,11 +5844,14 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     ) -> Result<()> {
         self.writer.write_i32(90, ramps.len() as i32)?;
         for ramp in ramps {
+            self.writer.write_string(1, &ramp.id)?;
             self.writer.write_i16(70, ramp.class_version)?;
-            self.writer.write_i32(90, ramp.color_schemes.len() as i32)?;
-            for scheme in &ramp.color_schemes {
-                self.writer.write_string(1, scheme)?;
+            self.writer.write_i32(90, ramp.colors.len() as i32)?;
+            for color in &ramp.colors {
+                self.writer.write_i32(91, color.color)?;
+                self.writer.write_bool(290, color.visible)?;
             }
+            self.writer.write_string(1, &ramp.name)?;
         }
         Ok(())
     }
