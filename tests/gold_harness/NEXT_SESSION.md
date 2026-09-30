@@ -2292,14 +2292,17 @@ python3 tests/gold_harness/strict_load_probe.py
 ## the same — ConstructedRegion (0,0)-(10,10), ConstructedBox
 ## (±5)³, the full canonical, A2Swap's three distinct geometries,
 ## B2Swap at her coordinates, the controls — NO RECOVER PROMPTS,
-## audits "Total errors found 0". THE ROOT CHAIN, closed in four
-## packets this session: the search her-grammar + the `_data_`
-## row locators (the multi-record mispair) → the thumbnail row
-## (the container at her complete genus) → THE ERA-CODED
-## SEGMENTED TERMINATOR (the 65010 — ACAD's modeler rejected the
-## single-tag `End-of-ACIS-data` at the final record) → THE
-## MLEADER STYLE REPAIR (the every-open "3 fixed" — the
-## canonical's audit now clean with dbmod 0 pre+post). THE
+## audits "Total errors found 0". THE ROOT CHAIN, closed in five
+## content packets this session: the search her-grammar + the
+## `_data_` row locators (the multi-record mispair) → the
+## thumbnail row (the container at her complete genus) → THE
+## ERA-CODED SEGMENTED TERMINATOR (the 65010 — ACAD's modeler
+## rejected the single-tag `End-of-ACIS-data` at the final
+## record) → THE MLEADER STYLE REPAIR (the bcad-side every-open
+## "3 fixed") → THE MTEXT ATTACHMENT-REPEAT REPAIR (the
+## acad-side "2 fixed" — the canonical's audit now TOTAL ERRORS
+## 0 with dbmod 0 pre+post on BOTH loaders) — plus the widened
+## per-kind census instrument (all 29 kinds first-class).
 ## REMAINING RESIDUE: NONE ON THE CONSTRUCTED-CONTENT AXIS — the
 ## MLeader style repair (the eighth addendum) closed the canonical's
 ## bcad-side repair ("LeaderStyle Id is Null / 3 fixed") and the

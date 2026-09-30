@@ -6,15 +6,20 @@ PENDING-ZERO with `--strict`; and the strict-loader campaign it drove is
 CLOSED ON BOTH LOADERS (2026-09-30): every constructed fixture reads
 MODELED with real extents and clean audits under BricsCAD V26 AND
 AutoCAD 2027 — the B-rep construction gap (§20.1's founding blindness)
-eliminated end-to-end through the five-packet chain (the search
+eliminated end-to-end through the seven-packet chain (the search
 her-grammar + the `_data_` row locators → the thumbnail row → the
-era-coded segmented terminator → the MLeader style repair), the
+era-coded segmented terminator → the MLeader style repair → the
+widened per-kind census → the MText attachment-repeat repair; the
+canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+post on
+BOTH loaders), the
 record-identity censuses all-zero on every measured era specimen, and
 the rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
-remaining queue is the maintainer-decision tier (§19.5 version parity,
-the era censuses across the full corpora, the core-probe verdict
-vocabulary). Location: `tests/gold_harness/IMPLEMENTATION.md` — the
+remaining queue: the XLine/Ray ACAD-coverage refinement (a probe
+filter question), the MLine verts defect (gold's standing read-side
+ERROR), and the maintainer-decision tier (§19.5 version parity,
+the era censuses across the full corpora). Location:
+`tests/gold_harness/IMPLEMENTATION.md` — the
 single source of truth.
 
 > This file is the only authoritative plan for the gold-vs-silver harness.
@@ -8007,9 +8012,9 @@ per-entity census makes multi-entity probes first-class.
 
 **THE 2026-09-30 SESSION — THE STRICT-LOADER CAMPAIGN CLOSED ON
 BOTH LOADERS (the B-rep construction gap, §20.1's founding
-blindness, eliminated end-to-end through a five-packet chain; the
+blindness, eliminated end-to-end through a seven-packet chain; the
 records live in NEXT_SESSION.md's fifth- through
-eighth-continuation addenda — this is the plan-level summary):**
+tenth-continuation addenda — this is the plan-level summary):**
 
 1. **The entity-behavior verification matrix LANDED** (the
    campaign's first deliverable of the day): 29/29 entity kinds
@@ -8070,18 +8075,47 @@ eighth-continuation addenda — this is the plan-level summary):**
    MLine pattern; the caller's document unchanged). The
    canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+
    post — the first fully-clean verdict ever recorded.
+7. **The widened per-kind census** (the maintainer's coverage
+   question — "which entities are untested in autocad?"):
+   `CENSUS_KINDS` walks all 26 kinds beyond the modeler family
+   (the modeler-family aggregate keeps the NULL-BOX verdict
+   semantics). Its first full run surfaced four findings the
+   3-kind census could not see: the MLine verts defect per-entity;
+   the XLine/Ray ±1e80 boxes (the infinite-entity semantics —
+   not defects); ACAD's viewport bbox-FAIL a loader trait HER
+   OWN files show; and ACAD's audit naming the MText pair —
+   which became the next packet.
+8. **The MText attachment-repeat repair — THE ACAD AUDIT PAIR
+   CLOSED**: the probe's `QUIT _N` saves the staged copy, so the
+   audit-REPAIRED bytes were diffable — the field named per-byte
+   (`ignore_attachment: 0 → 1` + the extents recomputed). The
+   semantics: the R2018+ redundant-block header BL REPEATS THE
+   ABSOLUTE ATTACHMENT POINT (gold's field name is misleading;
+   her census: TopLeft→1, MiddleCenter→5); our constructed
+   default 0 was a corrupt repetition. The fix: the honest model
+   default + the output-copy repair (the MLeader precedent);
+   the writer's 12 inline style lookups centralized through
+   `resolve_text_style_handle` (behavior-neutral). ACCEPTANCE:
+   ACAD's audit reads TOTAL ERRORS 0 with dbmod 0 pre+post —
+   the "2 fixed" gone, the extents recompute was the corrupt
+   repetition's side effect (no follow-up).
 
 **The final matrix (both loaders, all green)**: our wrapper + our
 SAB / our wrapper + her SAB / her wrapper + our SAB / her wrapper
 + her SAB — ALL construct in BricsCAD V26 AND AutoCAD 2027; every
 constructed fixture + the full gen_all canonical + both chimeras
-+ all controls MODELED with real extents, clean audits, dbmod 0.
-**The battery**: suite 1607, the mirrors green, the four family
++ all controls MODELED with real extents, clean audits, dbmod 0 —
+and the canonical's audit reads TOTAL ERRORS 0 on BOTH loaders
+(the two loader-side repairs closed: the bcad MLeader fix + the
+acad MText fix).
+**The battery**: suite 1608, the mirrors green, the four family
 smokes 0/0, the corpus 280 at 0/0/0/0, the genus gates
 PENDING-ZERO with `--strict` (sab_form 0/3, sh_genus 0/1, acds 0),
-the generation identity `c09dd7cc…`/25,567 (serde parity), the
-example_2018 era census 474/474. **The remaining queue** (the
-maintainer-decision tier): the §19.5 version-parity tiers; the
-core-probe verdict vocabulary (the transcript classifier); the
-era censuses across the full era corpora; the §19.4/§F2
+the generation identity `36279922…`/25,696 (serde parity), the
+era censuses 474/474 (example_2018) + 735/735 (example_2004)
+re-verified on the MText-bearing specimens. **The remaining
+queue**: the XLine/Ray ACAD-coverage refinement (a probe filter
+question); the MLine verts defect (gold's standing read-side
+ERROR); the maintainer-decision tier — the §19.5 version-parity
+tiers, the era censuses across the full era corpora, the §19.4/§F2
 future-work rows.

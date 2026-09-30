@@ -479,20 +479,28 @@ LOGSEC lines still rank the failure. A Windows-visible host and the
 loader installs are required; stray loader processes poison
 subsequent launches — kill them (by PID for `acad.exe`) before
 re-running. **The current recorded verdicts** (2026-09-30, the
-terminator packet — seventh-continuation):
+tenth-continuation state):
 **the B-rep construction gap is CLOSED on both loaders** — every
 constructed fixture reads MODELED with real extents and clean
 audits under BricsCAD V26 AND AutoCAD 2027 (Region `0..10`, Box
 `±5`³, the full gen_all canonical, all nine fixtures; the A-2
 distinct-geometry probe reads every entity at its OWN SAB's
 geometry; the chimeras construct in both directions on both
-loaders). The root chain closed in three packets: the search
-her-grammar + the `_data_` row locators (the multi-record
+loaders), the widened per-kind census walks all 29 kinds (the
+canonical's every kind has first-class bbox evidence), and the
+canonical's audit reads TOTAL ERRORS 0 with dbmod 0 pre+post on
+BOTH loaders. The root chain closed in five content packets: the
+search her-grammar + the `_data_` row locators (the multi-record
 mispair), the thumbnail row (the container at her complete
-genus), and the era-coded segmented End-of-* terminator (ACAD's
+genus), the era-coded segmented End-of-* terminator (ACAD's
 modeler rejected the old single-tag form with the 65010 Modeling
 Operation Error at open-time regeneration — the accoreconsole
-transcript named it; no RECOVER prompts remain).
+transcript named it; no RECOVER prompts remain), the MLeader
+style repair (the bcad-side "LeaderStyle Id is Null / 3 fixed"),
+and the MText attachment-repeat repair (the acad-side
+"AcDbMText was repaired / 2 fixed" — the R2018+ redundant block
+repeats the absolute attachment point; a zero there is a corrupt
+repetition).
 
 **AUDIT reports — the loaders' own logs, harvested verbatim
 (2026-09-30, the maintainer's directive).** The 2026-09-29 "no log
