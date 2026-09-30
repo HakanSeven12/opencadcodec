@@ -1,4 +1,75 @@
-# THE 2026-09-30 FOURTH-CONTINUATION ADDENDUM (the halt head — read
+# THE 2026-09-30 FIFTH-CONTINUATION ADDENDUM (the halt head — read
+# this first): **THE SEARCH-SEGMENT FORMAT DEFECT — A REAL
+# MULTI-RECORD WRITER BUG, MEASURED AND LOCALIZED.** The A-2
+# chimera-artifact investigation (the halt's rank-(b) question)
+# resolved NOT to an instrument artifact but to a WRITER DEFECT:
+# (1) THE EMITTED-FILE AUDIT: the A-2 chimera's container pairs
+# our (identity-flipped, 1707-byte) SAB with row[0] = handle 0x176
+# — our reader's own view confirms (entity order 176, 2E1, 37D;
+# sab_lens 1707/8798/2196; anchors 5,5,0 / hers / hers) — YET
+# THE MODELER REPORTED ent[37D] AT OUR (0,0)-(10,10) EXTENTS:
+# the modeler resolved handle 37D → RECORD 0 (our blob). The
+# modeler's handle→record resolution DISAGREES with our row
+# pairing — it does not walk our row/chain layout as we emit it.
+# (2) THE FORMAT DIVERGENCE (the search segments compared):
+# HER search opens schema[0] with namidx=0 and a different entry
+# shape (her Form-B example_2018 and her Form-A Box_2018 both);
+# OURS writes schema[0] = namidx=1 with `i<<32` record keys,
+# schema[1] = namidx=0 with (handle, 1, record) 24-byte entries
+# (the A-2 file's search: entries 0x176→0, 0x2E1→1, 0x37D→2 —
+# SELF-CONSISTENT with our rows, but NOT the format the modeler
+# parses). The modeler reads OUR search as HER format and lands
+# on garbage → 37D resolves to record 0.
+# (3) WHY EVERYTHING MODELED ANYWAY (the invisibility): a
+# SINGLE-record container cannot mispair (record 0 is the only
+# answer — every plain fixture modeled); the all-her-blobs
+# control modeled because every mispaired blob was still valid
+# her-geometry. THE DEFECT BITES EDITED MULTI-SOLID DOCUMENTS:
+# an authored file with several 3DSOLID/REGION entities, edited
+# and rewritten through the conventional arm, gets MISPAIRED
+# GEOMETRY per entity (entity A renders entity B's B-rep).
+# (4) THE DESIGNED NEXT PACKET (the next session's first work):
+# decode HER search format empirically — Box_2018's Form-A
+# search (256B, 2 records: thumbnail 0x22 + solid 0x2EA; the
+# full bytes at /tmp/v9/box_acds_full.hex, search slot off
+# 11648) + Box_2013's + example_2018's Form-B search — anchored
+# on the known handles (0x22, 0x2EA) and record counts; gold's
+# acds.spec does NOT document the search interior (the segment
+# walker names it but the "yet unhandled" warnings confirm no
+# interior parse) — then REWRITE build_acds_search_segment
+# (dwg_writer.rs) to her layout, regenerate, and ACCEPT via the
+# A-2-style probe (a multi-record file with DISTINCT geometries:
+# every ent[h] bbox must match its OWN SAB's geometry — the
+# mispairing becomes visible), then the full battery + the
+# ACAD re-probe (the search fix may also move the ACAD
+# residue — re-probe the plain fixture after).
+# (5) THE SESSION'S EARLIER VERDICTS STAND (the fourth
+# addendum's record): the B-rep construction gap closed in
+# BricsCAD (the coherent chimeras both MODEL), the anchor-
+# coherence discovery, the identity cleared on both loaders
+# (the flip REVERTED — the author-identity rule stands; NOTE:
+# the A-2/B-2 chimeras were built while the identity flip was
+# still staged, so they carry the 1707-byte flipped SAB — the
+# coherence verdicts are unaffected: the flipped SAB was
+# independently proven MODELED under bcad).
+# (6) THE BATTERY at this halt: suite 52 green; the gates
+# PENDING-ZERO with --strict (sab_form 0/3, sh_genus 0/1, acds
+# 0); the identity 751a1a81…/25,567 (the flips reverted, the
+# tree clean except the committed instrument); the corpus +
+# smokes unchanged from the round-2 landing.
+# THE NEXT WORK, ranked: (a) THE SEARCH-FORMAT PACKET (above —
+# a real correctness defect, the highest-value fix); (b) the
+# ACAD residue re-probe after the search fix; (c) the
+# maintainer's ACAD hand-open request (stands); (d) the
+# gen_all ent[0] `stringp nil` MLeader follow-up.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
+#
+# === THE FOURTH-CONTINUATION ADDENDUM (the B-rep gap closed in
+# BricsCAD + the anchor-coherence discovery) follows as
+# history ===
+# THE 2026-09-30 FOURTH-CONTINUATION ADDENDUM (the B-rep gap closed in
 # this first): **THE B-REP CONSTRUCTION GAP IS CLOSED IN BRICSCAD —
 # BOTH CHIMERA ARMS EXONERATED — THE OLD CHIMERAS' "TWO DEFECTS"
 # CONCLUSION IS SUPERSEDED BY THE ANCHOR-COHERENCE DISCOVERY.**
@@ -1683,6 +1754,21 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the fifth-continuation halt record (this commit — the
+       operative handover head: THE SEARCH-SEGMENT FORMAT DEFECT
+       measured and localized — a real multi-record writer bug
+       (the modeler resolves 37D to record 0 against our emitted
+       row pairing; her search opens namidx=0 with a different
+       entry shape); the invisibility explained (single-record
+       cannot mispair; the all-her-blobs control hides it); THE
+       DESIGNED SEARCH-FORMAT PACKET (decode her search layout
+       from the specimens, rewrite build_acds_search_segment,
+       accept via the multi-record distinct-geometry probe);
+       the fourth addendum's verdicts stand (the A-2/B-2
+       chimeras carry the identity-flipped 1707-byte SAB from
+       the staged flip — the coherence findings unaffected);
+       the zero-context reading order stands, STARTING at the
+       fifth-continuation addendum)
 <docs> the fourth-continuation halt record (this commit — the
        operative handover head: THE B-REP CONSTRUCTION GAP CLOSED
        IN BRICSCAD, both chimera arms exonerated, the
