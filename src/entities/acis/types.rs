@@ -125,11 +125,14 @@ pub struct SatHeader {
     pub product_version: String,
     /// File creation date string.
     pub date: String,
-    /// Spatial resolution (minimum edge length, typically 1e-06).
+    /// First value of the tolerance line: millimetres per model unit (1 for
+    /// millimetres, 25.4 for inches) — not a tolerance, despite the name.
     pub spatial_resolution: f64,
-    /// Normal tolerance (angular tolerance in radians, typically ~1e-07).
+    /// Second value: resabs, the absolute (distance) tolerance, typically
+    /// 1e-06. This is the one to fit geometry to.
     pub normal_tolerance: f64,
-    /// Fit tolerance for approximation (ACIS 7.0+, typically 1e-10).
+    /// Third value (ACIS 7.0+): resnor, the normal/angular tolerance,
+    /// typically 1e-10.
     pub resfit_tolerance: Option<f64>,
 }
 
