@@ -14778,9 +14778,8 @@ impl<'a> SectionReader<'a> {
                 11 | 21 if is_mpolygon && current_subclass == "AcDbMPolygon" => {
                     mpolygon_x_direction.add_coordinate(&pair);
                 }
-                99 if is_mpolygon => {
-                    hatch.mpolygon_boundary_handle_count = pair.as_i32().unwrap_or(0)
-                }
+                // Invalid-loop count; the loops themselves are not read from DXF.
+                99 if is_mpolygon => {}
                 70 => {
                     if let Some(solid_fill) = pair.as_i16() {
                         hatch.is_solid = solid_fill != 0;

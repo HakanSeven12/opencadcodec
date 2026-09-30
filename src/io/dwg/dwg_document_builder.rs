@@ -3773,7 +3773,11 @@ impl DwgDocumentBuilder {
                     e.seed_points = data.seed_points;
                     e.mpolygon_hatch_color = data.mpolygon_hatch_color;
                     e.mpolygon_x_direction = data.mpolygon_x_direction;
-                    e.mpolygon_boundary_handle_count = data.mpolygon_boundary_handle_count;
+                    e.mpolygon_invalid_loops = data
+                        .mpolygon_invalid_loops
+                        .into_iter()
+                        .map(boundary_path_from_dwg)
+                        .collect();
                     // Map gradient data
                     e.gradient_color.enabled = data.gradient_enabled;
                     e.gradient_color.reserved = data.gradient_reserved;
