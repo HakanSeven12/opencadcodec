@@ -4,42 +4,105 @@
 # top to bottom): THE CAMPAIGN STATE — the corpus at 280 files
 # 0/0/0/0 on all four axes; the genus gate queue PENDING-ZERO with
 # --strict passing; **THE B-REP CONSTRUCTION GAP IS CLOSED ON BOTH
-# LOADERS — THE ACAD AXIS FELL AT THE TERMINATOR PACKET** (the
-# final root: the SAB stream's End-of-* record — HER SEGMENTED
-# ERA-CODED FORM; our old single-tag form survived every genus
-# invariant and BricsCAD's restorer but ACAD's modeler rejected
-# the stream at the final record — the 65010); **THE MLEADER
-# STYLE DEFECT IS CLOSED TOO** (the gen_all canonical's audit
-# "LeaderStyle Id is Null / 3 fixed" — the eighth addendum: the
-# output-copy repair fills the style pointer from the document's
-# Standard MLEADERSTYLE exactly like the Table/MLine repairs; the
-# canonical's audit now reads TOTAL ERRORS 0 everywhere with
-# dbmod 0 pre+post); **THE PROBE'S CENSUS IS WIDENED TO EVERY
-# KIND** (the ninth addendum: the per-entity census walks all 26
-# non-modeler kinds now — the canonical's every kind has first-class
-# bbox evidence on both loaders; the findings: the MLine verts
-# defect surfaced per-entity, the XLine/Ray null-boxes are the
-# infinite-entity semantics, ACAD's viewport "Invalid extents" is
-# a loader trait HER OWN files show, and ACAD's audit names the
-# MText pair "was repaired" — THE NEW QUEUE HEAD): every
-# constructed fixture MODELS under BricsCAD V26 AND AutoCAD 2027
-# with real extents and clean audits, the multi-record mispair is
-# GONE, the complete chimera matrix holds on both loaders, the
-# container is at her complete genus (the search her-grammar + the
-# row locators + the thumbnail record — byte-identical against
-# her Box_2018 on every structural slot); the entity-behavior
-# verification matrix is LANDED (29/29 kinds on five axes). ALL
-# INSTRUMENTS CURRENT: the probe (AUDIT channels + stall guards +
-# the core-console arm + the widened census), the entity
-# verification harness, the genus gates + the extended pin, the
-# record census, the chimera coherent-swap instrument. THE FIRST
-# ACTION for the zero-context agent: re-verify the battery (the
-# verification gate section below), read the ninth addendum's
-# record, then the residual queue (THE MTEXT REPAIR — ACAD's audit
-# names AcDbMText(3B)/AcDbMText(40) "was repaired", the MLeader
-# investigation pattern applies; the §19.5 version-parity tiers —
-# maintainer decisions; the era censuses across the full era
-# corpora).
+# LOADERS — THE ACAD AXIS FELL AT THE TERMINATOR PACKET**; **THE
+# MLEADER STYLE DEFECT IS CLOSED** (the canonical's audit TOTAL
+# ERRORS 0 with dbmod 0 pre+post); **THE MTEXT REPAIR IS CLOSED
+# TOO** (the tenth addendum: the widened census named the pair
+# "AcDbMText was repaired / 2 fixed"; the repaired-staged-copy
+# diff named the field — the R2018+ redundant block's repeated
+# attachment point, our constructed default 0 a corrupt
+# repetition; the honest model default + the output-copy repair;
+# ACAD's audit now reads TOTAL ERRORS 0 — the extents recompute
+# was the repair's side effect, NO follow-up); **THE PROBE'S
+# CENSUS IS WIDENED TO EVERY KIND** (the ninth addendum — the
+# canonical's every kind has first-class bbox evidence on both
+# loaders; the XLine/Ray pair the one ACAD-selection gap, a probe
+# refinement): every constructed fixture MODELS under BricsCAD
+# V26 AND AutoCAD 2027 with real extents and clean audits, the
+# multi-record mispair is GONE, the complete chimera matrix holds
+# on both loaders, the container is at her complete genus; the
+# entity-behavior verification matrix is LANDED (29/29 kinds on
+# five axes). ALL INSTRUMENTS CURRENT: the probe (AUDIT channels +
+# stall guards + the core-console arm + the widened census), the
+# entity verification harness, the genus gates + the extended
+# pin, the record census, the chimera coherent-swap instrument.
+# THE FIRST ACTION for the zero-context agent: re-verify the
+# battery (the verification gate section below), read the tenth
+# addendum's record, then the residual queue (the XLine/Ray
+# ACAD-coverage refinement; the MLine verts defect — gold's
+# standing ERROR; the §19.5 version-parity tiers — maintainer
+# decisions; the era censuses across the full era corpora).
+#
+# === THE TENTH-CONTINUATION ADDENDUM (the MText repair — the
+# widened census's first closure; read this first, then the ninth
+# addendum as history): **THE MTEXT PAIR IS CLOSED — ACAD'S AUDIT
+# READS TOTAL ERRORS 0 ON THE CANONICAL, AND THE EXTENTS QUESTION
+# CLOSED ITSELF.** The ninth addendum's queue head, run to its
+# root in one packet:
+#
+# (1) THE EMPIRICAL PATH (the MLeader pattern, sharpened by the
+# probe's own save semantics): ACAD's audit log names the entity
+# but not the field — BUT THE PROBE'S `QUIT _N` SAVES THE STAGED
+# COPY, so the staged file after the ACAD run carries the
+# AUDIT-REPAIRED BYTES. The dwg2json diff of the repaired staged
+# copy vs our canonical named the repair EXACTLY, per field:
+# `ignore_attachment: 0 → 1` + `extents recomputed` (0/0 →
+# real). THE FIELD'S TRUE SEMANTICS (the census): gold's
+# `ignore_attachment` name is MISLEADING — the R2018+ redundant-
+# block header BL REPEATS THE ABSOLUTE ATTACHMENT POINT (her
+# TopLeft MTexts carry 1, her MiddleCenter carry 5 — the enum's
+# discriminants match the wire values exactly; mtext.rs's own doc
+# comment already recorded "AutoCAD repeats the absolute
+# attachment point here"). Our CONSTRUCTED MTexts carried the
+# raw default 0 — A CORRUPT REPETITION; the DWG-read path
+# captures the authored value verbatim (the corpus roundtrips
+# never saw it).
+#
+# (2) THE FIX, TWO LAYERS: (a) THE HONEST MODEL DEFAULT —
+# `MText::new` now mirrors the attachment repeat (TopLeft → 1),
+# so every constructed MText carries the true repetition and the
+# same-version roundtrips stay symmetric; (b) THE OUTPUT-COPY
+# REPAIR (the MLeader precedent) — `prepare_database_references`
+# normalizes a zero `ignore_attachment` to the attachment-point
+# repeat (non-zero captures write verbatim — the authored
+# fidelity); the unit test pins both sides (the prepared copy
+# carries the repeat, the caller's document stays untouched).
+# THE VERSION-GATED LOSS documented in the deep roundtrip tests:
+# the R2018+ redundant block has no pre-R2018 wire slot (the
+# R2000 test's filter + the R2013 test's allowance — the write
+# legitimately drops it there).
+#
+# (3) THE ACCEPTANCE, LANDED LIVE (2026-09-30, AutoCAD 2027): the
+# canonical's audit reads `Total errors found 0 fixed 0` with
+# dbmod 0 pre+post — THE "2 fixed" IS GONE, and THE EXTENTS DID
+# NOT TRIGGER A REPAIR: the recompute was the repair pass's side
+# effect (the corrupt repetition flagged the entity; the repair
+# recomputed the extents along the way) — with the repetition
+# healthy there is NO repair and NO extents follow-up. The
+# census: 31 entities, the 2 viewport bbox-FAILs the known loader
+# trait (her own files show it), everything else real bboxes.
+#
+# (4) THE BATTERY at this halt: the suite 1608 green (the new
+# repair test in; the deep-test allowances updated); the mirrors
+# green; the genus gates PENDING-ZERO with --strict; the era
+# censuses re-verified on the MText-bearing specimens
+# (example_2018 474/474 + example_2004 735/735 — record-identical,
+# the repair never fires on authored reads); the four family
+# smokes 0/0; the corpus 280 at 0/0/0/0; the identity MOVED to
+# 36279922e95cd1539cc67562ee1dd082 (the canonical's MText records
+# carry the honest repeat — an intended content change; identical
+# without --features serde; the history: c09dd7cc at the MLeader
+# repair → 36279922 here).
+#
+# THE NEXT WORK, ranked: (a) the XLine/Ray ACAD-coverage
+# refinement (the one remaining untested pair — the unfiltered
+# ssget type dump); (b) the MLine verts defect (gold's standing
+# ERROR — per-entity visible on the loader axis); (c) the §19.5
+# version-parity tiers (maintainer decisions); (d) the era
+# censuses across the full era corpora.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE NINTH-CONTINUATION ADDENDUM (the widened census — every
 # kind walks the loader probes; read this first, then the eighth
@@ -2031,12 +2094,13 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `c09dd7cceb5d31060a593bc9eed6d1f7`,
-  25,567 bytes (moved at the 2026-09-30 five-packet session chain —
+- The generation identity is `36279922e95cd1539cc67562ee1dd082`,
+  25,696 bytes (moved at the 2026-09-30 six-packet session chain —
   the search segment's her-grammar rewrite, the `_data_` row
   locators, the thumbnail record with its +1 shifts, the
-  era-coded segmented terminator, and the MLeader style
-  repair; the identity history: `84374e73…` through the §20
+  era-coded segmented terminator, the MLeader style
+  repair, and the MText attachment-repeat default; the identity
+  history: `84374e73…` through the §20
   landing → `4265c04a…` at G-C → `0e8b23cd…` at the
   vertex packet → `a8f227e0…` at the asmheader packet →
   `a7c5f170…` at the tolerance packet → `e4cd1960…` at the
@@ -2048,7 +2112,8 @@ era specimens (the era censuses all-zero).
   `751a1a81…` at the datidx fix → `1dfaff0a…` at the search-only
   rewrite → `a4a9240d…` at the row locator → `5ac4ef34…` at the
   thumbnail row → `fc8be96c…` at the terminator → `c09dd7cc…`
-  at the MLeader style repair). The generator
+  at the MLeader style repair → `36279922…` at the MText
+  attachment repeat). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -2157,15 +2222,16 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# c09dd7cceb5d31060a593bc9eed6d1f7, 25,567 bytes (moved at the
-# 2026-09-30 five-packet session chain — the search her-grammar
+# 36279922e95cd1539cc67562ee1dd082, 25,696 bytes (moved at the
+# 2026-09-30 six-packet session chain — the search her-grammar
 # rewrite, the `_data_` row locators, the thumbnail record + its
 # +1 shifts, the era-coded segmented terminator, the MLeader
-# style repair; earlier history:
+# style repair, the MText attachment-repeat default; earlier
+# history:
 # 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
 # search-only rewrite → a4a9240d… at the row locator →
 # 5ac4ef34… at the thumbnail row → fc8be96c… at the terminator →
-# c09dd7cc… here)
+# c09dd7cc… at the MLeader repair → 36279922…/25,696 here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -2235,18 +2301,62 @@ python3 tests/gold_harness/strict_load_probe.py
 ## MLEADER STYLE REPAIR (the every-open "3 fixed" — the
 ## canonical's audit now clean with dbmod 0 pre+post). THE
 ## REMAINING RESIDUE: NONE ON THE CONSTRUCTED-CONTENT AXIS — the
-## MLeader style repair (the eighth addendum) closed the last one:
-## the canonical's audit now reads TOTAL ERRORS 0 with dbmod 0
-## pre+post (previously "LeaderStyle Id is Null / 3 fixed" at
-## every open). The remaining queue is the maintainer-decision
-## tier: the §19.5 version-parity tiers (R13/R14, pre-R13); the
-## core-probe verdict vocabulary (the transcript classifier); the
-## era censuses across the full era corpora.
+## MLeader style repair (the eighth addendum) closed the canonical's
+## bcad-side repair ("LeaderStyle Id is Null / 3 fixed") and the
+## MText attachment-repeat repair (the tenth addendum) closed the
+## ACAD-side pair ("AcDbMText was repaired / 2 fixed"): the
+## canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+post
+## on BOTH loaders. The remaining queue: the XLine/Ray ACAD-coverage
+## refinement (a probe filter question); the MLine verts defect
+## (gold's standing ERROR — a §19-era read-side residue); the
+## maintainer-decision tier: the §19.5 version-parity tiers (R13/R14,
+## pre-R13); the era censuses across the full era corpora.
 ```
 
 ## Commit inventory (this halt)
 
 ```
+<docs> the tenth-continuation halt record (this commit — the
+       operative handover head: THE MTEXT REPAIR CLOSED [the
+       empirical path — the probe's QUIT _N saves the staged copy,
+       so the audit-repaired bytes were diffable; the field named
+       EXACTLY: the R2018+ redundant block's repeated attachment
+       point, gold's `ignore_attachment` name misleading]; the
+       two-layer fix [the honest model default + the output-copy
+       repair]; the acceptance [ACAD's audit TOTAL ERRORS 0, the
+       extents recompute a repair side effect — no follow-up];
+       the battery [suite 1608, censuses 474/474 + 735/735,
+       corpus 0/0/0/0, identity 36279922/25,696 serde-parity];
+       the residual queue ranked; the reading order stands,
+       STARTING at the tenth addendum)
+<feat> the MText attachment-repeat repair — THE ACAD AUDIT PAIR
+       CLOSED: the widened census named "AcDbMText(3B)/(40) was
+       repaired / 2 fixed"; the repaired-staged-copy diff named
+       the field per-byte (ignore_attachment 0→1 + the extents
+       recomputed); the semantics: the R2018+ redundant-block
+       header BL REPEATS THE ABSOLUTE ATTACHMENT POINT (her
+       TopLeft→1, MiddleCenter→5 — the census; the mtext.rs doc
+       already recorded it); our constructed default 0 was a
+       CORRUPT REPETITION. THE FIX: (a) MText::new's honest
+       default (the attachment repeat — TopLeft→1) so the
+       same-version roundtrips stay symmetric; (b) the
+       output-copy repair (prepare_database_references: zero →
+       the attachment-point repeat; non-zero captures verbatim —
+       the MLeader precedent); the unit test pins both sides;
+       the deep-test allowances document the version-gated loss
+       (the R2018+ redundant block has no pre-R2018 wire slot:
+       the R2000 filter + the R2013 allowance). ACCEPTANCE
+       (AutoCAD 2027): the canonical's audit reads Total errors
+       found 0 fixed 0 with dbmod 0 pre+post — THE "2 fixed" GONE
+       and NO extents repair (the recompute was the corrupt
+       repetition's side effect); census 31, the viewport
+       bbox-FAILs the known loader trait. The era censuses
+       re-verified on the MText-bearing specimens (example_2018
+       474/474 + example_2004 735/735 — record-identical, the
+       repair never fires on authored reads); identity c09dd7cc →
+       36279922/25,696 (identical without serde); suite 1608
+       green, mirrors green, corpus 280 at 0/0/0/0, gates
+       pending-zero with --strict
 <docs> the ninth-continuation halt record (this commit — the
        operative handover head: THE PROBE'S CENSUS WIDENED TO
        EVERY KIND + the four findings [the MLine verts defect
