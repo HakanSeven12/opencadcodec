@@ -171,6 +171,28 @@ impl SabEra {
         }
     }
 
+    /// The End-of-* terminator's full byte form — HER SEGMENTED
+    /// SHAPE (measured 2026-09-30 across the specimen family, all
+    /// four eras): the name as chained SUBTYPE segments "End" +
+    /// "of" + <flavor>, then the ENTITY_TYPE segment "data". The
+    /// flavor word is ERA-CODED, not magic-coded: the 21200/21500
+    /// flavors terminate "End-of-ACIS data", the 21800/22300
+    /// flavors "End-of-ASM data" — R2013's carriers still write
+    /// the `ACIS BinaryFile` magic yet carry the ASM terminator.
+    /// The old single-tag `End-of-ACIS-data` form survived every
+    /// genus invariant (the walker normalizes the name chain) and
+    /// BricsCAD's lenient restorer, but the format author's
+    /// stricter modeler rejects the stream at the final record
+    /// (the 2026-09-30 core-console probe: `Modeling Operation
+    /// Error: Error Code Number is 65010` at open-time model
+    /// regeneration).
+    fn terminator(self) -> &'static [u8] {
+        match self {
+            SabEra::R2013 | SabEra::R2018 => b"\x0e\x03End\x0e\x02of\x0e\x03ASM\x0d\x04data",
+            _ => b"\x0e\x03End\x0e\x02of\x0e\x04ACIS\x0d\x04data",
+        }
+    }
+
     fn modern_coedge_pcurve(self) -> bool {
         matches!(self, SabEra::R2013 | SabEra::R2018)
     }
@@ -294,8 +316,9 @@ impl SabWriter {
             Self::write_record(&mut buf, record);
         }
 
-        // End marker: entity type "End-of-ACIS-data" with no end-of-record tag
-        Self::write_entity_type(&mut buf, "End-of-ACIS-data");
+        // End marker — HER SEGMENTED FORM, era-flavored (see
+        // `SabEra::terminator`).
+        buf.extend_from_slice(era.terminator());
 
         buf
     }
@@ -1870,8 +1893,11 @@ mod tests {
         // Check version
         let ver = u32::from_le_bytes([sab[15], sab[16], sab[17], sab[18]]);
         assert_eq!(ver, 700);
-        // Check End-of-ACIS-data is present
-        let end_str = b"End-of-ACIS-data";
+        // Check End-of-ACIS-data is present — HER SEGMENTED FORM (the
+        // 2026-09-30 terminator packet: the name as chained SUBTYPE
+        // segments + the ENTITY_TYPE "data"; the legacy era carries
+        // the ACIS flavor word)
+        let end_str = b"\x0e\x03End\x0e\x02of\x0e\x04ACIS\x0d\x04data";
         assert!(sab.windows(end_str.len()).any(|w| w == end_str));
     }
 
@@ -2255,6 +2281,14 @@ mod tests {
                 era_expected[23..27].copy_from_slice(&era.bodies_field(1).to_le_bytes());
                 era_expected[27..31]
                     .copy_from_slice(&era.history_field(doc.header.has_history).to_le_bytes());
+                // The terminator is era-flavored (the 2026-09-30
+                // terminator packet): the legacy reference ends with
+                // the segmented ACIS form; the R2013/R2018 targets
+                // carry the ASM flavor word (one byte shorter).
+                let legacy_term = SabEra::Legacy.terminator();
+                let base_len = era_expected.len() - legacy_term.len();
+                era_expected.truncate(base_len);
+                era_expected.extend_from_slice(era.terminator());
                 assert_eq!(solid.acis_data.sab_data, era_expected, "DWG {version:?}");
             }
         }
