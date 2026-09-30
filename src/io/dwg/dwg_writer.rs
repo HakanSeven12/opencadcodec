@@ -2789,16 +2789,41 @@ fn build_acds_jard_header(profile: &AcDsEraProfile, file_size: u32) -> Vec<u8> {
 
 /// Build `_data_` segment id=2 containing one SAB record per ACIS entity.
 ///
-/// A contiguous 20-byte record table precedes the length-prefixed SAB blobs.
-/// Offsets in the table are relative to the aligned blob area, not the segment.
+/// **HER record-row form (the 2026-09-30 row-locator fix — measured on
+/// example_2018 [4 rows: LOCs 0 / 0x7e5 / 0xe96 / 0x30f8] and Box_2018
+/// [LOCs 0 / 0x384] against the chunk chain)**: a contiguous 20-byte
+/// record table —
+///
+/// ```text
+/// (col0 = 0x14 = the row's own size, 1, the owner handle, 0,
+///  LOC = the row's chunk offset within the aligned blob area)
+/// ```
+///
+/// — then 0x62 alignment fill to the blob area (her own filler byte),
+/// then the length-prefixed chunks `[len u32][blob]` in row order at
+/// `blob_base + LOC_i`. LOC_0 is 0 and each LOC is the cumulative sum
+/// of the previous chunks' total sizes (4-byte prefix + blob), so row
+/// i's chunk sits exactly where its locator points. The 4th u32 stays
+/// ZERO (the datidx-fix measurement), and the datidx's row offsets
+/// (i*20) name the row positions exactly.
+///
+/// The multi-record writer defect this row form closes: our old table
+/// wrote 16-byte rows with NO locator, so the modeler walking the
+/// author's 20-byte stride landed its row reads misaligned — the
+/// record resolution collapsed to near-sequence-zero garbage (the
+/// A-2 audit: 37D rendered row 0's blob, 176/2E1 "Data stream is
+/// empty").
 fn build_acds_data2_segment(
     entries: &[(Handle, Vec<u8>)],
     segment_idx: u32,
     ds_version: u32,
 ) -> Vec<u8> {
-    let table_size = align16(entries.len() * 20);
+    let table_size = entries.len() * 20;
+    let blob_base = 48 + table_size;
+    let align_pad = (16 - blob_base % 16) % 16;
+    let data_start = blob_base + align_pad;
     let records_size: usize = entries.iter().map(|(_, sab)| 4 + sab.len()).sum();
-    let raw_size = 48 + table_size + records_size;
+    let raw_size = data_start + records_size;
     let seg_size = align16(raw_size);
     let padding = seg_size - raw_size;
 
@@ -2812,20 +2837,25 @@ fn build_acds_data2_segment(
     seg.extend_from_slice(&ds_version.to_le_bytes()); // ds_version (era-coherent, NOT the record count)
     seg.extend_from_slice(&0u32.to_le_bytes()); // unknown_3
     seg.extend_from_slice(&0u32.to_le_bytes()); // meta field1 = 0
-    seg.extend_from_slice(&((48 + table_size) as u32 / 16).to_le_bytes()); // objdata_algn_offset
+    seg.extend_from_slice(&((data_start / 16) as u32).to_le_bytes()); // objdata_algn_offset
     seg.extend_from_slice(&[0x55; 8]); // fill "UUUUUUUU"
 
-    for (handle, _sab_data) in entries {
-        seg.extend_from_slice(&0x14u32.to_le_bytes()); // col0 = 20
+    // The 20-byte record rows (five u32 words) with the per-row chunk
+    // locators — the handle is a plain u32 word (her rows: the value's
+    // high word is always zero).
+    let mut loc: u32 = 0;
+    for (handle, sab_data) in entries {
+        seg.extend_from_slice(&0x14u32.to_le_bytes()); // col0 = the row size (20)
         seg.extend_from_slice(&1u32.to_le_bytes()); // schema revision, not record index
-        seg.extend_from_slice(&handle.value().to_le_bytes());
-        // The 4th u32 is ZERO in the authored rows (measured: her
-        // thumbnail row and her solid row both carry 0) — the record
-        // blobs are located by walking the length-prefixed chain
-        // from the aligned records area, not by per-row offsets.
-        seg.extend_from_slice(&0u32.to_le_bytes());
+        seg.extend_from_slice(&(handle.value() as u32).to_le_bytes());
+        seg.extend_from_slice(&0u32.to_le_bytes()); // the 4th u32: ZERO (the datidx-fix measurement)
+        seg.extend_from_slice(&loc.to_le_bytes()); // the chunk locator (cumulative offsets)
+        loc += 4 + sab_data.len() as u32;
     }
-    seg.resize(48 + table_size, 0x62);
+    debug_assert_eq!(seg.len(), blob_base);
+    // Her alignment filler to the 16-byte-aligned blob area, then the
+    // chunks in row order.
+    seg.extend(std::iter::repeat(0x62u8).take(align_pad));
     for (_, sab_data) in entries {
         seg.extend_from_slice(&(sab_data.len() as u32).to_le_bytes()); // SAB blob size
         seg.extend_from_slice(sab_data);
@@ -2885,55 +2915,75 @@ fn build_acds_datidx(
     for i in 0..num {
         seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (→ the real _data_ slot)
         seg[pos + 4..pos + 8].copy_from_slice(&((i as u32) * 20).to_le_bytes()); // offset (the record row)
-        seg[pos + 8..pos + 12].copy_from_slice(&5u32.to_le_bytes()); // schidx (the ASM_Data schema)
+        seg[pos + 8..pos + 12].copy_from_slice(&ACDS_ASM_SCHEMA_IDX.to_le_bytes()); // schidx (the ASM_Data schema)
         pos += 12;
     }
     seg
 }
 
-/// Build `search` segment id=7 — the datastore's two per-schema sorted lookup
-/// indexes (matching the documented DWG datastore layout).
+/// Build `search` segment id=7 — the datastore's per-schema lookup indexes,
+/// HER authored layout (the 2026-09-30 search-format packet).
 ///
-/// Both schemas start with `namidx (RL)` + `count (RL)`. Schema 0 (the record-ID
-/// schema, namidx=1) then holds `count` 8-byte keys `i << 32` (sorted by record
-/// index) followed by `num_ididxs = 0` and `unknown = 1`. Schema 1 (the data
-/// schema, namidx=0) holds `count` 24-byte entries `(handle, 1, record_index)`
-/// **sorted ascending by handle** — the handle→record lookup — followed by a
-/// fixed 24-byte tail. `handles[i]` is the handle of the i-th SAB record, so the
-/// record index stored is the pre-sort position.
+/// Empirically decoded from the authored corpus (97 specimens extracted;
+/// the anchors: Box_2018/Box_2013 Form-A [thumbnail 0x22 + solid 0x2EA],
+/// example_2018 Form-B [0x176/0x2E1/0x37D], the test-data files). The
+/// header carries `num_search (RL)`, then one block per datastore schema:
+///
+/// ```text
+/// RL  schema_namidx   — the schidx slot the block indexes (0 = the
+///                       AcDb_Thumbnail/layout schema, 5 = the ASM_Data)
+/// RL  num_sortedidx   — the record-row key count
+/// RLL sortedidx[num]  — (record row) << 32, the per-schema row keys
+/// RL  num_ididxs = 0  — her constant
+/// RL  unknown = 1     — her constant in EVERY block (all schemas, all 97)
+/// RL  zero = 0
+/// RL  num_handles     — the handle-entry count
+/// (RLL handle, RLL 1, RLL row) × num_handles — in row order, the i-th
+///                       entry's row = the i-th key's row (the positional
+///                       pairing the modeler resolves handle→record
+///                       through)
+/// ```
+///
+/// The multi-record writer defect this fixes: the modeler parses the
+/// search with HER grammar (schema order + the per-block key/handle
+/// interior) — our old form (namidx=1 first + handle-sorted triples +
+/// a 24-byte tail) landed the modeler on garbage, resolving handle
+/// 0x37D to record 0 in the A-2 audit (entity A rendered entity B's
+/// B-rep in every edited multi-solid document).
+///
+/// Our containers carry the ASM records only (no thumbnail row — the
+/// standing residue), so the layout-schema block is present but EMPTY
+/// (the empty-block form her Arc-authored files carry for their
+/// record-less schema) and the ASM block carries the SAB rows — the
+/// same rows the datidx declares (segidx slot, offset i*20, schidx 5).
 fn build_acds_search_segment(handles: &[u32], segment_idx: u32, ds_version: u32) -> Vec<u8> {
     let n = handles.len();
     let mut content: Vec<u8> = Vec::new();
-    content.extend_from_slice(&2u32.to_le_bytes()); // num_search = 2 schemas
+    content.extend_from_slice(&2u32.to_le_bytes()); // num_search (her ds-SAB genus)
 
-    // Schema 0: keyed by record index.
-    content.extend_from_slice(&1u32.to_le_bytes()); // schema_namidx
-    content.extend_from_slice(&(n as u32).to_le_bytes()); // count
+    // Block 1 — schema 0 (the thumbnail/layout schema): present but empty.
+    content.extend_from_slice(&0u32.to_le_bytes()); // schema_namidx
+    content.extend_from_slice(&0u32.to_le_bytes()); // num_sortedidx
+    content.extend_from_slice(&0u32.to_le_bytes()); // num_ididxs
+    content.extend_from_slice(&1u32.to_le_bytes()); // unknown (her constant)
+    content.extend_from_slice(&0u32.to_le_bytes()); // zero
+    content.extend_from_slice(&0u32.to_le_bytes()); // num_handles
+
+    // Block 2 — schema 5 (AcDb3DSolid_ASM_Data, the datidx rows' schidx):
+    // the record-row keys + the handle triples, in row order.
+    content.extend_from_slice(&ACDS_ASM_SCHEMA_IDX.to_le_bytes()); // schema_namidx
+    content.extend_from_slice(&(n as u32).to_le_bytes()); // num_sortedidx
     for i in 0..n {
-        content.extend_from_slice(&((i as u64) << 32).to_le_bytes());
+        content.extend_from_slice(&((i as u64) << 32).to_le_bytes()); // row key
     }
     content.extend_from_slice(&0u32.to_le_bytes()); // num_ididxs
-    content.extend_from_slice(&1u32.to_le_bytes()); // unknown
-
-    // Schema 1: keyed by entity handle → (handle, 1, record_index), sorted by
-    // handle so a reader can binary-search a handle to its SAB record.
-    content.extend_from_slice(&0u32.to_le_bytes()); // schema_namidx
-    content.extend_from_slice(&(n as u32).to_le_bytes()); // count
-    let mut by_handle: Vec<(u32, usize)> = handles
-        .iter()
-        .copied()
-        .enumerate()
-        .map(|(i, h)| (h, i))
-        .collect();
-    by_handle.sort_by_key(|&(h, _)| h);
-    for &(handle, record_index) in &by_handle {
-        content.extend_from_slice(&(handle as u64).to_le_bytes());
-        content.extend_from_slice(&1u64.to_le_bytes());
-        content.extend_from_slice(&(record_index as u64).to_le_bytes());
-    }
-    // Fixed 24-byte schema-1 tail from the reference layout.
-    for v in [0u32, 0, 0, 1, 0, 0] {
-        content.extend_from_slice(&v.to_le_bytes());
+    content.extend_from_slice(&1u32.to_le_bytes()); // unknown (her constant)
+    content.extend_from_slice(&0u32.to_le_bytes()); // zero
+    content.extend_from_slice(&(n as u32).to_le_bytes()); // num_handles
+    for (i, &handle) in handles.iter().enumerate() {
+        content.extend_from_slice(&(handle as u64).to_le_bytes()); // the owner handle
+        content.extend_from_slice(&1u64.to_le_bytes()); // her constant
+        content.extend_from_slice(&(i as u64).to_le_bytes()); // the record row
     }
 
     // The authored search allocation is FIXED: the Form-A specimens
@@ -2961,6 +3011,12 @@ fn write_segidx_entry(buf: &mut [u8], pos: usize, offset: u32, size: u32) {
 fn align16(n: usize) -> usize {
     (n + 15) & !15
 }
+
+/// The `AcDb3DSolid_ASM_Data` schema's slot in the era-shared schidx
+/// template — the schema the `_data_` record rows belong to (her
+/// datidx entries point schidx = this slot; her search's ASM block
+/// carries it as its `schema_namidx`).
+const ACDS_ASM_SCHEMA_IDX: u32 = 5;
 
 /// Schema data A (the early slot, 384 bytes, ds_version 1) - the authored
 /// Form-A container's verbatim bytes (Box_2018/Box_2013 slot 5, the
@@ -3115,9 +3171,12 @@ mod tests {
             };
             let blob_base = read_u32(&data, 36) * 16;
             assert_eq!(blob_base, 48 + align16(count * 20));
-            // the authored record rows carry ZERO in their 4th field
-            // (measured Box_2018/Box_2013) — the blobs are located by
-            // walking the length-prefixed chain from the aligned area
+            // the authored record row: (0x14, 1, handle, zero 4th, the
+            // chunk locator). The 4th field stays ZERO (measured
+            // Box_2018/Box_2013); the 5th word carries the row's
+            // CUMULATIVE chunk offset (measured 2026-09-30 on
+            // example_2018/Box_2018) so the modeler's 20-byte row
+            // stride lands each handle on its own chunk exactly
             let mut blob_cursor = 0usize;
             for (i, (handle, blob)) in entries.iter().enumerate() {
                 let record = 48 + read_u32(&index, 60 + i * 12);
@@ -3128,7 +3187,12 @@ mod tests {
                     u64::from_le_bytes(data[record + 8..record + 16].try_into().unwrap()),
                     handle.value()
                 );
-                assert_eq!(read_u32(&data, record + 16), 0);
+                // the 5th word = the row's chunk locator (the 2026-09-30
+                // row-form fix: her rows carry the CUMULATIVE chunk offsets
+                // — measured on example_2018 [LOCs 0/0x7e5/0xe96/0x30f8]
+                // and Box_2018 [0/0x384]); row 0 is always 0 and every
+                // locator equals the chain's row-wise cumulative position
+                assert_eq!(read_u32(&data, record + 16), blob_cursor);
                 assert_eq!(read_u32(&data, blob_base + blob_cursor), blob.len());
                 assert_eq!(
                     &data[blob_base + blob_cursor + 4..blob_base + blob_cursor + 4 + blob.len()],
