@@ -6,33 +6,96 @@
 # --strict passing; **THE B-REP CONSTRUCTION GAP IS CLOSED ON BOTH
 # LOADERS — THE ACAD AXIS FELL AT THE TERMINATOR PACKET** (the
 # final root: the SAB stream's End-of-* record — HER SEGMENTED
-# ERA-CODED FORM `[0e 03 "End"][0e 02 "of"][0e <flavor>][0d 04
-# "data"]` where the flavor is ACIS for the 21200/21500 eras and
-# ASM for 21800/22300 [R2013 carries the ASM terminator under the
-# ACIS magic]; our old single-tag `End-of-ACIS-data` survived every
-# genus invariant and BricsCAD's restorer but ACAD's modeler
-# rejected the stream at the final record — the 65010): EVERY
-# CONSTRUCTED FIXTURE NOW MODELS UNDER AUTOCAD 2027 WITH REAL
-# EXTENTS AND CLEAN AUDITS (Region 0-10, Box ±5, the full gen_all
-# canonical, all nine fixtures), the multi-record mispair is GONE
-# (the A-2 distinct-geometry probe reads every entity at ITS OWN
-# SAB's geometry on BOTH loaders), and the complete chimera matrix
-# holds everywhere (our wrapper + our SAB, her SAB + our wrapper,
-# our SAB + her wrapper — ALL construct in BOTH modelers); the
-# container is at her complete genus (the search her-grammar + the
-# `_data_` row locators + the thumbnail record — byte-identical
-# against her Box_2018 on every structural slot); the
-# entity-behavior verification matrix is LANDED (29/29 kinds on
-# five axes). ALL INSTRUMENTS CURRENT: the probe (AUDIT channels +
-# stall guards + the core-console arm — the 65010 transcript
-# channel that named this root), the entity verification harness,
-# the genus gates + the extended pin, the record census, the
-# chimera coherent-swap instrument. THE FIRST ACTION for the
-# zero-context agent: re-verify the battery (the verification gate
-# section below), read the seventh addendum's record, then the
-# residual queue (the gen_all ent[0] `stringp nil` MLeader defect
-# — the standing small follow-up; the §19.5 version-parity tiers —
-# maintainer decisions; the core-probe verdict vocabulary).
+# ERA-CODED FORM; our old single-tag form survived every genus
+# invariant and BricsCAD's restorer but ACAD's modeler rejected
+# the stream at the final record — the 65010); **THE MLEADER
+# STYLE DEFECT IS CLOSED TOO** (the gen_all canonical's audit
+# "LeaderStyle Id is Null / 3 fixed" — the eighth addendum: the
+# output-copy repair fills the style pointer from the document's
+# Standard MLEADERSTYLE exactly like the Table/MLine repairs; the
+# canonical's audit now reads TOTAL ERRORS 0 everywhere with
+# dbmod 0 pre+post): every constructed fixture MODELS under
+# BricsCAD V26 AND AutoCAD 2027 with real extents and clean
+# audits, the multi-record mispair is GONE, the complete chimera
+# matrix holds on both loaders, the container is at her complete
+# genus (the search her-grammar + the row locators + the
+# thumbnail record — byte-identical against her Box_2018 on
+# every structural slot); the entity-behavior verification matrix
+# is LANDED (29/29 kinds on five axes). ALL INSTRUMENTS CURRENT:
+# the probe (AUDIT channels + stall guards + the core-console
+# arm), the entity verification harness, the genus gates + the
+# extended pin, the record census, the chimera coherent-swap
+# instrument. THE FIRST ACTION for the zero-context agent:
+# re-verify the battery (the verification gate section below),
+# read the eighth addendum's record, then the residual queue (the
+# §19.5 version-parity tiers — maintainer decisions; the
+# core-probe verdict vocabulary; the era censuses across the
+# full era corpora).
+#
+# === THE EIGHTH-CONTINUATION ADDENDUM (the MLeader style repair —
+# THE CANONICAL'S AUDIT CLEAN; read this first, then the seventh
+# addendum as history): **THE gen_all MLEADER DEFECT IS CLOSED —
+# THE STANDING RESIDUAL QUEUE'S HEAD.** The canonical's audit has
+# read "AcDbMLeader(51) was repaired / LeaderStyle Id is Null /
+# Total errors found 3 fixed 3" at EVERY open since the fixture
+# family landed (the loaders repairing the document at open —
+# dbmod 1); the seventh addendum ranked it the queue head.
+# THE FIX FOLLOWED THE ESTABLISHED REPAIR PRECEDENT — the
+# output-copy style-pointer repairs: `prepare_database_references`
+# (dwg_writer.rs) already repairs a null `table_style_handle`
+# (the ACAD_TABLESTYLE dictionary's Standard) and a null MLine
+# `style_handle` (the named style); the MLeader's null
+# `style_handle` now gets the same treatment — resolved through
+# the ACAD_MLEADERSTYLE dictionary (the document's current
+# MLEADERSTYLE name, falling back to "Standard", filtered to a
+# real MultiLeaderStyle object) and filled ONLY in the output
+# copy (the caller's document unchanged — the unit test pins
+# both sides). COVERS EVERY CONSTRUCTOR PATH (the gen_all's
+# plain "native-author stance" mode left the pointer null by
+# design; out-of-tree constructors like OpenCADStudio's MLEADER
+# command produce the same null — the repair fixes all writes,
+# not just the example).
+#
+# (1) THE ACCEPTANCE, LANDED LIVE (2026-09-30, BricsCAD V26):
+# the canonical's audit reads `Total errors found during audit 0,
+# fixed 0` with dbmod 0 PRE AND POST — the audit changes
+# NOTHING now (the first fully-clean canonical verdict ever
+# recorded; previously every open marked the document modified
+# with 3 repairs). All three modeler entities still MODELED at
+# their own extents; every fixture + both chimeras + all controls
+# re-probed CLEAN (MODELED, audits 0, dbmod 0).
+#
+# (2) THE CORPUS/CENSUS PROOF — the repair never fires on
+# authored reads (the echo: the fingerprint check precedes
+# `prepare`; the conventional arm: her authored MLeaders carry
+# real style handles, captured at read): the corpus re-verified
+# at 280/0/0/0/0; the era record-identity census RE-RUN on the
+# MULTILEADER-bearing example_2018 (the standing 474/474 fact):
+# 474/474 record-identical on size+CRC — ZERO divergence, the
+# rewrite bytes unchanged by the repair.
+#
+# (3) THE BATTERY at this halt: the suite 1607 green (the new
+# output-copy repair test in — the prepared copy carries the
+# style, the caller's document stays null); the mirrors green;
+# the genus gates PENDING-ZERO with --strict (the MLeader repair
+# ranked no new rows — the constructed family's non-canonical
+# fixtures carry no MLeaders); the identity MOVED to
+# c09dd7cceb5d31060a593bc9eed6d1f7 (the canonical's MLeader
+# record now carries its style pointer — an intended content
+# change; identical WITHOUT --features serde; the history:
+# fc8be96c at the terminator → c09dd7cc here); the four family
+# smokes 0/0; the corpus 280 at 0/0/0/0.
+#
+# THE NEXT WORK, ranked: (a) the §19.5 version-parity tiers
+# (R13/R14 implemented-but-divergent, pre-R13 unsupported —
+# maintainer decisions); (b) the core-probe verdict vocabulary
+# (the transcript classifier: 65010 → REGENERATION-FAILED, clean
+# → REGENERATED — making the core channel a first-class
+# acceptance gate); (c) the era censuses across the full era
+# corpora; (d) the standing §19.4/§F2 future-work rows.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE SEVENTH-CONTINUATION ADDENDUM (the terminator packet —
 # THE ACAD AXIS CLOSED; read this first, then the sixth addendum
@@ -1877,12 +1940,12 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `fc8be96c57a66d164586cbfb22d6d535`,
-  25,567 bytes (moved at the 2026-09-30 search-format +
-  thumbnail-row + terminator packets — the search segment's
-  her-grammar rewrite, the `_data_` row locators, the thumbnail
-  record with its +1 shifts, and the era-coded segmented
-  terminator; the identity history: `84374e73…` through the §20
+- The generation identity is `c09dd7cceb5d31060a593bc9eed6d1f7`,
+  25,567 bytes (moved at the 2026-09-30 five-packet session chain —
+  the search segment's her-grammar rewrite, the `_data_` row
+  locators, the thumbnail record with its +1 shifts, the
+  era-coded segmented terminator, and the MLeader style
+  repair; the identity history: `84374e73…` through the §20
   landing → `4265c04a…` at G-C → `0e8b23cd…` at the
   vertex packet → `a8f227e0…` at the asmheader packet →
   `a7c5f170…` at the tolerance packet → `e4cd1960…` at the
@@ -1893,7 +1956,8 @@ era specimens (the era censuses all-zero).
   at the ds fix → `c6788f75…` at the template recapture →
   `751a1a81…` at the datidx fix → `1dfaff0a…` at the search-only
   rewrite → `a4a9240d…` at the row locator → `5ac4ef34…` at the
-  thumbnail row → `fc8be96c…` at the terminator). The generator
+  thumbnail row → `fc8be96c…` at the terminator → `c09dd7cc…`
+  at the MLeader style repair). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -2002,14 +2066,15 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# fc8be96c57a66d164586cbfb22d6d535, 25,567 bytes (moved at the
-# 2026-09-30 search-format + thumbnail-row + terminator packets —
-# the search her-grammar rewrite, the `_data_` row locators, the
-# thumbnail record + its +1 shifts, the era-coded segmented
-# terminator; earlier history:
+# c09dd7cceb5d31060a593bc9eed6d1f7, 25,567 bytes (moved at the
+# 2026-09-30 five-packet session chain — the search her-grammar
+# rewrite, the `_data_` row locators, the thumbnail record + its
+# +1 shifts, the era-coded segmented terminator, the MLeader
+# style repair; earlier history:
 # 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
 # search-only rewrite → a4a9240d… at the row locator →
-# 5ac4ef34… at the thumbnail row → fc8be96c… here)
+# 5ac4ef34… at the thumbnail row → fc8be96c… at the terminator →
+# c09dd7cc… here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -2085,6 +2150,44 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the eighth-continuation halt record (this commit — the
+       operative handover head: THE MLEADER STYLE DEFECT CLOSED
+       [the canonical's audit reads TOTAL ERRORS 0 with dbmod 0
+       pre+post — the first fully-clean canonical verdict];
+       the repair-precedent design [the Table/MLine output-copy
+       pattern applied to the MLeader's null style pointer, the
+       ACAD_MLEADERSTYLE dictionary's Standard]; the corpus +
+       census proof [280/0/0/0/0 + the example_2018 474/474
+       re-verification — the repair never fires on authored
+       reads]; the battery [suite 1607, mirrors, smokes 0/0,
+       gates pending-zero, identity c09dd7cc/25,567
+       serde-parity]; the residual queue ranked [the §19.5
+       tiers, the core-probe vocabulary, the era censuses]; the
+       reading order stands, STARTING at the eighth addendum)
+<feat> the MLeader style repair — THE CANONICAL'S AUDIT CLEAN:
+       prepare_database_references (the output-copy repair
+       phase) fills a MultiLeader's null style_handle from the
+       document's Standard MLEADERSTYLE, resolved through the
+       ACAD_MLEADERSTYLE dictionary (the current-mleader-style
+       name, falling back to Standard, filtered to a real
+       MultiLeaderStyle object) — EXACTLY the Table's
+       table_style_handle + the MLine's style_handle repair
+       precedent; the caller's document unchanged (the
+       output-copy rule; the unit test pins both sides); closes
+       the loaders' every-open repair ("AcDbMLeader(51) was
+       repaired / LeaderStyle Id is Null / Total errors found 3
+       fixed 3" at every gen_all open since the fixture family
+       landed; BricsCAD's own words named it in the audit log);
+       ACCEPTANCE: the canonical's audit reads Total errors 0,
+       fixed 0 with dbmod 0 PRE AND POST (the first
+       fully-clean verdict — the audit previously marked the
+       document modified with 3 repairs at every open); all
+       fixtures + chimeras + controls re-probed MODELED with
+       clean audits; the corpus 280 at 0/0/0/0 + the
+       example_2018 era census re-verified 474/474
+       record-identical (the repair never fires on authored
+       reads); identity fc8be96c → c09dd7cc/25,567 (identical
+       without serde); suite 1607 green
 <docs> the terminator-packet halt record (this commit — the
        operative handover head: THE B-REP CONSTRUCTION GAP
        CLOSED ON BOTH LOADERS — the ACAD axis fell at the
