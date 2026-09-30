@@ -74,7 +74,19 @@
 # ent[45]/ent[63]; HER AUTHORED BYTES, her viewport objects —
 # AutoCAD's ActiveX bbox force simply refuses viewport extents).
 # The MLine reads ±1e20 (AutoCAD's infinite sentinel — the same
-# semantic). ACAD'S AUDIT NAMES THE ONE REAL FINDING:
+# semantic). ACAD'S SELECTION DIFFERENCE — THE ONE REMAINING
+# UNTESTED PAIR: ACAD's ssget census matched 29 of our 31
+# model-space entities (all except XLine 0x37/Ray 0x36) + 2 paper-
+# space viewports, while bcad matched our 30 incl. the XLine/Ray
+# but not the viewports — ACAD's name filter does not select our
+# construction-line entities (the audit walks them clean, so
+# they LOAD; under bcad they read the ±1e80 infinite-extents
+# box — the healthy semantics). THE REMAINING ACAD COVERAGE GAP
+# IS EXACTLY THE XLINE/RAY PAIR — one probe refinement names the
+# ACAD database type for our construction lines (an unfiltered
+# `ssget "_X"` type dump), a writer question only if the names
+# reveal a real divergence.
+# ACAD'S AUDIT NAMES THE ONE REAL FINDING:
 # `AcDbMText(3B) was repaired / AcDbMText(40) was repaired /
 # Total errors found 2 fixed 2` — THE MTEXT PAIR IS THE NEW QUEUE
 # HEAD (the MLeader investigation pattern applies: read the
@@ -99,9 +111,13 @@
 # THE NEXT WORK, ranked: (a) THE MTEXT REPAIR (the new queue
 # head — ACAD's audit names the pair; the MLeader pattern: the
 # audit words name the field, the genus diff names the bytes);
-# (b) the MLine verts defect (gold's standing ERROR — now
+# (b) the XLine/Ray ACAD-coverage refinement (the one remaining
+# untested pair — one probe pass with an unfiltered ssget type
+# dump names ACAD's database type for our construction lines;
+# a writer question only if the names reveal a divergence);
+# (c) the MLine verts defect (gold's standing ERROR — now
 # per-entity visible on the loader axis; a §19-era residue);
-# (c) the §19.5 version-parity tiers (maintainer decisions); (d)
+# (d) the §19.5 version-parity tiers (maintainer decisions); (e)
 # the era censuses across the full era corpora.
 # The reading order stands: AGENTS.md → IMPLEMENTATION.md
 # §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
