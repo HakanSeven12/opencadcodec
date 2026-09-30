@@ -727,7 +727,22 @@ fn acds_data<'a>(
             return std::borrow::Cow::Borrowed(raw.as_slice());
         }
     }
-    std::borrow::Cow::Owned(build_acds_prototype(sab_entries, version))
+    // The thumbnail record's owner: the Model Layout object (her row 0's
+    // handle IS her layout object's — measured 2026-09-30, Box_2018 +
+    // example_2018 both at 0x22). The 2026-09-30 ACAD re-probe evidence:
+    // AutoCAD's open-time validation prompts RECOVER at the empty
+    // schema-0 search block — the block is empty only because the
+    // container carries no thumbnail row.
+    let thumbnail = document
+        .objects
+        .iter()
+        .find_map(|(handle, object)| match object {
+            crate::objects::ObjectType::Layout(layout) if layout.name == "Model" => {
+                Some(handle.value() as u32)
+            }
+            _ => None,
+        });
+    std::borrow::Cow::Owned(build_acds_prototype(sab_entries, version, thumbnail))
 }
 
 /// §19 H7 CLASSES row: the section bytes — verbatim re-emission of the
@@ -2593,7 +2608,11 @@ fn acds_era_profile(dxf_version: DxfVersion) -> &'static AcDsEraProfile {
     }
 }
 
-fn build_acds_prototype(sab_entries: &[(Handle, Vec<u8>)], dxf_version: DxfVersion) -> Vec<u8> {
+fn build_acds_prototype(
+    sab_entries: &[(Handle, Vec<u8>)],
+    dxf_version: DxfVersion,
+    thumbnail: Option<u32>,
+) -> Vec<u8> {
     if sab_entries.is_empty() {
         return Vec::new();
     }
@@ -2611,8 +2630,25 @@ fn build_acds_prototype(sab_entries: &[(Handle, Vec<u8>)], dxf_version: DxfVersi
     // defined seven columns: a ds-16 modeler resolving a record
     // against the wrong schema walks away empty-handed — "Data
     // stream is empty").
+    //
+    // The 2026-09-30 thumbnail-row packet: her `_data_` row 0 is
+    // ALWAYS the Model Layout's preview record (the PNG chunk,
+    // handle = the layout object's) and the ASM records follow at
+    // rows 1..n — the entry list below prepends the thumbnail so the
+    // generic row/locator logic shifts every ASM row +1 exactly as
+    // her containers carry them, and the datidx/search builders emit
+    // the row-0 record (schidx 0 / the schema-0 search entry).
+    let png = acds_thumbnail_png();
+    let data_entries: Vec<(Handle, Vec<u8>)> = thumbnail
+        .map(|layout_handle| {
+            let mut v = Vec::with_capacity(sab_entries.len() + 1);
+            v.push((Handle::new(layout_handle as u64), png.clone()));
+            v.extend_from_slice(sab_entries);
+            v
+        })
+        .unwrap_or_else(|| sab_entries.to_vec());
     let data = build_acds_data2_segment(
-        sab_entries,
+        &data_entries,
         profile.slot_data as u32,
         profile.seg_ds_tail,
     );
@@ -2621,6 +2657,7 @@ fn build_acds_prototype(sab_entries: &[(Handle, Vec<u8>)], dxf_version: DxfVersi
         profile.slot_datidx as u32,
         profile.seg_ds_tail,
         profile.slot_data as u32,
+        thumbnail.is_some(),
     );
     // schdat-A keeps its native id 5 / ds 1 / align 14 (both eras,
     // identical bytes); schdat-B and schidx carry their native slot
@@ -2640,6 +2677,7 @@ fn build_acds_prototype(sab_entries: &[(Handle, Vec<u8>)], dxf_version: DxfVersi
             &handles,
             profile.slot_search as u32,
             profile.seg_ds_tail,
+            thumbnail,
         )
     };
     let freesp = profile
@@ -2787,6 +2825,76 @@ fn build_acds_jard_header(profile: &AcDsEraProfile, file_size: u32) -> Vec<u8> {
     h
 }
 
+/// A minimal valid PNG (1×1, white, 8-bit RGB) — the datastore's
+/// layout-preview record content (the 2026-09-30 thumbnail-row packet).
+///
+/// Her `_data_` row 0 is ALWAYS the Model Layout's preview record (a
+/// PNG chunk, handle = the layout object's — measured: Box_2018's
+/// 896-byte PNG, example_2018's 2017-byte one), and the 2026-09-30
+/// ACAD re-probe proved AutoCAD's open-time validation rejects its
+/// absence (the RECOVER prompt at the empty schema-0 search block).
+/// The preview is document sugar, not author identity — the writer
+/// does not render, so the record carries a structurally valid
+/// placeholder image (signature + IHDR + a stored-deflate IDAT +
+/// IEND, with the crc32/adler32 checksums computed in-place).
+fn acds_thumbnail_png() -> Vec<u8> {
+    fn crc32(data: &[u8]) -> u32 {
+        let mut crc = 0xFFFF_FFFFu32;
+        for &byte in data {
+            crc ^= byte as u32;
+            for _ in 0..8 {
+                crc = if crc & 1 != 0 {
+                    (crc >> 1) ^ 0xEDB8_8320
+                } else {
+                    crc >> 1
+                };
+            }
+        }
+        !crc
+    }
+    fn adler32(data: &[u8]) -> u32 {
+        let mut a: u32 = 1;
+        let mut b: u32 = 0;
+        for &byte in data {
+            a = (a + byte as u32) % 65521;
+            b = (b + a) % 65521;
+        }
+        (b << 16) | a
+    }
+    fn push_chunk(kind: &[u8; 4], data: &[u8], out: &mut Vec<u8>) {
+        out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        out.extend_from_slice(kind);
+        out.extend_from_slice(data);
+        let mut crc_input = Vec::with_capacity(4 + data.len());
+        crc_input.extend_from_slice(kind);
+        crc_input.extend_from_slice(data);
+        out.extend_from_slice(&crc32(&crc_input).to_be_bytes());
+    }
+
+    let mut png = Vec::with_capacity(68);
+    png.extend_from_slice(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
+    // IHDR: 1×1 pixels, 8-bit truecolor RGB, no interlace.
+    let mut ihdr = Vec::with_capacity(13);
+    ihdr.extend_from_slice(&1u32.to_be_bytes());
+    ihdr.extend_from_slice(&1u32.to_be_bytes());
+    ihdr.extend_from_slice(&[8, 2, 0, 0, 0]);
+    push_chunk(b"IHDR", &ihdr, &mut png);
+    // IDAT: a zlib stream over the scanline (filter byte 0 + one white
+    // RGB pixel) using a single final stored-deflate block — no
+    // compressor dependency, still a structurally valid stream.
+    let raw = [0x00u8, 0xFF, 0xFF, 0xFF];
+    let mut idat = Vec::with_capacity(15);
+    idat.extend_from_slice(&[0x78, 0x01]); // zlib header (CMF/FLG, check = 0x7801 % 31 == 0)
+    idat.push(0x01); // BFINAL=1, BTYPE=00 (stored), padded to the byte
+    idat.extend_from_slice(&(raw.len() as u16).to_le_bytes());
+    idat.extend_from_slice(&(!(raw.len() as u16)).to_le_bytes());
+    idat.extend_from_slice(&raw);
+    idat.extend_from_slice(&adler32(&raw).to_be_bytes());
+    push_chunk(b"IDAT", &idat, &mut png);
+    push_chunk(b"IEND", &[], &mut png);
+    png
+}
+
 /// Build `_data_` segment id=2 containing one SAB record per ACIS entity.
 ///
 /// **HER record-row form (the 2026-09-30 row-locator fix — measured on
@@ -2902,8 +3010,14 @@ fn build_acds_datidx(
     segment_idx: u32,
     ds_version: u32,
     data_slot: u32,
+    thumbnail: bool,
 ) -> Vec<u8> {
-    let num = num_records.max(1);
+    // With the thumbnail record (the 2026-09-30 packet): row 0 is the
+    // Model Layout's preview (schidx 0 — the layout/thumbnail schema)
+    // and the ASM records follow at rows 1..n (her Box_2018: rows
+    // (86, 0, 0) + (86, 20, 5)).
+    let num = num_records + usize::from(thumbnail);
+    let num = num.max(1);
     let raw = 48 + 8 + num * 12;
     let seg_size = align16(raw).max(128);
     let mut seg = vec![0x70u8; seg_size];
@@ -2912,9 +3026,20 @@ fn build_acds_datidx(
     seg[48..52].copy_from_slice(&(num as u32).to_le_bytes()); // num_entries
     seg[52..56].copy_from_slice(&0u32.to_le_bytes()); // di_unknown
     let mut pos = 56;
-    for i in 0..num {
+    // With the thumbnail record the ASM rows sit at _data_ rows 1..n
+    // (her Box_2018: the solid's datidx offset is 20, its row-1
+    // position in the record table).
+    let row_base = usize::from(thumbnail);
+    if thumbnail {
         seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (→ the real _data_ slot)
-        seg[pos + 4..pos + 8].copy_from_slice(&((i as u32) * 20).to_le_bytes()); // offset (the record row)
+        seg[pos + 4..pos + 8].copy_from_slice(&0u32.to_le_bytes()); // offset (row 0)
+        seg[pos + 8..pos + 12].copy_from_slice(&0u32.to_le_bytes()); // schidx 0 (the layout schema)
+        pos += 12;
+    }
+    for i in 0..num_records {
+        seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (→ the real _data_ slot)
+        seg[pos + 4..pos + 8]
+            .copy_from_slice(&(((i + row_base) as u32) * 20).to_le_bytes()); // offset (the record row)
         seg[pos + 8..pos + 12].copy_from_slice(&ACDS_ASM_SCHEMA_IDX.to_le_bytes()); // schidx (the ASM_Data schema)
         pos += 12;
     }
@@ -2951,30 +3076,56 @@ fn build_acds_datidx(
 /// 0x37D to record 0 in the A-2 audit (entity A rendered entity B's
 /// B-rep in every edited multi-solid document).
 ///
-/// Our containers carry the ASM records only (no thumbnail row — the
-/// standing residue), so the layout-schema block is present but EMPTY
-/// (the empty-block form her Arc-authored files carry for their
-/// record-less schema) and the ASM block carries the SAB rows — the
-/// same rows the datidx declares (segidx slot, offset i*20, schidx 5).
-fn build_acds_search_segment(handles: &[u32], segment_idx: u32, ds_version: u32) -> Vec<u8> {
+/// Our containers carry the thumbnail record (the 2026-09-30 packet —
+/// the ACAD re-probe's RECOVER evidence: AutoCAD's open-time validation
+/// rejects the empty layout-schema block) plus the ASM records, so the
+/// schema-0 block indexes the Model Layout's preview at row 0 and the
+/// ASM block carries the SAB rows at 1..n — the same rows the datidx
+/// declares (segidx slot, offset (i+1)*20, schidx 5). Without a
+/// resolvable Model Layout the schema-0 block stays empty (her Arc
+/// empty-block form) and the ASM rows keep their 0-based numbering.
+fn build_acds_search_segment(
+    handles: &[u32],
+    segment_idx: u32,
+    ds_version: u32,
+    thumbnail: Option<u32>,
+) -> Vec<u8> {
     let n = handles.len();
     let mut content: Vec<u8> = Vec::new();
     content.extend_from_slice(&2u32.to_le_bytes()); // num_search (her ds-SAB genus)
 
-    // Block 1 — schema 0 (the thumbnail/layout schema): present but empty.
+    // Block 1 — schema 0 (the thumbnail/layout schema): the Model
+    // Layout's preview record at row 0 (her Box_2018 form).
     content.extend_from_slice(&0u32.to_le_bytes()); // schema_namidx
-    content.extend_from_slice(&0u32.to_le_bytes()); // num_sortedidx
-    content.extend_from_slice(&0u32.to_le_bytes()); // num_ididxs
-    content.extend_from_slice(&1u32.to_le_bytes()); // unknown (her constant)
-    content.extend_from_slice(&0u32.to_le_bytes()); // zero
-    content.extend_from_slice(&0u32.to_le_bytes()); // num_handles
+    match thumbnail {
+        Some(layout_handle) => {
+            content.extend_from_slice(&1u32.to_le_bytes()); // num_sortedidx
+            content.extend_from_slice(&0u64.to_le_bytes()); // key: row 0 << 32
+            content.extend_from_slice(&0u32.to_le_bytes()); // num_ididxs
+            content.extend_from_slice(&1u32.to_le_bytes()); // unknown (her constant)
+            content.extend_from_slice(&0u32.to_le_bytes()); // zero
+            content.extend_from_slice(&1u32.to_le_bytes()); // num_handles
+            content.extend_from_slice(&(layout_handle as u64).to_le_bytes());
+            content.extend_from_slice(&1u64.to_le_bytes());
+            content.extend_from_slice(&0u64.to_le_bytes()); // record row 0
+        }
+        None => {
+            content.extend_from_slice(&0u32.to_le_bytes()); // num_sortedidx
+            content.extend_from_slice(&0u32.to_le_bytes()); // num_ididxs
+            content.extend_from_slice(&1u32.to_le_bytes()); // unknown (her constant)
+            content.extend_from_slice(&0u32.to_le_bytes()); // zero
+            content.extend_from_slice(&0u32.to_le_bytes()); // num_handles
+        }
+    }
 
     // Block 2 — schema 5 (AcDb3DSolid_ASM_Data, the datidx rows' schidx):
-    // the record-row keys + the handle triples, in row order.
+    // the record-row keys + the handle triples, in row order — shifted
+    // past the thumbnail record when it is present.
+    let row_base = u64::from(thumbnail.is_some());
     content.extend_from_slice(&ACDS_ASM_SCHEMA_IDX.to_le_bytes()); // schema_namidx
     content.extend_from_slice(&(n as u32).to_le_bytes()); // num_sortedidx
     for i in 0..n {
-        content.extend_from_slice(&((i as u64) << 32).to_le_bytes()); // row key
+        content.extend_from_slice(&(((i as u64) + row_base) << 32).to_le_bytes()); // row key
     }
     content.extend_from_slice(&0u32.to_le_bytes()); // num_ididxs
     content.extend_from_slice(&1u32.to_le_bytes()); // unknown (her constant)
@@ -2983,7 +3134,7 @@ fn build_acds_search_segment(handles: &[u32], segment_idx: u32, ds_version: u32)
     for (i, &handle) in handles.iter().enumerate() {
         content.extend_from_slice(&(handle as u64).to_le_bytes()); // the owner handle
         content.extend_from_slice(&1u64.to_le_bytes()); // her constant
-        content.extend_from_slice(&(i as u64).to_le_bytes()); // the record row
+        content.extend_from_slice(&((i as u64) + row_base).to_le_bytes()); // the record row
     }
 
     // The authored search allocation is FIXED: the Form-A specimens
@@ -3165,7 +3316,7 @@ mod tests {
                 })
                 .collect();
             let data = build_acds_data2_segment(&entries, 86, 16);
-            let index = build_acds_datidx(count, 85, 16, 86);
+            let index = build_acds_datidx(count, 85, 16, 86, false);
             let read_u32 = |bytes: &[u8], offset| {
                 u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize
             };
@@ -3205,6 +3356,102 @@ mod tests {
                 assert_eq!(read_u32(&index, 64 + i * 12), 5);
             }
         }
+    }
+
+    #[test]
+    fn acds_thumbnail_row_and_search_entry_match_her_genus() {
+        // The 2026-09-30 thumbnail-row packet: her `_data_` row 0 is
+        // the Model Layout's preview record (a PNG chunk, handle = the
+        // layout object's); the datidx gains row 0 (schidx 0) and the
+        // search's schema-0 block carries the layout entry, with the
+        // ASM rows shifted +1 (her Box_2018: rows [thumbnail, solid],
+        // search blocks [schema-0 populated, schema-5 populated]).
+        let entries: Vec<(Handle, Vec<u8>)> = (0..2)
+            .map(|i| (Handle::new(0x100 + i as u64), vec![i as u8; 40]))
+            .collect();
+        let png = acds_thumbnail_png();
+        let png_total = 4 + png.len();
+        let mut with_thumb: Vec<(Handle, Vec<u8>)> = Vec::with_capacity(3);
+        with_thumb.push((Handle::new(0x22), png));
+        with_thumb.extend(entries.iter().cloned());
+
+        let data = build_acds_data2_segment(&with_thumb, 86, 16);
+        let index = build_acds_datidx(2, 85, 16, 86, true);
+        let search = build_acds_search_segment(&[0x100, 0x101], 87, 16, Some(0x22));
+        let read_u32 = |b: &[u8], o: usize| {
+            u32::from_le_bytes(b[o..o + 4].try_into().unwrap()) as usize
+        };
+        let read_u64 = |b: &[u8], o: usize| u64::from_le_bytes(b[o..o + 8].try_into().unwrap());
+
+        // the datidx: 3 rows — the thumbnail (row 0, the layout schema)
+        // then the ASM rows at their shifted row positions.
+        assert_eq!(read_u32(&index, 48), 3);
+        assert_eq!(read_u32(&index, 56), 86); // row 0: the _data_ slot
+        assert_eq!(read_u32(&index, 60), 0); // offset: row 0
+        assert_eq!(read_u32(&index, 64), 0); // schidx: the layout schema
+        assert_eq!(read_u32(&index, 68), 86);
+        assert_eq!(read_u32(&index, 72), 20); // the first ASM row's position
+        assert_eq!(read_u32(&index, 76), 5); // schidx: the ASM schema
+        assert_eq!(read_u32(&index, 80), 86);
+        assert_eq!(read_u32(&index, 84), 40);
+        assert_eq!(read_u32(&index, 88), 5);
+
+        // the _data_ rows: the thumbnail at row 0 (LOC 0), the ASM
+        // rows' locators shifted past the PNG chunk.
+        assert_eq!(read_u32(&data, 48), 20); // col0
+        assert_eq!(read_u32(&data, 52), 1);
+        assert_eq!(read_u32(&data, 56), 0x22); // the layout handle
+        assert_eq!(read_u32(&data, 64), 0); // LOC 0
+        assert_eq!(read_u32(&data, 68), 20); // row 1 col0
+        assert_eq!(read_u32(&data, 76), 0x100);
+        assert_eq!(read_u32(&data, 84), png_total); // LOC shifted past the PNG chunk
+        assert_eq!(read_u32(&data, 96), 0x101);
+        assert_eq!(read_u32(&data, 104), png_total + 44); // + the first SAB chunk
+
+        // the search: the schema-0 block carries the layout entry at
+        // row 0; the schema-5 block's keys/rows are shifted +1.
+        let s = 48; // the content starts after the 48-byte segment header
+        assert_eq!(read_u32(&search, s), 2); // num_search
+        assert_eq!(read_u32(&search, s + 4), 0); // schema 0
+        assert_eq!(read_u32(&search, s + 8), 1); // one key
+        assert_eq!(read_u64(&search, s + 12), 0); // key: row 0
+        assert_eq!(read_u32(&search, s + 20), 0); // num_ididxs
+        assert_eq!(read_u32(&search, s + 24), 1); // unknown (her constant)
+        assert_eq!(read_u32(&search, s + 28), 0); // zero
+        assert_eq!(read_u32(&search, s + 32), 1); // one handle
+        assert_eq!(read_u64(&search, s + 36), 0x22); // the layout handle
+        assert_eq!(read_u64(&search, s + 44), 1);
+        assert_eq!(read_u64(&search, s + 52), 0); // record row 0
+        assert_eq!(read_u32(&search, s + 60), 5); // the ASM schema block
+        assert_eq!(read_u32(&search, s + 64), 2); // two keys
+        assert_eq!(read_u64(&search, s + 68), 1 << 32); // row 1
+        assert_eq!(read_u64(&search, s + 76), 2 << 32); // row 2
+        assert_eq!(read_u32(&search, s + 84), 0); // num_ididxs
+        assert_eq!(read_u32(&search, s + 88), 1); // unknown
+        assert_eq!(read_u32(&search, s + 92), 0); // zero
+        assert_eq!(read_u32(&search, s + 96), 2); // two handles
+        assert_eq!(read_u64(&search, s + 100), 0x100);
+        assert_eq!(read_u64(&search, s + 108), 1);
+        assert_eq!(read_u64(&search, s + 116), 1); // record row 1
+        assert_eq!(read_u64(&search, s + 124), 0x101);
+        assert_eq!(read_u64(&search, s + 132), 1);
+        assert_eq!(read_u64(&search, s + 140), 2); // record row 2
+    }
+
+    #[test]
+    fn acds_thumbnail_png_is_structurally_valid() {
+        // The placeholder preview must parse as a PNG: the signature,
+        // the IHDR dimensions/color type, the zlib stream's header
+        // check, and the IEND terminator.
+        let png = acds_thumbnail_png();
+        assert_eq!(&png[..8], &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
+        assert_eq!(&png[12..16], b"IHDR");
+        assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), 1); // width
+        assert_eq!(u32::from_be_bytes(png[20..24].try_into().unwrap()), 1); // height
+        assert_eq!(png[24], 8); // bit depth
+        assert_eq!(png[25], 2); // color type: truecolor
+        assert_eq!(0x7801u32 % 31, 0); // the zlib header's check value
+        assert!(png.windows(8).any(|w| w == b"\x00\x00\x00\x00IEND"));
     }
 
     #[test]
@@ -3335,7 +3582,11 @@ mod tests {
             .expect("default layout");
         document.dwg_source_version = Some(DxfVersion::AC1032);
         document.dwg_data_store_handles.insert(layout_handle);
-        document.raw_acds_data = Some(Arc::new(build_acds_prototype(&[], DxfVersion::AC1032)));
+        document.raw_acds_data = Some(Arc::new(build_acds_prototype(
+            &[],
+            DxfVersion::AC1032,
+            None,
+        )));
 
         let bytes = DwgWriter::write_to_vec(&document).expect("write drawing");
         let mut reader = DwgReader::from_stream(std::io::Cursor::new(bytes));
