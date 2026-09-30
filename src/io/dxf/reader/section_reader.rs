@@ -9276,7 +9276,14 @@ impl<'a> SectionReader<'a> {
                 }
             } else if pair.code == 0 && pair.value_string == "STYLE" {
                 if let Some(style) = self.read_textstyle_entry()? {
-                    document.text_styles.add_or_replace(style);
+                    // Shape-file styles all have an empty name; keep each one
+                    // (as the DWG reader does) or every shape linetype but
+                    // the last loses its shape file.
+                    if style.name.is_empty() {
+                        document.text_styles.add_allow_duplicate(style);
+                    } else {
+                        document.text_styles.add_or_replace(style);
+                    }
                     self.decoded_records = self.decoded_records.saturating_add(1);
                 }
             }
