@@ -653,6 +653,7 @@ there with `required-features = ["serde"]` alongside them.
 | `README.md` | This file — entry point: oracle layers, origin quality, setup, the zero-keeping workflow |
 | `NEXT_SESSION.md` | The cold-start handover brief for the next session (durable findings + census tables); self-replaced at each campaign halt |
 | `IMPLEMENTATION.md` | The single source of truth for the plan (§7 the completed fidelity campaign; §8.1 the fix-loop manual; §18 the validation layers and the strict-load campaign resolution) |
+| `ARCHITECTURE.md` | The structural reference — the component/design map with mermaid diagrams (the five validation layers, the write path's echo vs conventional arm, the AcDs container, the SAB pipeline, the genus-gate loop, the loader instruments, the chimera matrix) |
 | `run_roundtrip.py` | Single-file driver (the three diffs) |
 | `run_corpus.py` | Batch driver + aggregated report |
 | `normalize_gold.py` | LibreDWG JSON → canonical records |
