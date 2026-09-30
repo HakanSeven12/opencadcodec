@@ -46,11 +46,31 @@ fn first_region_sab(doc: &CadDocument) -> Vec<u8> {
     panic!("no binary region SAB found");
 }
 
-fn swap_first_region_sab(doc: &mut CadDocument, sab: &[u8]) -> bool {
+/// The wireframe-anchor coherence test (2026-09-30): the entity's
+/// point_of_reference is written as the wireframe cache's 3BD anchor,
+/// and the modeler may cross-check it against the SAB's actual
+/// geometry. A swap that replaces only the SAB leaves the wrapper's
+/// anchor pointing at the OLD geometry — an incoherent entity the
+/// chimera then measures as a "wrapper blocker" that is really the
+/// experiment's own artifact. The coherent swap carries the SAB's
+/// owning entity's anchor with it.
+fn first_region_point(doc: &CadDocument) -> acadrust::types::Vector3 {
+    for e in doc.entities() {
+        if let EntityType::Region(r) = e {
+            if r.acis_data.is_binary && !r.acis_data.sab_data.is_empty() {
+                return r.point_of_reference;
+            }
+        }
+    }
+    panic!("no binary region SAB found");
+}
+
+fn swap_first_region_sab(doc: &mut CadDocument, sab: &[u8], anchor: acadrust::types::Vector3) -> bool {
     for e in doc.entities_mut() {
         if let EntityType::Region(r) = e {
             if r.acis_data.is_binary && !r.acis_data.sab_data.is_empty() {
                 r.acis_data.sab_data = sab.to_vec();
+                r.point_of_reference = anchor;
                 return true;
             }
         }
@@ -72,24 +92,28 @@ fn main() {
     let constructed = read_dwg(&constructed_path);
     let authored_sab = first_region_sab(&authored);
     let constructed_sab = first_region_sab(&constructed);
+    let authored_anchor = first_region_point(&authored);
+    let constructed_anchor = first_region_point(&constructed);
     println!(
-        "authored region SAB: {} bytes; constructed region SAB: {} bytes",
+        "authored region SAB: {} bytes (anchor {:?}); constructed region SAB: {} bytes (anchor {:?})",
         authored_sab.len(),
-        constructed_sab.len()
+        authored_anchor,
+        constructed_sab.len(),
+        constructed_anchor
     );
 
     fs::create_dir_all(&outdir).unwrap();
 
     // Chimera 1: the authored wrapper + the constructed SAB.
     let mut swap_a = read_dwg(&authored_path);
-    assert!(swap_first_region_sab(&mut swap_a, &constructed_sab));
+    assert!(swap_first_region_sab(&mut swap_a, &constructed_sab, constructed_anchor));
     let out_a = format!("{outdir}/swap_authored_wrapper.dwg");
     DwgWriter::write_to_file(&out_a, &swap_a).expect("write chimera 1");
     println!("wrote {out_a}");
 
     // Chimera 2: the constructed wrapper + the authored SAB.
     let mut swap_c = read_dwg(&constructed_path);
-    assert!(swap_first_region_sab(&mut swap_c, &authored_sab));
+    assert!(swap_first_region_sab(&mut swap_c, &authored_sab, authored_anchor));
     let out_c = format!("{outdir}/swap_constructed_wrapper.dwg");
     DwgWriter::write_to_file(&out_c, &swap_c).expect("write chimera 2");
     println!("wrote {out_c}");
