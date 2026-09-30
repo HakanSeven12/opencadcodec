@@ -1,4 +1,98 @@
-# THE 2026-09-30 SECOND-CONTINUATION ADDENDUM — read this first:
+# THE 2026-09-30 THIRD-CONTINUATION ADDENDUM (the halt head — read
+# this first, then the second-continuation addendum below it): THE
+# QUEUE IS AT PENDING-ZERO WITH `--strict` PASSING (the face row —
+# the queue's last pending row — closed on the §20.4 mechanism's
+# FIRST MODELED VERDICT), THE CONSTRUCTED REGION MODELS UNDER
+# BRICSCAD V26 (the campaign's first constructed B-rep, "Data
+# stream is empty" GONE), AND THE CHIMERA RE-MATRIX LOCALIZES THE
+# REMAINING AUTOCAD WALL TO THE SAB-BYTES-OR-SWAP-PATH BINOMIAL.
+# (1) THE FACE-ROW ADJUDICATION (0a50231): the region's 9-token
+# sheet face (width 50 vs the family pin [49]) closed TOLERATED on
+# the recorded verdict — BricsCAD V26 MODELS the byte-level twin
+# carrying the third-bool face; the pin's [49] is the SOLID face
+# genus (the fixtures-only extraction never walked a region face;
+# her region's face carries the third bool per the candidate-6
+# measurement); the class-wide ('face', 8) completion stays
+# REFUTED. sab_form 3 rows (0 pending / 3 TOLERATED) / sh_genus 1
+# (0/1) / acds 0 — `--strict` passes. THE §20.4 RULE EXECUTED
+# EXACTLY AS DESIGNED: the strict-loader probe verdict adjudicated
+# a genus expectation.
+# (2) THE HANDLE-0x22 REFRAMING: her `_data_` row 0 (the
+# "thumbnail" row) is the MODEL LAYOUT's preview record — handle
+# 0x22 IS her Model Layout OBJECT (measured: Box_2018's +
+# example_2018's 34 = the Layout "Model"; ours at 34 = a
+# Dictionary), the PNG is the layout thumbnail, the datidx
+# entry's schidx=0 = the AcDb_Thumbnail_Schema — DOCUMENT SUGAR,
+# not a modeler gate by necessity; the row's absence is WEAKENED
+# as the ACAD-residue suspect.
+# (3) THE CHIMERA RE-MATRIX (the chimeras REBUILT with the
+# round-2 writer and re-probed; all controls MODELED): CHIMERA A
+# (her wrapper + our SAB): acad — all 3 entities fail pre-audit,
+# the audit REPAIRS her untouched solid (ent[2E1] real extents
+# post-audit, the AcDs-revalidation lead again) while the
+# swapped region stays failed. CHIMERA B (our wrapper + HER
+# SAB): **NULL-BOX UNDER BRICSCAD** (the audit purges) where the
+# PLAIN fixture (our SAB) MODELS — and chimera B's container is
+# BYTE-PERECT (audited directly: datidx (86,0,5), the _data_ row
+# (0x31, f4=0, her 1709-byte SAB, the ASM magic), every slot
+# ds/size/align correct) — SO HER EXACT SAB FAILS IN OUR EXACT
+# CONTAINER WHERE OURS MODELS: the SAB's 21-byte identity block
+# (her product strings + her asmheader version) OR THE SWAP
+# PATH ITSELF.
+# (4) THE ASMHEADER VERSION CLEARED (the re-probe with the
+# container FIXED — the earlier refutation now confirmed on the
+# modeling path): the flip 232.6.0.65535 → 223.0.1.1930 on the
+# plain fixture: bcad STILL MODELS (real extents, clean audit),
+# acad unchanged — THE VERSION IS NOT THE GATE; the probe
+# REVERTED, the gates and the identity restored exactly
+# (751a1a81…/25,567).
+# (5) THE REMAINING MEASURED DELTA SET for the chimera-B bcad
+# failure: by elimination (the container audited perfect; the
+# version cleared; the twin's token streams identical) — EITHER
+# (a) THE PRODUCT STRINGS (hers 'Autodesk AutoCAD'/'ASM
+# 232.6.0.65535 NT' vs ours 'acadrust'/'ACIS 7.0') — but bcad
+# MODELS our strings and her file models hers, so this requires
+# a SAB-to-container PAIRING hypothesis, OR (b) THE SWAP PATH
+# (the sab_swap example's swap_first_region_sab effect on the
+# entity beyond sab_data, or the read-back state) — THE NEXT
+# INVESTIGATION: read the swap function's full effect + run the
+# NO-SWAP CONTROL (read our Region.dwg + write with DWG_NO_ECHO
+# → if that models, the rewrite path is clean and the delta is
+# her-SAB-bytes; if it fails, the read-back+rewrite path itself
+# carries the defect). THE MAINTAINER'S ONE-LINE FLIP (the
+# product strings → hers) remains the instant discriminator for
+# arm (a) — THE AUTHOR-IDENTITY RULE MAKES IT THE MAINTAINER'S
+# CALL (the halt record carries the request).
+# (6) THE ACAD RESIDUE (the plain fixture — our SAB — models in
+# bcad, refuses in acad "Automation Error. Invalid input" with
+# the audit CLEAN): the suspects ranked after (2): the
+# evaluation-graph interposition (SOLIDS' arm — her plain
+# regions carry no graph, so weak for the REGION), the journal,
+# the product strings (the same maintainer flip), the entity
+# record's remaining fields (the guid — weak: both her guid-less
+# 0x176 and her guid-full regions model).
+# (7) THE BATTERY at this halt: suite 52 green; mirrors green;
+# corpus 280 at 0/0/0/0; the four family smokes 0/0/0/0; the
+# gates 3/1/0 PENDING-ZERO with --strict passing; the identity
+# 751a1a81…/25,567 (serde parity); the AC1021 survey 0
+# divergent; the era censuses all-identical (the standing
+# facts below carry the full list).
+# THE NEXT WORK, evidence-ranked: (a) the no-swap rewrite
+# control (the swap-path binomial, ~one probe cycle); (b) the
+# maintainer's product-string flip (the author-identity
+# decision — one line in sab.rs's write_modern + one probe);
+# (c) the ACAD residue arms (the graph/journal investigations —
+# the G-C/G-B tools walk both); (d) the gen_all's ent[0]
+# `stringp nil` MLeader defect (the addendum below names it — a
+# small follow-up).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
+#
+# === THE SECOND-CONTINUATION ADDENDUM (the round-2 record — the
+# entity-form packet + the audit-report channels + the FIRST
+# MODELED CONSTRUCTED B-REP) follows as history ===
+# THE 2026-09-30 SECOND-CONTINUATION ADDENDUM (the round-2 record):
 # THE COMMON_3DSOLID ENTITY-FORM PACKET IS LANDED (the wrapper
 # arm's designed packet), THE STRICT-LOAD PROBE NOW HARVESTS THE
 # LOADERS' OWN AUDIT REPORTS VERBATIM (the maintainer's directive,
@@ -1495,7 +1589,27 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
-<feat> the wrapper-arm round-2 chain — THE FIRST MODELED CONSTRUCTED
+<docs> the third-continuation halt record (this commit — the
+       operative handover head: the queue PENDING-ZERO with
+       --strict, the face-row adjudication, the handle-0x22
+       reframing, the chimera re-matrix + the container-perfect
+       audit, the asmheader version CLEARED on the modeling path,
+       the swap-path binomial + the maintainer's product-string
+       request, the ACAD residue ranked; the identity 751a1a81;
+       the zero-context reading order stands, STARTING at the
+       third-continuation addendum)
+0a50231 <feat> the face-row adjudication - the §20.4 mechanism's
+       first MODELED verdict: the region's 9-token sheet face
+       closes TOLERATED on the recorded BricsCAD-V26 MODELED
+       verdict (the byte-level twin carrying the third-bool face
+       models, real extents, clean audit); the pin's [49] = the
+       SOLID face genus; the class-wide completion stays REFUTED
+       -- THE QUEUE AT PENDING-ZERO (sab_form 0/3, sh_genus 0/1,
+       acds 0), --strict passes
+58b3cff <feat> the genus pin's round-2 drift (the per-segment
+       ds/size/align sets measured from the specimen family)
+<feat> the wrapper-arm round-2 chain - THE FIRST MODELED
+       CONSTRUCTED
        B-REP (2026-09-30): BricsCAD V26 reads the constructed Region
        fixture MODELED (real extents, clean audit, "Data stream is
        empty" GONE) after four measured container fixes against the
