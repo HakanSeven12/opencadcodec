@@ -6,18 +6,33 @@ loader audit. This tool mechanizes the verifiable part of that
 procedure: it drives the loader `/b <script>` (BricsCAD V26 by default,
 AutoCAD 2027 — the format's author — alongside it; the DEFAULT run
 exercises BOTH), and the script's LISP records the evidence a verdict
-needs — the 3DSOLID/REGION/BODY census, the modeler-forced bounding
-box (a healthy restore yields real extents; a failed restore yields
-the null-extents sentinel — ±1e80 under BricsCAD, ±1e20 under
-AutoCAD), the DBMOD/ERRNO pre/post-audit record, and the post-audit
-census. The campaign's acceptance — "clean open + clean audit, the
-solids model" — is decided from those.
+needs — the 3DSOLID/REGION/BODY aggregate (the modeler-forced
+bounding box: a healthy restore yields real extents; a failed restore
+yields the null-extents sentinel — ±1e80 under BricsCAD, ±1e20 under
+AutoCAD), the widened per-kind census (CENSUS_KINDS — every entity
+kind the canonical carries walks the trapped bbox force), the
+DBMOD/ERRNO pre/post-audit record, and the post-audit census. The
+campaign's acceptance — "clean open + clean audit, the solids
+model" — is decided from those.
 
-Validation (2026-09-29, the /b-script proven by the diag write under
-both loaders): authored specimens 2007/2013/2018 all yield real
+Validation (2026-09-30, the campaign CLOSED on both loaders — the
+2026-09-29 null-box record below is the historical mid-state):
+every constructed fixture + the full gen_all canonical + both
+chimeras + all controls read MODELED with real extents and clean
+audits under BricsCAD V26 AND AutoCAD 2027; the canonical's audit
+reads TOTAL ERRORS 0 with dbmod 0 pre+post on both loaders (the
+MLeader style repair + the MText attachment-repeat repair closed
+the two loader-side every-open repairs). The widened per-kind
+census (CENSUS_KINDS, 2026-09-30) walks all 29 kinds the canonical
+carries — nothing is untested-by-divergence under either loader
+(the XLine/Ray pair resolved as a non-defect by the
+authored-control precedent: ACAD's type-filtered ssget never
+returns construction lines, her own authored pair absent the same
+way). The historical 2026-09-29 validation, kept as the record of
+the mid-state: authored specimens 2007/2013/2018 all yielded real
 extents (Box 0,0,0..1,2,3 across eras); the constructed corpus
-yields the null box at BOTH the current rank and the pre-rank code
-— the constructed-SAB restore gap is pre-existing and
+yielded the null box at BOTH the current rank and the pre-rank code
+— the constructed-SAB restore gap was pre-existing and
 ordering-independent, and every historical loader reading was the
 error surface, not the restored-solid census (see the G-B/G-A
 records in IMPLEMENTATION.md §20.6).

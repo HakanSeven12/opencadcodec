@@ -610,8 +610,11 @@ document carrying all ~29 kinds):
   (every kind: n/n)
 - **MODELER** — the strict-loader probe (every fixture + the full
   canonical read MODELED with real extents and clean audits under
-  BOTH loaders — BricsCAD V26 and AutoCAD 2027 — the 2026-09-30
-  terminator packet closed the construction gap on both axes)
+  BOTH loaders — BricsCAD V26 and AutoCAD 2027; the canonical's
+  audit reads TOTAL ERRORS 0 with dbmod 0 pre+post on both; the
+  widened per-kind census walks all 29 kinds — nothing is
+  untested-by-divergence under either loader, the XLine/Ray pair
+  resolved as a non-defect by the authored-control precedent)
 
 ```bash
 python3 tests/gold_harness/entity_verification.py [--no-probe]
