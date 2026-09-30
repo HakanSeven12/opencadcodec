@@ -112,11 +112,13 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
 
 ## Session workflow (summary — details in IMPLEMENTATION.md §8.1)
 
-Two campaigns are closed at zero (parser parity 0/0 + the strict-load
-zero); the ACS/SH solid-history campaign is complete through its
-differential queue (§18.5–18.7; corpus 280 files at 0/0, the
-maintainer fixture surface empty, the surface-parser row landed —
-the 20 surface-twin files un-quarantined). The operative
+All measured campaigns are closed at zero: parser parity 0/0, the
+strict-load zero, the ACS/SH solid-history campaign (§18.5–§18.7), and
+the §20 genus-gate queue is PENDING-ZERO with `--strict` — the
+strict-loader campaign it drove closed on BOTH loaders (2026-09-30:
+every constructed fixture MODELS with clean audits under BricsCAD V26
+and AutoCAD 2027; the record lives in IMPLEMENTATION.md §20's session
+records). The operative
 procedure is the **zero-keeping regression gate** in `README.md`
 ("The zero-keeping workflow"): scope the change, run the required gate
 steps in order (hermetic cargo tests → harness self-check →

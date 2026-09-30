@@ -1,10 +1,21 @@
 # Gold-vs-Silver Roundtrip Harness — Unified Implementation Plan
 
-Status: Phase 2–5 complete; `AcDbVisualStyle` blocker **fixed** (2026-09-17);
-EntityCommon storage-only field gap **closed** (2026-09-17) — LINE/CIRCLE entity
-diffs are zero on all six versions for read and write fidelity. Phase 6 fix loop
-continues on table-record storage fields and object representation gaps.
-Location: `tests/gold_harness/IMPLEMENTATION.md` — the single source of truth.
+Status: **the corpus is at ZERO on every axis — 280 files, read/write
+fidelity 0/0, structure key-gaps 0/0 (§19); the §20 genus-gate queue is
+PENDING-ZERO with `--strict`; and the strict-loader campaign it drove is
+CLOSED ON BOTH LOADERS (2026-09-30): every constructed fixture reads
+MODELED with real extents and clean audits under BricsCAD V26 AND
+AutoCAD 2027 — the B-rep construction gap (§20.1's founding blindness)
+eliminated end-to-end through the five-packet chain (the search
+her-grammar + the `_data_` row locators → the thumbnail row → the
+era-coded segmented terminator → the MLeader style repair), the
+record-identity censuses all-zero on every measured era specimen, and
+the rewrite-rejection closed (the edited R2018 document opens in
+AutoCAD 2027 indistinguishably from her authored original).** The
+remaining queue is the maintainer-decision tier (§19.5 version parity,
+the era censuses across the full corpora, the core-probe verdict
+vocabulary). Location: `tests/gold_harness/IMPLEMENTATION.md` — the
+single source of truth.
 
 > This file is the only authoritative plan for the gold-vs-silver harness.
 > Earlier superseded planning documents have been removed; this file is
@@ -31,9 +42,16 @@ structure axis — the OBJECTS zero held frozen while the 17 structure keys
 drove to 0 (the READ axis ZERO corpus-wide, H0–H7), the write-target closed
 (H8g), and the conventional arm reached byte-level record identity (the
 H8h arc: the AC1021 survey 58/58 files / 0 divergent records; the era
-censuses all-zero).** The original AutoCAD `AcDbVisualStyle` "Object
-improperly read" blocker (§7) was resolved early in the campaign — §7's
-baseline records are historical.
+censuses all-zero). Phase 3 (§20, landed 2026-09-28 → closed 2026-09-30):
+the constructed-content genus gates (the fifth validation layer —
+constructed documents have no gold counterpart, so the authored genus
+itself became the oracle) drove the strict-loader campaign to its
+complete closure: the B-rep construction gap eliminated on both loaders,
+every constructed fixture MODELED with clean audits under BricsCAD V26
+AND AutoCAD 2027, the multi-record AcDs mispairing and the MLeader
+audit repair closed with it.** The original AutoCAD `AcDbVisualStyle`
+"Object improperly read" blocker (§7) was resolved early in the
+campaign — §7's baseline records are historical.
 
 ---
 
@@ -7278,7 +7296,7 @@ out-of-scope tiers are measured, named, and pathed above.
 
 ---
 
-## 20. Genus gates — the constructed-content oracle (the fifth validation layer; DESIGN, not yet implemented)
+## 20. Genus gates — the constructed-content oracle (the fifth validation layer; LANDED 2026-09-28, the queue PENDING-ZERO with `--strict`, and the strict-loader campaign it drove CLOSED on both loaders 2026-09-30 — see §20.6 + the session records at this section's tail)
 
 §18's four layers and §19's structure axis share one boundary: every gate
 compares silver against GOLD ON THE SAME BYTES — read fidelity (gold vs
@@ -7986,3 +8004,84 @@ entity[0]'s bbox (the loop aborts on the first failure), so
 multi-entity probes leave later entities unmeasured; the
 chimera verdicts stand by elimination via the control, but the
 per-entity census makes multi-entity probes first-class.
+
+**THE 2026-09-30 SESSION — THE STRICT-LOADER CAMPAIGN CLOSED ON
+BOTH LOADERS (the B-rep construction gap, §20.1's founding
+blindness, eliminated end-to-end through a five-packet chain; the
+records live in NEXT_SESSION.md's fifth- through
+eighth-continuation addenda — this is the plan-level summary):**
+
+1. **The entity-behavior verification matrix LANDED** (the
+   campaign's first deliverable of the day): 29/29 entity kinds
+   verified on five axes — BUILD (the public API constructs every
+   kind), SILVER (the roundtrip decode), GOLD (libredwg's census),
+   REWRITE (the conventional-arm survival), MODELER (the
+   strict-loader probe) — `entity_verification.py`, the report at
+   `target/entity_verification/report.md`, the README step 8.
+2. **The search-format packet** (the fifth addendum's design,
+   executed + deepened): the A-2 chimera audit exposed a REAL
+   multi-record writer bug — the modeler resolved handle 0x37D to
+   record 0 against our emitted pairing. The empirical decode (96
+   specimen AcDs sections) confirmed the search divergence AND
+   surfaced the deeper root: (a) `build_acds_search_segment`
+   rewritten to her grammar (per block: namidx, the (row<<32)
+   sorted keys, num_ididxs=0, unknown=1 — her constant in every
+   block, the (handle,1,row) triples row-synced; our layout: the
+   schema-0 block + the schema-5 ASM block); (b) **the `_data_`
+   record row's FIFTH WORD IS THE CHUNK LOCATOR** (measured
+   example_2018 LOCs 0/0x7e5/0xe96/0x30f8 — the cumulative chunk
+   offsets; our rows carried 0 there with the handle as u64,
+   collapsing every multi-record row toward the blob area's
+   start). ACCEPTANCE: the A-2 distinct-geometry probe reads all
+   three entities at their OWN SAB's geometry.
+3. **The thumbnail-row packet**: her `_data_` row 0 is ALWAYS the
+   Model Layout's preview record — the writer emits it (the row,
+   the datidx row 0, the search schema-0 entry, the ASM records
+   shifted +1, a synthesized minimal valid PNG). The container now
+   diffs byte-identical against her Box_2018 on every structural
+   slot. First hypothesized as the ACAD RECOVER root — refuted as
+   the root, kept as the genus completion.
+4. **The ACAD isolation** (the core-console arm's debut as
+   decisive evidence): the maintainer's live hand-opens reported
+   RECOVER prompts on the fixed bytes; accoreconsole's dialog-free
+   transcript named the failure verbatim — `Modeling Operation
+   Error: Error Code Number is 65010` at open-time model
+   regeneration — and the chimera core split completed the matrix:
+   OUR SAB fails in HER wrapper (A2), HER SAB regenerates CLEAN in
+   OURS (B2) — the wrapper-side stack exonerated on both loaders.
+5. **The terminator packet — THE ACAD AXIS CLOSED**: the
+   record-level pair diff (the size arithmetic: the identity
+   strings account for 19 of the 21-byte delta) pinned the last
+   two bytes to the FINAL RECORD: her terminator is the SEGMENTED
+   ERA-CODED FORM `[0e 03 "End"][0e 02 "of"][0e <flavor>][0d 04
+   "data"]` (the flavor ACIS for 21200/21500, ASM for 21800/22300
+   — R2013 carries the ASM terminator under the ACIS magic); ours
+   was the single-tag `End-of-ACIS-data`. The reader already
+   recognized both forms (`ASM_END_MARKER` — "what AutoCAD 2013+/
+   BricsCAD emit"); the writer now emits `SabEra::terminator()`.
+   ACCEPTANCE: every constructed fixture MODELS under AutoCAD
+   2027 with real extents and clean audits — no RECOVER prompts.
+6. **The MLeader style repair — THE CANONICAL'S AUDIT CLEAN**:
+   the gen_all's every-open repair ("AcDbMLeader(51) was repaired
+   / LeaderStyle Id is Null / 3 fixed", dbmod 1) closed by the
+   output-copy repair precedent — `prepare_database_references`
+   fills a null MultiLeader `style_handle` from the
+   ACAD_MLEADERSTYLE dictionary's Standard (exactly the Table/
+   MLine pattern; the caller's document unchanged). The
+   canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+
+   post — the first fully-clean verdict ever recorded.
+
+**The final matrix (both loaders, all green)**: our wrapper + our
+SAB / our wrapper + her SAB / her wrapper + our SAB / her wrapper
++ her SAB — ALL construct in BricsCAD V26 AND AutoCAD 2027; every
+constructed fixture + the full gen_all canonical + both chimeras
++ all controls MODELED with real extents, clean audits, dbmod 0.
+**The battery**: suite 1607, the mirrors green, the four family
+smokes 0/0, the corpus 280 at 0/0/0/0, the genus gates
+PENDING-ZERO with `--strict` (sab_form 0/3, sh_genus 0/1, acds 0),
+the generation identity `c09dd7cc…`/25,567 (serde parity), the
+example_2018 era census 474/474. **The remaining queue** (the
+maintainer-decision tier): the §19.5 version-parity tiers; the
+core-probe verdict vocabulary (the transcript classifier); the
+era censuses across the full era corpora; the §19.4/§F2
+future-work rows.
