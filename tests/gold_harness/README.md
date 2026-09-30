@@ -604,8 +604,10 @@ document carrying all ~29 kinds):
 - **SILVER-READ** — our decode of the generated file (39 entities,
   all kinds present)
 - **GOLD-READ** — libredwg's census (54 entities — the block
-  entities from the INSERT census too; 1 ERROR line = the known
-  MLine verts defect)
+  entities from the INSERT census too; 0 ERROR lines — the MLine
+  verts defect closed at the 2026-09-30 segment-parameter-cache
+  packet: the model now computes the per-element miter-trim cache
+  every authored specimen carries)
 - **REWRITE** — the conventional-arm read→write→read survival
   (every kind: n/n)
 - **MODELER** — the strict-loader probe (every fixture + the full
@@ -621,18 +623,21 @@ python3 tests/gold_harness/entity_verification.py [--no-probe]
 ```
 
 The report lands at `target/entity_verification/report.md` with the
-per-kind matrix and the evidence. The standing residues: the MLine
-gold error (the known verts defect), and the harness's cosmetic
-name maps (gold names like 3DFACE/POLYLINE overlap — the counts
-are right, the display labels don't always match). The
-search-segment format defect and THE B-REP CONSTRUCTION GAP are
-BOTH CLOSED (the 2026-09-30 sixth/seventh-continuation packets —
-the search rewritten to her grammar plus the `_data_` row-locator
-root, the multi-record distinct-geometry probe reading every
-entity at its OWN SAB's geometry; then the thumbnail row + the
-era-coded segmented End-of-* terminator closing the construction
-gap on BOTH loaders — every fixture MODELED under BricsCAD V26
-AND AutoCAD 2027 with clean audits).
+per-kind matrix and the evidence. The standing residue: the
+harness's cosmetic name maps (gold names like 3DFACE/POLYLINE
+overlap — the counts are right, the display labels don't always
+match). The search-segment format defect, THE B-REP CONSTRUCTION
+GAP, and THE MLINE VERTS DEFECT are ALL CLOSED (the 2026-09-30
+sixth/seventh/twelfth-continuation packets — the search rewritten
+to her grammar plus the `_data_` row-locator root, the
+multi-record distinct-geometry probe reading every entity at its
+OWN SAB's geometry; the thumbnail row + the era-coded segmented
+End-of-* terminator closing the construction gap on BOTH loaders;
+and the MLine segment-parameter cache — the model computes the
+per-element miter-trim values every authored specimen carries,
+gold's standing ERROR gone and the entity reading real extents on
+both loaders — every fixture MODELED under BricsCAD V26 AND
+AutoCAD 2027 with clean audits).
 
 ## File inventory
 

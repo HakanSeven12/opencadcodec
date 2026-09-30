@@ -6,17 +6,20 @@ PENDING-ZERO with `--strict`; and the strict-loader campaign it drove is
 CLOSED ON BOTH LOADERS (2026-09-30): every constructed fixture reads
 MODELED with real extents and clean audits under BricsCAD V26 AND
 AutoCAD 2027 — the B-rep construction gap (§20.1's founding blindness)
-eliminated end-to-end through the seven-packet chain (the search
+eliminated end-to-end through the eight-packet chain (the search
 her-grammar + the `_data_` row locators → the thumbnail row → the
 era-coded segmented terminator → the MLeader style repair → the
-widened per-kind census → the MText attachment-repeat repair; the
-canonical's audit now reads TOTAL ERRORS 0 with dbmod 0 pre+post on
-BOTH loaders), the
+widened per-kind census → the MText attachment-repeat repair → the
+MLine segment-parameter cache; the canonical's audit reads TOTAL
+ERRORS 0 with dbmod 0 pre+post on BOTH loaders, gold reads the
+canonical CLEAN, and every constructed kind reads real extents),
+the
 record-identity censuses all-zero on every measured era specimen, and
 the rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
-remaining queue: the MLine verts defect (gold's standing
-read-side ERROR — the sole named content residue), and the
+remaining queue: the Multiline-specimen conventional-arm residue
+(the newly-visible pre-existing 142/143 record divergence — a
+§19-era record-identity question), and the
 maintainer-decision tier (§19.5 version parity,
 the era censuses across the full corpora). The XLine/Ray
 ACAD-coverage question is RESOLVED AS A NON-DEFECT (ACAD's
@@ -8117,10 +8120,9 @@ PENDING-ZERO with `--strict` (sab_form 0/3, sh_genus 0/1, acds 0),
 the generation identity `36279922…`/25,696 (serde parity), the
 era censuses 474/474 (example_2018) + 735/735 (example_2004)
 re-verified on the MText-bearing specimens. **The remaining
-queue**: the MLine verts defect (gold's standing read-side
-ERROR — the sole named content residue); the maintainer-decision
-tier — the §19.5 version-parity tiers, the era censuses across
-the full era corpora, the §19.4/§F2 future-work rows. **The
+queue**: the maintainer-decision tier — the §19.5 version-parity
+tiers, the era censuses across the full era corpora, the §19.4/§F2
+future-work rows. **The
 XLine/Ray ACAD-coverage question closed as a NON-DEFECT after
 this record was written** (the authored-control precedent: ACAD's
 filtered `ssget "_X"` never returns construction lines — her own
@@ -8128,4 +8130,15 @@ authored XLine/Ray absent from ACAD's census of her own file
 exactly as ours, while bcad selects both with the healthy
 infinite-extents box; gold decodes our pair genus-correct; the
 writer exonerated — the eleventh-continuation addendum carries
-the record).
+the record). **THE MLINE VERTS DEFECT closed after this record
+was written too** (the twelfth-continuation packet: the
+segment-parameter cache — every authored specimen carries two
+per-element miter-trim values our constructed MLine lacked; the
+formula `segparm_k = −(offset_k − offset_0)·scale / sin∠(miter,
+edge)` measured exact across the whole corpus and landed in
+`rebuild_geometry`; gold's standing ERROR gone and the entity
+reading real extents on both loaders — the twelfth addendum
+carries the record). **The newly-visible residue**: the
+Multiline-specimen conventional-arm rewrite at 142/143 records
+divergent (pre-existing per the stash A/B — the specimen never
+echoed; a §19-era record-identity question, the queue's head).
