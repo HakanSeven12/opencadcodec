@@ -7263,6 +7263,18 @@ one file per era; the full era corpora are the honest next
 surface — the AC1021 survey covers its whole corpus, the era
 censuses do not yet).
 
+> **2026-09-30 update (the A1/A2/A3 session)**: the full era corpora
+> are now measured — `analysis/era_corpus_census.py` ran all six eras
+> (117 files, 82,413 paired records): 2007 clean (0/3,979),
+> 2004/2010/2013 near-clean (15/2/24), 2000 at 375 (PolyLine2D-led),
+> **2018 at 2,479** — the "Multiline residue" is a systematic
+> 2018-era conventional-arm wire divergence (the handle-form
+> vocabulary gap; see TODO.md A1), not one specimen's defect. The
+> MT crc_seed draws (A2) had ground truth extracted from
+> `example_2007` (`random_seed 0x24cc9552adddcbdb`, the three draws)
+> and three init variants eliminated — the variant space is narrowed
+> (tempering/twist/seed-split), not yet pinned.
+
 **TIER 2 — R13/R14 (AC1012/AC1014): IMPLEMENTED, NOT AT PARITY
 (the recorded scope exclusion).** Silver reads and writes them
 (gold re-reads our R14 output as valid AC1014, maint_rel_version
