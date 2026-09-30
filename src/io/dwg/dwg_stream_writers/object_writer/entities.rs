@@ -5686,6 +5686,48 @@ impl<'a> DwgObjectWriter<'a> {
         // paths). A bit-faithful rewrite keeps the gold decoder's stream
         // identical to the original, so its (already desynced) decode
         // values match on both sides of the harness diff.
+        //
+        // Constructed entities (no DWG source) synthesize the authored
+        // genus wireframe cache (the 2026-09-30 entity-form packet): every
+        // measured AutoCAD-authored R2013+ ds-backed record — solids of
+        // every primitive family, regions, both AC1027 and AC1032 —
+        // carries a PRESENT wireframe block (point_present + the 3BD
+        // bounding-box-centre anchor, isolines=4, isoline_present, zero
+        // wire/silhouette counts) closed by the terminator bit
+        // (acis_empty_bit=1: the record declares its inline stream empty —
+        // the model data lives in the AcDs container). A constructed
+        // record without the block carries a wrong-era thin body: the
+        // strict modeler misparses it ("Data stream is empty" — the
+        // 2026-09-30 maintainer audit) and gold -v9 overruns the record
+        // (the revision_bytes ERROR). DWG-read documents keep their
+        // captured wire state byte-faithful (the record-identity
+        // censuses); the synthesis never touches them. The stub-wire
+        // condition mirrors the constructed-wireframe guard below, so
+        // assembly-stubbed index-0 wires synthesize the empty cache
+        // instead of re-emitting the stubs.
+        let constructed_cache = self.document.dwg_source_version.is_none()
+            && acis.contributes_sab()
+            && !acis.wireframe_data_present
+            && !acis.wireframe_point_present
+            && acis.wireframe_isolines == 0
+            && !acis.wireframe_isoline_present
+            && silhouettes.is_empty()
+            && (wires.is_empty() || wires.iter().all(|wire| wire.acis_index == 0));
+        if constructed_cache {
+            let anchor = acis
+                .geometry_centre()
+                .or_else(|| acis.placement_origin())
+                .unwrap_or(point);
+            self.writer.write_bit(true); // wireframe_data_present
+            self.writer.write_bit(true); // point_present
+            self.writer.write_3bit_double(anchor);
+            self.writer.write_bit_long(4); // isolines — the authored genus
+            self.writer.write_bit(true); // isoline_present
+            self.writer.write_bit_long(0); // num_wires
+            self.writer.write_bit_long(0); // num_silhouettes
+            self.writer.write_bit(true); // acis_empty_bit
+            return;
+        }
         let wireframe_present = self.write_acis_wireframe(point, acis, wires, silhouettes);
         if wireframe_present {
             self.writer.write_bit(acis.acis_empty_bit);
