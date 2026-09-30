@@ -1956,23 +1956,27 @@ python3 tests/gold_harness/genus_gates.py     # the ranked report
 #      stream is empty") and the audit totals — first-class verdict
 #      evidence, read before designing a packet.)
 python3 tests/gold_harness/strict_load_probe.py
-## THE 2026-09-30 ROUND-2 VERDICT (the first MODELED constructed
-## B-rep): the constructed Region fixture reads MODELED under
-## BricsCAD V26 — real extents (0,0)..(10,10) z=0, the audit CLEAN
-## pre+post, "Data stream is empty" GONE — after the wrapper-arm
-## round-2 chain (the ds coherence, the authored Form-A templates,
-## the slot ids, THE DATIDX FIX: entries pointing at the real
-## _data_ slot + the ASM schema instead of an empty row + the wrong
-## schema); the authored controls MODELED (the run stands);
-## AutoCAD 2027 still modeler-refuses the same fixture (the entity
-## surviving the audit, the bbox aborting "Automation Error.
-## Invalid input") — THE RESIDUE: the missing thumbnail _data_
-## row (her containers always carry the preview PNG record),
-## the evaluation-graph interposition, the product strings (the
-## maintainer decision), the revision-guid question; the earlier
-## era records: the authored controls read MODELED; the
-## example_2018+LINE rewrite MODELED — census 3, real extents, the
-## audit indistinguishable from her authored original
+## THE 2026-09-30 LATE-SESSION VERDICT SET (supersedes the round-2
+## residue note — the sixth addendum carries the full record):
+## under BricsCAD V26: the constructed fixtures + the full gen_all
+## canonical + the A-2/B-2 coherent chimeras + the rewrite control
+## ALL read MODELED with real extents and clean audits, the
+## multi-record mispair GONE (the A-2 distinct-geometry probe:
+## every entity at ITS OWN SAB's geometry). Under AutoCAD 2027
+## (the accoreconsole transcripts, dialog-free): the
+## wrapper-side stack is EXONERATED — B2Swap (our wrapper + her
+## SAB) regenerates the model CLEAN; the constructed fixtures
+## and A2Swap (her wrapper + our SAB) hard-fail ACAD's open-time
+## model regeneration with `Modeling Operation Error: Error Code
+## Number is 65010` (the GUI surfaces it as the RECOVER prompt;
+## the old broken container never reached regeneration).
+## THE SOLE REMAINING RESIDUE: the constructed SAB stream vs
+## ACAD's stricter ASM modeler — the SAB-level record pair diff
+## is the next packet, the core console the acceptance
+## (`Regenerating model.` with no 65010); the thumbnail row is
+## EMITTED (the container at her complete genus — the empty-block
+## suspect is REFUTED), the evaluation-graph interposition and
+## the identity block remain the ranked secondary arms.
 ```
 
 ## Commit inventory (this halt)
