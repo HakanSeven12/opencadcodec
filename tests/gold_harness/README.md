@@ -228,7 +228,7 @@ GOLD_HARNESS_STRICT=1 cargo test --features gold-harness --test gold_roundtrip
 ## The zero-keeping workflow — the regression gate for upstream changes
 
 Both campaigns are closed at zero: gold-vs-silver **parser parity**
-(read 0 / write 0 across all 124 corpus files) and the **strict-load
+(read 0 / write 0 across all 280 corpus files) and the **strict-load
 zero** (the generated 30-entity file opens in BricsCAD via plain
 `_open` with no modal error and no warnings). Every upstream change
 must keep both at zero. Run this gate, in order, before committing
@@ -475,17 +475,21 @@ modeler force there; the transcript is the evidence), and AMBIGUOUS
 LOGSEC lines still rank the failure. A Windows-visible host and the
 loader installs are required; stray loader processes poison
 subsequent launches — kill them (by PID for `acad.exe`) before
-re-running. **The current recorded verdicts** (2026-09-30, after the
-COMMON_3DSOLID entity-form packet): the authored controls MODELED
-under both GUI loaders; the example_2018+LINE rewrite opens and
-models (the byte-passthrough campaign closed the file-level
-rejection 2026-09-29); the constructed fixtures still read NULL-BOX
-(BricsCAD) / modeler-refused (AutoCAD: "Automation Error. Invalid
-input") — the entity-form packet moved AutoCAD's AUDIT to clean on
-the new record form ("Total errors found 0") while BricsCAD's audit
-still names "Data stream is empty" per fixture, localizing the
-remaining blocker BELOW the record layer (the SAB/container arms —
-the open §20 campaign).
+re-running. **The current recorded verdicts** (2026-09-30, the
+terminator packet — seventh-continuation):
+**the B-rep construction gap is CLOSED on both loaders** — every
+constructed fixture reads MODELED with real extents and clean
+audits under BricsCAD V26 AND AutoCAD 2027 (Region `0..10`, Box
+`±5`³, the full gen_all canonical, all nine fixtures; the A-2
+distinct-geometry probe reads every entity at its OWN SAB's
+geometry; the chimeras construct in both directions on both
+loaders). The root chain closed in three packets: the search
+her-grammar + the `_data_` row locators (the multi-record
+mispair), the thumbnail row (the container at her complete
+genus), and the era-coded segmented End-of-* terminator (ACAD's
+modeler rejected the old single-tag form with the 65010 Modeling
+Operation Error at open-time regeneration — the accoreconsole
+transcript named it; no RECOVER prompts remain).
 
 **AUDIT reports — the loaders' own logs, harvested verbatim
 (2026-09-30, the maintainer's directive).** The 2026-09-29 "no log
@@ -593,9 +597,10 @@ document carrying all ~29 kinds):
   MLine verts defect)
 - **REWRITE** — the conventional-arm read→write→read survival
   (every kind: n/n)
-- **MODELER** — the strict-loader probe (the canonical under
-  BricsCAD reads MODELED with all 3 modeler entities at real
-  extents — the datidx fix's full-canonical confirmation)
+- **MODELER** — the strict-loader probe (every fixture + the full
+  canonical read MODELED with real extents and clean audits under
+  BOTH loaders — BricsCAD V26 and AutoCAD 2027 — the 2026-09-30
+  terminator packet closed the construction gap on both axes)
 
 ```bash
 python3 tests/gold_harness/entity_verification.py [--no-probe]
@@ -606,10 +611,14 @@ per-kind matrix and the evidence. The standing residues: the MLine
 gold error (the known verts defect), and the harness's cosmetic
 name maps (gold names like 3DFACE/POLYLINE overlap — the counts
 are right, the display labels don't always match). The
-search-segment format defect is CLOSED (the 2026-09-30 sixth-
-continuation packet — the search rewritten to her grammar plus the
-`_data_` row-locator root; the multi-record distinct-geometry
-probe reads every entity at its OWN SAB's geometry).
+search-segment format defect and THE B-REP CONSTRUCTION GAP are
+BOTH CLOSED (the 2026-09-30 sixth/seventh-continuation packets —
+the search rewritten to her grammar plus the `_data_` row-locator
+root, the multi-record distinct-geometry probe reading every
+entity at its OWN SAB's geometry; then the thumbnail row + the
+era-coded segmented End-of-* terminator closing the construction
+gap on BOTH loaders — every fixture MODELED under BricsCAD V26
+AND AutoCAD 2027 with clean audits).
 
 ## File inventory
 
