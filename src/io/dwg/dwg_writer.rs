@@ -260,6 +260,7 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
     let mut invalid_hatches = Vec::new();
     let mut table_repairs = Vec::new();
     let mut table_style_repairs = Vec::new();
+    let mut mleader_style_repairs = Vec::new();
     let mut mline_repairs = Vec::new();
     let mut underlay_reactors = Vec::new();
     for entity in document.entities() {
@@ -346,6 +347,40 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
                     ));
                 }
             }
+            EntityType::MultiLeader(mleader)
+                if mleader.style_handle.is_none_or(|handle| handle.is_null()) =>
+            {
+                // A native AcDbMLeader references a resolvable MLEADERSTYLE
+                // — a null pointer is an invalid authored state that both
+                // loaders' audits repair (the gen_all canonical's verdict:
+                // "LeaderStyle Id is Null", 3 fixed at every open). Resolve
+                // the document's current/Standard style through the
+                // ACAD_MLEADERSTYLE dictionary (the MLine/Table repair
+                // pattern).
+                let style = document
+                    .objects
+                    .get(&document.header.named_objects_dict_handle)
+                    .and_then(|object| match object {
+                        ObjectType::Dictionary(root) => root.get("ACAD_MLEADERSTYLE"),
+                        _ => None,
+                    })
+                    .and_then(|handle| document.objects.get(&handle))
+                    .and_then(|object| match object {
+                        ObjectType::Dictionary(styles) => styles
+                            .get(&document.header.current_mleader_style_name)
+                            .or_else(|| styles.get("Standard")),
+                        _ => None,
+                    })
+                    .filter(|handle| {
+                        matches!(
+                            document.objects.get(handle),
+                            Some(ObjectType::MultiLeaderStyle(_))
+                        )
+                    });
+                if let Some(style) = style {
+                    mleader_style_repairs.push((mleader.common.handle, style));
+                }
+            }
             EntityType::MLine(mline)
                 if mline.style_handle.is_none_or(|handle| handle.is_null()) =>
             {
@@ -421,6 +456,7 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
         && invalid_hatches.is_empty()
         && table_repairs.is_empty()
         && table_style_repairs.is_empty()
+        && mleader_style_repairs.is_empty()
         && mline_repairs.is_empty()
         && underlay_reactors.is_empty()
         && !layout_dictionary_needs_repair
@@ -429,6 +465,11 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
     }
 
     let output = document.to_mut();
+    for (handle, style) in mleader_style_repairs {
+        if let Some(EntityType::MultiLeader(mleader)) = output.get_entity_mut(handle) {
+            mleader.style_handle = Some(style);
+        }
+    }
     for (handle, style) in table_style_repairs {
         if let Some(EntityType::Table(table)) = output.get_entity_mut(handle) {
             table.table_style_handle = Some(style);
@@ -3542,6 +3583,47 @@ mod tests {
             .common()
             .reactors
             .contains(&hatch_handle));
+    }
+
+    #[test]
+    fn output_copy_repairs_mleader_style_handle() {
+        use crate::entities::{EntityType, MultiLeader};
+
+        // CadDocument seeds the ACAD_MLEADERSTYLE dictionary with the
+        // Standard MultiLeaderStyle — the audit-repair stance mirrors it:
+        // a native AcDbMLeader with a null style pointer is an invalid
+        // authored state (the loaders' audits report "LeaderStyle Id is
+        // Null" and repair it at every open).
+        let mut document = CadDocument::with_version(DxfVersion::AC1032);
+        let mleader_handle = document
+            .add_entity(EntityType::MultiLeader(MultiLeader::with_text(
+                "Label",
+                crate::types::Vector3::new(20.0, 20.0, 0.0),
+                vec![
+                    crate::types::Vector3::new(0.0, 0.0, 0.0),
+                    crate::types::Vector3::new(10.0, 10.0, 0.0),
+                ],
+            )))
+            .expect("mleader");
+
+        let mut prepared = std::borrow::Cow::Borrowed(&document);
+        prepare_database_references(&mut prepared);
+
+        let prepared_mleader = match prepared.get_entity(mleader_handle).unwrap() {
+            EntityType::MultiLeader(mleader) => mleader,
+            other => panic!("unexpected entity {other:?}"),
+        };
+        let Some(style) = prepared_mleader.style_handle else {
+            panic!("the style handle was not repaired");
+        };
+        assert!(!style.is_null());
+        // The caller's document stays unchanged (the output-copy rule).
+        match document.get_entity(mleader_handle).unwrap() {
+            EntityType::MultiLeader(mleader) => {
+                assert!(mleader.style_handle.is_none_or(|handle| handle.is_null()))
+            }
+            other => panic!("unexpected entity {other:?}"),
+        }
     }
 
     #[test]
