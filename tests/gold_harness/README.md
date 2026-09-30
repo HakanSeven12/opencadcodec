@@ -579,6 +579,36 @@ highest-fidelity console evidence.
 
 ---
 
+## The entity-behavior verification matrix
+
+`entity_verification.py` verifies EVERY supported entity kind on five
+axes, all measured on the gen_all canonical (the single AC1032
+document carrying all ~29 kinds):
+
+- **BUILD** — the public API's add_entity verdict (all 29 OK, 0 SKIP)
+- **SILVER-READ** — our decode of the generated file (39 entities,
+  all kinds present)
+- **GOLD-READ** — libredwg's census (54 entities — the block
+  entities from the INSERT census too; 1 ERROR line = the known
+  MLine verts defect)
+- **REWRITE** — the conventional-arm read→write→read survival
+  (every kind: n/n)
+- **MODELER** — the strict-loader probe (the canonical under
+  BricsCAD reads MODELED with all 3 modeler entities at real
+  extents — the datidx fix's full-canonical confirmation)
+
+```bash
+python3 tests/gold_harness/entity_verification.py [--no-probe]
+```
+
+The report lands at `target/entity_verification/report.md` with the
+per-kind matrix and the evidence. The standing residues: the MLine
+gold error (the known verts defect), the search-segment format
+defect (the fifth-continuation addendum's record — multi-record
+files mispair until the next packet), and the harness's cosmetic
+name maps (gold names like 3DFACE/POLYLINE overlap — the counts
+are right, the display labels don't always match).
+
 ## File inventory
 
 Every tracked file in this directory, plus the adjacent tracked scripts the
@@ -609,6 +639,7 @@ there with `required-features = ["serde"]` alongside them.
 | `genus_extract.py` | The §20 expectation extractor — decodes the specimen family silver-side, projects the SAB/SH/AcDs genus into the pinned expectations |
 | `genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
 | `genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
+| `entity_verification.py` | The entity-behavior verification matrix — builds the gen_all canonical (every supported kind), reads it back with silver + gold, rewrites it (the conventional arm), and probes it under both strict loaders; the five-axis report lands at `target/entity_verification/report.md` |
 | `strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; the default run exercises BOTH GUI loaders (BricsCAD V26 via `DEFAULT_BCAD`, AutoCAD 2027 via `DEFAULT_ACAD`, per-loader verdicts); `--loader bcad/acad/core` narrows (`core` = the AutoCAD core console, accoreconsole.exe via `--acore` — the dialog-free transcript channel); `--bcad`/`--acad`/`--acore` override the paths; each GUI run harvests the loader's LOGFILEON session log to `{run}_audit.log` and prints the verbatim AUDIT report (the modeler's own words "Data stream is empty", the audit totals), alongside the census/bbox/DBMOD evidence and the window-title scraper transcript |
 | `record_size_census.py` | The record-identity census for ANY pair on ANY era — gold `-v9` object blocks, handle-keyed, per-record identity = size + hdlsize + bitsize + CRC-16 (the R2018-record battery's instrument, 2026-09-29; the era-census + rewrite-acceptance acceptance gate; `DWG_NO_ECHO=1 target/debug/dwgrewrite` stages the conventional-arm rewrite) |
 | `bricscad_console_scraper.ps1` | The window-lifecycle transcript — polls the loader's top-level windows (class + title, timestamps) into `<name>_console.log`; the console-text channel map is tested and closed on these builds |
