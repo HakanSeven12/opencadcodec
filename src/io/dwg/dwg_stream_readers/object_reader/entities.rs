@@ -746,8 +746,10 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
             points,
         });
     }
-    let unknown_bl0 = reader.read_bit_long();
-    let unknown_bl1 = reader.read_bit_long();
+    let scan_count = safe_count(reader.read_bit_long()) as usize;
+    let hidden_scans = (0..scan_count).map(|_| reader.read_variable_text()).collect();
+    let region_count = safe_count(reader.read_bit_long()) as usize;
+    let hidden_regions = (0..region_count).map(|_| reader.read_bit_long()).collect();
     let stylization_type = reader.read_bit_short();
     let intensity_color_scheme = reader.read_variable_text();
     let current_color_scheme = reader.read_variable_text();
@@ -775,8 +777,8 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
         name,
         show_intensity,
         show_cropping,
-        unknown_bl0,
-        unknown_bl1,
+        hidden_scans,
+        hidden_regions,
         stylization_type,
         intensity_color_scheme,
         current_color_scheme,

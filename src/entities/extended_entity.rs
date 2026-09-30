@@ -201,8 +201,11 @@ pub struct PointCloudExData {
     pub name: String,
     pub show_intensity: bool,
     pub show_cropping: bool,
-    pub unknown_bl0: i32,
-    pub unknown_bl1: i32,
+    /// Scans turned off, by the scan identifier ("{…}") the scan file and
+    /// its project carry.
+    pub hidden_scans: Vec<String>,
+    /// Regions turned off, by index (the unassigned points are region 0).
+    pub hidden_regions: Vec<i32>,
     pub stylization_type: i16,
     pub intensity_color_scheme: String,
     pub current_color_scheme: String,

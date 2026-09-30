@@ -593,8 +593,14 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_3bit_double(*point);
             }
         }
-        self.writer.write_bit_long(data.unknown_bl0);
-        self.writer.write_bit_long(data.unknown_bl1);
+        self.writer.write_bit_long(data.hidden_scans.len() as i32);
+        for scan in &data.hidden_scans {
+            self.writer.write_variable_text(scan);
+        }
+        self.writer.write_bit_long(data.hidden_regions.len() as i32);
+        for region in &data.hidden_regions {
+            self.writer.write_bit_long(*region);
+        }
         self.writer.write_bit_short(data.stylization_type);
         self.writer
             .write_variable_text(&data.intensity_color_scheme);

@@ -3383,9 +3383,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_point3d(13, *point)?;
             }
         }
-        // Two further lists the reference writes empty.
-        self.writer.write_i32(93, 0)?;
-        self.writer.write_i32(93, 0)?;
+        // The scans and the regions turned off.
+        self.writer.write_i32(93, data.hidden_scans.len() as i32)?;
+        for scan in &data.hidden_scans {
+            self.writer.write_string(1, scan)?;
+        }
+        self.writer.write_i32(93, data.hidden_regions.len() as i32)?;
+        for region in &data.hidden_regions {
+            self.writer.write_i32(93, *region)?;
+        }
         Ok(())
     }
 
