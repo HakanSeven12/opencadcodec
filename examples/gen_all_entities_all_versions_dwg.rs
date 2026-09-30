@@ -883,35 +883,78 @@ fn add_insert(doc: &mut CadDocument, ok: &mut u32, _fail: &mut u32, skip: &mut u
 /// A minimal valid planar region: body → lump → shell → one plane face
 /// with a closed four-edge outer loop. An open sheet — every edge has
 /// exactly one coedge (partners null) — and every back-pointer wired
-/// (edge → its coedge, vertex → its edge, body → its lump).
+/// (edge → its coedge, vertex → its edge, body → its lump). The 2026-09-30
+/// record-identity session replaced the original CCW-wound sheet with the
+/// FULL RAW-STREAM MIRROR of the authored plain R2018 region (the same
+/// topology as genus_constructed's build_region_sat — her CW canonical
+/// ring walked CCW by four reversed coedges, the sheet sidedness double,
+/// her vertex backptrs, the plane origin at the centre, the face
+/// containment completing at the SAB boundary, the vertex int 2).
 fn build_region_sat() -> SatDocument {
     let mut sat = SatDocument::new_body();
     let body_idx = SatPointer::new(0);
     let ptr = |i: i32| SatPointer::new(i);
 
-    // Corners of a 10x10 square in the XY plane (counter-clockwise).
-    let p0 = sat.add_point(0.0, 0.0, 0.0);
-    let p1 = sat.add_point(10.0, 0.0, 0.0);
-    let p2 = sat.add_point(10.0, 10.0, 0.0);
-    let p3 = sat.add_point(0.0, 10.0, 0.0);
+    // Corners of a 10x10 square in the XY plane.
+    let p_bl = sat.add_point(0.0, 0.0, 0.0);
+    let p_br = sat.add_point(10.0, 0.0, 0.0);
+    let p_tl = sat.add_point(0.0, 10.0, 0.0);
+    let p_tr = sat.add_point(10.0, 10.0, 0.0);
 
-    let surf = sat.add_plane_surface([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
+    // The plane origin at the rectangle's centre — the authored
+    // convention (her surface origin = her rectangle's centre).
+    let surf = sat.add_plane_surface([5.0, 5.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
 
-    // Side curves, each directed along the loop traversal.
-    let c0 = sat.add_straight_curve([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]);
-    let c1 = sat.add_straight_curve([10.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
-    let c2 = sat.add_straight_curve([10.0, 10.0, 0.0], [-1.0, 0.0, 0.0]);
-    let c3 = sat.add_straight_curve([0.0, 10.0, 0.0], [0.0, -1.0, 0.0]);
+    // Side curves, each canonicalized at its edge's START vertex and
+    // directed at the end — her c16/c19/c24/c21.
+    let c_top = sat.add_straight_curve([0.0, 10.0, 0.0], [1.0, 0.0, 0.0]);
+    let c_left = sat.add_straight_curve([0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    let c_bottom = sat.add_straight_curve([10.0, 0.0, 0.0], [-1.0, 0.0, 0.0]);
+    let c_right = sat.add_straight_curve([10.0, 10.0, 0.0], [0.0, -1.0, 0.0]);
 
-    let v0 = sat.add_vertex(SatPointer::NULL, ptr(p0));
-    let v1 = sat.add_vertex(SatPointer::NULL, ptr(p1));
-    let v2 = sat.add_vertex(SatPointer::NULL, ptr(p2));
-    let v3 = sat.add_vertex(SatPointer::NULL, ptr(p3));
+    let v14 = sat.add_vertex(SatPointer::NULL, ptr(p_tl));
+    let v15 = sat.add_vertex(SatPointer::NULL, ptr(p_tr));
+    let v18 = sat.add_vertex(SatPointer::NULL, ptr(p_bl));
+    let v20 = sat.add_vertex(SatPointer::NULL, ptr(p_br));
 
-    let e0 = sat.add_edge(ptr(v0), 0.0, ptr(v1), 10.0, SatPointer::NULL, ptr(c0), Sense::Forward);
-    let e1 = sat.add_edge(ptr(v1), 0.0, ptr(v2), 10.0, SatPointer::NULL, ptr(c1), Sense::Forward);
-    let e2 = sat.add_edge(ptr(v2), 0.0, ptr(v3), 10.0, SatPointer::NULL, ptr(c2), Sense::Forward);
-    let e3 = sat.add_edge(ptr(v3), 0.0, ptr(v0), 10.0, SatPointer::NULL, ptr(c3), Sense::Forward);
+    // Her canonical ring, CW as a cycle: top L→R, left B→T,
+    // bottom R→L, right T→B.
+    let e_top = sat.add_edge(
+        ptr(v14),
+        0.0,
+        ptr(v15),
+        10.0,
+        SatPointer::NULL,
+        ptr(c_top),
+        Sense::Forward,
+    );
+    let e_left = sat.add_edge(
+        ptr(v18),
+        0.0,
+        ptr(v14),
+        10.0,
+        SatPointer::NULL,
+        ptr(c_left),
+        Sense::Forward,
+    );
+    let e_bottom = sat.add_edge(
+        ptr(v20),
+        0.0,
+        ptr(v18),
+        10.0,
+        SatPointer::NULL,
+        ptr(c_bottom),
+        Sense::Forward,
+    );
+    let e_right = sat.add_edge(
+        ptr(v15),
+        0.0,
+        ptr(v20),
+        10.0,
+        SatPointer::NULL,
+        ptr(c_right),
+        Sense::Forward,
+    );
 
     // Coedge indices: 4 coedges, then loop, face, shell, lump.
     let base = sat.records.len() as i32;
@@ -921,16 +964,17 @@ fn build_region_sat() -> SatDocument {
     let shell_idx = base + 6;
     let lump_idx = base + 7;
 
-    let edges = [e0, e1, e2, e3];
+    // Her chain: co(top) → co(left) → co(bottom) → co(right), every
+    // coedge REVERSED over the CW canonicals (the CCW walk) and the
+    // partner null (an open sheet).
+    let edges = [e_top, e_left, e_bottom, e_right];
     for i in 0..4i32 {
-        let next = co((i + 1) % 4);
-        let prev = co((i + 3) % 4);
         sat.add_coedge(
-            ptr(next),
-            ptr(prev),
+            ptr(co((i + 1) % 4)),
+            ptr(co((i + 3) % 4)),
             SatPointer::NULL, // open sheet: no partner coedge on another face
             ptr(edges[i as usize]),
-            Sense::Forward,
+            Sense::Reversed,
             ptr(loop_idx),
         );
     }
@@ -942,8 +986,15 @@ fn build_region_sat() -> SatDocument {
         ptr(shell_idx),
         ptr(surf),
         Sense::Forward,
-        Sidedness::Single,
+        Sidedness::Double,
     );
+    // The authored SHEET face's ninth token — the solid faces are
+    // 8-token (the authored Box census); her plain R2018 region face
+    // carries the third bool (the fixed-width SAB reader is
+    // positional). Added on the region only, never class-wide.
+    if let Some(r) = sat.record_mut(face_idx as usize) {
+        r.tokens.push(SatToken::True);
+    }
     sat.add_shell(ptr(face_idx), ptr(lump_idx));
     sat.add_lump(ptr(shell_idx), body_idx);
 
@@ -951,18 +1002,19 @@ fn build_region_sat() -> SatDocument {
         body_rec.tokens[1] = SatToken::Pointer(ptr(lump_idx));
     }
 
-    // Back-pointers (same audits as the cylinder): edge → its coedge,
-    // vertex → its edge.
+    // Back-pointers: edge → its chain coedge; vertex → its edge after
+    // HER mapping, and the authored sheet vertex int 2.
     let coedges = [co(0), co(1), co(2), co(3)];
     for i in 0..4usize {
         if let Some(r) = sat.record_mut(edges[i] as usize) {
             r.tokens[5] = SatToken::Pointer(ptr(coedges[i]));
         }
     }
-    let verts = [v0, v1, v2, v3];
-    for i in 0..4usize {
-        if let Some(r) = sat.record_mut(verts[i] as usize) {
-            r.tokens[1] = SatToken::Pointer(ptr(edges[i]));
+    let verts = [(v14, e_top), (v15, e_top), (v18, e_bottom), (v20, e_right)];
+    for (vid, eid) in verts {
+        if let Some(r) = sat.record_mut(vid as usize) {
+            r.tokens[1] = SatToken::Pointer(ptr(eid));
+            r.tokens[2] = SatToken::Integer(2);
         }
     }
 

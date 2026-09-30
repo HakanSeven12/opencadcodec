@@ -186,6 +186,26 @@ SCR_TEMPLATE = """_.OPEN
     (if (vl-catch-all-error-p r)
       (LOGSEC (list (strcat "bbox-FAIL: " (vl-catch-all-error-message r))))
       (LOGSEC (list r)))))
+;; the while test is the COUNT COMPARISON — a pickset-typed test
+;; (while solids ...) never terminates (the trapped entget below
+;; can no longer abort the loop, which is the point of the trap).
+(setq eidx 0)
+(while (< eidx (sslength solids))
+  (setq pent (ssname solids eidx))
+  ;; the whole per-entity body is trapped: a broken-model entity can
+  ;; fail even ENTGET (the recorded entget-level failure — the
+  ;; failure aborts the enclosing expression, so a bare entget
+  ;; would kill the whole loop). The prefix uses the index; a
+  ;; healthy entget upgrades it with the handle.
+  (setq pr (vl-catch-all-apply '(lambda (/ lhnd)
+    (setq lhnd (cdr (assoc 5 (entget pent))))
+    (vla-getboundingbox (vlax-ename->vla-object pent) 'pmn 'pmx)
+    (strcat "ent[" lhnd "]: bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list pmn)))
+            " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list pmx)))))))
+  (if (vl-catch-all-error-p pr)
+    (LOGSEC (list (strcat "ent[" (itoa eidx) "]: bbox-FAIL: " (vl-catch-all-error-message pr))))
+    (LOGSEC (list pr)))
+  (setq eidx (1+ eidx)))
 (LOGSEC (list (strcat "pre-audit-dbmod: " (itoa (getvar "DBMOD")))
         (strcat "pre-audit-errno: " (itoa (getvar "ERRNO")))))
 (command "_.AUDIT" "_Y")
@@ -197,10 +217,23 @@ SCR_TEMPLATE = """_.OPEN
   (progn
     (setq r2 (vl-catch-all-apply '(lambda ()
       (vla-getboundingbox (vlax-ename->vla-object (ssname solids2 0)) 'mn2 'mx2)
-      (strcat "post-audit-bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mn2)))))))
+      (strcat "post-audit-bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mn2)))
+              " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list mx2)))))))
     (if (vl-catch-all-error-p r2)
       (LOGSEC (list (strcat "post-audit-bbox-FAIL: " (vl-catch-all-error-message r2))))
       (LOGSEC (list r2)))))
+(setq qi 0)
+(while (< qi (sslength solids2))
+  (setq qent (ssname solids2 qi))
+  (setq qr (vl-catch-all-apply '(lambda (/ lhnd)
+    (setq lhnd (cdr (assoc 5 (entget qent))))
+    (vla-getboundingbox (vlax-ename->vla-object qent) 'qmn 'qmx)
+    (strcat "post-ent[" lhnd "]: bbox: " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list qmn)))
+            " .. " (vl-prin1-to-string (mapcar 'rtos (vlax-safearray->list qmx)))))))
+  (if (vl-catch-all-error-p qr)
+    (LOGSEC (list (strcat "post-ent[" (itoa qi) "]: bbox-FAIL: " (vl-catch-all-error-message qr))))
+    (LOGSEC (list qr)))
+  (setq qi (1+ qi)))
 (LOGSEC (list "probe-end"))
 _.DELAY 10000
 _.QUIT
@@ -300,14 +333,22 @@ def analyze_console(path, max_lines=16):
 
 
 def verdict(lines):
-    """Classify a probe result: modeled / null-box / ambiguous."""
+    """Classify a probe result: modeled / null-box / ambiguous.
+
+    The aggregate verdict reads entity[0]'s bbox line only (the
+    `bbox:`/`bbox-FAIL:` aggregate lines stay first-class for the
+    classifier's compatibility); the per-entity `ent[<handle>]:`
+    lines carry the finer census for multi-entity files (a mixed
+    file — some entities modeling, some aborting — reads by its
+    entity[0] aggregate here and per-entity in the detail lines).
+    """
     text = " ".join(lines)
     if "probe-end" not in text:
         return "AMBIGUOUS"
     bbox = next((l for l in lines if l.startswith("bbox:")), "")
     if any(s in bbox for s in NULL_BOXES):
         return "NULL-BOX (the ACIS body did not construct)"
-    if "bbox:" in text:
+    if bbox:
         return "MODELED"
     return "NO-SOLID"
 

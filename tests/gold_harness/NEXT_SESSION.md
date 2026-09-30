@@ -1,3 +1,80 @@
+# THE 2026-09-30 SESSION ADDENDUM — read this first: THE B-REP GAP'S
+# TWO ARMS ARE NOW FULLY MEASURED, and THE NEXT PACKET IS
+# SPECIFICALLY DESIGNED (the COMMON_3DSOLID entity-form defect —
+# the modeler says "Data stream is empty" because the CONSTRUCTED
+# 3DSOLID/REGION/BODY ENTITY RECORDS CARRY A WRONG-ERA FORM:
+# HER authored R2018 REGION entity: --common_size 64, acis_empty: 1
+# [B 290] (the model data lives in the AcDs container — the entity
+# record declares itself empty), wireframe_data_present: 1,
+# point_present/isoline/guid fields, NO `version` field, the
+# revision-guid tail, layer-at-@37.6 (the long handle stream);
+# OURS: --common_size 56, acis_empty: 0, an `unknown: 1` bit, a
+# `version: 168 [BS 70]` field HER RECORD DOESN'T CARRY,
+# `num_materials`, then DESYNC — gold reads garbage revision
+# values, buffer overflows, and `ERROR: Invalid revision_bytes
+# size 8. Need min. 64 bits, have -1 for REGION` — THE
+# PRE-R2013 BODY FORM ON AN R2018 RECORD. THE EVIDENCE, converged
+# from three sources: (1) THE MAINTAINER'S MANUAL AUDIT (the files
+# at target/genus_gates_test/constructed, ACAD, verbatim captured):
+# every fixture reports `Name: AcDb3dSolid(31)/AcDbRegion(31)/
+# AcDbBody(31) — Value: Modeling operation error: Data stream is
+# empty — Validation: Invalid — Default value: Removed; 154
+# objects audited, Total errors found 1, fixed 0` (the gen_all
+# carries FOUR: the MLeader "LeaderStyle Id is Null" + the
+# 3DSOLID/BODY/Region empties = also the gen_all probe's ent[0]
+# `stringp nil` census failure — a SECOND precise defect for a
+# small follow-up); (2) GOLD'S OWN READ: the -v9 comparison above
+# — gold reads her entity clean, ours desyncs (the revision_bytes
+# ERROR is OUR record, not hers); (3) THE CHIMERA-2 RERUN (the
+# built-twin SAB swapped): chimera A (her wrapper + the TWIN
+# region SAB) ALL THREE of her entities FAIL pre-audit — and
+# post-audit ent[2E1] RECOVERS with real extents (dbmod 0→1: THE
+# AUDIT REPAIRS SOMETHING — an AcDs revalidation/rebuild lead for
+# the container arm), while chimera B (the constructed wrapper +
+# her SAB) fails pre+post throughout — the constructed wrapper's
+# ENTITY RECORD is the poison, exactly as the form diff shows.
+# THE SAB RECORD CONTENT IS EXONERATED: the constructed region was
+# rewritten into a BYTE-LEVEL TWIN of her authored plain R2018
+# region (verified raw-record side-by-side: identical token
+# streams, her CW canonical edge ring walked CCW by her ffff
+# coedge chain (the candidate-6 reversed-ring mirror REFUTED by
+# the travel audit: -200 CW → +200 CCW), her vertex
+# edge-back-pointers, sidedness DOUBLE (her f — the solid faces
+# carry single, the sheets double), the plane origin at the
+# rectangle centre, the SHEET face's NINTH token — a face-attrib
+# distinction: the genus Box faces are 8-token (the earlier
+# "9-token faces" census had misread the EOR: the authored family
+# faces ARE 8; HER REGION face alone carries the third bool: the
+# class-wide ("face", 8) completion attempt was REFUTED by the
+# gates (27 × width-50 rows) and narrowed to the region builder
+# appending its own SatToken::True) — AND THE PROBE STILL READS
+# NO-SOLID (region count 1, `Automation Error. Invalid input`,
+# survives audit) — the modeler never reaches the records because
+# THE ENTITY RECORD'S OWN FORM DENIES IT THE STREAM.
+# THE DESIGNED NEXT PACKET (the wrapper arm): the COMMON_3DSOLID
+# entity-body emission for R2013+ — consult gold's COMMON_3DSOLID
+# block (dwg.spec) + dwg2.spec's REGION/SOLID blocks; gate the
+# `version BS [70]` OFF for r2013+, emit her modern form
+# (acis_empty=1 semantics, the wireframe/point/isoline flag set,
+# the revision-guid tail) — the acceptance: gold -v9 on the
+# fixtures reads CLEAN (no revision_bytes ERROR, no buffer
+# overflows, --common_size 64 like hers), the maintainer's MANUAL
+# AUDIT may still name the model but the census MODELS, and the
+# ACAD probe reads MODELED on the Region fixture; then the SAB-arm
+# residue (chimera A's all-3 pre-audit failure + the audit's 2E1
+# recovery) re-probes after the entity form lands.
+# ALSO LANDED THIS SESSION: the per-entity census in
+# strict_load_probe.py (every solid a vl-catch-all-trapped bbox
+# verdict with its handle; two instrument bugs caught by its own
+# output and fixed: the untrapped entget aborted the loop on
+# broken-model entities; a pickset-typed `(while solids ...)`
+# never terminates — the runaway artifacts were the evidence; the
+# aggregate classifier stays on entity[0]); the battery green
+# (suite 52, mirrors, corpus 280 at 0/0/0/0, gates 2/1/0 + the
+# new face row 1 pending/2 occurrences — the region's 9-token
+# face vs the family genus [49], riding pending for the strict-
+# loader verdict per §20.4); the identity `388f0a71...`/25,535.
+
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue is PENDING-ZERO after the EIGHTH QUEUE PACKET, and THE
 # PRE-2007 RECORD-IDENTITY RESIDUE IS CLOSED (this continuation,
