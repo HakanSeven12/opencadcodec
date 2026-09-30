@@ -1,4 +1,98 @@
-# THE 2026-09-30 THIRD-CONTINUATION ADDENDUM (the halt head — read
+# THE 2026-09-30 FOURTH-CONTINUATION ADDENDUM (the halt head — read
+# this first): **THE B-REP CONSTRUCTION GAP IS CLOSED IN BRICSCAD —
+# BOTH CHIMERA ARMS EXONERATED — THE OLD CHIMERAS' "TWO DEFECTS"
+# CONCLUSION IS SUPERSEDED BY THE ANCHOR-COHERENCE DISCOVERY.**
+# (1) THE NO-SWAP REWRITE CONTROL (read our Region.dwg →
+# DWG_NO_ECHO rewrite → probe): MODELED under BricsCAD (real
+# extents, clean audit) — THE READ-BACK+REWRITE PATH IS CLEAN;
+# the chimera-B binomial resolves to her-SAB-bytes.
+# (2) THE CHIMERA BLOB BYTE-IDENTITY: her region's SAB extracted
+# from her own container vs chimera B's emitted blob — IDENTICAL
+# (1709 bytes, the swap path preserved her bytes verbatim).
+# (3) THE IDENTITY BLOCK CLEARED ON BOTH LOADERS (the flip-revert
+# probe): our SAB carrying her FULL identity (product_id
+# 'Autodesk AutoCAD', product_version 'ASM 223.0.1.1930 OSX',
+# her save date, the asmheader '223.0.1.1930') — bcad MODELS
+# (real extents, clean audit), ACAD UNCHANGED (the modeler
+# still refuses) — THE PRODUCT STRINGS/DATE/VERSION ARE NOT THE
+# GATE ON EITHER LOADER; the flip REVERTED (the author-identity
+# rule stands; the product-strings row keeps its TOLERATED
+# verdict with the new evidence); the gates + the identity
+# restored exactly (751a1a81…, --strict passes).
+# (4) **THE ANCHOR-COHERENCE DISCOVERY — THE DECISIVE FINDING**:
+# the entity's `point_of_reference` is written as the wireframe
+# cache's 3BD anchor (write_acis_wireframe), and THE MODELER
+# CROSS-CHECKS IT AGAINST THE SAB'S ACTUAL GEOMETRY. Her region
+# 0x176's geometry sits at large coordinates (the plane origin
+# ≈ (-5234, 1969); the bbox -6836..-3632 × -45..3983) while our
+# entity declared (5,5,0) — THE OLD CHIMERAS SWAPPED THE SAB
+# WITHOUT SWAPPING THE ANCHOR, creating incoherent entities
+# whose failures were THE EXPERIMENT'S OWN ARTIFACT, not
+# wrapper or SAB defects. The "the wrapper carries a blocker"
+# and "the SAB stream is a blocker" conclusions of the earlier
+# chimeras are RETRACTED on this evidence.
+# (5) **BOTH COHERENT CHIMERAS MODEL (BricsCAD V26)**: the swap
+# instrument fixed (sab_swap now carries the SAB's owning
+# entity's anchor with the blob — first_region_point +
+# the coherent swap) and the chimeras REBUILT: CHIMERA B-2 (OUR
+# WRAPPER + HER SAB + her anchor): **MODELED — real extents at
+# HER coordinates (-6836..-3632, -45..3983), the audit CLEAN**
+# — OUR WRAPPER IS FULLY EXONERATED (container + entity form +
+# anchor coherence = any valid SAB models). CHIMERA A-2 (HER
+# WRAPPER + OUR SAB + our anchor): **the swapped region MODELS
+# with OUR geometry (0,0)-(10,10)** — OUR SAB STREAM IS
+# EXONERATED IN HER WRAPPER TOO. THE COMPLETE BRICSCAD MATRIX:
+# our wrapper + our SAB MODELS (the plain fixture); our wrapper
+# + her SAB MODELS (B-2); her wrapper + our SAB MODELS (A-2's
+# swapped entity); the no-swap rewrite MODELS; the authored
+# controls MODEL. **THE CONSTRUCTED B-REP CONSTRUCTS IN THE
+# STRICT KERNEL — the §20.1 blindness is closed on the
+# BricsCAD axis.**
+# (6) THE CHIMERA A-2 RESIDUE (a chimera-artifact question, NOT
+# a writer defect): her untouched entities (her solid 2E1 +
+# her other region 176) NULL-BOX pre-audit in the A-2 chimera
+# and the audit purges them — while the REWRITE CONTROL (her
+# file + LINE, no swap) MODELS ALL THREE. Something about
+# swapping ONE entity's SAB+anchor affects the OTHERS' modeling
+# in the same file (the queue order? the wireframe state? the
+# search/datidx rows?) — the investigation is recorded as the
+# chimera-instrument residue; the writer itself is proven clean
+# by the control.
+# (7) THE AUTOCAD RESIDUE (the plain fixture — coherent anchor,
+# our identity — still modeler-refuses under ACAD 2027
+# "Automation Error. Invalid input", the entity surviving the
+# audit): the identity flip did NOT move it (3), the anchor is
+# already coherent, the container + entity form are proven by
+# bcad — THE REMAINING ACAD SUSPECTS: the evaluation-graph
+# interposition (136/136 authored carriers carry
+# ACAD_EVALUATION_GRAPH; the constructed docs carry none), the
+# journal, or a deeper ACAD-only validation. THE NEXT PACKET:
+# the graph investigation (the G-C/G-B tools walk both graphs)
+# — and the maintainer's hand-open of the CURRENT fixture in
+# ACAD 2027 (the entity + container are now proven
+# bcad-modeling; an ACAD hand-run would sharpen the residue
+# precisely).
+# (8) THE BATTERY at this halt: suite 52 green; the gates
+# PENDING-ZERO with --strict passing (sab_form 0/3, sh_genus
+# 0/1, acds 0); the identity 751a1a81…/25,567 UNMOVED (the
+# flips reverted; the coherent-swap example change touches only
+# the probe instrument, not the writer); the corpus/smokes
+# unchanged from the round-2 landing (verified there).
+# THE NEXT WORK, evidence-ranked: (a) the ACAD graph/journal
+# investigation (the residue's remaining arms); (b) the
+# chimera-A-2 artifact question (why her untouched entities
+# fail when one entity is swapped — an instrument repair);
+# (c) the gen_all ent[0] `stringp nil` MLeader defect (the
+# standing small follow-up); (d) the maintainer's ACAD
+# hand-open of the current fixture (the sharpest residue
+# evidence).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
+#
+# === THE THIRD-CONTINUATION ADDENDUM (the queue-pending-zero +
+# the first MODELED B-rep record) follows as history ===
+# THE 2026-09-30 THIRD-CONTINUATION ADDENDUM (the queue-pending-zero
 # this first, then the second-continuation addendum below it): THE
 # QUEUE IS AT PENDING-ZERO WITH `--strict` PASSING (the face row —
 # the queue's last pending row — closed on the §20.4 mechanism's
@@ -1589,7 +1683,36 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
-<docs> the third-continuation halt record (this commit — the
+<docs> the fourth-continuation halt record (this commit — the
+       operative handover head: THE B-REP CONSTRUCTION GAP CLOSED
+       IN BRICSCAD, both chimera arms exonerated, the
+       anchor-coherence discovery, the identity cleared on both
+       loaders, the ACAD residue ranked; the zero-context
+       reading order stands, STARTING at the fourth-continuation
+       addendum)
+<feat> the coherent-swap instrument + the anchor-coherence
+       discovery — sab_swap carries the SAB's owning entity's
+       anchor with the blob (first_region_point + the coherent
+       swap): the old chimeras swapped the SAB without the
+       anchor, creating incoherent entities whose failures were
+       the EXPERIMENT'S OWN ARTIFACT (the entity's
+       point_of_reference is the wireframe cache's 3BD anchor
+       and the modeler cross-checks it against the SAB's actual
+       geometry — her region at (-5234, 1969) vs our declared
+       (5,5,0)); the coherent chimeras BOTH MODEL under
+       BricsCAD (B-2: our wrapper + her SAB at HER extents; A-2:
+       her wrapper + our SAB at OUR extents) — the "two
+       defects" conclusion RETRACTED, both arms exonerated, the
+       §20.1 blindness closed on the BricsCAD axis; the
+       identity flip cleared on both loaders (bcad MODELS with
+       her full identity block, ACAD unchanged — the flip
+       REVERTED, the author-identity rule stands); the no-swap
+       rewrite control MODELS (the read-back+rewrite path
+       clean); the chimera blob byte-identity confirmed; the
+       chimera A-2 residue (her untouched entities fail when one
+       entity is swapped — an instrument question, the control
+       proves the writer clean)
+<docs> the third-continuation halt record (the queue-pending-zero +
        operative handover head: the queue PENDING-ZERO with
        --strict, the face-row adjudication, the handle-0x22
        reframing, the chimera re-matrix + the container-perfect
