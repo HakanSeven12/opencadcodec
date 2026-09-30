@@ -128,7 +128,34 @@
 # `223.0.1.1930`, regenerate, probe; MODELED re-pins the genus
 # (the version as a per-carrier value), NO-SOLID moves the
 # suspicion to the product strings (the author-identity rule
-# makes that a maintainer decision) or below.
+# makes that a maintainer decision) or below. **RUN AND REFUTED
+# (the same continuation): the flip changed NOTHING — BricsCAD
+# still reads NULL-BOX with the audit purging ("Data stream is
+# empty", 1 error fixed), AutoCAD still modeler-refused with a
+# CLEAN audit, the controls MODELED; the probe REVERTED, the
+# gates returned to their recorded state exactly (3/1/0, the
+# face row pending; the identity UNMOVED at 7b8379b3) — THE
+# ASMHEADER VERSION IS NOT THE MODELER GATE. The SAB arm's
+# remaining measured suspects: the PRODUCT STRINGS (silver's
+# `acadrust`/`ACIS 7.0` vs her `Autodesk AutoCAD`/`ASM
+# 232.6.0.65535 NT` — the adjudicated author-identity rows; THE
+# AUTHOR-IDENTITY RULE MAKES WRITING HERS A MAINTAINER DECISION,
+# and the §20.4 supercession note (the ACIS-700 family "LOADS
+# but never MODELED") now applies to that row too) — and the
+# possibility the SAB is never reached at all (the container
+# arm gates first: chimera B's wrapper blocker). THE NEXT
+# PACKETS, evidence-ranked: (a) the WRAPPER ARM's evaluation-
+# graph interposition (chimera B's blocker: 136/136 authored
+# carriers carry ACAD_EVALUATION_GRAPH, the constructed docs
+# carry none — the G-C/G-B tools walk both graphs; the packet:
+# measure the graph's role, then a constructed-doc graph-emission
+# probe); (b) the chimera-A AcDs-revalidation lead (the audit
+# repairs the untouched solid post-audit — study what the
+# "Auditing AcDsRecords" pass rebuilds: the container's segment
+# identity framing); (c) the product-string maintainer decision
+# (a hand-run probe by the maintainer with Autodesk-identity
+# stamps would settle the row instantly — the probe tooling
+# supports it via a one-line flip).
 # (4) THE BATTERY: suite 52 segments green; gold_roundtrip green;
 # the genus_gates mirror green (fresh extraction == the untouched
 # pin); issue80 green; the four family smokes 0/0/0/0; the corpus
@@ -1405,6 +1432,26 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the asmheader-probe refutation + the next-packet ranking
+       (this commit — the one-probe candidate RUN AND REFUTED:
+       the version flip 232.6.0.65535 → 223.0.1.1930 moved NOTHING
+       in the modeler verdicts, the probe REVERTED with the gates
+       and the identity restored exactly; the SAB arm's remaining
+       measured suspects = the product strings (the MAINTAINER
+       DECISION row, the §20.4 LOADS-but-never-MODELED
+       supercession) + the never-reached possibility; the next
+       packets evidence-ranked: the evaluation-graph interposition
+       (chimera B), the AcDs-revalidation lead (chimera A),
+       the product-string hand-run)
+<docs> the chimera re-probe record (3651da4) — the
+       entity-form-fixed chimeras REBUILT + re-probed with the
+       audit channels: chimera B (our wrapper + her SAB) still
+       fails — the wrapper's container/journal arm is a blocker
+       beyond the entity record; chimera A (her wrapper + our
+       SAB) — all pre-audit failures with the ACAD audit
+       REPAIRING her untouched solid post-audit (the
+       Auditing-AcDsRecords revalidation lead); the region pair
+       diff levels 1-3 clean in both
 <docs> the halt refresh — THE SECOND-CONTINUATION ADDENDUM (this
        commit; the new addendum block above is the operative
        handover state: the entity-form packet LANDED + the probe's
