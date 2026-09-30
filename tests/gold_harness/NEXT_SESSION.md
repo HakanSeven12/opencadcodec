@@ -1,4 +1,32 @@
-# THE 2026-09-30 FIFTH-CONTINUATION ADDENDUM (the halt head — read
+# THE 2026-09-30 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
+# point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
+# §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
+# top to bottom): THE CAMPAIGN STATE — the corpus at 280 files
+# 0/0/0/0 on all four axes; the genus gate queue PENDING-ZERO with
+# --strict passing; THE B-REP CONSTRUCTION GAP CLOSED IN BRICSCAD
+# (the constructed Region + the full gen_all canonical read MODELED
+# with real extents — the entity-form packet, the container
+# round-2 chain, and the datidx fix landed it); the search-segment
+# format defect is THE NEXT PACKET (measured + designed — the
+# multi-record mispairing, the fifth addendum carries the plan);
+# the entity-behavior verification matrix is LANDED and documented
+# (29/29 kinds verified on five axes — BUILD/SILVER/GOLD/REWRITE
+# all green; the MODELER axis: the canonical MODELED under
+# BricsCAD; the README carries the section); the ACAD residue
+# (the plain fixture still modeler-refuses — the graph/journal
+# arms + the maintainer's ACAD hand-open request) is the ranked
+# queue behind the search packet. ALL INSTRUMENTS CURRENT: the
+# probe (AUDIT-report channels + the launch-time stall guards +
+# the core-console arm), the entity verification harness, the
+# genus gates + the extended pin, the record census, the chimera
+# coherent-swap instrument. THE FIRST ACTION for the zero-context
+# agent: re-verify the battery (the verification gate section
+# below), read the fifth addendum's SEARCH-FORMAT PACKET design,
+# and implement it — the acceptance is the multi-record
+# distinct-geometry probe (every ent[h] bbox matches its OWN
+# SAB's geometry), then the full battery + the ACAD re-probe.
+#
+# === THE FIFTH-CONTINUATION ADDENDUM (the search defect record
 # this first): **THE SEARCH-SEGMENT FORMAT DEFECT — A REAL
 # MULTI-RECORD WRITER BUG, MEASURED AND LOCALIZED.** The A-2
 # chimera-artifact investigation (the halt's rank-(b) question)
