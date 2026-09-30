@@ -1305,7 +1305,27 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
-<docs> the halt refresh - the CHIMERA BLAME-SPLIT RUN (this
+<docs> the handover commit-inventory completion (this commit —
+       the 2026-09-30 session's addendum block above is the
+       operative handover state; the zero-context reading order
+       stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1 + §20 →
+       §19.4/19.5 → §18.6 + §F2 → this file top to bottom,
+       STARTING at the SESSION ADDENDUM)
+9d96d9c <feat> the SAB-arm region twin + the per-entity census —
+       the B-rep gap's wrapper arm MEASURED: the COMMON_3DSOLID
+       entity-form defect (the modeler's "Data stream is empty"):
+       build_region_sat (both copies) = her byte-level twin (the
+       CW canonical ring walked CCW, sidedness double, her vertex
+       backptrs, the sheet face's ninth token — the candidate-6
+       reversed-ring mirror refuted by the travel audit); the
+       per-entity census landed (two instrument bugs fixed); the
+       maintainer's manual-audit evidence converged with gold's
+       read + the chimera-2 verdicts → the DESIGNED NEXT PACKET:
+       the COMMON_3DSOLID R2013+ entity-body emission (the
+       version BS gate + her modern form); gates green (suite 52,
+       corpus 280 0/0/0/0, the face row 1 pending/2 for the
+       strict-loader verdict); identity 388f0a71.../25,535
+6683d45 <docs> the halt refresh - the CHIMERA BLAME-SPLIT RUN (this
        commit): the sab_swap chimeras re-built + probed under
        ACAD 2027 — BOTH NO-SOLID with each arm proven by the
        control: the constructed SAB stream is a blocker (A:
