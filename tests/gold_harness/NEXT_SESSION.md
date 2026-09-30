@@ -5,33 +5,29 @@
 # 0/0/0/0 on all four axes; the genus gate queue PENDING-ZERO with
 # --strict passing; THE B-REP CONSTRUCTION GAP CLOSED IN BRICSCAD
 # (the constructed Region + the full gen_all canonical read MODELED
-# with real extents — the entity-form packet, the container
-# round-2 chain, and the datidx fix landed it); THE
-# SEARCH-FORMAT PACKET IS LANDED — THE MULTI-RECORD MISPAIR IS
-# GONE (the search segment rewritten to her grammar + THE
-# `_data_` ROW-LOCATOR ROOT the packet's decode surfaced — the
-# A-2-style distinct-geometry probe reads every entity at ITS OWN
-# SAB's geometry; the sixth addendum carries the record); the
-# entity-behavior verification matrix is LANDED and documented
-# (29/29 kinds verified on five axes — BUILD/SILVER/GOLD/REWRITE
-# all green; the MODELER axis: the canonical MODELED under
-# BricsCAD; the README carries the section); THE ACAD RE-PROBE
-# RAN AND ITS VERDICT IS RECORDED (the maintainer's live
-# hand-opens: the fixed bytes trigger AutoCAD's open-time
-# RECOVER prompt where the old form opened — the trigger named
-# as THE EMPTY SCHEMA-0 BLOCK, i.e. THE MISSING THUMBNAIL
-# `_data_` ROW — the thumbnail-row packet is the designed
-# queue head, the sixth addendum item (4) carries the design).
-# ALL INSTRUMENTS CURRENT: the
-# probe (AUDIT-report channels + the launch-time stall guards +
-# the core-console arm), the entity verification harness, the
+# with real extents); THE SEARCH-FORMAT PACKET + THE ROW-LOCATOR
+# ROOT + THE THUMBNAIL-ROW PACKET ALL LANDED — THE MULTI-RECORD
+# MISPAIR IS GONE (the A-2 distinct-geometry probe reads every
+# entity at ITS OWN SAB's geometry; the container now diffs
+# byte-identical against her Box_2018 on every structural slot);
+# THE ACAD RESIDUE IS ISOLATED TO THE CONSTRUCTED SAB STREAM (the
+# core console's verbatim verdict: ACAD's open-time model
+# regeneration hard-fails on OUR SAB with `Modeling Operation
+# Error: Error Code Number is 65010` — surfaced as the GUI's
+# RECOVER prompt; the chimera core split: OUR SAB fails in HER
+# wrapper [A2 65010], HER SAB regenerates CLEAN in OUR wrapper
+# [B2] — the wrapper-side stack is exonerated on BOTH loaders);
+# the entity-behavior verification matrix is LANDED and documented
+# (29/29 kinds verified on five axes). ALL INSTRUMENTS CURRENT:
+# the probe (AUDIT-report channels + the launch-time stall guards
+# + the core-console arm), the entity verification harness, the
 # genus gates + the extended pin, the record census, the chimera
 # coherent-swap instrument. THE FIRST ACTION for the zero-context
 # agent: re-verify the battery (the verification gate section
 # below), read the sixth addendum's record, then implement THE
-# THUMBNAIL-ROW PACKET (the addendum's item (4) design — the
-# acceptance: bcad still MODELED, the ACAD RECOVER prompt GONE,
-# the full battery green).
+# SAB-LEVEL ACAD-AXIS PACKET (the record-level pair diff with the
+# core console as the acceptance — the addendum's item (4b)
+# carries the matrix and the ranked candidates).
 #
 # === THE SIXTH-CONTINUATION ADDENDUM (the search-format packet
 # LANDED — read this first, then the fifth addendum's design
@@ -111,78 +107,115 @@
 # constructed fixtures + both authored controls MODELED with
 # clean audits (the run stands).
 #
-# (4) THE ACAD RE-PROBE — RUN, AND ITS VERDICT IS DECISIVE NEW
-# EVIDENCE (the maintainer's live hand-opens ARE the probe): the
-# scripted ACAD pass on the FIXED bytes stalled at AutoCAD's
+# (4) THE ACAD RE-PROBE — RUN TO ITS ROOT, AND THE ROOT IS NAMED
+# BY THE CORE CONSOLE'S OWN WORDS (the maintainer's live hand-opens
+# + the accoreconsole transcripts, the dialog-free channel): the
+# scripted GUI pass on the FIXED bytes stalled at AutoCAD's
 # open-time RECOVER prompt — THE MAINTAINER REPORTED IT LIVE ON
-# TWO FIXTURES (ConstructedCylinder + ConstructedRegion, "asked me
-# for RECOVER, i chose no" both) — the dialogs block the scripted
-# runs (no result files; the launcher timeout kills the stalled
-# instances). THE DISCRIMINATION THAT NAMES THE TRIGGER: the OLD
-# search form NEVER blocked ACAD's scripted opens (the same
-# morning's pre-packet result files COMPLETED: the file opened,
-# the audit clean, the modeler refusing "Automation Error.
-# Invalid input"); the NEW her-grammar form prompts RECOVER —
-# and the ONE remaining deviation from her genus is THE EMPTY
-# SCHEMA-0 BLOCK: our search's thumbnail-schema block carries
-# ZERO handles because we emit NO thumbnail `_data_` row, while
-# HER ROW 0 IS ALWAYS THE MODEL LAYOUT'S PREVIEW RECORD (handle
-# = the layout object's, 0x22 in her files; her schema-0 block
-# always carries its entry — no her specimen has an empty
-# schema-0 block; her empty-block precedent is the ASM schema in
-# her Arc-authored files). NOTE the old form's schema-0 block
-# was NON-EMPTY (it wrongly carried the SAB handles) and ACAD
-# OPENED it — the empty block is the ACAD-strict trip, and
-# bcad reads the same bytes CLEAN (every fixture MODELED, audits
-# 0 errors): the divergence is AutoCAD-only open-time
-# validation. THE RECOVER PROMPT ALSO ANSWERS THE MAINTAINER'S
-# STANDING HAND-OPEN REQUEST with the sharpest residue
-# evidence yet recorded.
+# FIVE FIXTURES (Cylinder + Region pre-thumbnail; Body + Box +
+# Cone post-thumbnail, "asked me for RECOVER / asks for RECOVERY,
+# i chose no" each) — and the dialogs block the scripted runs (no
+# result files; the launcher timeout kills the stalled
+# instances). THE FIRST HYPOTHESIS — THE EMPTY SCHEMA-0 BLOCK —
+# WAS DESIGNED, LANDED, AND REFUTED (see item 5): the thumbnail
+# row filled the block to her complete genus and the prompt
+# STAYED. THE CORE CONSOLE THEN NAMED THE REAL ROOT, VERBATIM:
+# every constructed fixture's accoreconsole transcript reads
+# `Loading Modeler DLLs. / Regenerating model. / Modeling
+# Operation Error: / Error Code Number is 65010` (×2) `ERROR:
+# Something went wrong. ErrorStatus=53 (AcCoreConsole.cpp:1792)`
+# — ACAD's OPEN-TIME MODEL REGENERATION (the B-rep reconstruction
+# from the AcDs SAB) HARD-FAILS on OUR CONSTRUCTED SAB STREAM,
+# and the GUI surfaces that hard failure as the RECOVER prompt.
+# THE OLD BROKEN CONTAINER NEVER GOT THERE (the morning's
+# pre-packet opens completed: nothing resolved, nothing to
+# regenerate, the modeler refusing only at the bbox force
+# "Automation Error. Invalid input") — THE CONTAINER PACKETS
+# DID NOT CAUSE THE FAILURE, THEY EXPOSED THE STAGE WHERE IT
+# LIVES.
 #
-# (5) THE BATTERY at this halt: the suite 1604 green (the one
-# stale-shape unit test re-pinned at the row fix); the mirrors
-# green (gold_roundtrip + the genus cargo mirror + issue80);
-# the four family smokes 0/0 with clean echoes; the genus gates
-# PENDING-ZERO (sab_form 0/3, sh_genus 0/1, acds 0 — the corpus
-# sections at 3/1/0 adjudicated); the identity MOVED to
-# a4a9240df2733e45e7d33d616ba63ab7 (the search content + the
-# row locators — intended content changes; identical without
+# (4b) THE CHIMERA CORE SPLIT — THE ACAD-AXIS BLAME ISOLATED (the
+# same continuation, accoreconsole on the coherent chimeras):
+# **A2SWAP (HER WRAPPER + OUR SAB): 65010 ×2 + ErrorStatus=53 —
+# OUR SAB FAILS ACAD'S MODELER EVEN INSIDE HER WRAPPER.**
+# **B2SWAP (OUR WRAPPER + HER SAB): `Regenerating model.` CLEAN —
+# HER SAB CONSTRUCTS INSIDE OUR COMPLETE CONTAINER** (the
+# thumbnail row, the search her-grammar, the datidx, the row
+# locators, the entity form — the whole wrapper-side stack,
+# ACCEPTED BY THE FORMAT AUTHOR'S OWN TOOL AT THE DEEPEST STAGE
+# YET MEASURED). The controls clean (her Box_2018 + the +LINE
+# rewrite). THE COMPLETE ACAD MATRIX: our wrapper + our SAB →
+# 65010; HER wrapper + our SAB → 65010; our wrapper + HER SAB →
+# CLEAN; her wrapper + her SAB → clean. **THE SOLE REMAINING
+# ACAD-AXIS DEFECT IS THE CONSTRUCTED SAB STREAM — the wrapper,
+# the container, the search, the datidx, the `_data_` row form,
+# and the thumbnail record are ALL EXONERATED ON BOTH LOADERS**
+# (bcad constructs our SABs — every fixture MODELED; ACAD's
+# stricter ASM modeler rejects them with 65010 at regeneration).
+#
+# (5) THE THUMBNAIL-ROW PACKET — LANDED (the first hypothesis for
+# the RECOVER root, refuted as the root, KEPT as the genus
+# completion): the container now matches her genus COMPLETELY —
+# her `_data_` row 0 is ALWAYS the Model Layout's preview record
+# (measured: Box_2018's 896-byte PNG at handle 0x22,
+# example_2018's 2017-byte one; no her specimen lacks the row),
+# so the writer emits it: `_data_` row 0 = (0x14, 1, OUR Model
+# Layout's handle, 0, LOC 0) with chunk 0 = [len][PNG]; the
+# datidx gains row 0 = (slot_data, 0, schidx 0) ahead of the ASM
+# rows; the search's schema-0 block gains the layout entry +
+# the key 0<<32; the ASM records SHIFT +1 everywhere (the datidx
+# offsets, the search keys (i+1)<<32, the entries' rows, the
+# `_data_` LOCs shifted past the PNG chunk) — the emitted
+# container now diffs against her Box_2018 BYTE-IDENTICAL on
+# every structural slot (the search segment: 3 content-byte
+# diffs, all correct per-file handles; the jard/segidx/slot
+# allocation/layout order: identical). THE PNG: a synthesized
+# minimal valid 1×1 truecolor PNG (signature + IHDR + a
+# stored-deflate IDAT + IEND, crc32/adler32 computed in-place —
+# the writer does not render; the preview is document sugar, not
+# author identity). THE READER UNCHANGED (both `_data_` walk
+# arms skip the PNG chunk naturally — no ASM/ACIS magic; the
+# roundtrip suite green). The unit tests: the row/locator test
+# re-pinned + the thumbnail/search-shape test + the PNG
+# structural test. B2Swap's CLEAN ACAD OPEN IS THE PACKET'S
+# ACCEPTANCE: her SAB regenerates inside our thumbnail-carrying
+# container under the format author's own tool.
+#
+# (6) THE BATTERY at this halt: the suite 1606 green (the two new
+# thumbnail tests in); the mirrors green (gold_roundtrip + the
+# genus cargo mirror + issue80); the four family smokes 0/0 with
+# clean echoes; the genus gates PENDING-ZERO with --strict
+# (sab_form 0/3, sh_genus 0/1, acds 0 — the thumbnail row ranked
+# no new rows); the identity MOVED to
+# 5ac4ef3490e770394bd9b33c72492116 (the thumbnail record + the
+# +1 shifts — intended content changes; identical without
 # --features serde; the history: 751a1a81 pre-packet →
-# 1dfaff0a search-only → a4a9240d full); the corpus 280 at
-# 0/0/0/0 on all four axes.
+# 1dfaff0a search-only → a4a9240d + locators → 5ac4ef34
+# thumbnail); the corpus 280 at 0/0/0/0 on all four axes.
 #
-# THE NEXT WORK, evidence-ranked: (a) **THE THUMBNAIL-ROW
-# PACKET — THE ACAD-RESIDUE QUEUE HEAD, NOW CONFIRMED BY THE
-# RECOVER EVIDENCE** (the third addendum's "weakened" note is
-# SUPERSEDED): emit the preview record as `_data_` ROW 0 —
-# (0x14, 1, OUR Model Layout's handle, 0, LOC 0) with chunk 0
-# = [len u32][PNG bytes]; the datidx gains row 0 =
-# (slot_data, 0, schidx 0) ahead of the ASM rows; the search's
-# schema-0 block gains the layout entry (layout_handle, 1, 0)
-# + the key 0<<32; the ASM records SHIFT +1 everywhere (the
-# datidx offsets i*20 for i>=1, the search keys (i+1)<<32,
-# the entries' rows +1, the `_data_` LOCs shifted by
-# 4+png_len) — the container then matches her genus COMPLETELY
-# (her Box_2018: rows [thumbnail, solid], search [schema-0
-# populated, schema-5 populated]). THE PNG: a synthesized
-# minimal valid PNG (the preview container codec [preview.rs]
-# WRAPS images but does not synthesize; hand-code
-# signature+IHDR+IDAT[stored deflate]+IEND with crc32/adler32,
-# ~60 lines — the preview is document sugar, not author
-# identity). THE READER NEEDS NO CHANGE: both `_data_` walk
-# arms skip the PNG chunk naturally (no ASM/ACIS magic) and the
-# positional/locator pairing keeps the SAB rows aligned —
-# verify via the roundtrip suite. THE GATES: check whether the
-# datidx segment's size rides the per-segment pin
-# (content-sized like `_data_` — verify in genus_extract.py)
-# and whether the search interior ranks (it never did). THE
-# ACCEPTANCE: bcad still MODELED (all fixtures + the
-# multi-record distinct-geometry probe), ACAD's RECOVER
-# PROMPT GONE (the scripted probe unblocks), the full battery
-# green. (b) if the prompt persists after the thumbnail row:
-# the evaluation-graph interposition + the journal (the fifth
-# addendum's ranked arms); (c) the gen_all ent[0] `stringp
-# nil` MLeader defect (the standing small follow-up).
+# THE NEXT WORK, evidence-ranked: (a) **THE SAB-LEVEL ACAD-AXIS
+# PACKET — THE SOLE REMAINING DEFECT, NOW ISOLATED**: the
+# record-level pair diff of her SAB vs our constructed SAB
+# (the standing restore_gap_diffs.py face-chain-anchored
+# isomorphism arm — the halt record's designed instrument),
+# driven by the core console as the acceptance (a constructed
+# fixture whose transcript reads `Regenerating model.` with NO
+# 65010 — the bcad MODELED verdicts prove the topology; ACAD's
+# modeler is the stricter judge). THE CANDIDATES the genus work
+# left: the asmheader/product-strings identity block (bcad
+# accepts ours; ACAD's modeler may be stricter — THE
+# AUTHOR-IDENTITY RULE MAKES WRITING HERS A MAINTAINER DECISION,
+# and the §20.4 supercession note applies), the sub-invariant
+# token deltas (the pair diff's pre-divergence rows), the
+# evaluation-graph interposition (136/136 authored carriers
+# carry ACAD_EVALUATION_GRAPH; the constructed docs carry none —
+# weak for a modeling-operation error, but unmeasured); (b) the
+# gen_all ent[0] `stringp nil` MLeader defect (the standing
+# small follow-up); (c) the core-probe verdict vocabulary: the
+# core runs read AMBIGUOUS on the 65010 hard-fail (the console
+# dies before the LISP result) — a transcript-based verdict
+# classifier (65010 → REGENERATION-FAILED) would make the core
+# channel a first-class acceptance gate.
 # The reading order stands: AGENTS.md → IMPLEMENTATION.md
 # §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
 # file top to bottom, STARTING at THIS addendum.
@@ -1742,21 +1775,22 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `a4a9240df2733e45e7d33d616ba63ab7`,
-  25,567 bytes (moved at the 2026-09-30 search-format packet —
-  the search segment's her-grammar rewrite + the `_data_` row
-  locators; the identity history: `84374e73…` through the §20
-  landing → `4265c04a…` at G-C → `0e8b23cd…` at the vertex packet →
-  `a8f227e0…` at the asmheader packet → `a7c5f170…` at the
-  tolerance packet → `e4cd1960…` at the ordering packet →
-  `0e953809…` at the era-profiled
+- The generation identity is `5ac4ef3490e770394bd9b33c72492116`,
+  25,567 bytes (moved at the 2026-09-30 search-format +
+  thumbnail-row packets — the search segment's her-grammar
+  rewrite, the `_data_` row locators, and the thumbnail record
+  with its +1 shifts; the identity history: `84374e73…` through
+  the §20 landing → `4265c04a…` at G-C → `0e8b23cd…` at the
+  vertex packet → `a8f227e0…` at the asmheader packet →
+  `a7c5f170…` at the tolerance packet → `e4cd1960…` at the
+  ordering packet → `0e953809…` at the era-profiled
   SAB header packet d1dd5ee → `bb9971a4…` at the eighth
   genus queue packet → `388f0a71…` at the region-twin
-  session → `7b8379b3…` at the entity-form packet → `e52bd724…` at
-  the ds fix → `c6788f75…` at the template recapture →
+  session → `7b8379b3…` at the entity-form packet → `e52bd724…`
+  at the ds fix → `c6788f75…` at the template recapture →
   `751a1a81…` at the datidx fix → `1dfaff0a…` at the search-only
-  rewrite → `a4a9240d…` at the row locator). The
-  generator
+  rewrite → `a4a9240d…` at the row locator → `5ac4ef34…` at the
+  thumbnail row). The generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -1865,11 +1899,13 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# a4a9240df2733e45e7d33d616ba63ab7, 25,567 bytes (moved at the
-# 2026-09-30 search-format packet — the search segment's
-# her-grammar rewrite + the `_data_` row locators; earlier
-# history: 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
-# search-only rewrite → a4a9240d… here)
+# 5ac4ef3490e770394bd9b33c72492116, 25,567 bytes (moved at the
+# 2026-09-30 search-format + thumbnail-row packets — the search
+# her-grammar rewrite, the `_data_` row locators, the thumbnail
+# record + its +1 shifts; earlier history:
+# 751a1a81…/25,567 at the datidx fix → 1dfaff0a… at the
+# search-only rewrite → a4a9240d… at the row locator →
+# 5ac4ef34… here)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -1942,6 +1978,52 @@ python3 tests/gold_harness/strict_load_probe.py
 ## Commit inventory (this halt)
 
 ```
+<docs> the 65010 halt record (this commit — the operative
+       handover head: THE ACAD RESIDUE ISOLATED TO THE
+       CONSTRUCTED SAB STREAM — the core console's verbatim
+       verdict [ACAD's open-time model regeneration hard-fails
+       on our SAB: `Modeling Operation Error: Error Code Number
+       is 65010` ×2 + ErrorStatus=53 — the GUI's RECOVER
+       prompt], the chimera core split [A2 her-wrapper+our-SAB
+       → 65010; B2 our-wrapper+her-SAB → CLEAN — the
+       wrapper-side stack exonerated on BOTH loaders], the
+       thumbnail hypothesis refuted-as-root/kept-as-genus;
+       THE NEXT PACKET: the SAB-level ACAD-axis record-level
+       pair diff with the core console as the acceptance; the
+       battery green [suite 1606, mirrors, smokes 0/0, corpus
+       280 at 0/0/0/0, gates pending-zero, identity
+       5ac4ef34/25,567 serde-parity]; the zero-context reading
+       order stands, STARTING at the sixth-continuation
+       addendum)
+<feat> the thumbnail-row packet — THE CONTAINER AT HER COMPLETE
+       GENUS (the first RECOVER-root hypothesis, refuted as the
+       root by the core console, KEPT as the genus completion):
+       her `_data_` row 0 is ALWAYS the Model Layout's preview
+       record (measured Box_2018 0x22/896-byte PNG,
+       example_2018 0x22/2017-byte PNG — no her specimen lacks
+       the row), so the writer emits it: the `_data_` row 0 =
+       (0x14, 1, our Model Layout's handle, 0, LOC 0) with
+       chunk 0 = [len][PNG]; the datidx gains row 0 =
+       (slot_data, 0, schidx 0); the search's schema-0 block
+       gains the layout entry + the key 0<<32; the ASM records
+       shift +1 everywhere (datidx offsets, search keys
+       (i+1)<<32, entry rows, `_data_` LOCs past the PNG
+       chunk); the PNG = a synthesized minimal valid 1×1
+       truecolor (signature+IHDR+stored-deflate IDAT+IEND,
+       crc32/adler32 in-place — document sugar, not author
+       identity); the reader unchanged (both walk arms skip the
+       PNG chunk); the emitted container diffs byte-identical
+       against her Box_2018 on every structural slot (the
+       search: 3 content-byte diffs, all correct per-file
+       handles); three unit tests (the row/locator re-pin, the
+       thumbnail/search shape, the PNG structure); ACCEPTANCE:
+       B2Swap (our wrapper + her SAB) regenerates CLEAN under
+       accoreconsole — the format author's own tool accepts the
+       complete container; bcad still MODELED everywhere (the
+       A-2 distinct-geometry probe + the canonical 3/3 + all
+       fixtures); identity a4a9240d → 5ac4ef34/25,567
+       (identical without serde); suite 1606, corpus 280 at
+       0/0/0/0, gates pending-zero
 <docs> the sixth-continuation halt record (this commit — the
        operative handover head: THE SEARCH-FORMAT PACKET LANDED
        — the multi-record mispair GONE (the search segment in
