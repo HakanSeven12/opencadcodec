@@ -1,80 +1,138 @@
-# THE 2026-09-30 SESSION ADDENDUM — read this first: THE B-REP GAP'S
-# TWO ARMS ARE NOW FULLY MEASURED, and THE NEXT PACKET IS
-# SPECIFICALLY DESIGNED (the COMMON_3DSOLID entity-form defect —
-# the modeler says "Data stream is empty" because the CONSTRUCTED
-# 3DSOLID/REGION/BODY ENTITY RECORDS CARRY A WRONG-ERA FORM:
-# HER authored R2018 REGION entity: --common_size 64, acis_empty: 1
-# [B 290] (the model data lives in the AcDs container — the entity
-# record declares itself empty), wireframe_data_present: 1,
-# point_present/isoline/guid fields, NO `version` field, the
-# revision-guid tail, layer-at-@37.6 (the long handle stream);
-# OURS: --common_size 56, acis_empty: 0, an `unknown: 1` bit, a
-# `version: 168 [BS 70]` field HER RECORD DOESN'T CARRY,
-# `num_materials`, then DESYNC — gold reads garbage revision
-# values, buffer overflows, and `ERROR: Invalid revision_bytes
-# size 8. Need min. 64 bits, have -1 for REGION` — THE
-# PRE-R2013 BODY FORM ON AN R2018 RECORD. THE EVIDENCE, converged
-# from three sources: (1) THE MAINTAINER'S MANUAL AUDIT (the files
-# at target/genus_gates_test/constructed, ACAD, verbatim captured):
-# every fixture reports `Name: AcDb3dSolid(31)/AcDbRegion(31)/
-# AcDbBody(31) — Value: Modeling operation error: Data stream is
-# empty — Validation: Invalid — Default value: Removed; 154
-# objects audited, Total errors found 1, fixed 0` (the gen_all
-# carries FOUR: the MLeader "LeaderStyle Id is Null" + the
-# 3DSOLID/BODY/Region empties = also the gen_all probe's ent[0]
-# `stringp nil` census failure — a SECOND precise defect for a
-# small follow-up); (2) GOLD'S OWN READ: the -v9 comparison above
-# — gold reads her entity clean, ours desyncs (the revision_bytes
-# ERROR is OUR record, not hers); (3) THE CHIMERA-2 RERUN (the
-# built-twin SAB swapped): chimera A (her wrapper + the TWIN
-# region SAB) ALL THREE of her entities FAIL pre-audit — and
-# post-audit ent[2E1] RECOVERS with real extents (dbmod 0→1: THE
-# AUDIT REPAIRS SOMETHING — an AcDs revalidation/rebuild lead for
-# the container arm), while chimera B (the constructed wrapper +
-# her SAB) fails pre+post throughout — the constructed wrapper's
-# ENTITY RECORD is the poison, exactly as the form diff shows.
-# THE SAB RECORD CONTENT IS EXONERATED: the constructed region was
-# rewritten into a BYTE-LEVEL TWIN of her authored plain R2018
-# region (verified raw-record side-by-side: identical token
-# streams, her CW canonical edge ring walked CCW by her ffff
-# coedge chain (the candidate-6 reversed-ring mirror REFUTED by
-# the travel audit: -200 CW → +200 CCW), her vertex
-# edge-back-pointers, sidedness DOUBLE (her f — the solid faces
-# carry single, the sheets double), the plane origin at the
-# rectangle centre, the SHEET face's NINTH token — a face-attrib
-# distinction: the genus Box faces are 8-token (the earlier
-# "9-token faces" census had misread the EOR: the authored family
-# faces ARE 8; HER REGION face alone carries the third bool: the
-# class-wide ("face", 8) completion attempt was REFUTED by the
-# gates (27 × width-50 rows) and narrowed to the region builder
-# appending its own SatToken::True) — AND THE PROBE STILL READS
-# NO-SOLID (region count 1, `Automation Error. Invalid input`,
-# survives audit) — the modeler never reaches the records because
-# THE ENTITY RECORD'S OWN FORM DENIES IT THE STREAM.
-# THE DESIGNED NEXT PACKET (the wrapper arm): the COMMON_3DSOLID
-# entity-body emission for R2013+ — consult gold's COMMON_3DSOLID
-# block (dwg.spec) + dwg2.spec's REGION/SOLID blocks; gate the
-# `version BS [70]` OFF for r2013+, emit her modern form
-# (acis_empty=1 semantics, the wireframe/point/isoline flag set,
-# the revision-guid tail) — the acceptance: gold -v9 on the
-# fixtures reads CLEAN (no revision_bytes ERROR, no buffer
-# overflows, --common_size 64 like hers), the maintainer's MANUAL
-# AUDIT may still name the model but the census MODELS, and the
-# ACAD probe reads MODELED on the Region fixture; then the SAB-arm
-# residue (chimera A's all-3 pre-audit failure + the audit's 2E1
-# recovery) re-probes after the entity form lands.
-# ALSO LANDED THIS SESSION: the per-entity census in
-# strict_load_probe.py (every solid a vl-catch-all-trapped bbox
-# verdict with its handle; two instrument bugs caught by its own
-# output and fixed: the untrapped entget aborted the loop on
-# broken-model entities; a pickset-typed `(while solids ...)`
-# never terminates — the runaway artifacts were the evidence; the
-# aggregate classifier stays on entity[0]); the battery green
-# (suite 52, mirrors, corpus 280 at 0/0/0/0, gates 2/1/0 + the
-# new face row 1 pending/2 occurrences — the region's 9-token
-# face vs the family genus [49], riding pending for the strict-
-# loader verdict per §20.4); the identity `388f0a71...`/25,535.
-
+# THE 2026-09-30 SECOND-CONTINUATION ADDENDUM — read this first:
+# THE COMMON_3DSOLID ENTITY-FORM PACKET IS LANDED (the wrapper
+# arm's designed packet), THE STRICT-LOAD PROBE NOW HARVESTS THE
+# LOADERS' OWN AUDIT REPORTS VERBATIM (the maintainer's directive,
+# both GUI loaders + the new core-console channel), AND THE
+# MEASUREMENTS LOCALIZE THE REMAINING B-REP BLOCKER BELOW THE
+# ENTITY-RECORD LAYER. (1) THE ENTITY-FORM PACKET: `write_acis_empty`
+# (dwg_stream_writers/object_writer/entities.rs) now synthesizes
+# the AUTHORED-GENUS WIREFRAME CACHE for CONSTRUCTED R2013+
+# ds-backed entities (documents with no DWG source — programmatic
+# and DXF-origin): wireframe_data_present=1, point_present=1 + the
+# 3BD anchor at the model's geometry centre (geometry_centre →
+# placement_origin → the entity's point reference), isolines=4,
+# isoline_present=1, zero wires/silhouettes (the stub-wire guard's
+# condition mirrored), acis_empty_bit=1 — the record declares its
+# inline stream EMPTY, the model data living in the AcDs container,
+# exactly her authored form. The genus was measured across the
+# whole specimen family first: EVERY authored R2013+ ds-backed
+# record (Box_2013/Box_2018, Cone/Sphere/Torus/Cylinder_2018,
+# example_2013's solid + both regions, example_2018's regions +
+# solid) carries the same cache block — wf=1, pt=1, iso=4,
+# iso_present=1, 0w/0s, empty_bit=1 — era- and kind-uniform (one
+# region, 0x176, additionally reads has_guid=false, the guid is
+# author-optional author data — the synthesis keeps the model's
+# revision untouched, matching 0x176's guid-less form, PROVEN to
+# model: her 0x176-record is the constructed region's byte-twin's
+# counterpart). DWG-read documents keep their CAPTURED wire state
+# byte-faithful — the synthesis gates on
+# `document.dwg_source_version.is_none()` AND the absence of every
+# captured wireframe flag, so the corpus/echo/record-identity paths
+# are untouched (verified: the four family smokes 0/0/0/0, the
+# corpus 280 at 0/0/0/0, the AC1021 survey 0 divergent records).
+# ACCEPTANCE, gold -v9 on the regenerated fixtures: the thin-body
+# `ERROR: Invalid revision_bytes size 8` (the record-overreading
+# symptom the addendum below describes) is GONE from 6 of 9
+# fixtures (Region/Body/Cylinder/Cone/HistoryTree clean, the
+# gen_all's modeler entities clean); Box/Sphere/Torus still read
+# gold-overruns — their origin-centred anchors (a legitimately
+# (0,0,0) bbox centre) collapse the 3BD to 6 bits and the record
+# length then rides the PERSUBENT TAIL her records carry (+83 to
+# +4989 post-revision bits — the §19 journal-correlated capture,
+# absent on journal-less constructed records) — THE NEXT
+# wrapper-arm lead, sharpened below. (2) THE PROBE'S AUDIT-REPORT
+# CHANNELS (strict_load_probe.py): the 2026-09-29 "no log channel"
+# finding was the V18-era/wxWidgets build — the CURRENT loaders
+# write their command-line logs and the probe now wraps every GUI
+# run in `_.LOGFILEON … _.LOGFILEOFF`, LOGSECs `(getvar
+# "LOGFILENAME")` into the result file, harvests the per-document
+# log to `{run}_audit.log` (unlinking the source so runs never
+# append), and prints a verbatim "audit report" digest per
+# fixture per loader; `--loader core` adds accoreconsole.exe (the
+# dialog-free core console — its entire stdout transcript,
+# UTF-16-decoded, saved to `{run}_core.log`; its ActiveX bridge
+# is DEAD in this build — `vlax-ename->vla-object` returns nil
+# even for entities entget reads cleanly — so the bbox modeler
+# force is unavailable there, the census logs `bbox-UNAVAILABLE
+# (nil ActiveX bridge)`, and the core verdict reads AUDIT-REPORT);
+# the GUI launchers pin `-WorkingDirectory` to the staging dir
+# (unpinned launches inherit the WSL UNC CWD and the per-doc logs
+# land where the harvest cannot follow). THE STALL POST-MORTEM
+# (the maintainer caught ConstructedBox__acad sitting at the LISP
+# prompt, the reader two parens deep, swallowing the script tail —
+# the window hung until killed by hand): the census LISP's else
+# branches were ONE PAREN SHORT (two `while` forms never closed;
+# the reader then consumed LOGFILEOFF/DELAY/QUIT as pending
+# input) — fixed, and BOTH HALVES ARE NOW LAUNCH-TIME ASSERTIONS
+# (`assert_lisp_balanced` verifies every generated .scr
+# parenthesizes to depth 0 before it reaches a loader; the .scr
+# is written encoding="ascii" so a non-ASCII byte — a UTF-8
+# em-dash reads as CP1252 0x94, a curly double-quote — throws at
+# the harness instead of reaching the loader's ANSI codepage;
+# the guard's negative test trips on the historic shape).
+# VALIDATED LIVE:
+# AutoCAD 2027's log carries the open banner + the full audit
+# ("Auditing Header/Tables/Entities Pass 1/Pass 2/Blocks/
+# AcDsRecords … Total errors found N fixed M … Erased K objects");
+# BricsCAD V26's log carries the MODELER'S OWN WORDS ("Name:
+# AcDbRegion(31) / Value: Modeling operation error: / Data stream
+# is empty / Validation: Invalid / Replaced by: Removed / 107
+# objects audited / Total errors found during audit 1, fixed 1").
+# (3) THE MEASURED VERDICTS (this halt's integrated probe run):
+# the authored controls MODELED under both GUI loaders (the
+# discrimination holds); EVERY constructed fixture still reads
+# NULL-BOX under BricsCAD (with "Data stream is empty" captured
+# verbatim per fixture) and modeler-refused under AutoCAD
+# ("Automation Error. Invalid input" on the bbox force) — THE
+# ENTITY FORM WAS NECESSARY BUT NOT SUFFICIENT, and the two
+# modelers now DISAGREE on the same new-form bytes: AutoCAD's
+# AUDIT reads the constructed Region CLEAN ("Total errors found 0
+# fixed 0" — the OLD form errored in the maintainer's manual
+# audit with "Data stream is empty"; the record layer is now
+# accepted by the format author's own tool) while BricsCAD's
+# audit still finds the error and purges — LOCALIZING THE
+# REMAINING BLOCKER BELOW THE RECORD LAYER: the SAB stream itself
+# (chimera A: her wrapper + the constructed SAB → NO-SOLID — the
+# below-invariant SAB pair diff is the SAB arm's next packet) and
+# the container/journal arm (the evaluation-graph interposition —
+# 136/136 authored carriers carry ACAD_EVALUATION_GRAPH, the
+# fixtures carry none; the persubent tail above; the revision-guid
+# question — her solids carry has_guid=true, constructed records
+# guid-less, unknown whether the modeler cross-checks them).
+# (4) THE BATTERY: suite 52 segments green; gold_roundtrip green;
+# the genus_gates mirror green (fresh extraction == the untouched
+# pin); issue80 green; the four family smokes 0/0/0/0; the corpus
+# 280 at 0/0/0/0 with the genus sections sab_form 3 rows (1
+# pending / 2 occurrences — the region's 9-token face row riding
+# pending for the strict-loader verdict per §20.4; 2 rows / 22
+# occurrences TOLERATED) / sh_genus 1 (0/1 TOLERATED) / acds 0;
+# the AC1021 survey 58/58 / 0 divergent; the identity MOVED to
+# `7b8379b33d4c691c4cdd4cf5e9478592`/25,567 (the constructed
+# modeler entities' synthesized cache — an intended content
+# change; identical with and without `--features serde`).
+# THE NEXT WORK: (a) the SAB arm's below-invariant pair diff —
+# `restore_gap_diffs.py`'s face-chain-anchored isomorphism over
+# her plain region's SAB vs the constructed region's TWIN SAB
+# (the byte-twin work closed every measured invariant; the
+# remaining diffs are the sub-invariant suspects) with the probe
+# as the acceptance; (b) the wrapper arm's persubent-tail /
+# evaluation-graph investigations — the ACAD_EVALUATION_GRAPH
+# interposition, the journal-correlated tail, the asmheader
+# version-string genus probe {223.0.1.1930 / 232.6.0.65535} —
+# each one probe cycle, the audit reports now mechanized as the
+# verdict evidence; (c) the face row's strict-loader adjudication
+# (the region's 9-token face — the §20.4 rule) once the modeler
+# gap closes.
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
+# + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top
+# to bottom, STARTING at THIS addendum; the previous addendum
+# (the entity-form DESIGN, the region-twin + chimera evidence)
+# follows below as history — its defect analysis is superseded
+# by the landing above, its SAB-twin evidence is still current.
+#
+# === THE PREVIOUS (FIRST) 2026-09-30 ADDENDUM — the design that
+# this continuation landed; kept as the record of the designed
+# packet and the converged evidence ===
 # Zero-context prompt — TARGET ZERO held everywhere; the §20 genus
 # queue is PENDING-ZERO after the EIGHTH QUEUE PACKET, and THE
 # PRE-2007 RECORD-IDENTITY RESIDUE IS CLOSED (this continuation,
@@ -1125,20 +1183,19 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the five adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `bb9971a421733e8f09b114bf44b614ee`,
-  25,473 bytes (moved at the eighth genus queue packet — the
-  gen_all's Solid3D/Body cartridge changed from the hand-built
-  seam cylinder to the authored-convention seam-less shape, an
-  intended content change; UNMOVED through the rewrite-campaign
-  packets — the wireframe fix, the spline wire-scenario, and the
-  byte-passthrough packet never touch a fresh write's bytes; the
-  identity history: `84374e73…`/25,375 through the §20
+- The generation identity is `7b8379b33d4c691c4cdd4cf5e9478592`,
+  25,567 bytes (moved at the 2026-09-30 COMMON_3DSOLID entity-form
+  packet — the constructed modeler entities' records gained the
+  synthesized authored-genus wireframe cache, an intended content
+  change; the identity history: `84374e73…`/25,375 through the §20
   landing → `4265c04a…`/25,407 at G-C → `0e8b23cd…`/25,439 at the
   vertex packet → `a8f227e0…`/25,439 at the asmheader packet →
   `a7c5f170…`/25,439 at the tolerance packet → `e4cd1960…`/25,473
   at the ordering packet → `0e953809…`/25,473 at the era-profiled
   SAB header packet d1dd5ee → `bb9971a4…`/25,473 at the eighth
-  genus queue packet). The generator
+  genus queue packet → `388f0a71…`/25,535 at the region-twin
+  session → `7b8379b3…`/25,567 at the entity-form packet). The
+  generator
   builds and runs identically WITH or WITHOUT `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
@@ -1233,10 +1290,13 @@ python3 tests/gold_harness/run_roundtrip.py \
 # 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
 #    are ADDITIONAL output; these totals must not move)
 python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 queue — PENDING-ZERO): sab_form 4 rows
-#        (0 pending / 4 TOLERATED), sh_genus 1 row (0 pending / 1
-#        TOLERATED), acds_genus 0 (G-C CLOSED; the vertex, asmheader,
-#        and tolerance rows closed at packets two through four; the
+#    ... genus gates (the §20 queue): sab_form 3 rows (1 row / 2
+#        occurrences PENDING — the region's 9-token face vs the
+#        family genus, riding pending for the strict-loader
+#        verdict per §20.4; 2 rows / 22 occurrences adjudicated
+#        TOLERATED), sh_genus 1 row (TOLERATED, the elide marker),
+#        acds_genus 0 (G-C CLOSED; the vertex, asmheader, and
+#        tolerance rows closed at packets two through four; the
 #        ACIS-700 family, the G-B elide marker, and the persubent
 #        class adjudicated at packets five and six; the 60-row
 #        ordering family fell at packet seven)
@@ -1244,12 +1304,11 @@ python3 tests/gold_harness/run_corpus.py
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
 md5sum gen_all_entities_all_versions.dwg
-# bb9971a421733e8f09b114bf44b614ee, 25,473 bytes (moved at the
-# eighth genus queue packet — the gen_all cylinder cartridge
-# change; UNMOVED through the wireframe/spline/byte-passthrough
-# rewrite-campaign packets — those never touch a fresh write;
-# earlier history: e4cd1960… at the ordering packet → 0e953809… at
-# the era-profiled SAB header packet d1dd5ee)
+# 7b8379b33d4c691c4cdd4cf5e9478592, 25,567 bytes (moved at the
+# 2026-09-30 COMMON_3DSOLID entity-form packet — the constructed
+# modeler entities' synthesized wireframe cache;
+# earlier history: bb9971a4…/25,473 at the eighth queue packet →
+# 388f0a71…/25,535 at the region-twin session)
 # (identical without --features serde)
 
 # 4b. The record-identity survey (58/58, 0 divergent)
@@ -1289,25 +1348,99 @@ python3 tests/gold_harness/genus_gates.py     # the ranked report
 
 # 7b. THE STRICT-LOAD PROBE (the mechanized loader audit)
 #     (Windows-visible host required; the DEFAULT run exercises BOTH
-#      loaders — BricsCAD V26 [DEFAULT_BCAD] and AutoCAD 2027
+#      GUI loaders — BricsCAD V26 [DEFAULT_BCAD] and AutoCAD 2027
 #      [DEFAULT_ACAD, the format author] — every fixture under each,
-#      per-loader verdicts; --loader bcad/acad narrows)
+#      per-loader verdicts; --loader bcad/acad/core narrows — `core`
+#      = accoreconsole.exe, the dialog-free transcript channel whose
+#      ActiveX bridge is nil [verdict AUDIT-REPORT]; `--acore`
+#      overrides its path. EVERY GUI RUN NOW HARVESTS THE LOADER'S
+#      OWN LOGFILEON SESSION LOG to {run}_audit.log AND PRINTS THE
+#      VERBATIM AUDIT REPORT — the modeler's failure text ("Data
+#      stream is empty") and the audit totals — first-class verdict
+#      evidence, read before designing a packet.)
 python3 tests/gold_harness/strict_load_probe.py
-# the constructed fixtures still read NULL-BOX/NO-SOLID under ACAD
-# 2027 (re-probed at this halt — the B-rep construction gap is the
-# OPEN campaign, the null box did NOT move with the file-level
-# fixes; the sentinel is ±1e80 under BricsCAD, ±1e20 under
-# AutoCAD); the authored controls read MODELED; the
-# example_2018+LINE rewrite reads MODELED — census 3, real
-# extents, the audit indistinguishable from her authored original
+# the constructed fixtures still read NULL-BOX under BricsCAD and
+# modeler-refused under AutoCAD (re-probed at this halt, AFTER the
+# entity-form packet: the B-rep construction gap is the OPEN
+# campaign, now LOCALIZED BELOW THE RECORD LAYER — AutoCAD's AUDIT
+# reads the new-form fixtures CLEAN ["Total errors found 0 fixed
+# 0"] where the old form errored, while BricsCAD's audit still
+# names "Data stream is empty" and purges; the sentinel is ±1e80
+# under BricsCAD, ±1e20 under AutoCAD); the authored controls read
+# MODELED; the example_2018+LINE rewrite reads MODELED — census 3,
+# real extents, the audit indistinguishable from her authored
+# original
 ```
 
 ## Commit inventory (this halt)
 
 ```
-<docs> the handover commit-inventory completion (this commit —
-       the 2026-09-30 session's addendum block above is the
-       operative handover state; the zero-context reading order
+<docs> the halt refresh — THE SECOND-CONTINUATION ADDENDUM (this
+       commit; the new addendum block above is the operative
+       handover state: the entity-form packet LANDED + the probe's
+       audit-report channels + the below-the-record-layer
+       localization; the previous addendum retained as history)
+<feat> the strict-load probe's AUDIT-REPORT channels — the
+       maintainer's "ensure you are receiving AUDIT reports"
+       directive: the LOGFILEON/LOGFILEOFF wrap on every GUI run
+       (both loaders — the 2026-09-29 "no log channel" finding was
+       the V18-era build; BricsCAD V26 + AutoCAD 2027 both write
+       the session logs), the `logfilename:` LOGSEC line, the
+       harvest to {run}_audit.log (source unlinked so the
+       per-doc log names never accumulate), the verbatim
+       "audit report" digest per fixture per loader (VALIDATED:
+       ACAD "Total errors found 0 fixed 0" + the open banner;
+       BricsCAD "AcDbRegion(31) / Modeling operation error: /
+       Data stream is empty / Total errors found during audit 1,
+       fixed 1" — the modeler's own words, mechanized);
+       `--loader core` (accoreconsole.exe — the dialog-free
+       transcript channel, stdout → {run}_core.log, UTF-16
+       decoded via read_log_text; the MEASURED nil ActiveX
+       bridge → the bbox force logged bbox-UNAVAILABLE there and
+       the verdict reads AUDIT-REPORT); `-WorkingDirectory`
+       pinned on both GUI launchers (the per-doc logs followed
+       the inherited WSL UNC CWD without it); win_to_wsl handles
+       the UNC form; the census LISP converts before forcing
+       (vlax-ename->vla-object first — the nil object logged
+       honestly instead of the opaque VLA-OBJECT error); THE
+       STALL FIX (the maintainer caught ConstructedBox__acad at
+       the LISP prompt, reader two parens deep, window hung until
+       killed by hand: the census LISP's else branches were ONE
+       PAREN SHORT — two whiles never closed, the reader swallowed
+       LOGFILEOFF/DELAY/QUIT; fixed, and BOTH HALVES ARE NOW
+       LAUNCH-TIME ASSERTIONS — assert_lisp_balanced checks every
+       generated .scr to depth 0 before launch, encoding="ascii"
+       rejects any non-ASCII byte at write; the guard's negative
+       test trips on the historic shape; the em-dashes scrubbed
+       from the templates — the CP1252 0x94 curly-quote hazard)
+<feat> the COMMON_3DSOLID entity-form packet — the wrapper arm's
+       designed packet LANDED: write_acis_empty synthesizes the
+       AUTHORED-GENUS WIREFRAME CACHE for constructed R2013+
+       ds-backed entities (dwg_source_version.is_none() + no
+       captured wire flags + contributes_sab): wireframe_present
+       + point_present + the 3BD anchor (geometry_centre →
+       placement_origin → the entity point) + isolines=4 +
+       isoline_present + zero wires/sils + acis_empty_bit=1 —
+       the record declares its inline stream empty (the model
+       live in AcDs), her measured genus (uniform across every
+       authored R2013+ ds-backed specimen, both eras, all kinds),
+       the region keeping 0x176's guid-less revision (the
+       proven-modeling form); DWG-read documents byte-faithful
+       (the census gates on the document source); ACCEPTANCE:
+       gold -v9's `Invalid revision_bytes size 8` record-overrun
+       GONE on the fixtures (6 of 9 clean; Box/Sphere/Torus's
+       origin-centred anchors ride the missing persubent tail —
+       the next wrapper lead) and AutoCAD's AUDIT reads the
+       Region fixture CLEAN (Total errors found 0) where the old
+       form errored; the battery green (suite 52, mirrors, the
+       four smokes 0/0/0/0, corpus 280 0/0/0/0 with the sections
+       3/1/0 — the face row riding pending per §20.4, AC1021
+       survey 0 divergent); identity
+       388f0a71…/25,535 → 7b8379b3…/25,567 (identical without
+       --features serde)
+<docs> the handover commit-inventory completion (the prior halt —
+       the 2026-09-30 session's addendum block is retained below
+       as history; the zero-context reading order
        stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1 + §20 →
        §19.4/19.5 → §18.6 + §F2 → this file top to bottom,
        STARTING at the SESSION ADDENDUM)

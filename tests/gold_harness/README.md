@@ -450,43 +450,86 @@ the census story and the classifier reads the truncation. The tool
 unlinks each result file before its launch, so append mode never
 accumulates across runs.
 
+**The launch-time stall guards (2026-09-30, the ConstructedBox__acad
+stall post-mortem).** The maintainer caught an AutoCAD /b run sitting
+at the LISP prompt with the reader two parens deep, swallowing the
+script's tail — the window hung until killed by hand. Root cause: a
+one-paren-short else branch in the census LISP (two `while` forms
+never closed; the reader then consumed `LOGFILEOFF`/`DELAY`/`QUIT`
+as pending input). Both halves are now LAUNCH-TIME ASSERTIONS in
+`probe_one`: `assert_lisp_balanced` verifies every generated `.scr`
+parenthesizes to depth 0 (comments and strings tracked) before it
+reaches a loader, and the `.scr` is written `encoding="ascii"` — a
+non-ASCII byte (a UTF-8 em-dash reads as CP1252 `0x94`, a curly
+double-quote) throws at the harness instead of reaching the
+loader's ANSI codepage. An unbalanced template now fails the launch
+with the defect named, never a stalled window.
+
 **Expected:** the authored controls read MODELED (real extents —
 e.g. Box_2007 `0,0,0..1,2,3`); a constructed fixture reads MODELED
 when its restore gap closes, NULL-BOX (the ±1e80 sentinel) while the
-gap stands, NO-SOLID when the entity layer fails, and AMBIGUOUS
+gap stands, NO-SOLID when the entity layer fails, AUDIT-REPORT for a
+`--loader core` run (the core console's ActiveX bridge is nil — no
+modeler force there; the transcript is the evidence), and AMBIGUOUS
 (missing `probe-end`) when the run was cut short — the surviving
 LOGSEC lines still rank the failure. A Windows-visible host and the
 loader installs are required; stray loader processes poison
 subsequent launches — kill them (by PID for `acad.exe`) before
-re-running. **The current recorded verdicts** (2026-09-29): the
-authored controls MODELED under all three loaders; the constructed
-fixtures NULL-BOX (V26's audit purges them — the B-rep construction
-gap, the open §20 campaign); the minimal rewrite (Region+LINE)
-CLEAN after the wireframe-synthesis fix; the big authored rewrite
-(example_2018+LINE) still rejected — the R2018 record-identity
-census and the constraint-graph payload drift are the live packet.
+re-running. **The current recorded verdicts** (2026-09-30, after the
+COMMON_3DSOLID entity-form packet): the authored controls MODELED
+under both GUI loaders; the example_2018+LINE rewrite opens and
+models (the byte-passthrough campaign closed the file-level
+rejection 2026-09-29); the constructed fixtures still read NULL-BOX
+(BricsCAD) / modeler-refused (AutoCAD: "Automation Error. Invalid
+input") — the entity-form packet moved AutoCAD's AUDIT to clean on
+the new record form ("Total errors found 0") while BricsCAD's audit
+still names "Data stream is empty" per fixture, localizing the
+remaining blocker BELOW the record layer (the SAB/container arms —
+the open §20 campaign).
 
-**Console capture — the window-lifecycle scraper (landed, with the
-tested limits).** The loaders' console text is not reachable through
-the classic channels on these builds — all tested: `LOGFILENAME` is
-read-only (a diag run trapped the setvar), `WM_GETTEXT` returns
-empty on BricsCAD windows (the UI is wxWidgets — `wxWindowNR`
-classes; text is painted, not stored in window text slots), and UI
-Automation exposes no Text/Value patterns and an empty Name tree
-(no accessibility bridge). What works is `GetWindowText` for window
+**AUDIT reports — the loaders' own logs, harvested verbatim
+(2026-09-30, the maintainer's directive).** The 2026-09-29 "no log
+channel" finding was the V18-era/wxWidgets build: the CURRENT
+loaders write their command-line logs and the probe harvests them
+per fixture per loader. The script wraps its whole session in
+`_.LOGFILEON` … `_.LOGFILEOFF` (so the open-time restore
+diagnostics land too), LOGSECs `(getvar "LOGFILENAME")` into the
+result file, and the probe copies that file to `{run}_audit.log`
+(unlinking the source so the next run of the same staged fixture
+never appends to it) and prints an "audit report (verbatim)"
+digest. Validated live: AutoCAD 2027's log carries the open banner
++ the full audit ("Auditing Header/…/AcDsRecords … Total errors
+found N fixed M … Erased K objects"); BricsCAD V26's log carries
+the modeler's own words ("Name: AcDbRegion(31) / Value: Modeling
+operation error: / Data stream is empty / Validation: Invalid /
+Replaced by: Removed / N objects audited / Total errors found
+during audit 1, fixed 1"). `--loader core` adds the AutoCAD core
+console (`accoreconsole.exe`): headless, dialog-free, its entire
+transcript (open diagnostics + LISP echo + the audit) redirected to
+`{run}_core.log` (UTF-16 — decoded); ONE measured limit:
+`vlax-ename->vla-object` returns nil in that core build, so the
+bbox modeler force is unavailable there — the census logs
+`bbox-UNAVAILABLE (nil ActiveX bridge)` and the verdict reads
+`AUDIT-REPORT` (the modeler force stays the GUI channels').
+
+**Console capture — the window-lifecycle scraper (the dialog
+channel; its tested limits).** `WM_GETTEXT` returns empty on these
+UIs (the text is painted, not stored in window-text slots), and UI
+Automation exposes no Text/Value patterns (no accessibility
+bridge); a stdout redirect on `bricscad.exe` is likewise empty
+(tested 2026-09-30). What works is `GetWindowText` for window
 TITLES — so the probe ships `bricscad_console_scraper.ps1`: the
 launcher spawns it with the loader PID and it polls every 250 ms,
 logging each top-level window's class + title at first appearance
 with timestamps into `<name>_console.log`. The transcript captures
 WHICH dialogs appear during a run (the modeling-failure dialog is a
 top-level window), WHEN, and their titles — alongside the
-LOGSEC LISP census and the DBMOD/ERRNO pre/post-audit record,
-that is the complete programmatic evidence surface on these builds.
-The probe's analyzer digests the transcript against the strict
-loader's message vocabulary (deduped, with repetition counts).
-The console text itself needs a build with a working log channel
-or accessibility bridge; a hand-run transcript from the maintainer
-remains the highest-fidelity console evidence.
+LOGSEC LISP census, the DBMOD/ERRNO record, and the harvested audit
+log, that is the complete programmatic evidence surface on these
+builds. The probe's analyzer digests the transcript against the
+strict loader's message vocabulary (deduped, with repetition
+counts). A hand-run transcript from the maintainer remains the
+highest-fidelity console evidence.
 
 ### When a layer trips
 
@@ -566,7 +609,7 @@ there with `required-features = ["serde"]` alongside them.
 | `genus_extract.py` | The §20 expectation extractor — decodes the specimen family silver-side, projects the SAB/SH/AcDs genus into the pinned expectations |
 | `genus_expectations.json` | The pinned genus expectations (regenerate with `genus_extract.py`; the cargo mirror diffs a fresh extraction against this copy) |
 | `genus_gates.py` | The §20 gate run — decodes the constructed corpus, asserts against the pin, emits the ranked `sab_form_diffs` / `sh_genus_diffs` / `acds_genus_diffs` sections |
-| `strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; the default run exercises BOTH loaders (BricsCAD V26 via `DEFAULT_BCAD`, AutoCAD 2027 via `DEFAULT_ACAD`, per-loader verdicts); `--loader bcad/acad` narrows, `--bcad`/`--acad` override the paths |
+| `strict_load_probe.py` | The §20.4 strict-loader verdict instrument — drives the loader `/b` script (the LOGSEC LISP census + DBMOD capture + the 10 s visible hold) over the constructed corpus and the authored controls; the default run exercises BOTH GUI loaders (BricsCAD V26 via `DEFAULT_BCAD`, AutoCAD 2027 via `DEFAULT_ACAD`, per-loader verdicts); `--loader bcad/acad/core` narrows (`core` = the AutoCAD core console, accoreconsole.exe via `--acore` — the dialog-free transcript channel); `--bcad`/`--acad`/`--acore` override the paths; each GUI run harvests the loader's LOGFILEON session log to `{run}_audit.log` and prints the verbatim AUDIT report (the modeler's own words "Data stream is empty", the audit totals), alongside the census/bbox/DBMOD evidence and the window-title scraper transcript |
 | `record_size_census.py` | The record-identity census for ANY pair on ANY era — gold `-v9` object blocks, handle-keyed, per-record identity = size + hdlsize + bitsize + CRC-16 (the R2018-record battery's instrument, 2026-09-29; the era-census + rewrite-acceptance acceptance gate; `DWG_NO_ECHO=1 target/debug/dwgrewrite` stages the conventional-arm rewrite) |
 | `bricscad_console_scraper.ps1` | The window-lifecycle transcript — polls the loader's top-level windows (class + title, timestamps) into `<name>_console.log`; the console-text channel map is tested and closed on these builds |
 | `restore_gap_diffs.py` | The constructed-SAB structural audits — per-face orientation, loop-traversal connectivity, travel-direction (the right-hand rule), record/token alignment |

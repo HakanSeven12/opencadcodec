@@ -82,17 +82,25 @@ truth for the harness. Its §7 "How to start cold" block is the entry point;
   where gold is known-wrong changes only through a recorded strict-loader
   probe verdict, never an oracle trace alone (§20.4).
 - The strict-loader verdicts come from `strict_load_probe.py` (README step
-  7b): the DEFAULT run exercises BOTH loaders — BricsCAD V26
+  7b): the DEFAULT run exercises BOTH GUI loaders — BricsCAD V26
   (`DEFAULT_BCAD`) and AutoCAD 2027, the format's author
   (`DEFAULT_ACAD`) — every fixture under each, per-loader verdicts
-  (`--loader bcad`/`acad` narrows; `--bcad`/`--acad` override the paths).
-  A stalled loader instance is killed BY PID, never by name (`acad.exe`
+  (`--loader bcad`/`acad`/`core` narrows; `--bcad`/`--acad`/`--acore`
+  override the paths; `core` = the AutoCAD core console accoreconsole.exe
+  — dialog-free, its stdout transcript IS the evidence, and its bbox
+  modeler force is unavailable (a nil ActiveX bridge — measured
+  2026-09-30 — so its verdict reads AUDIT-REPORT)). Every GUI run
+  harvests the loader's own LOGFILEON session log to `{run}_audit.log`
+  and prints the verbatim AUDIT report (the modeler's failure text and
+  the audit totals) — the audit reports are first-class verdict
+  evidence, read them before designing a packet. A stalled loader
+  instance is killed BY PID, never by name (`acad.exe`
   is shared with other Autodesk sessions). Verdict vocabulary: MODELED
   (real extents) / NULL-BOX (the null-extents sentinel — ±1e80 under
   BricsCAD, ±1e20 under AutoCAD — the B-rep did not construct) /
-  NO-SOLID / AMBIGUOUS; an AutoCAD "Open Drawing - Errors found"
-  dialog is a file-level defect verdict. Every probe launch holds the
-  window visible 10 s before QUIT.
+  NO-SOLID / AUDIT-REPORT (core runs) / AMBIGUOUS; an AutoCAD "Open
+  Drawing - Errors found" dialog is a file-level defect verdict. Every
+  GUI probe launch holds the window visible 10 s before QUIT.
 
 ### Commits
 - Commit message format: `fix(harness): <packet> — <gold spec ref>` (or
