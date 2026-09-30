@@ -99,6 +99,36 @@
 # fixtures carry none; the persubent tail above; the revision-guid
 # question — her solids carry has_guid=true, constructed records
 # guid-less, unknown whether the modeler cross-checks them).
+# (3b) THE CHIMERA RE-PROBE (the maintainer's loop continuation,
+# the chimeras REBUILT with the entity-form-fixed writer and
+# re-probed with the new audit channels; all controls MODELED —
+# the run stands): **CHIMERA B (OUR FIXED WRAPPER + HER SAB)
+# STILL FAILS — NULL-BOX (BricsCAD, the audit purges) /
+# modeler-refused (AutoCAD, the entity survives the audit — dbmod
+# 0 — but the bbox force aborts)**: THE WRAPPER CARRIES A BLOCKER
+# BEYOND THE ENTITY RECORD — the container/journal arm stays OPEN
+# (the evaluation-graph interposition, the persubent tail, the
+# segment-identity bytes). **CHIMERA A (HER WRAPPER + OUR SAB):
+# all three of her entities fail PRE-audit — but under AutoCAD
+# the audit REPAIRS her untouched SOLID (ent[2E1] gains its REAL
+# extents post-audit, `2229..4237, 13562..14169, 0..4`) while
+# the two regions stay failed — the "Auditing AcDsRecords" pass
+# rebuilds the undamaged segments (THE ACDS REVALIDATION LEAD),
+# and our SAB inside her container is REJECTED at the content
+# level** — the SAB arm also stays OPEN. The structural pair
+# diff re-run on the region pair (restore_gap_diffs.py): levels
+# 1-3 CLEAN in both (the twin's content identity re-confirmed) —
+# the SAB's remaining delta is the HEADER BLOCK: the asmheader
+# version string (ours the pinned `232.6.0.65535`, her region
+# carries `223.0.1.1930` — the candidate-6 genus SET) + the
+# adjudicated product strings (`acadrust` vs `Autodesk AutoCAD`).
+# THE DESIGNED NEXT PROBE (the SAB arm's one-probe candidate,
+# §20's recorded lead): the asmheader version-string swap —
+# flip the constructed region's asmheader to her region's
+# `223.0.1.1930`, regenerate, probe; MODELED re-pins the genus
+# (the version as a per-carrier value), NO-SOLID moves the
+# suspicion to the product strings (the author-identity rule
+# makes that a maintainer decision) or below.
 # (4) THE BATTERY: suite 52 segments green; gold_roundtrip green;
 # the genus_gates mirror green (fresh extraction == the untouched
 # pin); issue80 green; the four family smokes 0/0/0/0; the corpus
