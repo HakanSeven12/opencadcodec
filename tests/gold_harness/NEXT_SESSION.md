@@ -2135,16 +2135,22 @@ python3 tests/gold_harness/strict_load_probe.py
 ## the same — ConstructedRegion (0,0)-(10,10), ConstructedBox
 ## (±5)³, the full canonical, A2Swap's three distinct geometries,
 ## B2Swap at her coordinates, the controls — NO RECOVER PROMPTS,
-## audits "Total errors found 0". THE ROOT CHAIN, closed in three
+## audits "Total errors found 0". THE ROOT CHAIN, closed in four
 ## packets this session: the search her-grammar + the `_data_`
 ## row locators (the multi-record mispair) → the thumbnail row
 ## (the container at her complete genus) → THE ERA-CODED
 ## SEGMENTED TERMINATOR (the 65010 — ACAD's modeler rejected the
-## single-tag `End-of-ACIS-data` at the final record). THE
-## REMAINING RESIDUE: the gen_all ent[0] `stringp nil` MLeader
-## defect (the audit's "3 fixed" — the standing small follow-up);
-## the §19.5 version-parity tiers (maintainer decisions); the
-## core-probe verdict vocabulary.
+## single-tag `End-of-ACIS-data` at the final record) → THE
+## MLEADER STYLE REPAIR (the every-open "3 fixed" — the
+## canonical's audit now clean with dbmod 0 pre+post). THE
+## REMAINING RESIDUE: NONE ON THE CONSTRUCTED-CONTENT AXIS — the
+## MLeader style repair (the eighth addendum) closed the last one:
+## the canonical's audit now reads TOTAL ERRORS 0 with dbmod 0
+## pre+post (previously "LeaderStyle Id is Null / 3 fixed" at
+## every open). The remaining queue is the maintainer-decision
+## tier: the §19.5 version-parity tiers (R13/R14, pre-R13); the
+## core-probe verdict vocabulary (the transcript classifier); the
+## era censuses across the full era corpora.
 ```
 
 ## Commit inventory (this halt)
