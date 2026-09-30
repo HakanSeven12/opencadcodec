@@ -384,6 +384,29 @@ def project_acds_genus(stem, doc, sink):
         slot = acds.get(pointer_name)
         if slot is not None and 0 <= slot < n and types[slot] is not None:
             sink["named_pointer_types"][pointer_name].add(types[slot])
+    # The 2026-09-30 wrapper-arm round-2 fields — the PER-SEGMENT
+    # header values, keyed by segment NAME so the two schdat slots
+    # (A at the early slot carrying ds 1, B at the schema pair
+    # carrying 16) fold into one set honestly. `_data_` is excluded
+    # on purpose: its payload is content-sized (one blob per SAB
+    # record) while every OTHER segment's total size is the
+    # authored container's fixed allocation. These fields exist
+    # because the G-C hybrid slipped through the closed gate set:
+    # the layout matched while the per-segment ds_version and the
+    # schema-pair sizes carried a different era's values
+    # (ds_version=1 against a 16/17 file header; schdat/schidx at
+    # the Form-B 448 sizes against the Form-A 384/512/256).
+    for segment in acds.get("segments", []):
+        if not segment:
+            continue
+        name = segment.get("name")
+        if not name or name == "_data_":
+            continue
+        sink["seg_slot_ds"].add(f"{name}={segment.get('ds_version')}")
+        sink["seg_slot_sizes"].add(f"{name}={segment.get('segsize')}")
+        sink["seg_slot_aligns"].add(
+            f"{name}={segment.get('data_algn_offset')}/"
+            f"{segment.get('objdata_algn_offset')}")
 
 
 # ── Specimen sources ──
@@ -437,7 +460,9 @@ def extract(specimens, workdir, binary, corpus_scan):
                  "ds_versions": set(),
                  "segidx_offsets": set(), "file_header_sizes": set(),
                  "num_segidx": set(), "tail_patterns": set(),
-                 "named_pointer_types": defaultdict(set)},
+                 "named_pointer_types": defaultdict(set),
+                 "seg_slot_ds": set(), "seg_slot_sizes": set(),
+                 "seg_slot_aligns": set()},
         "fixture_files": [], "corpus_files": [],
     }
 
@@ -547,6 +572,9 @@ def render_expectations(sink, corpus_scan_enabled):
             "num_segidx": sorted(acds["num_segidx"]),
             "tail_patterns": [list(pattern) for pattern in sorted(acds["tail_patterns"])],
             "named_pointer_types": sorted_values(acds["named_pointer_types"]),
+            "seg_slot_ds": sorted(acds["seg_slot_ds"]),
+            "seg_slot_sizes": sorted(acds["seg_slot_sizes"]),
+            "seg_slot_aligns": sorted(acds["seg_slot_aligns"]),
         },
         "anomalies": anomalies,
     }

@@ -460,6 +460,50 @@ fn extract_acds_record_blobs(buf: &[u8], modeler_handles: &HashSet<u64>) -> Vec<
             recs.push((handle as u64, off as usize));
             p += 20;
         }
+        // The AUTHORED zero-offset form (measured 2026-09-30,
+        // Box_2018/Box_2013): every record row carries 0 in its
+        // 4th field — the blobs are located by walking the
+        // LENGTH-PREFIXED chain from the aligned records area, one
+        // (u32 len + payload) entry per record, in record order.
+        // (The offset-based regions below work for tables that DO
+        // carry per-record offsets; the zero-form makes record 0's
+        // region collapse and the LAST record span the whole area
+        // — mis-pairing multi-SAB datastores: the roundtrip suite
+        // caught solid and region SWAPPING blobs.)
+        if recs.len() >= 2 && recs.iter().all(|&(_, off)| off == 0) {
+            let table_end = seg + 48 + recs.len() * 20;
+            let base = rd(seg + 36)
+                .and_then(|units| seg.checked_add(units as usize * 16))
+                .filter(|b| *b >= table_end && *b < seg_end)
+                .map_or(table_end, |b| b);
+            let mut p = base;
+            for (handle, _) in &recs {
+                let Some(len) = rd(p) else { break };
+                let len = len as usize;
+                let Some(stop) = p.checked_add(4 + len) else { break };
+                if stop > seg_end {
+                    break;
+                }
+                let region = &buf[p + 4..stop];
+                if let Some(mp) = region
+                    .windows(14)
+                    .position(|w| w == b"ASM BinaryFile")
+                    .or_else(|| region.windows(15).position(|w| w == b"ACIS BinaryFile"))
+                {
+                    if modeler_handles.contains(handle) {
+                        if let Some((end, marker_len)) =
+                            find_acds_end(buf, p + 4 + mp, stop)
+                        {
+                            let end = (end + marker_len).min(stop);
+                            claimed_starts.insert(p + 4 + mp);
+                            out.push((*handle, buf[p + 4 + mp..end].to_vec()));
+                        }
+                    }
+                }
+                p = stop;
+            }
+            continue;
+        }
         // A single entry can also be the interleaved layout emitted by older
         // acadrust versions. Use the order-based fallback for those files.
         if recs.len() < 2 {

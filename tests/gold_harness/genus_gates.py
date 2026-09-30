@@ -404,6 +404,33 @@ def gate_acds_genus(stem, doc, expectations, rows):
         elif types[slot] not in genus_types:
             rows.add(pointer_name,
                      f"slot type {types[slot]} not in genus {genus_types}")
+    # The wrapper-arm round-2 per-segment fields (2026-09-30): every
+    # populated segment except `_data_` (content-sized) must carry a
+    # ds_version/total-size/alignment combination the authored
+    # specimens show. This is the arm that would have caught the G-C
+    # hybrid — segments declaring ds_version=1 against the 16/17 file
+    # header, the schema pair at the Form-B 448/20 sizes inside the
+    # Form-A layout.
+    if "seg_slot_ds" in genus:
+        for segment in acds.get("segments", []):
+            if not segment:
+                continue
+            name = segment.get("name")
+            if not name or name == "_data_":
+                continue
+            key_ds = f"{name}={segment.get('ds_version')}"
+            if key_ds not in genus["seg_slot_ds"]:
+                rows.add("seg-ds",
+                         f"{key_ds} not in genus {genus['seg_slot_ds']}")
+            key_size = f"{name}={segment.get('segsize')}"
+            if key_size not in genus["seg_slot_sizes"]:
+                rows.add("seg-size",
+                         f"{key_size} not in genus {genus['seg_slot_sizes']}")
+            key_algn = (f"{name}={segment.get('data_algn_offset')}/"
+                        f"{segment.get('objdata_algn_offset')}")
+            if key_algn not in genus["seg_slot_aligns"]:
+                rows.add("seg-align",
+                         f"{key_algn} not in genus {genus['seg_slot_aligns']}")
 
 
 # ── The run ──
