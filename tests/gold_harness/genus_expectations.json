@@ -28,6 +28,41 @@
    91,
    97
   ],
+  "seg_slot_aligns": [
+   "datidx=0/0",
+   "freesp=0/0",
+   "prvsav=0/0",
+   "schdat=14/0",
+   "schdat=9/0",
+   "schidx=15/0",
+   "search=0/0",
+   "segidx=0/0"
+  ],
+  "seg_slot_ds": [
+   "datidx=16",
+   "datidx=17",
+   "freesp=17",
+   "prvsav=16",
+   "prvsav=17",
+   "schdat=1",
+   "schdat=16",
+   "schidx=16",
+   "search=16",
+   "search=17",
+   "segidx=16",
+   "segidx=17"
+  ],
+  "seg_slot_sizes": [
+   "datidx=128",
+   "freesp=128",
+   "prvsav=256",
+   "schdat=256",
+   "schdat=384",
+   "schidx=512",
+   "search=256",
+   "segidx=1152",
+   "segidx=1280"
+  ],
   "segidx_offsets": [
    128
   ],
