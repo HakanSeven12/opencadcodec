@@ -129,6 +129,24 @@ ADJUDICATIONS = {
                 "NULL). The topology invariants stay armed for any "
                 "constructed tree that survives save.",
     },
+    ("sab_form", "face"): {
+        "verdict": "TOLERATED",
+        "note": "the region's sheet face carries the third boolean (the "
+                "width-50 row vs the family genus [49]): the authored "
+                "REGION's own form — her example_2018 region's face carries "
+                "the third bool (the candidate-6 same-era-pair measurement; "
+                "the family pin's [49] is the SOLID face genus — the "
+                "fixtures-only extraction never walked a region face), and "
+                "the class-wide ('face', 8) completion attempt was REFUTED "
+                "by the gates (27 x width-50 rows). The strict-loader "
+                "verdict is RECORDED (2026-09-30, the wrapper-arm round-2 "
+                "acceptance): BricsCAD V26 reads the constructed region — "
+                "the byte-level twin carrying the 9-token face — MODELED, "
+                "real extents (0,0)..(10,10) z=0, the audit clean (the "
+                "first constructed B-rep). The region builder appends its "
+                "own SatToken::True as her region does; the solid faces "
+                "stay 8-token per the pin.",
+    },
     ("sab_form", "persubent-acadSolidHistory-attrib"): {
         "verdict": "TOLERATED",
         "note": "selection bias, journal-correlated (2026-09-29 corpus "
