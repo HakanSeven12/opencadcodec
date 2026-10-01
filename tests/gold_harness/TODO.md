@@ -17,31 +17,6 @@ decisions** (scope calls, not packets) → **D. Standing guardrails**
 
 ## A. Open tasks — agent code work
 
-### A3. Full era-corpus record-identity censuses — **LANDED 2026-09-30 (this session)**
-
-The era censuses were previously one file per era (the per-era constraints
-specimen). The new instrument `analysis/era_corpus_census.py` (batch
-wrapper: per file, `DWG_NO_ECHO=1 dwgrewrite` staging + the handle-keyed
-size+CRC-16 census) ran the **full era corpora** — six eras, 117 files,
-82,413 paired records. Result: **2007 fully clean (0/3,979)**;
-2004/2010/2013 near-clean (15/2/24); 2000 at 375 (PolyLine2D-led); **2018
-at 2,479 — the systematic wire divergence that is A1**. The census turned
-A1 from "one specimen's residue" into "the 2018-era conventional-arm wire
-divergence," and it is now the standing L4 gate for the full era corpora
-(the honest next surface §19.5 named). Run:
-
-```
-python3 tests/gold_harness/analysis/era_corpus_census.py \
-  ~/work/libredwg/test/test-data/{2000,2004,2007,2010,2013,2018}
-```
-
-(GOLD_DWGREAD must point at the oracle; workdirs key by era+stem to avoid
-the cross-era stem collision that mispaired the first run's `circle.dwg`.)
-
-- **Sources**: §19.5 Tier 1 (the "honest next surface" note, lines
-  7261–7264); the census table now lives under A1.
-- **Fixture**: none — uses the existing corpus.
-
 ### A4. AC1009-era behavior mirroring (if Tier 3 is accepted — see C3)
 
 If the maintainer accepts the version-code-then-empty-decode surface for
@@ -101,7 +76,9 @@ A1 handle/pad genus):
   as a per-record dissection packet (the H8h-ext-4 BD-walk method).
 - **Gate**: zero-keeping workflow; the 2018 era census to zero.
 - **Sources**: `IMPLEMENTATION.md` §20 thirteenth-continuation record
-  (the A1 closure, the measurements, and the residual autopsies).
+  (the A1 closure, the measurements, and the residual autopsies) and
+  fifteenth-continuation record (the fresh six-era sweep at HEAD
+  7f245f2 that re-verified the standing table).
 - **Fixture**: none — all specimens already in the corpus.
 
 ---

@@ -8356,3 +8356,39 @@ to match her bytes without the retained-field replay. The
 `ac21_page_layout` instrument (a permanent bin now) prints every
 structural candidate: per-page RS geometry, tail pads, the map-slot
 payloads, the header-page fill — the opening census for that packet.
+
+## §20 — the fifteenth continuation (2026-10-01): A3 closed out — the era-census gate verified at HEAD, the standing table recorded
+
+**A3 (the full era-corpus record-identity censuses) landed 2026-09-30
+as the instrument `analysis/era_corpus_census.py` — the standing L4
+byte gate** (per file: `DWG_NO_ECHO=1 dwgrewrite` staging + the
+handle-keyed size+CRC-16 census; workdirs keyed `{era}__{stem}` to
+dodge the cross-era stem collision that mispaired the first run's
+`circle.dwg`). A verify-and-close request (2026-10-01, HEAD 7f245f2,
+after the A1 and A2 landings) re-ran the FULL six-era sweep fresh —
+the instrument's own claim (six eras, 117 files, 82,413 paired
+records) reproduced exactly:
+
+| era | files | paired | divergent | her-only / our-only |
+|---|---|---|---|---|
+| 2000 | 22 | 4,824 | 325 | 6 / 4 (pre-existing rows, stash-A/B-verified) |
+| 2004 | 21 | 4,710 | 15 | 0 / 0 |
+| 2007 | 18 | 3,979 | **0** | 84 / 0 (the standing broken-map residual) |
+| 2010 | 18 | 3,758 | 1 | 0 / 0 |
+| 2013 | 19 | 14,369 | 24 | 0 / 0 |
+| 2018 | 19 | 50,773 | 20 | 0 / 0 |
+| **total** | **117** | **82,413** | **385** | |
+
+The deltas against the 2026-09-30 first run (2000: 375, 2004: 15,
+2007: 0, 2010: 2, 2013: 24, 2018: 2,479) are the A1 packet's measured
+repairs — 2000 375→325 (the close-pad replay; her R2000 PolyLine2D
+pads zeros), 2010 2→1, 2018 2,479→20 (the ownerhandle-form + pad
+replay; the 20 named residual families live under TODO A5) — and the
+A2 packet's non-effect on the record stream (2007 unchanged 0/84:
+the AC21 encoder work touches the header draws, not the objects
+records). **The gate is the standing L4 oracle**: it gated both the
+A1 and the A2 landings this session, and every writer-form packet
+re-runs it (the §19.5 "honest next surface" Tier 1, now realized).
+A3 is closed out of the TODO queue; the era table's living home is
+TODO A5 (the residual families), the history in the thirteenth
+continuation above.
