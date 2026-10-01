@@ -975,6 +975,17 @@ pub enum AssocSubcurveKind {
 /// specimens' centers and radii match their source CIRCLE entities
 /// exactly; all seven are full circles (start 0.0, end 2π) in the XY
 /// plane (normal (0,0,1), x-axis (1,0,0)).
+///
+/// TODO B2 (2026-10-01): on R2013+ frames (AC1027/AC1032) the twelve
+/// BDs are followed by a two-bit trailing form `10` — a constant across
+/// every measured ARC record (28 corpus + the authored quad; the
+/// 2007/2010 frames end at the twelfth BD). The bit pair decodes
+/// equally as BD 0.0, BS 0 or BL 0 — the wire cannot name its field —
+/// so the model stores nothing and the writer emits a BD 0.0 after the
+/// geometry when the target frame is R2013+ (the pre-B2 writer omitted
+/// it: a latent 2-bit conventional-emission drift invisible to the
+/// corpus diff — gold surfaces the record as UNKNOWN_OBJ — and hidden
+/// by the default write path's objects-stream echo).
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssocArcSubcurve {
@@ -986,6 +997,56 @@ pub struct AssocArcSubcurve {
     pub end_angle: f64,
 }
 
+/// The ELLIPSE subcurve (action_type 17), TODO B2 (2026-10-01).
+///
+/// Wire-reverse-engineered from the authored ExtrudeEllipse quads
+/// (2007/2010/2013/2018) and cross-validated on the independent corpus
+/// specimens (2004/Surface.dwg handles 739/1295 — anchor-scanned walks
+/// closing the region exactly): thirteen BDs — center, major-axis unit
+/// vector, minor-axis unit vector (three 3BD), major radius, minor
+/// radius, start angle, end angle. Like the ARC form, an R2013+ frame
+/// appends the two-bit `10` trailing form (see `AssocArcSubcurve`).
+/// The corpus specimens' axis vectors are orthogonal units and the
+/// full-ellipse records close at start 0.0 / end 2π.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocEllipseSubcurve {
+    pub center: Vector3,
+    pub major_axis: Vector3,
+    pub minor_axis: Vector3,
+    pub major_radius: f64,
+    pub minor_radius: f64,
+    pub start_angle: f64,
+    pub end_angle: f64,
+}
+
+/// The LINESEG3D subcurve (action_type 23), TODO B2 (2026-10-01).
+///
+/// Wire-reverse-engineered from the authored ExtrudeLine quads (a LINE
+/// profile extruded as a surface — the edge is the bounded segment) and
+/// cross-validated on the corpus specimen (2004/Surface.dwg handle
+/// 1049): six BDs — start point 3BD, end point 3BD. Unlike the ARC and
+/// ELLIPSE forms there is no R2013+ trailing form (the region closes at
+/// the sixth BD on every measured frame: 76 bits authored across all
+/// four versions, 204 bits on the 2004 corpus record).
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocLineSegment3dSubcurve {
+    pub start_point: Vector3,
+    pub end_point: Vector3,
+}
+
+/// The typed subcurve geometries the DWG reader models; the ladder's
+/// remaining rungs (NURB3D, CURVE3D, Line) stay untyped — see
+/// `AssocEdgeActionParam::subcurve_wire`.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AssocSubcurve {
+    Arc(AssocArcSubcurve),
+    Ellipse(AssocEllipseSubcurve),
+    LineSegment3d(AssocLineSegment3dSubcurve),
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssocEdgeActionParam {
@@ -995,11 +1056,32 @@ pub struct AssocEdgeActionParam {
     pub action_type: i32,
     pub subcurve_kind: AssocSubcurveKind,
     /// The subcurve geometry; populated by the DWG reader for the
-    /// attested ARC form (action_type 11), `None` otherwise and for
-    /// DXF-built documents (the writer then emits no subcurve region,
-    /// matching the pre-H8h-ext-4 emission).
+    /// action types whose wire forms are modeled (11 ARC, 17 ELLIPSE,
+    /// 23 LINESEG3D), `None` otherwise and for DXF-built documents
+    /// (the writer then emits the captured raw region, if any, and
+    /// otherwise no subcurve region).
     #[cfg_attr(feature = "serde", serde(default))]
-    pub subcurve: Option<AssocArcSubcurve>,
+    pub subcurve: Option<AssocSubcurve>,
+    /// TODO B2 (2026-10-01): the verbatim subcurve region for the
+    /// action types without a typed model — NURB3D (42: a ~1300-bit
+    /// parameterized nurb form with an inspected-but-unnamed header),
+    /// the gold-unknown 47 (a delta-encoded polyline/composite: the
+    /// ExtrudePline/Extrude3DPoly/RevolvePline/LoftMixed quads and
+    /// the 2004/Surface.dwg records), and any future 19/27 specimen.
+    /// Captured from after `action_type` to the record's main-data
+    /// end and replayed bit-for-bit on a same-version rewrite (the
+    /// H8h-ext-8 `nodes_wire_main` pattern); never emitted on
+    /// cross-version conversions (the era forms differ).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve_wire: Option<Vec<u8>>,
+    /// Exact bit width of `subcurve_wire` (the final byte may carry
+    /// padding bits below the MSB).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve_wire_bit_len: u32,
+    /// The DxfVersion whose reader frame the `subcurve_wire` capture
+    /// came from (the writer's same-version replay gate).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve_wire_dxf_version: Option<DxfVersion>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

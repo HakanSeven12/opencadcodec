@@ -166,17 +166,29 @@ impl DwgWriter {
                 // ACDBDETAILVIEWSTYLE) are not part of the legacy class table,
                 // but if they have live instances they must remain so the writer
                 // can emit the correct type code instead of falling back to 500.
+                // TODO B2 (2026-10-01): the ACDBASSOC* family belongs in the
+                // same required scan — a constructed document at a legacy
+                // version (< AC1027) whose class table gets pruned otherwise
+                // falls to the 500 (ACDBDICTIONARYWDFLT) counterfeit for every
+                // associative record (the DYB→WDFLT class of bug this guard
+                // documents above).
                 let required_object_classes: Vec<_> = owned
                     .objects
                     .values()
                     .filter_map(|obj| {
-                        if let crate::objects::ObjectType::ClassObject(co) = obj {
-                            let name = co.dxf_name();
-                            if !name.is_empty() {
-                                return owned.classes.get_by_name(name).cloned();
+                        let name = match obj {
+                            crate::objects::ObjectType::ClassObject(co) => {
+                                co.dxf_name().to_string()
                             }
+                            crate::objects::ObjectType::Associative(assoc) => {
+                                assoc.dxf_name.clone()
+                            }
+                            _ => return None,
+                        };
+                        if name.is_empty() {
+                            return None;
                         }
-                        None
+                        owned.classes.get_by_name(&name).cloned()
                     })
                     .collect();
                 owned.classes.retain_legacy_dwg_classes();

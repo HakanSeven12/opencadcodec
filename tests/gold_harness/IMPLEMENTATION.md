@@ -8570,3 +8570,176 @@ recorded in the session log; the mirror's reads are the faithful ones
 at ITS position, so the skew is upstream in gold's walk. The
 WIPEOUTVARIABLES-typed rows cleared with the mirror; these last rows
 are gold-mirror polish on garbage entries, not entity coverage.
+
+**H8h-ext-16 — TODO B2 CLOSED: the unattested subcurve action types
+modeled — the three evidenced kinds typed bit-exact, the unmodeled
+replayed verbatim, 19/27 attested-nowhere (2026-10-01, the
+fixture+code campaign)**:
+
+The B2 ask: `ASSOCEDGEACTIONPARAM` subcurve regions beyond the
+H8h-ext-4 ARC form — model the wire forms for gold's kind ladder
+(17 Ellipse, 19 Line, 23 LineSeg3d, 42 Nurb3d, 27 Curve3d; 11 Arc
+was ext-4's), author evidence where the ladder is reachable, and
+keep the zero.
+
+**The method (§18.7's differential discipline, accoreconsole
+edition)**. The `add_authoring` app is scriptable headless:
+`accoreconsole.exe /s <script>` runs the typed one-op recipes
+verbatim (validated by replicating ExtrudeM's record shape exactly —
+the same EdgeActionParam payload, action_type 11, the twelve BDs
+matching her CIRCLE profile). The console's selection dialect took
+three lessons: (a) **point picks and window/corner selections find
+NOTHING in accoreconsole** (no view aperture — bare points open
+selection windows; the v4/v5 crashes were the derailed lines
+landing in mid-command states — the Autodesk error-report dialogs
+on screen were those killed consoles); (b) only db-level selections
+work: ALL/Last/Previous/Remove-L (for two-object ops: draw the
+PROFILE first, the PATH last — the sweep profile = ALL+R+L, or
+EXTRUDE's single L); (c) **SWEEP's path prompt cannot be driven at
+all** — `L` there selects silently (no found-counter) and the
+console then derails into Command:-repeat cascades; the SWEEP stem
+family is unauthorable headless (a GUI authoring stays the future
+route). Frame conventions verified: SOLIDHIST 1, one op, four
+sequential SAVEAS (2007→2018); the 2D-strict point prompts (PLINE
+later vertices, ARC start/end) want x,y only.
+
+**The decisive instrument pair**: (1) a temporary reader trace (the
+ext-4 `DWG_SUBCURVE_TRACE` method) printing per-record
+`action_type`, the main-stream position after `action_type` and the
+record's `main_data_end` — exact region bounds, no arithmetic
+guessing; (2) the `unknown_bits_by_handle` capture (it starts at
+the typed body start; the corrected bitcode tables — BS
+0→RS16/1→RC8/2→0/3→256, BL 0→RL32/1→RC8/2→0/3→256 — walk the
+typed prefix: 17 bits pre-R2013 (is_r2013 BS reads 0; the R2004
+two-stream records add the inline dep/param handles → region
+anchor 19 there), 27 bits R2013+ (the aap_version BL). Walks
+validated bit-for-bit against every traced record.
+
+**The head finding — gold's switch is dead code**: `dwg2.spec`'s
+`ASSOCEDGEACTIONPARAM` block opens with `HANDLE_UNKNOWN_BITS` — gold
+NEVER REACHES the action_type switch (its `CALL_SUBCURVE` stub is
+unreachable, and the 2027-authored class records surface as
+UNKNOWN_OBJ besides). The ladder's numeric map (11/17/19/23/42/27)
+is a type-map source, not gold-wire behavior. Consequences: (a) the
+zero-Error gold qualification holds for EVERY action_type (dwgread
+never LOG_ERRORs even the unknown 47 — verified per landed file);
+(b) the corpus diff is blind to the entire region (both readers'
+unknown_bits drop symmetrically) — the write-fidelity gates for
+this record are the record-size census and the strict loaders, not
+the corpus diff.
+
+**The R2013+ trailing form (the latent ext-4 drift)**: every ARC
+region on AC1027/AC1032 frames is twelve BDs + a two-bit `10`
+(28 corpus ARC records: 88 bits at 2007/2010, 90 at 2013+; her
+ExtrudeM_2018 region is 90 — the ext-4 writer emitted 88, a 2-bit
+drift on the conventional path, invisible to the corpus diff and
+masked by the default write path's objects-stream echo). The pair
+decodes equally as BD 0.0 / BS 0 / BL 0 — the wire cannot name the
+field; the model stores nothing and the writer emits a BD 0.0,
+era-gated (R2013+ target frames, ARC and ELLIPSE kinds only —
+LINESEG3D closes at its sixth BD on every frame: 76-bit authored
+regions across all four versions, 204 bits on the 2004 corpus
+record).
+
+**The measured wire forms (double-sourced: the authored quads +
+the independent 2004/Surface.dwg corpus records — every walk
+closing its region exactly)**:
+
+- **kind 11 ARC (ext-4's twelve BDs)**: center/normal/x-axis 3BDs,
+  radius, start/end — plus the R2013+ trailing form (above).
+- **kind 17 ELLIPSE (new)**: THIRTEEN BDs — center, major-axis unit
+  vector, minor-axis unit vector, major radius, minor radius, start
+  angle, end angle — plus the same R2013+ trailing form. The corpus
+  specimens (Surface.dwg h739/h1295: orthogonal unit axes
+  (-0.9996,-0.0283)/(0.0283,-0.9996), radii 123.31/76.54, angles
+  0/2π) and the authored quad (center origin, (1,0,0)/(0,1,0),
+  3.0/1.5, 0/2π) agree field-for-field at anchor 19 (602-bit
+  regions, raw-double heavy).
+- **kind 23 LINESEG3D (new)**: SIX BDs — start point 3BD, end point
+  3BD. Corpus h1049: (1230.69, 1855.46, 0) to (0, 0, 175.24);
+  authored: (0,0,0) to (4,0,0). No trailing form, any frame.
+- **kind 42 NURB3D (region verbatim, not typed)**: 1,304-bit
+  authored regions, era-stable, geometry-varying: a ~110-bit
+  header CONSTANT across closed/open/helix scenarios and all four
+  eras except 2-6 scenario bits at 82-97 (closed-vs-open
+  differential bits at 87, 97), then the parameterized geometry
+  (fit-point-near BDs from ~bit 110 — the 4.0 anchor — and a
+  derived data tail). A named-fields dissection stays future work;
+  the region replays verbatim (below).
+- **kind 47 (gold-unknown composite)**: line and 3DPOLY profiles
+  produce this everywhere (ExtrudePline, Extrude3DPoly,
+  RevolvePline, LoftMixed's pline section + the four corpus
+  records) — a delta-encoded composite (the walks show
+  vertex-relative raw doubles). Out of gold's ladder; captured +
+  replayed like 42.
+
+**The full-corpus action-type census (the 337 pre-B2 in-scope files
+traced one by one)**: 11 x 28 records (the landed surface-mode
+fixtures), 17 x 2, 23 x 1, 47 x 4 — the non-11 kinds ALL in
+2004/Surface.dwg (an independent cross-source the TODO could not
+have known), nothing else anywhere. **19 (Line) and 27 (Curve3d)
+exist in NO corpus file and NO authoring lever this campaign
+traversed** — the measured profile-kind map: circle to 11, ellipse
+to 17, line to 23, closed/open spline to 42, helix to 42, 2D/3D
+pline to 47, LOFT sections to 11/47, REVOLVE pline to 47,
+POLYSOLID paths to the ACSH solid genus (no EdgeActionParam records
+at all), SWEEP console-blocked. The verdict (the TODO's own
+fallback rule): 19/27 stay unattested — NOT modeled — their rungs
+keep gold's ladder names and the None-kind fallback; a future
+specimen (the SWEEP family via GUI, constraint networks,
+infinite-line geometry) rides the capture+replay safety net below.
+
+**The model (§19's named-structs convention)**: `AssocSubcurve` —
+an enum over the typed forms (the ext-4 struct became the `Arc`
+arm; the new `AssocEllipseSubcurve` and
+`AssocLineSegment3dSubcurve` complete the typed ladder);
+`AssocEdgeActionParam.subcurve` generalizes to
+`Option<AssocSubcurve>`. For every UNMODELED kind — 42, 47, and any
+future 19/27 — the reader captures the region VERBATIM
+(`subcurve_wire` + `subcurve_wire_bit_len` +
+`subcurve_wire_dxf_version`, the H8h-ext-8 `nodes_wire_main`
+pattern; the capture spans action_type-end to main-data-end) and
+the writer replays it bit-for-bit on same-version writes only
+(cross-version conversions and DXF/programmatic records keep the
+pre-B2 no-region emission — the era forms differ). The writer
+emits the typed forms with the R2013+ trailing BD gated on the
+TARGET frame. A second writer fix fell out: the legacy-version
+constructed-doc class prune's required scan missed the ENTIRE
+`ACDBASSOC*` family — constructed documents at pre-AC1027 versions
+fell to the 500 (`ACDBDICTIONARYWDFLT`) counterfeit (the scan
+guard's own documented bug class); `required_object_classes` now
+keys Associative records' dxf_names too.
+
+**The landing (§18.7/§F2 conventions)**: ten quads (40 DWG + 40
+.txt companions) in `fixtures/sh_history/` — ExtrudeEllipse (17),
+ExtrudeLine (23), ExtrudeSpline + ExtrudeSpline2 (42, the closed
+pair), ExtrudeSplineOpen (42, the open differential), ExtrudeHelix
+(42, the helix form), ExtrudePline + Extrude3DPoly + RevolvePline +
+LoftMixed (47/11-47, the negative-evidence levers). Each: fresh
+drawing, default template, layer 0, SOLIDHIST 1, exactly ONE
+operation, four sequential SAVEAS; qualification passes per file
+(zero gold ERROR lines — the dead-switch finding above).
+
+**The validation record**: the six-test bit-exact suite
+(`tests/edge_action_param_subcurve.rs`) — her pinned record bodies
+(prefix+region hex) for ARC-2018/ARC-2007/ELLIPSE-2018/
+LINESEG3D-2018 assert against constructed write-then-read captures,
+the NURB replay asserts region-verbatim, and a mismatched-era
+capture refuses to replay; the pair censuses record-identical
+(ExtrudeM_2007 216/216, ExtrudeEllipse_2007 214/214 — on the
+conventional `--no-lz77` arm; the arm's pre-existing blocker noted
+below); the corpus at 377 files (337 + the 40 newly landed): EVERY
+B2 FIXTURE AT 0/0, the totals flat at the pre-existing 8/8 —
+**bisect-clean pre-existing rows** (LIGHT.light_color x5 on
+example_*, UNKNOWN_OBJ x3 on Wipeout_2004/gh44-error — the B1-era
+residue, verified by stashing src/ alone and rerunning); the full
+suite 1,616/0; gold_roundtrip ok; **the generation identity
+f2187565…/25,728 UNMOVED**; the genus gates --strict PENDING-ZERO
+(3 sab_form + 1 sh_genus rows, the recorded TOLERATED set
+unchanged). The pre-existing reds recorded with this halt: the
+genus cargo pin assertion (red on the stashed pre-B2 tree too — the
+pin regeneration stays the maintainer's §20.3 review step after the
+seven-packet chain), the corpus 8/8 rows above, and the no-lz77 arm
+dying at the `AcDb:AcDsPrototype_1b` section on 2013+ authored
+files (conventional-write validation rides the 2007/2010 frames
+until that lands).

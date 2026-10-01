@@ -37,41 +37,6 @@ target version; qualify with `dwgread -O JSON` (zero `Error` lines, target
 class present, minimal object census); land with a sibling `.txt`
 provenance companion. Either AutoCAD or BricsCAD may author (record which).
 
-### B2. The unattested subcurve action types (17 / 19 / 23 / 42 / 27)
-
-The ACDBASSOCEDGEACTIONPARAM subcurve region is wire-known only for
-`action_type 11` (ARC — twelve BDs: center/normal/x-axis/radius/
-start_angle/end_angle, reverse-engineered 2026-09-27, H8h-ext-4). The five
-raw action-type values 17 / 19 / 23 / 42 / 27 have **no corpus
-specimens** — their kinds and wire forms are unattested, and the
-reader/writer leave their regions raw (`AssocSubcurveKind` in
-`src/objects/associative.rs:955` already carries the kind ladder —
-None / Arc / Ellipse / Line / LineSegment3d / Nurb3d / Curve3d — from the
-type-map source; the five unattested numeric values presumably map onto
-the five non-ARC/non-None rungs, but which value is which kind is
-unmeasured).
-
-- **Work (fixture + code)**: author SH-history solids whose profile edges
-  exercise each missing kind. The known lever from the campaign record:
-  **mode/section SH specimen variants** (the POLYSOLID-path segment kinds
-  — line vs arc segments, splined profiles, ellipse/3D-polyline profiles
-  for EXTRUDE/LOFT/REVOLVE/SWEEP) produce different EDGEACTIONPARAM
-  `action_type` values; the authored quad must be bit-identical (the §18.7
-  differential discipline), and the `.txt` records the exact command
-  options. Start with: SWEEP along an arc path (expects 17 or 23),
-  EXTRUDE of a splined closed profile, REVOLVE of a polyline with an arc
-  segment, LOFT across mixed line/arc sections.
-- **Versions**: 2007/2010/2013/2018 each (the SH-history genus is 2007+).
-- **Then**: the per-action_type region dissection (the H8h-ext-4 BD-walk
-  method) names each wire form; the reader/writer model it as
-  `AssocArcSubcurve` did for kind 11.
-- **Sources**: `IMPLEMENTATION.md` §19.5 Tier 1 (line 7256), the
-  H8h-ext-3/4 records (lines 6170–6219).
-- **Code surface**: `src/objects/associative.rs` (`AssocSubcurveKind`,
-  `AssocEdgeActionParam.subcurve`), the DWG reader/writer at
-  `src/io/dwg/dwg_stream_readers/object_reader/associative.rs:871` and the
-  writer sibling.
-
 ### B3. More r14 specimens (the Tier 2 campaign enabler — see C2)
 
 The R13/R14 parity campaign's specimen set is thin: three DWG files

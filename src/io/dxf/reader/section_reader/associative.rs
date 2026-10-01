@@ -1276,6 +1276,11 @@ impl<'a> SectionReader<'a> {
                         27 => AssocSubcurveKind::Curve3d,
                         _ => AssocSubcurveKind::None,
                     },
+                    // TODO B2: the raw region capture is DWG-wire
+                    // state only; DXF documents carry none.
+                    subcurve_wire: None,
+                    subcurve_wire_bit_len: 0,
+                    subcurve_wire_dxf_version: None,
                 })
             }
             "ASSOC2DCONSTRAINTGROUP" => {

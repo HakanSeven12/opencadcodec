@@ -3488,3 +3488,66 @@ constructed as an ACIS body in the strict kernel, invisible to
 every corpus axis and every genus invariant — the record-level
 SAB diff is the designed next packet, with the probe as the
 acceptance gate.**
+
+## The TODO B2 addendum (2026-10-01, the subcurve action-type
+## campaign) — B2 IS CLOSED; the harness state at this halt:
+
+**Implemented (the H8h-ext-16 record holds the method + the wire
+tables)**: the three evidenced subcurve kinds read/write typed
+bit-exact — ELLIPSE 17 (13 BDs: center / major-minor-axis units /
+radii / angles), LINESEG3D 23 (6 BDs: start/end), ARC 11 kept
+(ext-4's 12 BDs) plus **the latent fix: every ARC/ELLIPSE region on
+R2013+ frames ends with a 2-bit `10` trailing form** — the ext-4
+writer was 2 bits short on 2013/2018 conventional writes
+(invisible: gold's switch is DEAD CODE behind `HANDLE_UNKNOWN_BITS`,
+so the corpus diff never sees the region; masked by the default
+path's echo). The unmodeled kinds — NURB3D 42 (header inspected:
+~110 bits constant, 2-6 scenario bits at 82-97), the gold-unknown
+47, and any future specimen — capture the region verbatim on read
+and replay it on same-version writes (the `nodes_wire` pattern);
+cross-version keeps the no-region emission. **19 (Line) and 27
+(Curve3d): attested NOWHERE** — the whole-corpus trace census (337
+files) found 17/23/47 only in 2004/Surface.dwg; the authoring
+levers' negative map: line to 23, pline/3dpoly to 47, spline/helix
+to 42, ellipse to 17, circle to 11, LOFT to 11/47, REVOLVE to 47,
+POLYSOLID to no EdgeActionParam at all, SWEEP
+accoreconsole-unauthorable (its path prompt cannot be driven
+headless — the crash-noise source; the GUI route stays open for a
+future session). Gold qualification holds for every action_type
+(the dead-switch finding: zero ERROR lines even on 47).
+
+**Landed**: ten fixture quads + .txt companions in
+`fixtures/sh_history/` (ExtrudeEllipse / ExtrudeLine /
+ExtrudeSpline / ExtrudeSpline2 / ExtrudeSplineOpen / ExtrudeHelix /
+ExtrudePline / Extrude3DPoly / RevolvePline / LoftMixed) — the
+corpus is now **377 files; every B2 fixture reads 0/0**; the totals
+flat at the pre-existing 8/8 (the B1-era LIGHT x5 + UNKNOWN_OBJ x3
+rows — bisect-verified by stashing src/ alone).
+
+**Gates at the halt**: the suite 1,616/0 (six new bit-exact tests
+in `tests/edge_action_param_subcurve.rs` — her pinned record bodies
+vs constructed write-then-read captures; the conventional-arm
+censuses: ExtrudeM_2007 216/216, ExtrudeEllipse_2007 214/214
+record-identical); gold_roundtrip ok; the generation identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED; genus --strict
+PENDING-ZERO (the TOLERATED set unchanged). **Pre-existing reds,
+bisected and recorded (not this packet's)**: (1) the genus cargo pin
+assertion (red on the stashed pre-B2 tree — the pin regeneration is
+the maintainer's §20.3 review step after the seven-packet chain);
+(2) the corpus 8/8 rows; (3) the `--no-lz77` arm dies re-emitting
+`AcDb:AcDsPrototype_1b` on 2013+ authored files (conventional-write
+validation rides 2007/2010 frames until that lands).
+
+**Carry-overs**: (a) kinds 19/27 remain unmodeled pending the first
+specimen — the capture+replay net makes any future file safe from
+day one; (b) the 42/47 regions stay verbatim (a named-fields
+dissection of the 42 header is a future packet — the open/helix
+differentials are landed in the fixtures); (c) the new fixtures'
+strict-loader probe pass belongs to the next 7b cycle; (d) the
+corpus run needs GOLD_DWGREAD exported AND the login PATH (cargo) —
+a bare `bash script` run silently degrades the per-file pairs (the
+rc=1 rows of a broken first pass); (e) the doc-append lesson: never
+feed markdown backtick content through a double-quoted remote-shell
+layer — the code marks execute as command substitutions (this
+block and its IMPLEMENTATION sibling were re-appended through a
+literal python channel after the damage was caught in review).

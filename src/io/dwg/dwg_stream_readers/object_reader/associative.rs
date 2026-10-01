@@ -878,25 +878,72 @@ pub fn read_associative_data(
                 27 => AssocSubcurveKind::Curve3d,
                 _ => AssocSubcurveKind::None,
             };
-            // §19 H8h-ext-4: the subcurve geometry region after
-            // action_type — twelve BDs for the attested ARC form
-            // (center/normal/x-axis 3BDs, radius, start/end angles),
-            // reverse-engineered from the corpus specimens (see
-            // AssocArcSubcurve). Other action types have no corpus
-            // specimen; their region stays unread (the writer emits no
-            // subcurve for them, as before).
-            let subcurve = if action_type == 11 {
-                Some(AssocArcSubcurve {
-                    center: reader.read_3bit_double(),
-                    normal: reader.read_3bit_double(),
-                    x_axis: reader.read_3bit_double(),
-                    radius: reader.read_bit_double(),
-                    start_angle: reader.read_bit_double(),
-                    end_angle: reader.read_bit_double(),
-                })
-            } else {
-                None
-            };
+            // §19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
+            // geometry region after action_type. The typed forms:
+            // ARC (11) — twelve BDs: center, normal, x-axis (3BD
+            // each), radius, start/end angles (the H8h-ext-4
+            // reverse-engineering); the R2013+ frames append a
+            // constant two-bit `10` trailing form but the read stops
+            // at the twelfth BD (the tail is a write-side emission,
+            // see the writer arm). ELLIPSE (17) — thirteen BDs:
+            // center, major/minor-axis unit vectors, major/minor
+            // radii, start/end angles (the B2 authored quads + the
+            // 2004/Surface.dwg corpus specimens). LINESEG3D (23) —
+            // six BDs: start/end points (same double-source
+            // evidence). The remaining kinds — NURB3D (42, a
+            // ~1300-bit parameterized form), the gold-unknown 47 and
+            // any future 19/27 — stay unread and their region is
+            // captured verbatim for same-version replay (the
+            // H8h-ext-8 `nodes_wire_main` pattern).
+            let mut subcurve = None;
+            let mut subcurve_wire = None;
+            let mut subcurve_wire_bit_len = 0u32;
+            match action_type {
+                11 => {
+                    subcurve = Some(AssocSubcurve::Arc(AssocArcSubcurve {
+                        center: reader.read_3bit_double(),
+                        normal: reader.read_3bit_double(),
+                        x_axis: reader.read_3bit_double(),
+                        radius: reader.read_bit_double(),
+                        start_angle: reader.read_bit_double(),
+                        end_angle: reader.read_bit_double(),
+                    }));
+                }
+                17 => {
+                    subcurve = Some(AssocSubcurve::Ellipse(AssocEllipseSubcurve {
+                        center: reader.read_3bit_double(),
+                        major_axis: reader.read_3bit_double(),
+                        minor_axis: reader.read_3bit_double(),
+                        major_radius: reader.read_bit_double(),
+                        minor_radius: reader.read_bit_double(),
+                        start_angle: reader.read_bit_double(),
+                        end_angle: reader.read_bit_double(),
+                    }));
+                }
+                23 => {
+                    subcurve = Some(AssocSubcurve::LineSegment3d(
+                        AssocLineSegment3dSubcurve {
+                            start_point: reader.read_3bit_double(),
+                            end_point: reader.read_3bit_double(),
+                        },
+                    ));
+                }
+                _ => {
+                    let region_start = reader.position_in_bits();
+                    let region_end = reader.main_data_end();
+                    if region_end > region_start {
+                        let count = (region_end - region_start) as u32;
+                        if let Some(bytes) =
+                            reader.peek_window_bytes(region_start, count)
+                        {
+                            subcurve_wire = Some(bytes);
+                            subcurve_wire_bit_len = count;
+                        }
+                    }
+                }
+            }
+            let subcurve_wire_dxf_version =
+                if subcurve_wire.is_some() { Some(dxf_version) } else { None };
             AssociativeData::EdgeActionParam(AssocEdgeActionParam {
                 single_dependency,
                 parameter,
@@ -904,6 +951,9 @@ pub fn read_associative_data(
                 action_type,
                 subcurve_kind,
                 subcurve,
+                subcurve_wire,
+                subcurve_wire_bit_len,
+                subcurve_wire_dxf_version,
             })
         }
         "ASSOC2DCONSTRAINTGROUP" => {

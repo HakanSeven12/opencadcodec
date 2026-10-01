@@ -567,18 +567,64 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_assoc_handle(DwgReferenceType::SoftPointer, value.parameter);
                 self.writer.write_bit(value.has_action);
                 self.writer.write_bit_long(value.action_type);
-                // §19 H8h-ext-4: the subcurve geometry region — twelve BDs
-                // in the specimen-attested order (center, normal, x-axis,
-                // radius, start/end angles). Emitted only when the reader
-                // captured one (the attested ARC form); DXF-built records
-                // keep the pre-H8h-ext-4 emission.
-                if let Some(subcurve) = &value.subcurve {
-                    self.writer.write_3bit_double(subcurve.center);
-                    self.writer.write_3bit_double(subcurve.normal);
-                    self.writer.write_3bit_double(subcurve.x_axis);
-                    self.writer.write_bit_double(subcurve.radius);
-                    self.writer.write_bit_double(subcurve.start_angle);
-                    self.writer.write_bit_double(subcurve.end_angle);
+                // §19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
+                // region. The typed kinds emit their measured BD
+                // sequences; ARC (11) and ELLIPSE (17) append the
+                // R2013+ frames' constant two-bit `10` trailing form
+                // (BD 0.0 — the wire cannot name the field, see the
+                // model docs; the pre-B2 writer omitted it, a latent
+                // 2-bit drift on the conventional path). LINESEG3D
+                // (23) closes at its sixth BD on every frame. The
+                // untyped kinds — NURB3D (42), the gold-unknown 47 and
+                // any 19/27 — replay their captured verbatim region on
+                // a same-version write (the H8h-ext-8
+                // `nodes_wire_main` pattern); cross-version conversions
+                // and DXF-built records keep the pre-B2 emission (no
+                // subcurve).
+                let r2013_plus = self.version.r2013_plus(self.dxf_version);
+                match &value.subcurve {
+                    Some(AssocSubcurve::Arc(subcurve)) => {
+                        self.writer.write_3bit_double(subcurve.center);
+                        self.writer.write_3bit_double(subcurve.normal);
+                        self.writer.write_3bit_double(subcurve.x_axis);
+                        self.writer.write_bit_double(subcurve.radius);
+                        self.writer.write_bit_double(subcurve.start_angle);
+                        self.writer.write_bit_double(subcurve.end_angle);
+                        if r2013_plus {
+                            self.writer.write_bit_double(0.0);
+                        }
+                    }
+                    Some(AssocSubcurve::Ellipse(subcurve)) => {
+                        self.writer.write_3bit_double(subcurve.center);
+                        self.writer.write_3bit_double(subcurve.major_axis);
+                        self.writer.write_3bit_double(subcurve.minor_axis);
+                        self.writer.write_bit_double(subcurve.major_radius);
+                        self.writer.write_bit_double(subcurve.minor_radius);
+                        self.writer.write_bit_double(subcurve.start_angle);
+                        self.writer.write_bit_double(subcurve.end_angle);
+                        if r2013_plus {
+                            self.writer.write_bit_double(0.0);
+                        }
+                    }
+                    Some(AssocSubcurve::LineSegment3d(subcurve)) => {
+                        self.writer.write_3bit_double(subcurve.start_point);
+                        self.writer.write_3bit_double(subcurve.end_point);
+                    }
+                    None => {
+                        if let Some(bytes) = &value.subcurve_wire {
+                            if value.subcurve_wire_dxf_version
+                                == Some(self.dxf_version)
+                            {
+                                let bits = (value.subcurve_wire_bit_len as usize)
+                                    .min(bytes.len() * 8);
+                                for index in 0..bits {
+                                    let byte = bytes[index / 8];
+                                    let bit = (byte >> (7 - index % 8)) & 1;
+                                    self.writer.write_bit(bit == 1);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             AssociativeData::ConstraintGroup(value) => {
