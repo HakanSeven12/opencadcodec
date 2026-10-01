@@ -71,6 +71,14 @@ pub struct EntityCommonData {
     pub entity_mode: u8,
     /// Owner handle (only if entity_mode == 0)
     pub owner_handle: u64,
+    /// The ownerhandle's authored wire form `(code, size, value)` (only if
+    /// entity_mode == 0) — the raw-retention twin of `owner_handle` (TODO
+    /// A1, 2026-10-01): the authored ownerhandle code choice is a
+    /// writer-genus convention, so the writer replays the captured tuple
+    /// verbatim instead of recomputing the choice. Serde-skipped —
+    /// roundtrip plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub owner_handle_form: Option<(u8, u8, u64)>,
     /// Reactor handles
     pub reactors: Vec<u64>,
     /// XDictionary handle (if present)
@@ -130,6 +138,14 @@ pub struct NonEntityCommonData {
     pub common: ObjectCommonData,
     /// Owner handle
     pub owner_handle: u64,
+    /// The ownerhandle's authored wire form `(code, size, value)` — the
+    /// raw-retention twin of `owner_handle` (TODO A1, 2026-10-01): the
+    /// authored ownerhandle code choice is a writer-genus convention, so
+    /// the writer replays the captured tuple verbatim instead of
+    /// recomputing the choice. Serde-skipped — roundtrip plumbing, not
+    /// model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub owner_handle_form: Option<(u8, u8, u64)>,
     /// Reactor handles
     pub reactors: Vec<u64>,
     /// XDictionary handle (if present)
@@ -474,11 +490,13 @@ impl DwgObjectReader {
         // Entity mode (2 bits)
         let entity_mode = reader.main_mut().read_2bits();
 
-        // Owner handle (if entity_mode == 0)
-        let owner_handle = if entity_mode == 0 {
-            reader.read_handle()
+        // Owner handle (if entity_mode == 0) — captured with its authored
+        // wire form (TODO A1, 2026-10-01)
+        let (owner_handle, owner_handle_form) = if entity_mode == 0 {
+            let (resolved, form) = reader.read_handle_with_form();
+            (resolved, form)
         } else {
-            0
+            (0, None)
         };
 
         // Reactor count + handles
@@ -569,6 +587,7 @@ impl DwgObjectReader {
                 graphic_data,
                 entity_mode,
                 owner_handle,
+                owner_handle_form,
                 reactors,
                 xdictionary_handle,
                 color,
@@ -683,6 +702,7 @@ impl DwgObjectReader {
             graphic_data,
             entity_mode,
             owner_handle,
+            owner_handle_form,
             reactors,
             xdictionary_handle,
             color,
@@ -724,8 +744,9 @@ impl DwgObjectReader {
             reader.reposition_handle_reader(main_size_bits);
         }
 
-        // Owner handle (soft pointer)
-        let owner_handle = reader.read_handle();
+        // Owner handle (soft pointer) — captured with its authored wire
+        // form (TODO A1, 2026-10-01)
+        let (owner_handle, owner_handle_form) = reader.read_handle_with_form();
 
         // Reactor count + handles
         let reactor_count = safe_count(reader.read_bit_long());
@@ -759,6 +780,7 @@ impl DwgObjectReader {
         NonEntityCommonData {
             common,
             owner_handle,
+            owner_handle_form,
             reactors,
             xdictionary_handle,
             has_ds_data,

@@ -68,6 +68,19 @@ pub struct DwgMergedWriter {
     /// tail == [false] ++ handle head); otherwise it falls back to
     /// sequential so values never change.
     underlap_bits: Option<u8>,
+    /// The record-close pad convention: `true` pads the merged stream's
+    /// final partial byte with 0s instead of the default 1s. A
+    /// document-level wire convention (the TODO A1 finding, 2026-10-01):
+    /// the AutoCAD genus closes every record's pad with 1s (the §19 H8d
+    /// verified samples), while the ODA FileConverter genus (the
+    /// `2018/` named-specimen set: Multiline, Line, circle, …) closes
+    /// with 0s — her final window byte is `0x00` where the AutoCAD
+    /// genus writes `0x1F`/`0xFF`-tailed forms on otherwise identical
+    /// records. The reader samples the authored close pad per record
+    /// (`DwgMergedReader::sample_close_pad_zeros`) and the document
+    /// carries the majority; the writer replays it. Constructed
+    /// documents default to the AutoCAD genus (`false`).
+    close_pad_zeros: bool,
 }
 
 impl DwgMergedWriter {
@@ -88,6 +101,7 @@ impl DwgMergedWriter {
             position_in_bits: -1,
             handle_start_bits: -1,
             underlap_bits: None,
+            close_pad_zeros: false,
         }
     }
 
@@ -112,6 +126,7 @@ impl DwgMergedWriter {
             position_in_bits: -1,
             handle_start_bits: -1,
             underlap_bits: None,
+            close_pad_zeros: false,
         }
     }
 
@@ -212,6 +227,16 @@ impl DwgMergedWriter {
     /// silently falls back to the sequential layout otherwise.
     pub fn set_underlap_tail(&mut self, bits: u8) {
         self.underlap_bits = Some(bits);
+    }
+
+    /// Set the record-close pad convention for every record of this
+    /// write: `true` pads the merged stream's final partial byte with
+    /// 0s (the ODA FileConverter genus; see `close_pad_zeros`). The
+    /// document captures the authored convention at read and applies it
+    /// here once; `reset` intentionally leaves it untouched — it is a
+    /// writer-lifetime policy, not per-record state.
+    pub fn set_close_pad_zeros(&mut self, zeros: bool) {
+        self.close_pad_zeros = zeros;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -519,9 +544,16 @@ impl DwgMergedWriter {
             );
         }
         self.main.write_bytes(self.handle.buffer());
-        // §19 H8d: the record's final partial byte is the author's 1s
-        // pad (the intermediate pads stay zero — verified identical).
-        self.main.write_spear_shift_ones();
+        // §19 H8d: the record's final partial byte is the author's
+        // close pad (the intermediate pads stay zero — verified
+        // identical; the pad VALUE follows the document's captured
+        // convention — 1s for the AutoCAD genus, 0s for the ODA
+        // FileConverter genus, TODO A1 2026-10-01).
+        if self.close_pad_zeros {
+            self.main.write_spear_shift();
+        } else {
+            self.main.write_spear_shift_ones();
+        }
 
         self.main.take_bytes()
     }
@@ -645,10 +677,17 @@ impl DwgMergedWriter {
         }
         self.main.write_bytes(self.handle.buffer());
 
-        // Final byte-alignment for CRC computation — the author's 1s
-        // pad (§19 H8d: the record's final partial byte is main's
-        // closing shift; the intermediate pads stay zero).
-        self.main.write_spear_shift_ones();
+        // Final byte-alignment for CRC computation — the author's
+        // close pad (§19 H8d: the record's final partial byte is main's
+        // closing shift; the intermediate pads stay zero; the pad VALUE
+        // follows the document's captured convention — 1s for the
+        // AutoCAD genus, 0s for the ODA FileConverter genus, TODO A1
+        // 2026-10-01).
+        if self.close_pad_zeros {
+            self.main.write_spear_shift();
+        } else {
+            self.main.write_spear_shift_ones();
+        }
 
         self.main.take_bytes()
     }

@@ -1,47 +1,132 @@
-# THE 2026-09-30 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
+# THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — the corpus at 280 files
-# 0/0/0/0 on all four axes; the genus gate queue PENDING-ZERO with
-# --strict passing; **THE B-REP CONSTRUCTION GAP IS CLOSED ON BOTH
-# LOADERS — THE ACAD AXIS FELL AT THE TERMINATOR PACKET**; **THE
-# MLEADER STYLE DEFECT IS CLOSED** (the canonical's audit TOTAL
-# ERRORS 0 with dbmod 0 pre+post); **THE MTEXT REPAIR IS CLOSED
-# TOO** (the tenth addendum: the widened census named the pair
-# "AcDbMText was repaired / 2 fixed"; the repaired-staged-copy
-# diff named the field — the R2018+ redundant block's repeated
-# attachment point, our constructed default 0 a corrupt
-# repetition; the honest model default + the output-copy repair;
-# ACAD's audit now reads TOTAL ERRORS 0 — the extents recompute
-# was the repair's side effect, NO follow-up); **THE MLINE VERTS
-# DEFECT IS CLOSED** (the twelfth addendum: the segment-parameter
-# cache — the modeler reconstructs the multiline from it; the
-# missing cache read as the null-extents box; the formula measured
-# across every corpus specimen and landed in rebuild_geometry —
-# gold's standing ERROR GONE, ent[4F] reads REAL EXTENTS
-# (0,-1)..(51,50) on BOTH loaders); **THE PROBE'S
-# CENSUS IS WIDENED TO EVERY KIND** (the ninth addendum — the
-# canonical's every kind has first-class bbox evidence on both
-# loaders; the XLine/Ray pair RESOLVED AS A NON-DEFECT — the
-# eleventh addendum: ACAD's filtered ssget never returns
-# construction lines, HER OWN authored pair absent the same way;
-# the writer exonerated): every constructed fixture MODELS under
-# BricsCAD V26 AND AutoCAD 2027 with real extents and clean
-# audits, the
-# multi-record mispair is GONE, the complete chimera matrix holds
-# on both loaders, the container is at her complete genus; the
-# entity-behavior verification matrix is LANDED (29/29 kinds on
-# five axes). ALL INSTRUMENTS CURRENT: the probe (AUDIT channels +
-# stall guards + the core-console arm + the widened census), the
-# entity verification harness, the genus gates + the extended
-# pin, the record census, the chimera coherent-swap instrument.
-# THE FIRST ACTION for the zero-context agent: re-verify the
-# battery (the verification gate section below), read the
-# twelfth addendum's record, then the residual queue (the
-# Multiline-specimen conventional-arm residue — the newly-visible
-# pre-existing 142/143; the §19.5 version-parity
-# tiers — maintainer decisions; the era censuses across the full
-# era corpora).
+# top to bottom): THE CAMPAIGN STATE — **A1 IS CLOSED: THE 2018-ERA
+# CONVENTIONAL-ARM WIRE DIVERGENCE (2,479 census rows) LANDED AS
+# CAPTURE-AND-REPLAY OF THE TWO AUTHORIAL GENUS CONVENTIONS** (the
+# ownerhandle code choice — the ODA FileConverter genus always
+# writes absolute code-4, the AutoCAD genus writes §19 H8d's
+# relative-iff-shorter pick; the record-close pad — a per-author
+# genus: the ODA FileConverter 2018 set and her R2000 PolyLine2D
+# pad zeros, the AutoCAD genus pads ones; the reader samples per
+# record, the document carries the majority, the writer replays —
+# the §19 H7 raw-retention pattern);
+# the era census moved 2018 **2,479 → 20 divergent** (the 17 ODA
+# specimens fully record-identical) and also repaired 50 pre-2004
+# rows (2000: 375 → 325); the corpus at 337 files — every
+# established file 0/0/0/0, the 213/213 fidelity rows + 261
+# structure key-gaps carried ENTIRELY by the untracked B1 fixture
+# set (a parallel session's work-in-progress, pre-existing per the
+# stash A/B); the genus gate queue PENDING-ZERO with --strict
+# passing; the generation identity f2187565… byte-stable through
+# the packet; the constructed-content state unchanged (every
+# fixture MODELS on both loaders — the twelfth addendum's record
+# stands). THE FIRST ACTION for the zero-context agent: re-verify
+# the battery (the verification gate section below), read the
+# thirteenth addendum's record, then the residual queue (the five
+# named 2018 families under TODO A5; the untracked-fixture
+# session's corpus rows; the §19.5 version-parity tiers —
+# maintainer decisions; the A2 MT crc_seed draw pinning).
+#
+# === THE THIRTEENTH-CONTINUATION ADDENDUM (the A1 closure — the
+# 2018-era conventional-arm wire divergence; read this first, then
+# the twelfth addendum as history): **THE A1 ROOT-CAUSE NARRATIVE
+# WAS WRONG-DIRECTION AND THE MEASUREMENT INVERTED IT — THE FIX IS
+# CAPTURE-AND-REPLAY, NOT NEW EMISSION ARMS.** The A1 entry read
+# her ownerhandle forms as relative-subcode vocabulary outside
+# silver's emission space; the 2026-10-01 byte-pair + trace census
+# found her forms are ABSOLUTE code-4 (`(4.0.0)`/`(4.1.x)`/
+# `(4.2.xx)` — gold's -v9 prints the resolved absolute target),
+# squarely inside silver's space, and the divergence is the CHOICE
+# RULE plus a second genus fact the field trace is blind to:
+#
+# (1) THE TWO GENUS CONVENTIONS (the ODA-FileConverter-written 2018
+# set — the 17 named specimens — vs the AutoCAD genus): the
+# ownerhandle code choice (ODA ALWAYS absolute code-4; AutoCAD
+# §19 H8d relative-iff-shorter — verified 196/196 on circle_2007,
+# and the AutoCAD-written Dynblocks/LiveSection1 match ours
+# record-for-record) and the record-close pad (ODA ZEROS — raw
+# window dumps show her records ending `0x00` where ours end
+# `0x1F`-tailed on otherwise byte-identical records; AutoCAD ONES
+# — the §19 H8d verified AC15/AC18/AC21 samples; gold's `padding:`
+# print is a debug quirk, the -v9 trace cannot see the pad).
+#
+# (2) THE FIX (the §19 H7 raw-retention pattern applied to the two
+# genus facts): the READER captures — `read_handle_with_form` (the
+# raw twin of read_handle at the two ownerhandle sites, retaining
+# (code,size,value) while resolving identically) +
+# `sample_close_pad_zeros` (a frame-only walk of the handle stream
+# on the fresh reader — the self-delimiting [code|size]+payload
+# units, a pad run < 8 bits so the walk cannot step into it; the
+# start comes from the record frame — the RL/MC-positioned handle
+# cursor three-stream, the stored handle-split bit two-stream); the
+# DOCUMENT carries — `owner_handle_form_by_handle` (pass 1 table
+# records + pass 2 entity/non-entity arms) + `close_pad_zeros`
+# (the majority vote; ties and empty samples keep the AutoCAD
+# genus — also the constructed/deserialized default); the WRITER
+# replays — the two ownerhandle sites emit the captured tuple
+# verbatim (`write_handle_form`) when it resolves — against the
+# record's own handle, the reader's arithmetic — to the same owner
+# target this write intends (stale captures, absent ones, and
+# constructed content fall back to the recomputed H8d rule), and
+# `DwgMergedWriter::set_close_pad_zeros` (set once at
+# `DwgObjectWriter::new`) picks `write_spear_shift` (zeros) vs
+# `write_spear_shift_ones` at both merge close sites.
+#
+# (3) THE ACCEPTANCE: the era census (the A3 instrument, the
+# standing L4 gate) — 2018 **2,479 → 20 divergent** (50,773
+# paired; the 17 ODA specimens fully record-identical: Multiline
+# 143/143, Leader 175/176, Constraints 147/150); 2000 375 → 325
+# (the replay also repairs 50 pre-2004 rows — PolyLine2D 260→225,
+# entities-2d 57→50, entities-3d 58→50 — and the decomposition
+# attributes them to the CLOSE-PAD replay, not the ownerhandle
+# forms: with the pad sampler disabled pre-2007, PolyLine2D sits at
+# 259, so the ownerhandle share is 1 record and the pad share 34.
+# HER R2000 PolyLine2D PADS ZEROS — a measured counter-example to
+# the blanket "AC15 pads 1s" reading of §19.4.C: the close-pad
+# genus is per-author, exactly why the fix captures and replays
+# instead of assuming); 2004 15 → 15; 2007 0 → 0 (the 84
+# her-only broken-map residual unchanged); 2010 2 → 1; 2013 24 →
+# 24. The her-only/our-only rows on 2000 (Cone +1, PolyLine2D
+# +5/+4) are PRE-EXISTING per the stash A/B — unchanged. The
+# generation identity byte-stable (f2187565… before and after —
+# the constructed genus never reads, so it defaults; the README's
+# 40ab5d35… and the twelfth addendum's 36279922… records predate
+# later packets' intended moves).
+#
+# (4) THE BATTERY at this halt: the suite 1,609/0 (52 segments);
+# the harness self-check ok; the pair smokes 0/0 (Leader/
+# Multiline/Dynblocks/Cone/PolyLine2D); the corpus 337 files —
+# every established file 0/0/0/0, the 213/213 fidelity rows + 261
+# structure key-gaps carried ENTIRELY by the untracked B1 fixture
+# set (wipeout/arcdimension/xref/ole2/solid/tolerance/camera/
+# light/mesh/polyface/3dface — pre-existing per the stash A/B on
+# Wipeout_2004 19/19 and 2004/Arc structure 2/2 — that session's
+# follow-up, NOT this packet's); the genus gates PENDING-ZERO with
+# --strict, the pin no drift, the cargo mirror ok; the examples
+# 1,209/1,209 (474+735); the LEADER/MULTILEADER records of
+# 2018/Leader.dwg byte-identical (the census's only divergent
+# record there is the LTYPE 0x779).
+#
+# (5) THE RESIDUAL 2018 ROWS (20) — five named families, none the
+# A1 genus (each opens as a per-record dissection packet; recorded
+# under TODO A5 with the updated era table): Dynblocks 12 (the
+# dynamic-block action records BLOCKSTRETCH/MOVE/SCALEACTION, +58
+# main bits each); Dynblocks 2 (ACDBASSOC2DCONSTRAINTGROUP
+# 2948→29650); Constraints 3 (PROXY_OBJECT objid byte-shrink);
+# Leader 1 (LTYPE dash shape_flag IS_SHAPE); LiveSection1 2
+# (SECTIONOBJECT/SECTION_MANAGER 1-bit).
+#
+# THE NEXT WORK, ranked: (a) the five 2018 residual families (TODO
+# A5 — the Dynblocks action family is the largest); (b) the
+# untracked-fixture session's corpus rows (the B1 fixtures' 213
+# fidelity rows + 261 structure key-gaps — that session's
+# follow-up); (c) the §19.5 version-parity tiers (maintainer
+# decisions); (d) the A2 MT crc_seed draw pinning (the one open
+# algorithmic unknown).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE TWELFTH-CONTINUATION ADDENDUM (the MLine verts packet —
 # THE LAST NAMED CONTENT RESIDUE CLOSED; read this first, then the

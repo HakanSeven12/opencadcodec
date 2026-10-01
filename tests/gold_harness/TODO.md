@@ -17,67 +17,6 @@ decisions** (scope calls, not packets) → **D. Standing guardrails**
 
 ## A. Open tasks — agent code work
 
-### A1. The 2018-era conventional-arm wire divergence (formerly "the Multiline residue") — the queue head
-
-**ROOT CAUSE LOCALIZED + SCOPE WIDENED 2026-09-30 (this session, via the A3
-full era census).** What the campaign record called "the Multiline-specimen
-residue (142/143)" is **not one specimen's defect** — it is a **systematic
-2018-era conventional-arm wire divergence**. The full era census (the A3
-instrument, `analysis/era_corpus_census.py`, six eras / 117 files / 82,413
-paired records):
-
-| era | files | paired | divergent | shape |
-|---|---|---|---|---|
-| 2000 | 22 | 4,824 | 375 | PolyLine2D 260, entities-2d 57, entities-3d 58 |
-| 2004 | 21 | 4,710 | 15 | HatchG 2, Surface 13 |
-| 2007 | 18 | 3,979 | **0** | clean (ATMOS's 84 her-only = the standing broken-map residual) |
-| 2010 | 18 | 3,758 | 2 | gh209_1 2 |
-| 2013 | 19 | 14,369 | 24 | gh44-error 23, gh109_1 1 |
-| 2018 | 19 | 50,773 | **2,479** | **every simple specimen ~142/143** (Arc, Line, Point, circle, Multiline, Donut, Ellipse, Helix, Polygon, Polyline, RAY, Spline, Text…); Constraints 149/150, PolyLine3D 149/150, Leader 174/176; Dynblocks 14/48,101 |
-
-The 2018 shape — *nearly every record divergent, on every simple authored
-file* — is a systematic wire-form difference, and corpus parity is **0/0**
-on these same files, so it is wire-form-only. The earlier "the conventional
-arm is record-identical on the exemplars" finding was about the *gold-tree
-root* specimens (`example_2018`, `Constraints` at `test-data/` top level,
-which the era census does not scan); the version-subdir files were never
-the recorded-clean specimens.
-
-**The defect is a handle-form vocabulary gap.** Byte-pair + trace analysis
-(orig vs rewrite, e.g. Multiline records `0.2.18F`, `0.2.13B`): the author
-writes ownerhandles in relative subcode forms — `(4.1.B6)` (code 4
-SoftPointer, subcode 1 relative, offset B6), `(4.2.18E)` (subcode 2), and
-code-12 forms `(12.1.85)` — while silver's
-`bit_writer.rs::write_handle_relative` (line 722) only ever emits codes
-6/8/A/C, and `write_handle` emits 0/2/3/4/5. The author's relative-subcode
-vocabulary (`(4.1.X)`, `(12.1.Y)`) is entirely outside silver's emission
-space, so silver falls back to a *different* code encoding the same target
-with a different byte length — the `hdlsize 0x33→0x23` / size deltas and
-the CRC divergence, with zero field-level change. The
-`write_first_ref_handle` "relative-iff-shorter" rule (line 756) is correct
-but unreachable here: it only chooses among silver's existing codes, never
-the author's subcode forms.
-
-- **Fix surface**: extend `DwgReferenceType` /
-  `write_handle_relative` in `src/io/dwg/dwg_stream_writers/bit_writer.rs`
-  to emit the author's relative-subcode forms (code 4 subcode 1/2, code 12)
-  where the author uses them, and extend the §19.4.B form rule to choose
-  among the full vocabulary. `DwgReferenceType`
-  (`src/io/dwg/dwg_reference_type.rs`) currently defines only
-  Undefined/SoftOwnership/HardOwnership/SoftPointer/HardPointer — the
-  relative-with-subcode forms need representation.
-- **Method**: census the author's ownerhandle form vocabulary across the
-  2018 specimens (the `(code.subcode.offset)` triples) and add the missing
-  emission arms; the fix should clear the bulk of the 2,479 2018 rows. The
-  residual 2000/2004/2010/2013 clusters are separate, smaller packets
-  (PolyLine2D 2000 is the largest at 260).
-- **Gate**: zero-keeping workflow; the era census
-  (`analysis/era_corpus_census.py`) must reach record identity.
-- **Sources**: `IMPLEMENTATION.md` §20 twelfth-continuation record
-  (lines 8141–8144), §19.4.B; this session's byte-pair evidence and the A3
-  census table above.
-- **Fixture**: none — all specimens already in the corpus.
-
 ### A2. MT crc_seed draw pinning (the one open algorithmic unknown)
 
 The R2007_Header CRC random encoding: some header CRCs are stored as
@@ -157,6 +96,58 @@ versions at the version-map stage (`src/io/dwg/dwg_version.rs:49` returns
 codes and decodes zero entities (prints "This file's version code is: X",
 SUCCESS with no content). Mirroring = report the version code and return an
 empty document instead of the error. Blocked on the C3 decision.
+
+### A5. The 2018-era residual families (20 census rows, five packets) — **A1 CLOSED 2026-10-01; these are the named remainders**
+
+A1 (the 2018-era conventional-arm wire divergence) landed 2026-10-01 as
+capture-and-replay of the two authorial genus conventions — the
+ownerhandle code choice (the ODA FileConverter genus always writes
+absolute code-4; the AutoCAD genus writes §19 H8d's
+relative-iff-shorter pick) and the record-close pad (a PER-AUTHOR
+genus: the ODA FileConverter 2018 set — and her R2000 PolyLine2D —
+pad zeros; the AutoCAD genus pads ones; the reader samples per
+record, the document carries the majority, the writer replays). The
+era census moved 2018 **2,479 → 20 divergent** (the 17 ODA
+specimens fully record-identical) and also repaired 50 pre-2004
+rows (2000: 375 → 325 — the close-pad replay's share: with the pad
+sampler disabled pre-2007, PolyLine2D sits at 259, so the
+ownerhandle share there is 1 record and the pad share 34). The era
+table now:
+
+| era | files | paired | divergent | shape |
+|---|---|---|---|---|
+| 2000 | 22 | 4,824 | 325 | PolyLine2D 225, entities-2d 50, entities-3d 50 (the pre-existing her-only/our-only rows unchanged) |
+| 2004 | 21 | 4,710 | 15 | HatchG 2, Surface 13 |
+| 2007 | 18 | 3,979 | **0** | clean (ATMOS's 84 her-only = the standing broken-map residual) |
+| 2010 | 18 | 3,758 | 1 | gh209_1 1 |
+| 2013 | 19 | 14,369 | 24 | gh44-error 23, gh109_1 1 |
+| 2018 | 19 | 50,773 | **20** | Dynblocks 14, LiveSection1 2, Constraints 3, Leader 1 |
+
+The 2018 remainders, each root-caused to a named family (none is the
+A1 handle/pad genus):
+
+1. **Dynblocks 12 — the dynamic-block action records**:
+   BLOCKSTRETCHACTION (8) / BLOCKMOVEACTION (2) / BLOCKSCALEACTION (2),
+   each +58 main bits (hdlsize −2) — one repeated field family our
+   writer emits longer.
+2. **Dynblocks 2 — ACDBASSOC2DCONSTRAINTGROUP blowup**: 2948→29650
+   bytes (10×) on this specimen's node shape — the per-node repeat
+   defect resurfacing on an unmodeled variant.
+3. **Constraints 3 — PROXY_OBJECT objid byte-shrink**: 973→971 and
+   284→283×2 (hdlsize −8 bits) — one handle form in the proxy handle
+   stream our raw path emits shorter.
+4. **Leader 1 — LTYPE dash shape_flag**: record 0x779; our write adds
+   IS_SHAPE(0x4) where her file has 0 (+16 bits).
+5. **LiveSection1 2 — SECTIONOBJECT/SECTION_MANAGER**: equal-size
+   1-bit divergences (byte 11 `C4` vs `C5`, mid-record).
+
+- **Instruments**: `analysis/era_corpus_census.py` (the standing L4
+  gate) + `analysis/record_size_census.py` per file; each family opens
+  as a per-record dissection packet (the H8h-ext-4 BD-walk method).
+- **Gate**: zero-keeping workflow; the 2018 era census to zero.
+- **Sources**: `IMPLEMENTATION.md` §20 thirteenth-continuation record
+  (the A1 closure, the measurements, and the residual autopsies).
+- **Fixture**: none — all specimens already in the corpus.
 
 ---
 

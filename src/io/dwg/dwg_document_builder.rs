@@ -181,6 +181,15 @@ struct Pass2Output {
     eed_by_handle: HashMap<Handle, Vec<(u64, Vec<u8>)>>,
     xdic_by_handle: HashMap<Handle, Handle>,
     reactors_by_handle: HashMap<Handle, Vec<Handle>>,
+    /// Authored ownerhandle wire forms `(code, size, value)` keyed by the
+    /// record's own handle (TODO A1, 2026-10-01) — drained into
+    /// `CadDocument::owner_handle_form_by_handle` at commit.
+    owner_forms: HashMap<Handle, (u8, u8, u64)>,
+    /// Close-pad genus votes (TODO A1, 2026-10-01): records whose authored
+    /// close pad is all zeros / all ones. The majority decides
+    /// `CadDocument::close_pad_zeros` at commit.
+    pad_zero_votes: u32,
+    pad_one_votes: u32,
     unknown_bits_by_handle: HashMap<Handle, String>,
     dwg_data_store_handles: HashSet<Handle>,
     context_scales: HashMap<Handle, Handle>,
@@ -212,6 +221,9 @@ impl Pass2Output {
             eed_by_handle: HashMap::new(),
             xdic_by_handle: HashMap::new(),
             reactors_by_handle: HashMap::new(),
+            owner_forms: HashMap::new(),
+            pad_zero_votes: 0,
+            pad_one_votes: 0,
             unknown_bits_by_handle: HashMap::new(),
             dwg_data_store_handles: HashSet::new(),
             context_scales: HashMap::new(),
@@ -537,6 +549,11 @@ impl DwgDocumentBuilder {
         // sequential handles for child entities).
         handles.sort_unstable();
         let mut skipped_pass1 = 0u32;
+        // Close-pad genus votes (TODO A1, 2026-10-01) — accumulated from
+        // every record the two passes read (pass 1: table records; pass 2:
+        // everything else), decided once at the pass-2 commit.
+        let mut pad_zero_votes = 0u32;
+        let mut pad_one_votes = 0u32;
         let mut skipped_pass2 = 0u32;
         let mut decoded_pass2 = 0usize;
         let mut diagnostics = Vec::new();
@@ -717,6 +734,15 @@ impl DwgDocumentBuilder {
                         continue;
                     }
                 };
+                // Sample the authored close pad on the fresh reader,
+                // before the typed parse (TODO A1, 2026-10-01).
+                if let Some(zeros) = reader.sample_close_pad_zeros() {
+                    if zeros {
+                        pad_zero_votes += 1;
+                    } else {
+                        pad_one_votes += 1;
+                    }
+                }
                 // Wrap in catch_unwind to survive corrupt/misaligned records
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let non_entity = self
@@ -727,9 +753,10 @@ impl DwgDocumentBuilder {
                     let xdic = non_entity.xdictionary_handle;
                     let reactors = non_entity.reactors.clone();
                     let has_ds = non_entity.has_ds_data;
-                    (obj_handle, type_code, eed_raw, xdic, reactors, has_ds)
+                    let owner_form = non_entity.owner_handle_form;
+                    (obj_handle, type_code, eed_raw, xdic, reactors, has_ds, owner_form)
                 }));
-                let (obj_handle, type_code, eed_raw_pass1, xdic_pass1, reactors_pass1, has_ds_pass1) =
+                let (obj_handle, type_code, eed_raw_pass1, xdic_pass1, reactors_pass1, has_ds_pass1, owner_form_pass1) =
                     match result {
                         Ok(v) => v,
                         Err(_) => {
@@ -769,6 +796,14 @@ impl DwgDocumentBuilder {
                     document
                         .dwg_data_store_handles
                         .insert(Handle::from(obj_handle));
+                }
+                // Retain the authored ownerhandle wire form (TODO A1,
+                // 2026-10-01) — the writer replays the captured tuple
+                // verbatim instead of recomputing the code choice.
+                if let Some(form) = owner_form_pass1 {
+                    document
+                        .owner_handle_form_by_handle
+                        .insert(Handle::from(obj_handle), form);
                 }
                 let control_handle = Handle::from(obj_handle);
                 match type_code {
@@ -1861,6 +1896,17 @@ impl DwgDocumentBuilder {
                             continue;
                         }
                     };
+                    // Sample the authored close pad on the fresh reader,
+                    // before the typed parse (TODO A1, 2026-10-01): the
+                    // walk needs only the record frame, never the parsed
+                    // fields, so a corrupt record votes nothing.
+                    if let Some(zeros) = reader.sample_close_pad_zeros() {
+                        if zeros {
+                            chunk.output.pad_zero_votes += 1;
+                        } else {
+                            chunk.output.pad_one_votes += 1;
+                        }
+                    }
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         self.process_pass2_record(
                             handle,
@@ -1906,6 +1952,11 @@ impl DwgDocumentBuilder {
                 document
                     .reactors_by_handle
                     .extend(chunk.output.reactors_by_handle.drain());
+                document
+                    .owner_handle_form_by_handle
+                    .extend(chunk.output.owner_forms.drain());
+                pad_zero_votes += chunk.output.pad_zero_votes;
+                pad_one_votes += chunk.output.pad_one_votes;
                 document
                     .unknown_bits_by_handle
                     .extend(chunk.output.unknown_bits_by_handle.drain());
@@ -1980,14 +2031,24 @@ impl DwgDocumentBuilder {
             let value = 110u32 + ((pass2_done as u64 * 760) / pass2_total as u64) as u32;
             self.report_progress(value.min(870) as u16);
         }
+        // Decide the record-close pad genus from the authored sample (TODO
+        // A1, 2026-10-01): the majority of every record the two passes
+        // walked (table records in pass 1, everything else in pass 2). A
+        // zero-vote majority pads the rewrite's record close with 0s —
+        // the ODA FileConverter genus measured across the 2018 named
+        // specimens; ties and empty samples keep the AutoCAD genus (1s,
+        // §19 H8d), which is also the constructed-document default.
+        document.close_pad_zeros = pad_zero_votes > pad_one_votes;
         if perf {
             eprintln!(
-                "[perf] dwg-build pass2={:.1}ms decode={:.1}ms commit={:.1}ms records={} threads={}",
+                "[perf] dwg-build pass2={:.1}ms decode={:.1}ms commit={:.1}ms records={} threads={} pad-zeros={} pad-ones={}",
                 pass2_started.elapsed().as_secs_f64() * 1000.0,
                 decode_seconds * 1000.0,
                 commit_seconds * 1000.0,
                 pass2_records.len(),
                 worker_count,
+                pad_zero_votes,
+                pad_one_votes,
             );
         }
         let post_started = web_time::Instant::now();
@@ -3503,6 +3564,12 @@ impl DwgDocumentBuilder {
                 .obj_reader
                 .read_common_entity_data(&mut reader, type_code);
             Self::capture_unknown_bits(document, &reader, handle);
+            // Retain the authored ownerhandle wire form (TODO A1,
+            // 2026-10-01) — the writer replays the captured tuple
+            // verbatim instead of recomputing the code choice.
+            if let Some(form) = entity_data.owner_handle_form {
+                document.owner_forms.insert(Handle::from(handle), form);
+            }
             let entity_common = map_entity_common(
                 &entity_data,
                 maps,
@@ -5354,6 +5421,12 @@ impl DwgDocumentBuilder {
                 .obj_reader
                 .read_common_non_entity_data(&mut reader, type_code);
             Self::capture_unknown_bits(document, &reader, handle);
+            // Retain the authored ownerhandle wire form (TODO A1,
+            // 2026-10-01) — the writer replays the captured tuple
+            // verbatim instead of recomputing the code choice.
+            if let Some(form) = non_entity_data.owner_handle_form {
+                document.owner_forms.insert(Handle::from(handle), form);
+            }
             let owner_handle = Handle::from(non_entity_data.owner_handle);
             if non_entity_data.has_ds_data {
                 document

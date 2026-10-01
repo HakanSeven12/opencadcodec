@@ -145,6 +145,32 @@ pub const OBJ_DGNDEFINITION: i16 = 0x89; // 137 (class-based; sentinel fallback)
 
 // ── Methods on DwgObjectWriter ──────────────────────────────────────
 impl<'a> DwgObjectWriter<'a> {
+    /// The authored ownerhandle wire form for a record, when the captured
+    /// form resolves (against the record's own handle, the way the reader
+    /// resolved it) to the same owner target this write intends (TODO A1,
+    /// 2026-10-01). The authored code choice is a writer-genus convention
+    /// — the ODA FileConverter 2018 set always writes the absolute code-4
+    /// form where the AutoCAD genus writes §19 H8d's relative-iff-shorter
+    /// pick — so the writer replays the captured `(code, size, value)`
+    /// verbatim; a stale capture (re-allocated owner), an absent one
+    /// (constructed content), or a non-matching resolution falls back to
+    /// the recomputed choice.
+    fn captured_owner_form(&self, own: Handle, owner: Handle) -> Option<(u8, u8, u64)> {
+        let (code, size, value) = self
+            .document
+            .owner_handle_form_by_handle
+            .get(&own)
+            .copied()?;
+        let resolved = match code {
+            0x6 => own.value().wrapping_add(1),
+            0x8 => own.value().wrapping_sub(1),
+            0xA => own.value().wrapping_add(value),
+            0xC => own.value().wrapping_sub(value),
+            _ => value,
+        };
+        (resolved == owner.value()).then_some((code, size, value))
+    }
+
     // ── register_object ─────────────────────────────────────────────
     /// Finalise the current object record in `self.writer` and append it
     /// to the output stream, recording the handle→offset mapping.
@@ -471,12 +497,26 @@ impl<'a> DwgObjectWriter<'a> {
             // (AC1021); §19 H8h-ext-13: the pre-2007 corpus follows
             // the same convention (the R2000/R2004 specimens' census),
             // so the gate drops the r2007_plus bound.
+            // TODO A1 (2026-10-01): the code CHOICE itself is a
+            // writer-genus convention — the ODA FileConverter 2018 set
+            // writes absolute code-4 where the AutoCAD genus writes the
+            // relative-iff-shorter pick — so the captured author form
+            // replays verbatim when it resolves to the same owner; the
+            // recomputed §19 H8d rule stays the fallback (constructed
+            // content, edited owners).
             if !owner_handle.is_null() {
-                self.writer.write_first_ref_handle(
-                    DwgReferenceType::SoftPointer,
-                    handle.value(),
-                    owner_handle.value(),
-                );
+                match self.captured_owner_form(handle, owner_handle) {
+                    Some((code, size, value)) => {
+                        self.writer.write_handle_form(code, size, value);
+                    }
+                    None => {
+                        self.writer.write_first_ref_handle(
+                            DwgReferenceType::SoftPointer,
+                            handle.value(),
+                            owner_handle.value(),
+                        );
+                    }
+                }
             } else {
                 self.writer
                     .write_handle(DwgReferenceType::SoftPointer, owner_handle.value());
@@ -933,11 +973,25 @@ impl<'a> DwgObjectWriter<'a> {
             // (4.1)/(4.2) mix is exactly the rule's output — the
             // relative form when shorter, the tie-break by numeric
             // value), so the gate drops the r2007_plus bound.
-            self.writer.write_first_ref_handle(
-                DwgReferenceType::SoftPointer,
-                handle.value(),
-                effective_owner.value(),
-            );
+            // TODO A1 (2026-10-01): the code CHOICE itself is a
+            // writer-genus convention — the ODA FileConverter 2018 set
+            // writes absolute code-4 where the AutoCAD genus writes the
+            // relative-iff-shorter pick — so the captured author form
+            // replays verbatim when it resolves to the same owner; the
+            // recomputed §19 H8d rule stays the fallback (constructed
+            // content, edited owners).
+            match self.captured_owner_form(handle, effective_owner) {
+                Some((code, size, value)) => {
+                    self.writer.write_handle_form(code, size, value);
+                }
+                None => {
+                    self.writer.write_first_ref_handle(
+                        DwgReferenceType::SoftPointer,
+                        handle.value(),
+                        effective_owner.value(),
+                    );
+                }
+            }
         } else {
             self.writer
                 .write_handle(DwgReferenceType::SoftPointer, effective_owner.value());

@@ -234,6 +234,8 @@ impl<'a> SemanticInventoryV1<'a> {
             section_view_reps: _,
             next_handle: _,
             dwg_ac21_shape: _,
+            owner_handle_form_by_handle: _,
+            close_pad_zeros: _,
         } = self.document;
 
         visitor(SemanticPartV1::Header(header));

@@ -164,7 +164,12 @@ impl<'a> DwgObjectWriter<'a> {
         let encoding =
             crate::io::dxf::code_page::encoding_from_code_page(&document.header.code_page)
                 .unwrap_or(encoding_rs::WINDOWS_1252);
-        let writer = DwgMergedWriter::with_encoding(version, dxf_version, encoding);
+        let mut writer = DwgMergedWriter::with_encoding(version, dxf_version, encoding);
+        // The record-close pad genus captured at read (TODO A1, 2026-10-01):
+        // every record of this write closes with the authored convention —
+        // 1s (AutoCAD genus, the default for constructed documents) or 0s
+        // (the ODA FileConverter genus).
+        writer.set_close_pad_zeros(document.close_pad_zeros);
 
         // Compute safe starting handle for allocation.
         // document.header.handle_seed may be stale (e.g. DWG roundtrip

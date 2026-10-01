@@ -2749,6 +2749,28 @@ pub struct CadDocument {
     /// Non-entity object reactors — populated during DWG read, consumed during DWG write.
     pub(crate) reactors_by_handle: HashMap<Handle, Vec<Handle>>,
 
+    /// Authored ownerhandle wire forms `(code, size, value)`, keyed by the
+    /// record's own handle — the raw-retention twin of the resolved owner
+    /// (TODO A1, 2026-10-01): the authored ownerhandle CODE choice is a
+    /// writer-genus convention (the ODA FileConverter 2018 set always
+    /// writes the absolute code-4 form where the AutoCAD genus writes the
+    /// relative-iff-shorter form §19 H8d picks, and a recomputed choice
+    /// cannot reproduce both), so the writer replays the captured form
+    /// verbatim (`write_handle_form`) whenever it resolves to the same
+    /// owner. Populated during DWG read, consumed during DWG write.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) owner_handle_form_by_handle: HashMap<Handle, (u8, u8, u64)>,
+
+    /// The record-close pad genus captured at read (the majority sample of
+    /// the authored records' close pads, TODO A1 2026-10-01): `true` pads
+    /// the merged stream's final partial byte with 0s (measured on the
+    /// ODA FileConverter 2018 set — her records end `0x00` where the
+    /// AutoCAD genus ends `0x1F`-tailed on otherwise identical bytes),
+    /// `false` pads with 1s (the AutoCAD genus, §19 H8d — and the default
+    /// for constructed and deserialized documents).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) close_pad_zeros: bool,
+
     /// Raw undecoded record remainders, keyed by handle — gold's
     /// `HANDLE_UNKNOWN_BITS` window (LibreDWG decode.c `dwg_decode_unknown_bits`):
     /// the bits from the end of the common prologue (after type code, size
@@ -3178,6 +3200,8 @@ impl CadDocument {
             eed_by_handle: HashMap::new(),
             xdic_by_handle: HashMap::new(),
             reactors_by_handle: HashMap::new(),
+            owner_handle_form_by_handle: HashMap::new(),
+            close_pad_zeros: false,
             unknown_bits_by_handle: HashMap::new(),
             block_entity_handles: HashMap::new(),
             dwg_source_version: None,

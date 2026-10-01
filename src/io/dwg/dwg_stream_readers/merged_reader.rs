@@ -41,7 +41,7 @@ pub struct DwgMergedReader {
     /// Handle reader (split from main after handle_start_bits)
     handle: Option<DwgBitReader>,
     /// Merge mode
-    _mode: MergeMode,
+    mode: MergeMode,
     /// DXF version
     dxf_version: DxfVersion,
     /// Raw data (kept for lazy text/handle setup in ThreeStream mode)
@@ -122,7 +122,7 @@ impl DwgMergedReader {
                     main,
                     text: None,
                     handle: Some(handle),
-                    _mode: mode,
+                    mode,
                     dxf_version,
                     raw_data: None,
                     encoding,
@@ -145,7 +145,7 @@ impl DwgMergedReader {
                     main: main_reader,
                     text: None,
                     handle: None,
-                    _mode: mode,
+                    mode,
                     dxf_version,
                     raw_data: Some(data),
                     encoding,
@@ -177,7 +177,7 @@ impl DwgMergedReader {
             main,
             text,
             handle,
-            _mode: mode,
+            mode,
             dxf_version,
             raw_data: None,
             encoding: encoding_rs::WINDOWS_1252,
@@ -543,6 +543,84 @@ impl DwgMergedReader {
         match &mut self.handle {
             Some(handle_reader) => handle_reader.read_handle_raw(),
             None => self.main.read_handle_raw(),
+        }
+    }
+
+    /// Read a handle reference the way [`read_handle`](Self::read_handle)
+    /// resolves it, while also retaining the authored wire form
+    /// `(code, size, value)` (TODO A1, 2026-10-01): the ownerhandle's
+    /// code choice is a writer-genus convention (the ODA FileConverter
+    /// 2018 set writes absolute code-4 forms where the AutoCAD genus
+    /// writes §19 H8d's relative-iff-shorter forms), so the writer
+    /// replays the captured tuple verbatim instead of recomputing the
+    /// choice. The resolution mirrors `read_handle_reference` exactly
+    /// (codes ≤ 5 carry the absolute value; 6/8 resolve ±1 with no
+    /// payload bits; A/C resolve against `ref_handle`).
+    pub fn read_handle_with_form(&mut self) -> (u64, Option<(u8, u8, u64)>) {
+        let (code, size, value, _) = self.read_handle_raw();
+        let resolved = match code {
+            0x6 => self.ref_handle.wrapping_add(1),
+            0x8 => self.ref_handle.wrapping_sub(1),
+            0xA => self.ref_handle.wrapping_add(value),
+            0xC => self.ref_handle.wrapping_sub(value),
+            _ => {
+                // Codes 0–5 (and any invalid code): the payload is the
+                // absolute target — matching read_handle_reference.
+                value
+            }
+        };
+        (resolved, Some((code, size, value)))
+    }
+
+    /// Sample the record's authored close pad without disturbing any
+    /// cursor (TODO A1, 2026-10-01): walk the handle stream's
+    /// self-delimiting units (`[code|size]` byte + `size` payload
+    /// bytes — a pad run is < 8 bits, so the walk can never step into
+    /// it) from the record frame's handle-stream start to the record
+    /// end, then read the remaining bits — the pad. `Some(true)` = an
+    /// all-zeros close pad (the ODA FileConverter genus), `Some(false)`
+    /// = all-ones (the AutoCAD genus, §19 H8d), `None` = no pad, a
+    /// mixed run, or a stream the walk cannot bound — no vote. Works
+    /// on a fresh reader, before any typed parse: the start comes from
+    /// the record frame (three-stream: the RL/MC-positioned handle
+    /// cursor; two-stream: the stored handle-split bit).
+    pub fn sample_close_pad_zeros(&self) -> Option<bool> {
+        // The walk starts at the record frame's handle-stream start:
+        // three-stream (R2007+) — the fresh handle reader's cursor,
+        // window-relative, positioned by `setup_text_and_handle`;
+        // two-stream (pre-R2007) — the stored `handle_start_bit`
+        // (the handle reader there spans a suffix slice with its own
+        // position base, so its cursor is NOT window-relative).
+        self.handle.as_ref()?;
+        let end = self.record_end_bits();
+        let mut pos = if self.mode == MergeMode::ThreeStream {
+            self.handle_position_in_bits()
+        } else {
+            self.handle_start_bit
+        };
+        if pos < 0 || pos >= end {
+            return None;
+        }
+        while pos + 8 <= end {
+            let header = self.peek_window_bits(pos, 8)? as u8;
+            let len = 8 + (header & 0x0F) as i64 * 8;
+            if pos + len > end {
+                // A handle unit that does not fit — not a clean tail.
+                return None;
+            }
+            pos += len;
+        }
+        let pad_count = end - pos;
+        if pad_count == 0 || pad_count > 7 {
+            return None;
+        }
+        let bits = self.peek_window_bits(pos, pad_count as u8)?;
+        if bits == 0 {
+            Some(true)
+        } else if bits == (1 << pad_count) - 1 {
+            Some(false)
+        } else {
+            None
         }
     }
 

@@ -8154,3 +8154,118 @@ carries the record). **The newly-visible residue**: the
 Multiline-specimen conventional-arm rewrite at 142/143 records
 divergent (pre-existing per the stash A/B — the specimen never
 echoed; a §19-era record-identity question, the queue's head).
+
+## §20 — the thirteenth continuation (2026-10-01): A1 closed — the 2018-era conventional-arm wire divergence (the ownerhandle genus + the close-pad genus)
+
+**The A1 root-cause correction.** The A1 entry (root-caused in the
+2026-09-30 session) read her ownerhandle forms as a subcode vocabulary
+OUTSIDE silver's emission space — relative subcode forms to add. The
+2026-10-01 measurement inverted that reading: her 2018 forms are
+ABSOLUTE code-4 (`ownerhandle: (4.1.B6) abs:B6` — gold's own -v9
+resolution prints the absolute target; `(4.0.0)` nulls, `(4.1.x)`,
+`(4.2.xx)` are the whole vocabulary), squarely INSIDE silver's space —
+`write_handle` emits code 4. The divergence is the CHOICE rule, not
+the vocabulary: two independent genus conventions separate the
+ODA-FileConverter-written 2018 specimens (the 17 named-specimen set:
+Multiline, Line, circle, …) from the AutoCAD genus silver models:
+
+1. **The ownerhandle code choice** — ODA always writes the absolute
+   code-4 form; AutoCAD writes §19 H8d's relative-iff-shorter pick
+   (verified 196/196 on circle_2007; the AutoCAD-written
+   Dynblocks/LiveSection1 match ours record-for-record). A recomputed
+   rule cannot reproduce both — the choice is authorial, unknowable
+   from (own, target) arithmetic. (The `(12.1.85)`-style forms the A1
+   text cited are OUR rewrite's own relative emissions, not hers.)
+2. **The close-pad genus** — ODA pads the merged stream's final
+   partial byte with ZEROS (raw window dumps: her records end `0x00`
+   where ours end `0x1F`-tailed on otherwise byte-identical records —
+   the Multiline 0x1/0x10 autopsies; 1,565 records classified pure
+   zero-pads + ~613 mixed with a trailing handle bit across the era);
+   AutoCAD pads ONES (the §19 H8d verified AC15/AC18/AC21 samples).
+   The -v9 field trace is BLIND to this (gold's `padding:` print is a
+   debug quirk — the record-identical traces diverge only in the raw
+   final window byte + the CRC).
+
+**The fix — capture and replay, not re-derivation** (the §19 H7
+raw-retention pattern applied to the two genus facts):
+
+- **Reader**: `DwgMergedReader::read_handle_with_form` — the raw twin
+  of `read_handle` at the two ownerhandle sites (entity `entmode==0` +
+  non-entity common), retaining `(code, size, value)` while resolving
+  with the reader's own arithmetic;
+  `DwgMergedReader::sample_close_pad_zeros` — a frame-only walk of the
+  handle stream on the fresh reader (the self-delimiting
+  `[code|size]+payload` units; a pad run is < 8 bits so the walk
+  cannot step into it; the start comes from the record frame — the
+  RL/MC-positioned handle cursor three-stream, the stored
+  handle-split bit two-stream), classifying the trailing bits
+  all-zeros / all-ones / no-vote. `EntityCommonData`/`NonEntityCommonData`
+  carry `owner_handle_form` (serde-skipped, the `graphic_data`
+  precedent).
+- **Document**: two side channels — `owner_handle_form_by_handle`
+  (per-record wire form; pass 1 for table records, pass 2's
+  entity/non-entity arms for the rest) and `close_pad_zeros` (the
+  majority vote over every record the two passes sampled; ties and
+  empty samples keep the AutoCAD genus — also the constructed and
+  deserialized default).
+- **Writer**: the two ownerhandle sites replay the captured tuple
+  verbatim (`write_handle_form`, the §19 H7 twin) when it resolves —
+  against the record's own handle, the reader's arithmetic — to the
+  same owner target this write intends; stale captures (re-allocated
+  owners) and absent ones (constructed content) fall back to the
+  recomputed §19 H8d rule. `DwgMergedWriter::set_close_pad_zeros`
+  (set once from the document at `DwgObjectWriter::new`; `reset`
+  leaves it — a writer-lifetime policy) picks `write_spear_shift`
+  (zeros) vs `write_spear_shift_ones` at both merge close sites.
+
+**ACCEPTANCE — the era census (the A3 instrument, the standing L4
+gate)**: 2018 **2,479 → 20 divergent** (50,773 paired; the 17 ODA
+specimens fully record-identical — Multiline 143/143, Leader 175/176,
+Constraints 147/150); 2000 375 → 325 (the replay also repairs 50
+pre-2004 rows — PolyLine2D 260→225, entities-2d 57→50, entities-3d
+58→50 — and the decomposition attributes them to the CLOSE-PAD
+replay, not the ownerhandle forms: with the pad sampler disabled
+pre-2007, PolyLine2D sits at 259, so the ownerhandle share is 1
+record and the pad share 34. **Her R2000 PolyLine2D pads ZEROS** — a
+measured counter-example to the blanket "AC15 pads 1s" reading of
+§19.4.C: the close-pad genus is per-author, exactly why the fix
+captures and replays instead of assuming); 2004 15 → 15; 2007 0 → 0
+(the 84 her-only broken-map residual unchanged); 2010 2 → 1; 2013
+24 → 24. The her-only/our-only rows on 2000 (Cone +1, PolyLine2D
++5/+4) are pre-existing per the stash A/B — unchanged.
+The generation identity is byte-stable through the packet
+(`f2187565…` before and after — the constructed genus never reads, so
+it defaults; the README's `40ab5d35…` record predates later packets'
+intended moves, and the tail's `36279922…` likewise — the
+current-tree identity is `f2187565…`, unmoved by this packet).
+
+**The battery**: the suite 1,609/0 (52 segments); the harness
+self-check ok; the pair smokes 0/0 (Leader/Multiline/Dynblocks/Cone/
+PolyLine2D); the corpus 337 files — every established file 0/0/0/0,
+the 213/213 fidelity rows + 261 structure key-gaps carried ENTIRELY by
+the untracked B1 fixture set (wipeout/arcdimension/xref/ole2/solid/
+tolerance/camera/light/mesh/polyface/3dface — a parallel session's
+work-in-progress; pre-existing per the stash A/B on Wipeout_2004
+19/19 and 2004/Arc structure 2/2); the genus gates PENDING-ZERO with
+`--strict`, the pin no drift, the cargo mirror ok; the examples
+1,209/1,209 (474+735); the LEADER/MULTILEADER records of
+2018/Leader.dwg byte-identical (the census's only divergent record
+there is the LTYPE 0x779).
+
+**The residual 2018 rows (20) — five named families, none the A1
+genus** (each opens as a per-record dissection packet; the era census
+is their opening census):
+
+1. Dynblocks 12 — BLOCKSTRETCHACTION (8) / BLOCKMOVEACTION (2) /
+   BLOCKSCALEACTION (2), each +58 main bits (hdlsize −2): one
+   repeated field family our writer emits longer.
+2. Dynblocks 2 — ACDBASSOC2DCONSTRAINTGROUP 2948→29650 (10×) on this
+   specimen's node shape: the per-node repeat defect resurfacing on an
+   unmodeled variant.
+3. Constraints 3 — PROXY_OBJECT objid byte-shrink (973→971, 284→283×2;
+   hdlsize −8 bits): one handle form in the proxy handle stream our
+   raw path emits shorter.
+4. Leader 1 — LTYPE 0x779 dash `shape_flag`: our write adds
+   IS_SHAPE(0x4) where her file has 0 (+16 bits).
+5. LiveSection1 2 — SECTIONOBJECT/SECTION_MANAGER equal-size 1-bit
+   divergences (byte 11 `C4` vs `C5`, mid-record).
