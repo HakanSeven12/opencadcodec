@@ -4499,8 +4499,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_color(62, hatch.mpolygon_hatch_color)?;
         self.writer.write_double(11, hatch.mpolygon_x_direction.x)?;
         self.writer.write_double(21, hatch.mpolygon_x_direction.y)?;
-        self.writer
-            .write_i32(99, hatch.mpolygon_boundary_handle_count)?;
+        // Invalid loops are not written to DXF.
+        self.writer.write_i32(99, 0)?;
         self.write_hatch_gradient(hatch)?;
         Ok(())
     }

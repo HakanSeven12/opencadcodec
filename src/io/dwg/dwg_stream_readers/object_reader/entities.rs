@@ -2003,7 +2003,7 @@ pub struct HatchPatternLine {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HatchData {
     pub is_mpolygon: bool,
-    pub mpolygon_initial_style: i16,
+    pub mpolygon_version: i16,
     pub gradient_enabled: bool,
     pub gradient_reserved: i32,
     pub gradient_angle: f64,
@@ -2028,7 +2028,7 @@ pub struct HatchData {
     pub seed_points: Vec<Vector2>,
     pub mpolygon_hatch_color: Color,
     pub mpolygon_x_direction: Vector2,
-    pub mpolygon_boundary_handle_count: i32,
+    pub mpolygon_invalid_loops: Vec<HatchBoundaryPath>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -2597,6 +2597,44 @@ pub fn read_hatch_boundary_path_contents(
     }
 }
 
+/// Reads one MPOLYGON loop. Unlike a HATCH boundary path it has no flags,
+/// no typed edges and no boundary handles: it is always a closed polyline.
+/// Invalid loops carry one extra bit of unknown meaning (from the public DXF
+/// description of degenerate loops; not observed in any sample file).
+fn read_mpolygon_loop(reader: &mut DwgMergedReader, invalid: bool) -> HatchBoundaryPath {
+    // Per-loop flag of unconfirmed meaning; BoundaryPath has no field for it.
+    let _loop_flag = reader.read_bit();
+    if invalid {
+        let _unknown = reader.read_bit();
+    }
+    let has_bulge = reader.read_bit();
+    let num_verts = safe_count(reader.read_bit_long());
+    let mut polyline_vertices = Vec::new();
+    for _ in 0..num_verts {
+        let pt = reader.read_2raw_double();
+        let bulge = if has_bulge {
+            reader.read_bit_double()
+        } else {
+            0.0
+        };
+        polyline_vertices.push((pt, bulge));
+    }
+    // The loop is implicitly closed; drop a repeated closing vertex.
+    if polyline_vertices.len() > 1
+        && polyline_vertices.first().map(|v| v.0) == polyline_vertices.last().map(|v| v.0)
+    {
+        polyline_vertices.pop();
+    }
+
+    HatchBoundaryPath {
+        flags: 2, // polyline
+        edges: Vec::new(),
+        polyline_vertices,
+        polyline_closed: true,
+        boundary_handle_count: 0,
+    }
+}
+
 pub fn read_hatch(reader: &mut DwgMergedReader, version: DwgVersion) -> HatchData {
     read_hatch_kind(reader, version, false)
 }
@@ -2610,7 +2648,8 @@ fn read_hatch_kind(
     version: DwgVersion,
     is_mpolygon: bool,
 ) -> HatchData {
-    let mpolygon_initial_style = if is_mpolygon {
+    // MPOLYGON object version (always 1 in all measured files).
+    let mpolygon_version = if is_mpolygon {
         reader.read_bit_short()
     } else {
         0
@@ -2644,20 +2683,30 @@ fn read_hatch_kind(
     let normal = reader.read_3bit_double();
     let pattern_name = reader.read_variable_text();
     let is_solid = reader.read_bit();
-    let is_associative = reader.read_bit();
+    // MPOLYGON has no associative flag.
+    let is_associative = !is_mpolygon && reader.read_bit();
 
     let num_paths = safe_count(reader.read_bit_long());
     let mut paths = Vec::new();
     let mut has_derived = false;
     for _ in 0..num_paths {
-        let p = read_hatch_boundary_path(reader, version);
+        let p = if is_mpolygon {
+            read_mpolygon_loop(reader, false)
+        } else {
+            read_hatch_boundary_path(reader, version)
+        };
         if (p.flags & 4) != 0 {
             has_derived = true;
         }
         paths.push(p);
     }
 
-    let style = reader.read_bit_short();
+    // MPOLYGON has no hatch style.
+    let style = if is_mpolygon {
+        0
+    } else {
+        reader.read_bit_short()
+    };
     let pattern_type = reader.read_bit_short();
 
     let mut pattern_angle = 0.0;
@@ -2692,15 +2741,16 @@ fn read_hatch_kind(
         seed_points,
         mpolygon_hatch_color,
         mpolygon_x_direction,
-        mpolygon_boundary_handle_count,
+        mpolygon_invalid_loops,
     ) = if is_mpolygon {
-        (
-            0.0,
-            Vec::new(),
-            reader.read_cm_color(),
-            reader.read_2raw_double(),
-            reader.read_bit_long(),
-        )
+        let hatch_color = reader.read_cm_color();
+        let x_direction = reader.read_2raw_double();
+        let num_invalid_loops = safe_count(reader.read_bit_long());
+        let mut invalid_loops = Vec::new();
+        for _ in 0..num_invalid_loops {
+            invalid_loops.push(read_mpolygon_loop(reader, true));
+        }
+        (0.0, Vec::new(), hatch_color, x_direction, invalid_loops)
     } else {
         let pixel_size = if has_derived {
             reader.read_bit_double()
@@ -2716,8 +2766,8 @@ fn read_hatch_kind(
             pixel_size,
             seed_points,
             Color::ByLayer,
-            Vector2::new(1.0, 0.0),
-            0,
+            Vector2::ZERO,
+            Vec::new(),
         )
     };
 
@@ -2725,7 +2775,7 @@ fn read_hatch_kind(
 
     HatchData {
         is_mpolygon,
-        mpolygon_initial_style,
+        mpolygon_version,
         gradient_enabled,
         gradient_reserved,
         gradient_angle,
@@ -2750,7 +2800,7 @@ fn read_hatch_kind(
         seed_points,
         mpolygon_hatch_color,
         mpolygon_x_direction,
-        mpolygon_boundary_handle_count,
+        mpolygon_invalid_loops,
     }
 }
 
