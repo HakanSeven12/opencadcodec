@@ -343,12 +343,14 @@ md5sum gen_all_entities_all_versions.dwg
 ```
 
 **Expected:** both runs identical (the current zero-file identity is
-`40ab5d356cf05a71333ff208e1651daf`, 25344 bytes — re-verified twice
-on 2026-09-26 and unchanged by the H7e/H7f landings and the §18
-walks (programmatic documents keep the historical bytes); it moved
-from the earlier `0217fbac…` / 24986 at an H5–H7 landing whose
-re-record landed only in `NEXT_SESSION.md`. LEADER 0x41 /
-MULTILEADER 0x51 — recompute and re-record the identity in
+`f21875659e7501b099f91f88b37d20c3`, 25728 bytes — the MLine-verts
+packet's intended content change (the canonical's MLine records carry
+the computed cache); identical without `--features serde`; verified
+unmoved through the 2026-10-01 A1/A2/A5 packets (stash-A/B on A1;
+every capture twin defaults for constructed content). The history:
+`0217fbac…`/24986 → `40ab5d35…`/25344 at the H5–H7 landing →
+`36279922…` at the MText repair → `f2187565…` here. LEADER 0x41 /
+MULTILEADER 0x51 — recompute and re-record the identity here AND in
 `NEXT_SESSION.md` when an intended content change moves it, never to
 paper over a regression). Spot-verify the mleader's metafile survives
 the writer:
