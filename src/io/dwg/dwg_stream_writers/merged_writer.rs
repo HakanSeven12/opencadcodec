@@ -343,6 +343,12 @@ impl DwgMergedWriter {
         self.main.write_cm_color(color);
     }
 
+    /// Write a retained raw CMC pair verbatim (TODO B1, 2026-10-01) —
+    /// see the bit writer's `write_cm_color_raw`.
+    pub fn write_cm_color_raw(&mut self, raw: &crate::document::DwgRawCmc) {
+        self.main.write_cm_color_raw(raw);
+    }
+
     pub fn write_cm_color_with_names(
         &mut self,
         color: &Color,

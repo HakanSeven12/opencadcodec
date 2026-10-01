@@ -389,14 +389,25 @@ def silver_structure_views(doc: Dict[str, Any]) -> Dict[str, Any]:
             or ""
         )
         pre_r2004 = version in ("AC1012", "AC1014", "AC1015")
+        # TODO B1 (2026-10-01): pre-R2007 the three name TVs are inline
+        # on gold's shared cursor, so a numeric derail garbles its
+        # dxfname/cppname/appname too — the shadow carries gold's reads
+        # and the axis projects them (the 2004 cluster's CLASSES value
+        # rows). R2007+ strings live in the separate string stream and
+        # never desync; the shadow leaves them empty and the own
+        # (correct) names stand.
+        pre_r2007 = version in ("AC1012", "AC1014", "AC1015", "AC1018")
         out = []
         for e in doc["classes"]["entries"]:
             sh = e.get("gold_shadow") or {}
+            sh_dxf = sh.get("dxfname") if pre_r2007 else None
+            sh_cpp = sh.get("cppname") if pre_r2007 else None
+            sh_app = sh.get("appname") if pre_r2007 else None
             rec = {
                 "number": sh.get("number", e.get("class_number")),
-                "dxfname": e.get("dxf_name"),
-                "cppname": e.get("cpp_class_name"),
-                "appname": e.get("application_name"),
+                "dxfname": sh_dxf if isinstance(sh_dxf, str) else e.get("dxf_name"),
+                "cppname": sh_cpp if isinstance(sh_cpp, str) else e.get("cpp_class_name"),
+                "appname": sh_app if isinstance(sh_app, str) else e.get("application_name"),
                 "proxyflag": sh.get("proxyflag", e.get("proxy_flags")),
                 "num_instances": sh.get("num_instances", e.get("instance_count")),
                 "is_zombie": sh.get(

@@ -317,6 +317,13 @@ pub struct LightData {
     pub light_type: i32,
     pub status: bool,
     pub light_color: Color,
+    /// The light color's raw CMC twin (TODO B1, 2026-10-01): the wire
+    /// carries BOTH the legacy BS index slot and the true-color BL —
+    /// gold's JSON emits the pair (`{"index": 7, "rgb": "c2ffffff"}`)
+    /// while the collapsed `Color` loses the index. Retained for the
+    /// JSON axis and the same-version write replay; `None` pre-R2004
+    /// (the bare-index wire) and for constructed content.
+    pub light_color_raw: Option<crate::document::DwgRawCmc>,
     pub plot_glyph: bool,
     pub intensity: f64,
     pub position: Vector3,
@@ -357,7 +364,11 @@ pub fn read_light(reader: &mut DwgMergedReader, photometric_mode: bool) -> Light
     let name = reader.read_variable_text();
     let light_type = reader.read_bit_long();
     let status = reader.read_bit();
-    let light_color = reader.read_cm_color();
+    // TODO B1 (2026-10-01): capture the raw CMC pair — the wire's legacy
+    // index slot + the true-color word — then collapse for the model
+    // Color exactly as `read_cm_color` does.
+    let light_color_raw = reader.read_cm_color_raw();
+    let light_color = light_color_raw.to_color();
     let plot_glyph = reader.read_bit();
     let intensity = reader.read_bit_double();
     let position = reader.read_3bit_double();
@@ -426,6 +437,7 @@ pub fn read_light(reader: &mut DwgMergedReader, photometric_mode: bool) -> Light
         light_type,
         status,
         light_color,
+        light_color_raw: Some(light_color_raw),
         plot_glyph,
         intensity,
         position,

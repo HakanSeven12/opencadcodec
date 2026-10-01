@@ -782,6 +782,32 @@ impl DwgBitWriter {
         }
     }
 
+    /// Write a raw CMC pair verbatim (TODO B1, 2026-10-01): the retained
+    /// wire form — the legacy BS index slot, the true-color BL, the
+    /// flag RC and the flag-gated name/book-name TVs — replayed on
+    /// same-version writes so the author's bytes survive (the collapsed
+    /// `Color` write loses the authored index slot). Pre-R2004 wires
+    /// carry only the BS index.
+    pub fn write_cm_color_raw(&mut self, raw: &crate::document::DwgRawCmc) {
+        if self.version.r2004_plus() {
+            self.write_bit_short(raw.index as i16);
+            self.write_bit_long(raw.rgb as i32);
+            self.write_byte(raw.flag as u8);
+            if raw.flag & 1 == 1 {
+                if let Some(name) = &raw.name {
+                    self.write_variable_text(name);
+                }
+            }
+            if raw.flag & 2 == 2 {
+                if let Some(book) = &raw.book_name {
+                    self.write_variable_text(book);
+                }
+            }
+        } else {
+            self.write_bit_short(raw.index as i16);
+        }
+    }
+
     /// Write the full R2004 CMC payload regardless of the file version.
     ///
     /// TABLESTYLE legacy row colors use this CMTC encoding in AC1015 too.

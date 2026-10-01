@@ -2700,7 +2700,7 @@ impl<R: Read + Seek> DwgReader<R> {
         let version = String::from_utf8_lossy(&version_bytes[..version_end]).to_string();
         let maint_rel_version = reader.read_byte();
         let zero_one_or_three = reader.read_byte();
-        let dwg_versions = reader.read_bit_short();
+        let dwg_versions = reader.read_bit_short() as u16;
         let codepage = reader.read_raw_short();
         let num_sections = reader.read_bit_short().clamp(0, 6);
         let mut sections = Vec::with_capacity(num_sections as usize);

@@ -72,6 +72,14 @@ pub struct Light {
     pub target: Vector3,
     pub status: bool,
     pub light_color: Color,
+    /// The light color's raw CMC twin (TODO B1, 2026-10-01): the DWG
+    /// wire carries BOTH the legacy BS index slot and the true-color
+    /// word — gold's JSON emits the pair while the collapsed `Color`
+    /// loses the index. Populated on DWG read, replayed verbatim by
+    /// the DWG writer on same-version writes; `None` for constructed
+    /// and deserialized content (the collapsed `Color` drives).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub light_color_raw: Option<crate::document::DwgRawCmc>,
     pub plot_glyph: bool,
     pub intensity: f64,
     pub attenuation_type: i32,
@@ -102,6 +110,7 @@ impl Light {
             target: Vector3::ZERO,
             status: true,
             light_color: Color::WHITE,
+            light_color_raw: None,
             plot_glyph: false,
             intensity: 1.0,
             attenuation_type: 0,

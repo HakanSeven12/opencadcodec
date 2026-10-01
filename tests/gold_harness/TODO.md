@@ -37,41 +37,6 @@ target version; qualify with `dwgread -O JSON` (zero `Error` lines, target
 class present, minimal object census); land with a sibling `.txt`
 provenance companion. Either AutoCAD or BricsCAD may author (record which).
 
-### B1. The coverage-gap entity family — the §F2 remainder
-
-Entity types with **neither a gold corpus file nor an authored specimen**;
-each needs one minimal file per natively-supported version:
-
-| Entity | Versions to author | Notes |
-|---|---|---|
-| MESH | the versions where the MESH object natively persists (verify per save by grepping the class in the qualified JSON) | the SUBDIVIDE/MESHSMOOTH family; per the §F2 rule, author only the versions the qualified JSON confirms |
-| POLYFACEMESH | the versions where POLYFACEMESH natively persists (verify per save) | legacy mesh; plain `PFACE` command |
-| 3DFACE | the versions where 3DFACE natively persists (verify per save) | the entity_verification canonical's constructed 3DFACE reads as gold's raw carrier (the cosmetic name-map gap) — a specimen anchors the typed name |
-| SOLID (2D) | R2000–R2018 (all six) | the 2D SOLID command (not 3DSOLID) |
-| TOLERANCE | R2000–R2018 (all six) | the `TOLERANCE` command |
-| WIPEOUT | R2000–R2018 (all six) | `WIPEOUT`; lands an IMAGEDEF reactor chain |
-| XREF | R2000–R2018 (all six) | one attached external reference; the referenced file must accompany the fixture or resolve at qualification time |
-| OLE2 | R2000–R2018 (all six) | `INSERTOBJ` with a simple embedded object |
-| LIGHT | R2007, R2010, R2013, R2018 | point light; the LIGHT object family is R2007+ |
-| CAMERA | R2007, R2010, R2013, R2018 | the `CAMERA` command; R2007+ |
-| ARCDIMENSION | R2000–R2018 (all six) | `DIMARC` on an arc |
-
-Landing each moves the type from "OUT OF LOOP" to covered automatically
-(the corpus driver collects `fixtures/**/*.dwg`; the
-`entity_verification.py` KINDS list and the gen_all generator gain the
-kind when silver-side construction lands). **Version discipline**: per
-§F2, author only the versions where the entity natively persists — SAVEAS
-per target, then verify each save by grepping the class in the qualified
-JSON; emit no fixture for a version that dropped it. (The per-version
-columns above for SOLID/TOLERANCE/WIPEOUT/XREF/OLE2/ARCDIMENSION reflect
-the common-case expectation from the campaign record; MESH /
-POLYFACEMESH / 3DFACE carry the verify-per-save form because the §F2 list
-names no versions for them and native persistence differs by era.)
-
-- **Sources**: `IMPLEMENTATION.md` §F2 (lines 3257–3278).
-- **Version scope rule**: only versions where the entity natively persists
-  (verify by grepping the class in the qualified JSON).
-
 ### B2. The unattested subcurve action types (17 / 19 / 23 / 42 / 27)
 
 The ACDBASSOCEDGEACTIONPARAM subcurve region is wire-known only for

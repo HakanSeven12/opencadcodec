@@ -137,7 +137,7 @@ pub fn read_classes_with_encoding(
         encoding,
     );
     for (i, class) in classes.iter_mut().enumerate() {
-        class.gold_shadow = gold_shadow.get(i).copied().flatten();
+        class.gold_shadow = gold_shadow.get(i).cloned().flatten();
     }
 
     Ok(classes)
@@ -258,6 +258,38 @@ fn classes_section_prelude(
 /// zero-filled ones once the cursor stalls past the section end (a
 /// stalled or desynced read is never 0x1F2, which is the entire point
 /// of the mirror).
+/// Gold's `bit_read_TV` semantics for the class-name shadow (TODO B1,
+/// 2026-10-01): BS length, then `CHK_OVERFLOW_PLUS(length)` — a run
+/// past the section's end bails to NULL WITHOUT consuming the chars
+/// (the cursor keeps only the BS advance; out_json prints the empty
+/// string) — else `length` raw bytes, and the printed name is the
+/// C-string PREFIX: everything up to the first NUL. The MIF/`\U+`
+/// escape decode never applies (gold prints the class names raw).
+fn gold_tv_cstring(
+    reader: &mut DwgBitReader,
+    section_size: i64,
+    encoding: &'static encoding_rs::Encoding,
+) -> String {
+    let length = reader.read_bit_short();
+    if length <= 0 {
+        return String::new();
+    }
+    // CHK_OVERFLOW_PLUS: the bit-level form — `(byte + plus) * 8 + bit
+    // > size * 8` — reduces to the position in bits plus the run.
+    let pos_bits = reader.position_in_bits();
+    if pos_bits + (length as i64) * 8 > section_size * 8 {
+        // gold's overflow bail — no char consumption.
+        return String::new();
+    }
+    let bytes = reader.read_bytes(length as usize);
+    let (decoded, _, _) = encoding.decode(&bytes);
+    decoded
+        .split('\0')
+        .next()
+        .unwrap_or("")
+        .to_string()
+}
+
 fn gold_shadow_classes(
     data: &[u8],
     version: DxfVersion,
@@ -267,7 +299,7 @@ fn gold_shadow_classes(
     // The shadow runs after the primary walk accepted the section, so the
     // prelude errors here mean the mirror cannot run — fall back to the
     // sane parse (all `None`).
-    let (mut reader, _data_start, section_size, _end_bit, header_max) =
+    let (mut reader, data_start, section_size, _end_bit, header_max) =
         match classes_section_prelude(data, version, maintenance_version, encoding, true) {
             Ok(prelude) => prelude,
             Err(_) => return Vec::new(),
@@ -297,6 +329,14 @@ fn gold_shadow_classes(
     let mut ids: Vec<Option<crate::classes::DwgClassGoldShadow>> = Vec::new();
     let mut index: i64 = 0;
     let mut last_pos: i64 = -1;
+    // The pre-R2007 inline name strings read at gold's cursor position
+    // (TODO B1, 2026-10-01) — `None` on R2007+ (the separate string
+    // stream never desyncs; the projection falls back to the own names).
+    let mut shadow_names: Option<(String, String, String)> = None;
+    // Gold's overflow bound is its FULL decompressed-section Bit_Chain
+    // (sentinels + CRC included), not the class-data area — the shadow
+    // reader spans data_start..end, so the bound is the reader buffer.
+    let tv_bound: i64 = (data.len() - data_start) as i64;
     // Pre-R2004: gold's loop is `while (dat->byte < endpos - 1)` — the
     // byte position bound — plus the record cap
     // `i >= 100 + size/sizeof(Dwg_Class) || i >= 65535`, and an
@@ -342,11 +382,19 @@ fn gold_shadow_classes(
         if version < DxfVersion::AC1021 {
             // Pre-R2007: the three text fields are inline TV (BS length +
             // chars) and advance the shared cursor; gold reads them the
-            // same way. R2007+ strings live in the separate string stream
-            // and never move the numeric cursor.
-            let _app = reader.read_variable_text();
-            let _cpp = reader.read_variable_text();
-            let _dxf = reader.read_variable_text();
+            // same way. TODO B1 (2026-10-01): the strings are captured
+            // with gold's EXACT semantics — past a numeric derail the
+            // garbage lengths run past the section and gold's
+            // CHK_OVERFLOW bail returns NULL without consuming the chars
+            // (the cursor keeps only the BS advance), and the printed
+            // name is the C-string PREFIX (up to the first NUL) — the
+            // structure axis projects gold's view from the shadow.
+            let app = gold_tv_cstring(&mut reader, tv_bound, encoding);
+            let cpp = gold_tv_cstring(&mut reader, tv_bound, encoding);
+            let dxf = gold_tv_cstring(&mut reader, tv_bound, encoding);
+            shadow_names = Some((dxf, cpp, app));
+        } else {
+            shadow_names = None;
         }
         let is_zombie = reader.read_bit() as u8;
         let item_class_id = reader.read_bit_short() as u16;
@@ -361,6 +409,10 @@ fn gold_shadow_classes(
             let _unknown1 = reader.read_bit_long();
             let _unknown2 = reader.read_bit_long();
         }
+        let (shadow_dxf, shadow_cpp, shadow_app) = match shadow_names.take() {
+            Some((dxf, cpp, app)) => (dxf, cpp, app),
+            None => (String::new(), String::new(), String::new()),
+        };
         ids.push(Some(crate::classes::DwgClassGoldShadow {
             number,
             proxyflag,
@@ -369,6 +421,9 @@ fn gold_shadow_classes(
             num_instances,
             dwg_version,
             maint_version,
+            dxfname: shadow_dxf,
+            cppname: shadow_cpp,
+            appname: shadow_app,
         }));
         index += 1;
     }

@@ -2154,7 +2154,11 @@ pub struct DwgSecondHeaderSummary {
     pub version: String,
     pub maint_rel_version: u8,
     pub zero_one_or_three: u8,
-    pub dwg_versions: i16,
+    /// The version bitfield — UNSIGNED on the wire and in gold's print
+    /// (TODO B1, 2026-10-01: the R2000 fixtures carry 0xFF21 which an
+    /// i16 read printed as −223 against gold's 65313 — the structure
+    /// axis's single systematic key-gap on every 2000-era file).
+    pub dwg_versions: u16,
     pub codepage: i16,
     pub sections: Vec<DwgSecondHeaderSection>,
     pub handles: Vec<DwgSecondHeaderHandle>,

@@ -2156,8 +2156,11 @@ impl<'a> DwgObjectWriter<'a> {
         // Entry name (DWG uses bare names without numeric suffixes)
         let dwg_name = dwg_block_name(&record.name);
         self.writer.write_variable_text(dwg_name);
-        // Xref dependant
-        self.write_xref_dependant_bit();
+        // Xref table flags — TODO B1 (2026-10-01): the retained RAW
+        // `is_xref_resolved` bitshort replays verbatim (the authored xref
+        // blocks carry 1, not the 0/256 convention; gold prints the raw
+        // value); the dependent bit keeps the historical constant.
+        self.write_xref_table_flags_raw(true, record.xref_resolved, false);
 
         // Anonymous flag
         self.writer.write_bit(record.flags.anonymous);

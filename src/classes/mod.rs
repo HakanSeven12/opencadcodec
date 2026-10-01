@@ -129,7 +129,7 @@ pub struct DxfClass {
 /// ZERO-extend (ExtrudeM_2018 record 19: gold 32970, not the
 /// sign-extended 4294934730).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct DwgClassGoldShadow {
     pub number: u16,
     pub proxyflag: u16,
@@ -139,6 +139,19 @@ pub struct DwgClassGoldShadow {
     pub num_instances: u32,
     pub dwg_version: u32,
     pub maint_version: u32,
+    /// Gold's read of the three name strings (TODO B1, 2026-10-01): on
+    /// the pre-R2007 desynced tables the inline TVs advance gold's
+    /// shared cursor, so past the derail its `dxfname`/`cppname`/
+    /// `appname` are garbage too (the 2004 cluster's CLASSES value
+    /// rows). R2007+ strings live in the separate string stream and
+    /// never desync — the shadow carries them only pre-R2007; the
+    /// projection falls back to this reader's own (correct) names.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dxfname: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub cppname: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub appname: String,
 }
 
 impl DxfClass {

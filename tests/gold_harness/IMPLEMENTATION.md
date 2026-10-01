@@ -8477,3 +8477,96 @@ remaining census rows live in the older eras: 2000's 325 (PolyLine2D
 2, Surface 13), 2010's 1 (gh209_1), 2013's 22 (gh44-error 21,
 gh109_1 1) — separate packets, each opening with the same
 per-record-dissection method this continuation ran five times.
+
+## §20 — the seventeenth continuation (2026-10-01): B1 landed — the coverage-gap entity family reads typed (MESH/LIGHT/WIPEOUT/ARC_DIMENSION), the fixture corpus at 61/65
+
+**The fixtures landed** (the parallel session's `.txt`-companied set:
+11 entity families × per-native-version SAVEAS, 65 files). The session
+implemented the missing silver-side surface:
+
+1. **The class-entity dispatch** — the four unmodeled class entities
+   route on the cpp-class catch-all (the wire readers and writers
+   predated the dispatch; the models predate the corpus): `AcDbSubDMesh`
+   → `read_mesh` → Mesh, `AcDbLight` → `read_light` → Light,
+   `AcDbWipeout` → `read_wipeout` (the raster-image twin) → Wipeout,
+   `AcDbArcDimension` → `read_dimension_arc` → Dimension::Arc. The
+   BLOCK-stretch/move/scale and CAMERA paths already read; the CAMERA
+   fixture's rows were VIEW-table record fields (below).
+2. **The class-table entity classification** (`entity_class_numbers`):
+   a desynced gold-shadow (garbage `item_class_id`) no longer forces
+   the object route for a STABLE-typed entity class on R2007+ — gold's
+   object dispatch is name-first (classes.inc: every STABLE/UNSTABLE
+   entry decodes by dxfname regardless of the numeric garbage; only the
+   DEBUGGING classes fall through, verified via the generated
+   STABLE∩DWG_ENTITY name set). Pre-R2007 the shadow keeps priority:
+   gold's inline-string walk corrupts the dxfnames too (below).
+3. **The pre-R2007 desync mirror's object side**
+   (`desynced_class_numbers`): on a desynced pre-2007 class table
+   (gold's class-section walk reads the strings INLINE, so a numeric
+   derail garbles the names — the 2004 cluster:
+   CELLSTYLEMAP/DETAILVIEWSTYLE/SECTIONVIEWSTYLE/WIPEOUTVARIABLES
+   surface as gold's UNKNOWN_OBJ), the class records keep their RAW
+   class numbers at the catalog resolution (never resolving to the
+   fixed sentinels — OBJ_WIPEOUTVARIABLES = 0x82 would fire the typed
+   arm) and the object catch-all filters the class name — the Unknown
+   object path mirrors gold record-for-record.
+4. **The LIGHT color raw CMC twin** (`light_color_raw`): gold's JSON
+   prints the CMC pair `{"index": 7, "rgb": "c2ffffff"}` — the wire's
+   legacy BS index + the true-color BL — which the collapsed `Color`
+   loses. `read_light` captures via `read_cm_color_raw` (the -
+   read/`to_color` flow identical to `read_cm_color`), the model carries
+   the pair, the writer replays it verbatim on same-version writes
+   (`write_cm_color_raw` — through the HANDLE sub-stream, the §19
+   H8h-ext-12 lesson at the CMC scale), and the normalizer projects it.
+5. **The VIEW record's conditional UCS block** (CAMERA): the camera
+   fixture's rows were the VIEW table record emitting
+   ucsorg/ucsxdir/ucsydir/UCSORTHOVIEW/ucs_elevation/named_ucs/base_ucs
+   when the wire's `associated_ucs` bit is 0 (dwg.spec 3823: the whole
+   block is conditional; silver's model carries the defaults
+   regardless). The normalizer gates the block on the bit.
+6. **The BLOCK_HEADER xref chain**: `is_xref_resolved` retained RAW —
+   gold prints the bitshort verbatim (the authored xref blocks carry 1,
+   not the conventional 0/256; Xref_2000's gold trace reads
+   `is_xref_resolved: 1 [BS 0]` where silver's `== 256` bool test
+   printed 0), threaded through `BlockHeaderData`/`BlockRecord` and a
+   `write_xref_table_flags_raw` replay; the first/last-entity pair
+   suppressed for xref blocks (the wire read is xref-conditional);
+   `SecondHeader.dwg_versions` unsigned (the 2000 fixtures' 0xFF21
+   printed −223 against gold's 65313 — the single systematic 2000-era
+   fixed).
+7. **The gold class-shadow strings** (`DwgClassGoldShadow.dxfname/
+   cppname/appname` + `gold_tv_cstring`): the shadow walk captures the
+   pre-R2007 name TVs with gold's EXACT `bit_read_TV` semantics
+   (BS length; CHK_OVERFLOW_PLUS bails to NULL WITHOUT consuming the
+   chars; the printed name is the C-string prefix up to the first
+   NUL; the bound is the FULL decompressed-section chain, sentinels
+   included) — the structure axis's CLASSES projection emits them
+   (pre-R2007 only; R2007+ strings live in the separate string stream
+   and never desync).
+
+**ACCEPTANCE**: the fixture sweep — **61 of 65 files at 0/0 fidelity
+and 0 structure key-gap** (every 2000/2007/2010/2013/2018 file,
+including all four new entity types across every native version; the
+suite 1,610/0; the 2000/2004 era censuses unchanged (325 + 6/4, 15);
+the genus pin no drift; the generation identity f2187565… unmoved).
+The corpus's fixture rows dropped from 213 fidelity / 261 structure to
+**3 fidelity rows on one file** (Wipeout_2004: one UNKNOWN_OBJ record's
+common-data convention — gold's unknown-object walk reads
+is_xdic_missing=0/ownerhandle-null/no-reactors where silver's arm
+reads the R2004-class convention) + the last
+CLASSES value rows.
+
+**The residue (recorded, cold)**: every 2004-era file (the 22 corpus
+specimens at key-gap 2, pre-existing, plus the four fixtures at 1-2)
+carries the last 1-2 CLASSES mojibake rows — gold's desynced
+class-table walk reads a 149-char appname TV at entry 9
+(Xref_2004's trace: `TV-not-ZERO 149` right after the Number/Proxyflag
+pair) where the shadow mirror reads a 0-length at the same cursor
+arithmetic (both walks consume identically through entry 8's tail at
+bit 4462; the raw bits there are `10` → 0). Gold's cursor skews
+somewhere the mirror has not isolated — a 1-2 bit divergence at the
+entry-9 head. The instrument trail (per-read position probes) is
+recorded in the session log; the mirror's reads are the faithful ones
+at ITS position, so the skew is upstream in gold's walk. The
+WIPEOUTVARIABLES-typed rows cleared with the mirror; these last rows
+are gold-mirror polish on garbage entries, not entity coverage.

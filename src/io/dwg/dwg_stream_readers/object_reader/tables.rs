@@ -375,6 +375,14 @@ pub struct DimStyleData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockHeaderData {
     pub name: String,
+    /// The table-entry xref flags (the COMMON_TABLE_FLAGS bits, TODO B1,
+    /// 2026-10-01): `reference` (bit 4), `resolved` (the RAW
+    /// `is_xref_resolved` BS — gold prints it verbatim: the authored xref
+    /// blocks carry 1), `dependent` (bit 6). Distinct from the
+    /// BLOCK_HEADER body's `is_xref`/`is_xref_overlay` bits below.
+    pub xref_reference: bool,
+    pub xref_resolved: i16,
+    pub xref_dependent: bool,
     pub anonymous: bool,
     pub has_attributes: bool,
     pub is_xref: bool,
@@ -409,23 +417,30 @@ pub struct BlockHeaderData {
 #[derive(Debug, Clone, Copy, Default)]
 struct XrefTableFlags {
     reference: bool,
-    resolved: bool,
+    /// The RAW `is_xref_resolved` BS value (TODO B1, 2026-10-01): gold
+    /// prints the raw bitshort verbatim (the convention is 0 or 256, but
+    /// the authored xref blocks carry 1 — gold's Xref_2000 trace reads
+    /// `is_xref_resolved: 1 [BS 0]`), so a `== 256` bool test lost it.
+    resolved: i16,
     dependent: bool,
 }
 
 fn read_xref_table_flags(reader: &mut DwgMergedReader, version: DwgVersion) -> XrefTableFlags {
     if version.r2007_plus() {
-        let resolved = reader.read_bit_short() == 256;
+        let raw = reader.read_bit_short();
         XrefTableFlags {
             reference: true,
-            resolved,
-            dependent: resolved,
+            resolved: raw,
+            dependent: raw == 256,
         }
     } else {
+        let reference = reader.read_bit();
+        let raw_resolved = reader.read_bit_short();
+        let dependent = reader.read_bit();
         XrefTableFlags {
-            reference: reader.read_bit(),
-            resolved: reader.read_bit_short() == 256,
-            dependent: reader.read_bit(),
+            reference,
+            resolved: raw_resolved,
+            dependent,
         }
     }
 }
@@ -828,7 +843,7 @@ pub fn read_view(reader: &mut DwgMergedReader, version: DwgVersion) -> ViewData 
     ViewData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         xref_handle,
         height,
@@ -896,7 +911,7 @@ pub fn read_ucs(reader: &mut DwgMergedReader, version: DwgVersion) -> UcsData {
     UcsData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         xref_handle,
         origin,
@@ -1033,7 +1048,7 @@ pub fn read_vport(reader: &mut DwgMergedReader, version: DwgVersion) -> VPortDat
     VPortData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         view_height,
         aspect_ratio_times_height,
@@ -1115,7 +1130,7 @@ pub fn read_dimstyle(
     let mut ds = DimStyleData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         dimpost: String::new(),
         dimapost: String::new(),
@@ -1395,7 +1410,10 @@ pub fn read_dimstyle(
 /// Read BLOCK_HEADER (block record) table entry data.
 pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> BlockHeaderData {
     let name = reader.read_variable_text();
-    read_xref_dependant_bits(reader, version);
+    // TODO B1 (2026-10-01): retain the full table-entry xref flags —
+    // the resolved bit (gold's `is_xref_resolved`) was read and
+    // discarded here, so an xref block's JSON read 0 against gold's 1.
+    let xref_flags = read_xref_table_flags(reader, version);
 
     let anonymous = reader.read_bit();
     let has_attributes = reader.read_bit();
@@ -1491,6 +1509,9 @@ pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> B
 
     BlockHeaderData {
         name,
+        xref_reference: xref_flags.reference,
+        xref_resolved: xref_flags.resolved,
+        xref_dependent: xref_flags.dependent,
         anonymous,
         has_attributes,
         is_xref,

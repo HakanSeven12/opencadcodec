@@ -1,8 +1,10 @@
 # THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3 AND A5 ARE
-# CLOSED — THE 2018 ERA IS AT FULL RECORD IDENTITY (0/50,773)**:
+# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3, A5 AND B1 ARE
+# CLOSED — THE 2018 ERA IS AT FULL RECORD IDENTITY (0/50,773), THE
+# COVERAGE-GAP ENTITY FAMILY READS TYPED (THE FIXTURE CORPUS AT 61/65
+# FULLY CLEAN)**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -23,14 +25,29 @@
 # author's consecutive-duplicate handles), the LTYPE shape_flag
 # via the authored-flag twin, the section records via the authored
 # handle codes — 2018 20 → 0, 2013 24 → 22, every other era
-# unchanged; the suite 1,610/0, the genus pin no drift, the
+# unchanged; B1 (the coverage-gap entity family — the landed
+# fixture set, 65 files) landed: MESH/LIGHT/WIPEOUT/ARC_DIMENSION
+# read typed (the class-entity dispatch + the name-first
+# classification + the pre-R2007 desync mirror + the LIGHT raw-CMC
+# twin + the VIEW record's conditional UCS block + the BLOCK_HEADER
+# xref raw chain + the SecondHeader unsigned fix + the gold
+# class-shadow strings) — the sweep 61/65 fully clean (every
+# 2000/2007/2010/2013/2018 fixture at 0/0), the corpus's fixture
+# rows 213 → 3 (one Wipeout_2004 unknown-object record); the
+# residue is the last CLASSES mojibake rows on every 2004-era file
+# (gold's desynced walk reads a 149-char entry-9 appname TV where
+# the mirror reads a 0-length at the same cursor arithmetic — the
+# §20 seventeenth continuation records the instrument trail); the
+# suite 1,610/0, the genus pin no drift, the
 # generation identity f2187565… unmoved (every capture twin
 # defaults for constructed content). THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read the sixteenth addendum's record, then the
+# section below), read the sixteenth addendum's record (and the
+# seventeenth continuation), then the
 # residual queue (the older eras' census rows — 2000's 325
-# PolyLine2D-led, 2004's 15, 2010's 1, 2013's 22; the
-# untracked-fixture session's corpus rows; the §19.5
+# PolyLine2D-led, 2004's 15, 2010's 1, 2013's 22; the 2004
+# CLASSES-skew rows + the Wipeout_2004 unknown-object record; the
+# untracked-fixture session's remaining rows; the §19.5
 # version-parity tiers — maintainer decisions; A4's C3 decision).
 #
 # === THE SIXTEENTH-CONTINUATION ADDENDUM (the A5 closure — the

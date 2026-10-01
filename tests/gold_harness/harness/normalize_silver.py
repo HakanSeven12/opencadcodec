@@ -2928,12 +2928,31 @@ def normalize_silver(
         # light_type/photometric_mode/photometric_data (not even R2018)
         # nor the entity-common graphic_data (census: gold LIGHT records
         # plain everywhere); light_color is the bare ACI index from
-        # silver's {"Index": n} color shape.
+        # silver's {"Index": n} color shape, or the full CMC pair
+        # {"index", "rgb"} from the retained raw twin (TODO B1,
+        # 2026-10-01: the wire carries BOTH the legacy index slot and
+        # the true-color word; the collapsed Color loses the index).
         if silver_type == "Light":
             fields.pop("graphic_data", None)
-            _lc = payload.pop("light_color", None)
-            if isinstance(_lc, dict) and isinstance(_lc.get("Index"), int):
-                fields["light_color"] = _lc["Index"]
+            _lcr = payload.pop("light_color_raw", None)
+            if isinstance(_lcr, dict):
+                _rgb = _lcr.get("rgb", 0) & 0xFFFFFFFF
+                if _rgb in (None, 0):
+                    # No true-color payload: gold prints the bare index.
+                    fields["light_color"] = _lcr.get("index", 0)
+                else:
+                    _cmc = {"index": _lcr.get("index", 0),
+                            "rgb": "%08x" % _rgb}
+                    if _lcr.get("name") is not None:
+                        _cmc["name"] = _lcr["name"]
+                    if _lcr.get("book_name") is not None:
+                        _cmc["book_name"] = _lcr["book_name"]
+                    fields["light_color"] = _cmc
+                payload.pop("light_color", None)
+            else:
+                _lc = payload.pop("light_color", None)
+                if isinstance(_lc, dict) and isinstance(_lc.get("Index"), int):
+                    fields["light_color"] = _lc["Index"]
             for _lk in ("light_type", "photometric_mode", "photometric_data"):
                 payload.pop(_lk, None)
 
@@ -6268,6 +6287,11 @@ def normalize_silver(
                 fields["blkisxref"] = 1 if _fl.get("is_xref") else 0
                 fields["xrefoverlaid"] = 1 if _fl.get("is_xref_overlay") else 0
                 fields["xref_loaded"] = 1 if _fl.get("is_external") else 0
+                # TODO B1 (2026-10-01): the table-entry xref resolved
+                # value, RAW (gold prints the bitshort verbatim — the
+                # authored xref blocks carry 1); the generic hard-coded 0
+                # above stays for the other tables.
+                fields["is_xref_resolved"] = rec.get("xref_resolved", 0)
                 # Gold emits the block's real name; silver's name-keyed
                 # table uniquified duplicates by appending digits — strip
                 # the uniquifier only when the digitless base exists as
@@ -6407,6 +6431,14 @@ def normalize_silver(
                 _VIEW_R2000 = {"render_mode", "associated_ucs", "ucsorg", "ucsxdir",
                                "ucsydir", "UCSORTHOVIEW", "ucs_elevation",
                                "named_ucs", "base_ucs"}
+                # The UCS block is CONDITIONAL on the wire (dwg.spec 3823:
+                # gold reads ucsorg/…/named_ucs only when the
+                # associated_ucs bit is set; silver's model carries the
+                # defaults regardless). Drop the block when not
+                # associated — the camera-created views have bit 0.
+                _VIEW_UCS_GATED = {"ucsorg", "ucsxdir", "ucsydir", "UCSORTHOVIEW",
+                                   "ucs_elevation", "named_ucs", "base_ucs"}
+                _view_ucs_on = bool(rec.get("ucs_associated"))
                 _VIEW_R2007 = {"use_default_lights", "default_lightning_type",
                                "brightness", "contrast", "ambient_color",
                                "background", "visualstyle", "sun", "livesection",
@@ -6426,6 +6458,8 @@ def normalize_silver(
                         continue
                     view_consumed.add(k)
                     if gk in _VIEW_R2000 and not r2000_plus:
+                        continue
+                    if gk in _VIEW_UCS_GATED and not _view_ucs_on:
                         continue
                     if gk in _VIEW_R2007 and not r2007_plus:
                         continue
@@ -6451,8 +6485,9 @@ def normalize_silver(
                         fields["render_mode"] = _RM.get(rm, 0)
                     elif rm is not None:
                         fields["render_mode"] = rm
-                    fields["named_ucs"] = normalize_handle_value(rec.get("named_ucs_handle"))
-                    fields["base_ucs"] = normalize_handle_value(rec.get("base_ucs_handle"))
+                    if _view_ucs_on:
+                        fields["named_ucs"] = normalize_handle_value(rec.get("named_ucs_handle"))
+                        fields["base_ucs"] = normalize_handle_value(rec.get("base_ucs_handle"))
                     for kk in ("render_mode", "named_ucs_handle", "base_ucs_handle"):
                         view_consumed.add(kk)
                 if r2007_plus:
@@ -6685,10 +6720,16 @@ def normalize_silver(
                             # first/last_entity pair is emitted (as null
                             # handles for empty blocks) instead of the
                             # R2004+ entities vector; derive both from
-                            # silver's entity_handles.
-                            eh = v if isinstance(v, list) else []
-                            fields["first_entity"] = normalize_handle_value(eh[0] if eh else 0)
-                            fields["last_entity"] = normalize_handle_value(eh[-1] if eh else 0)
+                            # silver's entity_handles. Xref blocks never
+                            # read the pair (the wire read is
+                            # xref-conditional — silver's reader and
+                            # gold's spec agree), so gold's JSON omits
+                            # the fields entirely for them.
+                            _fl2 = rec.get("flags") if isinstance(rec.get("flags"), dict) else {}
+                            if not (_fl2.get("is_xref") or _fl2.get("is_xref_overlay")):
+                                eh = v if isinstance(v, list) else []
+                                fields["first_entity"] = normalize_handle_value(eh[0] if eh else 0)
+                                fields["last_entity"] = normalize_handle_value(eh[-1] if eh else 0)
                         continue
                     if k == "name":
                         # consumed by the flags/name block above
@@ -6706,11 +6747,13 @@ def normalize_silver(
                             fields["explodable"] = 1 if v else 0
                         continue
                     # gold never serializes these to binary-DWG JSON:
-                    # flags (composite -> split bits done above), preview_data,
-                    # insert_count_bytes, xref_path, is_xdic_missing
-                    # (already set above), has_ds_data (set above).
-                    if k in ("flags", "preview_data", "insert_count_bytes",
-                             "xref_path"):
+                    # flags (composite -> split bits done above),
+                    # xref_resolved (emitted as is_xref_resolved above),
+                    # preview_data, insert_count_bytes, xref_path,
+                    # is_xdic_missing (already set above), has_ds_data
+                    # (set above).
+                    if k in ("flags", "xref_resolved", "preview_data",
+                             "insert_count_bytes", "xref_path"):
                         continue
                     if k == "insert_handles":
                         # dwg.spec 3272 IF_FREE_OR_SINCE(R_2000b): gold

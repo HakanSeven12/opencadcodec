@@ -1107,6 +1107,21 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
+    /// The RAW `is_xref_resolved` variant (TODO B1, 2026-10-01): gold
+    /// prints the bitshort verbatim and the authored xref blocks carry 1
+    /// (not the 0/256 convention) — a same-version rewrite replays the
+    /// retained raw value instead of the bool convention so the record
+    /// bytes survive.
+    pub fn write_xref_table_flags_raw(&mut self, xref_reference: bool, resolved_raw: i16, xref_dependent: bool) {
+        if self.version.r2007_plus() {
+            self.writer.write_bit_short(resolved_raw);
+        } else {
+            self.writer.write_bit(xref_reference);
+            self.writer.write_bit_short(resolved_raw);
+            self.writer.write_bit(xref_dependent);
+        }
+    }
+
     // ── write_extended_data ─────────────────────────────────────────
     /// Write registered-application extended data (XDATA) blocks.
     ///

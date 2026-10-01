@@ -250,6 +250,41 @@ struct ClassNames {
     dxf: HashMap<i16, String>,
 }
 
+/// The class names gold's `classes.inc` dispatches as TYPED entities
+/// (STABLE/UNSTABLE, non-DEBUGGING) — the names whose class records
+/// gold decodes as entities BY NAME, regardless of its class-table
+/// numerics (TODO B1, 2026-10-01). Generated from libredwg's
+/// classes.inc ∩ the specs' DWG_ENTITY blocks; the DEBUGGING names
+/// (EXTRUDEDSURFACE/LOFTEDSURFACE/REVOLVEDSURFACE, the dynblock
+/// parameter/grip entities, TABLE, RTEXT, …) are deliberately absent
+/// — gold surfaces those as UNKNOWN_OBJ when its class-table walk
+/// desyncs, and the gold-shadow mirror keeps that route.
+fn gold_types_entity_class(dxf_name: &str) -> bool {
+    matches!(
+        dxf_name,
+        "ARC_DIMENSION"
+            | "CAMERA"
+            | "DGNUNDERLAY"
+            | "DWFUNDERLAY"
+            | "HATCH"
+            | "HELIX"
+            | "IMAGE"
+            | "LARGE_RADIAL_DIMENSION"
+            | "LAYOUTPRINTCONFIG"
+            | "LIGHT"
+            | "LWPOLYLINE"
+            | "MESH"
+            | "MULTILEADER"
+            | "OLE2FRAME"
+            | "PDFUNDERLAY"
+            | "PLANESURFACE"
+            | "POINTCLOUD"
+            | "POINTCLOUDEX"
+            | "SECTIONOBJECT"
+            | "WIPEOUT"
+    )
+}
+
 impl ClassNames {
     fn from_document(document: &CadDocument) -> Self {
         Self {
@@ -582,20 +617,71 @@ impl DwgDocumentBuilder {
         // surface as UNKNOWN_OBJ records. `DxfClass::gold_shadow`
         // holds that gold-shadow value (None → the shadow did not reach
         // this index; fall back to this reader's own `is_an_entity`).
+        //
+        // TODO B1 (2026-10-01): the desync mirror is NAME-conditional and
+        // VERSION-gated — gold's object dispatch is name-first
+        // (classes.inc), but the name stream only survives a numeric
+        // desync on R2007+ (the strings never touch the numeric cursor
+        // there; pre-R2007 they read inline, so a desync corrupts them
+        // and gold surfaces the records as UNKNOWN_OBJ — the 2004
+        // cluster). So: a STABLE-typed entity class decodes typed on
+        // R2007+ even with a garbage shadow (the MESH fixture types with
+        // item_class_id 41985); pre-R2007 a garbage shadow keeps the
+        // object route; the DEBUGGING names (the surface family, the
+        // dynblock parameters, TABLE, RTEXT, …) keep the shadow mirror —
+        // gold surfaces them UNKNOWN_OBJ on the desynced files.
         let entity_class_numbers: std::collections::HashSet<i16> = document
             .classes
             .iter()
             .filter(|c| {
-                c.class_number >= 500
-                    && match c.gold_shadow.as_ref() {
-                        Some(sh) => {
-                            sh.item_class_id == crate::classes::ENTITY_ITEM_CLASS_ID as u16
-                        }
-                        None => c.is_an_entity,
+                if c.class_number < 500 {
+                    return false;
+                }
+                match c.gold_shadow.as_ref() {
+                    Some(sh) => {
+                        sh.item_class_id == crate::classes::ENTITY_ITEM_CLASS_ID as u16
+                            || (document.version
+                                >= crate::types::DxfVersion::AC1021
+                                && gold_types_entity_class(&c.dxf_name)
+                                && c.is_an_entity)
                     }
+                    None => c.is_an_entity,
+                }
             })
             .map(|c| c.class_number)
             .collect();
+        // TODO B1 (2026-10-01): the pre-R2007 desync mirror's object side —
+        // gold reads the class-table strings INLINE before R2007, so a
+        // desynced numeric walk corrupts the names too and gold surfaces
+        // every past-desync class record as UNKNOWN_OBJ (the 2004
+        // cluster: CELLSTYLEMAP/DETAILVIEWSTYLE/SECTIONVIEWSTYLE…).
+        // These class numbers route to the Unknown object path so the
+        // JSON axes mirror gold; R2007+ files never enter the set (the
+        // strings never touch the numeric cursor there, so gold's
+        // name dispatch types them regardless of numeric garbage).
+        let desynced_class_numbers: std::collections::HashSet<i16> =
+            if document.version >= crate::types::DxfVersion::AC1021 {
+                std::collections::HashSet::new()
+            } else {
+                document
+                    .classes
+                    .iter()
+                    .filter(|c| {
+                        c.class_number >= 500
+                            && match c.gold_shadow.as_ref() {
+                                Some(sh) => {
+                                    sh.item_class_id
+                                        != crate::classes::ENTITY_ITEM_CLASS_ID as u16
+                                        && sh.item_class_id
+                                            != crate::classes::ENTITY_ITEM_CLASS_ID as u16
+                                                + 1
+                                }
+                                None => false,
+                            }
+                    })
+                    .map(|c| c.class_number)
+                    .collect()
+            };
         let class_names = ClassNames::from_document(document);
 
         // ── Pass 1: Build handle→name maps from table entries ──────────
@@ -661,7 +747,18 @@ impl DwgDocumentBuilder {
                 handle,
                 source_offset,
                 raw,
-                Self::resolve_type_code(raw, &class_map),
+                // TODO B1 (2026-10-01): a desynced class (pre-R2007, the
+                // gold-shadow garbage) keeps its RAW number — resolving
+                // to the fixed sentinel would fire the typed arms and
+                // diverge from gold, which reads the record as
+                // UNKNOWN_OBJ (its inline string walk desynced past the
+                // class). The raw number falls to the catch-all, where
+                // the desync filter routes the Unknown path.
+                if desynced_class_numbers.contains(&raw) {
+                    raw
+                } else {
+                    Self::resolve_type_code(raw, &class_map)
+                },
             )))
         });
         let mut record_catalog = Vec::with_capacity(catalog_results.len());
@@ -1342,6 +1439,7 @@ impl DwgDocumentBuilder {
                     br.flags.has_attributes = data.has_attributes;
                     br.flags.is_xref = data.is_xref;
                     br.flags.is_xref_overlay = data.is_xref_overlay;
+                    br.xref_resolved = data.xref_resolved;
                     br.block_entity_handle = Handle::from(data.block_entity_handle);
                     br.block_end_handle = Handle::from(data.endblk_handle);
                     br.units = data.units.unwrap_or(0);
@@ -1925,6 +2023,7 @@ impl DwgDocumentBuilder {
                             &mut chunk.pending,
                             &mut chunk.pending_attributes,
                             &entity_class_numbers,
+                            &desynced_class_numbers,
                             &class_names,
                             photometric_lighting,
                         );
@@ -3549,6 +3648,7 @@ impl DwgDocumentBuilder {
         pending: &mut PendingPolylines,
         pending_attributes: &mut HashMap<u64, Vec<AttributeEntity>>,
         entity_class_numbers: &std::collections::HashSet<i16>,
+        desynced_class_numbers: &std::collections::HashSet<i16>,
         class_names: &ClassNames,
         photometric_lighting: bool,
     ) {
@@ -3626,6 +3726,7 @@ impl DwgDocumentBuilder {
                     e.light_type = data.light_type;
                     e.status = data.status;
                     e.light_color = data.light_color;
+                    e.light_color_raw = data.light_color_raw;
                     e.plot_glyph = data.plot_glyph;
                     e.intensity = data.intensity;
                     e.position = data.position;
@@ -5399,6 +5500,127 @@ impl DwgDocumentBuilder {
                             ];
                             let _ = document.add_entity(EntityType::ViewBorder(e));
                         }
+                        // TODO B1 (2026-10-01): the coverage-gap class
+                        // entities — the fixture specimens' records carry
+                        // per-file class numbers (≥500), so the OBJ_* arms
+                        // above (sentinel constants) never fire for real
+                        // files; the wire readers and the writers predate
+                        // this dispatch. Each arm mirrors its OBJ_* twin's
+                        // model mapping exactly.
+                        "AcDbSubDMesh" => {
+                            let data = entities::read_mesh(&mut reader);
+                            let mut e = Mesh::new();
+                            e.common = entity_common;
+                            e.version = data.version;
+                            e.blend_crease = data.blend_crease;
+                            e.subdivision_level = data.subdivision_level;
+                            e.vertices = data.vertices;
+                            e.faces = data
+                                .faces
+                                .into_iter()
+                                .map(|f| MeshFace {
+                                    vertices: f.into_iter().map(|v| v as usize).collect(),
+                                })
+                                .collect();
+                            e.edges = data
+                                .edges
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, (a, b))| MeshEdge {
+                                    start: a as usize,
+                                    end: b as usize,
+                                    crease: data.crease_values.get(i).copied().filter(|v| *v != 0.0),
+                                })
+                                .collect();
+                            e.unknown_b1 = data.unknown_b1;
+                            e.unknown_b2 = data.unknown_b2;
+                            let _ = document.add_entity(EntityType::Mesh(e));
+                        }
+                        "AcDbLight" => {
+                            let data = entities::read_light(&mut reader, photometric_lighting);
+                            let mut e = Light::new();
+                            e.common = entity_common;
+                            e.class_version = data.class_version;
+                            e.name = data.name;
+                            e.light_type = data.light_type;
+                            e.status = data.status;
+                            e.light_color = data.light_color;
+                            e.light_color_raw = data.light_color_raw;
+                            e.plot_glyph = data.plot_glyph;
+                            e.intensity = data.intensity;
+                            e.position = data.position;
+                            e.target = data.target;
+                            e.attenuation_type = data.attenuation_type;
+                            e.use_attenuation_limits = data.use_attenuation_limits;
+                            e.attenuation_start_limit = data.attenuation_start_limit;
+                            e.attenuation_end_limit = data.attenuation_end_limit;
+                            e.hotspot_angle = data.hotspot_angle;
+                            e.falloff_angle = data.falloff_angle;
+                            e.cast_shadows = data.cast_shadows;
+                            e.shadow_type = data.shadow_type;
+                            e.shadow_map_size = data.shadow_map_size;
+                            e.shadow_map_softness = data.shadow_map_softness;
+                            e.photometric_mode = data.photometric_mode;
+                            e.photometric_data = data.photometric_data;
+                            let _ = document.add_entity(EntityType::Light(e));
+                        }
+                        "AcDbWipeout" => {
+                            let data =
+                                entities::read_wipeout(&mut reader, self.obj_reader.version());
+                            let mut e = Wipeout::new();
+                            e.common = entity_common;
+                            e.class_version = data.class_version;
+                            e.insertion_point = data.insertion_point;
+                            e.u_vector = data.u_vector;
+                            e.v_vector = data.v_vector;
+                            e.size = data.size;
+                            e.flags = WipeoutDisplayFlags::from_bits_truncate(data.flags);
+                            e.clipping_enabled = data.clipping_enabled;
+                            e.brightness = data.brightness;
+                            e.contrast = data.contrast;
+                            e.fade = data.fade;
+                            e.clip_mode = if data.clip_inverted {
+                                crate::entities::WipeoutClipMode::Inside
+                            } else {
+                                crate::entities::WipeoutClipMode::Outside
+                            };
+                            e.clip_type = if data.clip_type == 1 {
+                                crate::entities::WipeoutClipType::Rectangular
+                            } else {
+                                crate::entities::WipeoutClipType::Polygonal
+                            };
+                            e.clip_boundary_vertices = data.clip_boundary_vertices;
+                            if data.definition_handle != 0 {
+                                e.definition_handle = Some(Handle::from(data.definition_handle));
+                            }
+                            if data.reactor_handle != 0 {
+                                e.definition_reactor_handle = Some(Handle::from(data.reactor_handle));
+                            }
+                            let _ = document.add_entity(EntityType::Wipeout(e));
+                        }
+                        "AcDbArcDimension" => {
+                            let data = entities::read_dimension_arc(
+                                &mut reader,
+                                self.obj_reader.version(),
+                                self.obj_reader.dxf_version(),
+                            );
+                            let mut dim = DimensionArc::default();
+                            dim.base.common = entity_common;
+                            map_dimension_common(&mut dim.base, &data.common, &maps);
+                            dim.definition_point = data.definition_point;
+                            dim.base.definition_point = data.definition_point;
+                            dim.first_extension_point = data.first_extension_point;
+                            dim.second_extension_point = data.second_extension_point;
+                            dim.center_point = data.center_point;
+                            dim.is_partial = data.is_partial;
+                            dim.arc_start_parameter = data.arc_start_parameter;
+                            dim.arc_end_parameter = data.arc_end_parameter;
+                            dim.has_leader = data.has_leader;
+                            dim.first_leader_point = data.first_leader_point;
+                            dim.second_leader_point = data.second_leader_point;
+                            let _ = document
+                                .add_entity(EntityType::Dimension(Dimension::Arc(dim)));
+                        }
                         _ => {
                             // Keep the class's real DXF name (e.g. an AEC
                             // object's "AEC_WALL") so the entity reports its
@@ -6668,7 +6890,19 @@ impl DwgDocumentBuilder {
                     let class_name = class_names
                         .dxf
                         .get(&type_code)
-                        .map(|name| name.to_uppercase());
+                        .map(|name| name.to_uppercase())
+                        // TODO B1 (2026-10-01): the pre-R2007 desync
+                        // mirror — a class whose gold-shadow numerics
+                        // desynced (garbage item_class_id) has its names
+                        // corrupted in gold's inline walk too, so gold
+                        // surfaces the record as UNKNOWN_OBJ. Filter the
+                        // name so the typed arms below never fire and the
+                        // fallback's Unknown route mirrors gold (the
+                        // 2004 cluster: CELLSTYLEMAP/DETAILVIEWSTYLE/
+                        // SECTIONVIEWSTYLE records).
+                        .filter(|_| {
+                            !desynced_class_numbers.contains(&raw_type_code)
+                        });
                     if let Some(dxf_name) = class_name.as_deref() {
                         if crate::objects::is_associative_object_name(dxf_name) {
                             // §20 the R2018 record-identity packet: the

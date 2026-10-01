@@ -4298,7 +4298,15 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_variable_text(&e.name);
         self.writer.write_bit_long(e.light_type);
         self.writer.write_bit(e.status);
-        self.writer.write_cm_color(&e.light_color);
+        // TODO B1 (2026-10-01): a retained raw CMC pair replays
+        // verbatim on a same-version write (the authored index slot
+        // survives); the collapsed Color stays the fallback for
+        // constructed and deserialized content.
+        if let Some(raw) = &e.light_color_raw {
+            self.writer.write_cm_color_raw(raw);
+        } else {
+            self.writer.write_cm_color(&e.light_color);
+        }
         self.writer.write_bit(e.plot_glyph);
         self.writer.write_bit_double(e.intensity);
         self.writer.write_3bit_double(e.position);
