@@ -3167,6 +3167,113 @@ impl SatDocument {
         self.header.spatial_resolution = 1.0;
     }
 
+    /// A copy completed to the record forms an ACIS 7.0+ restore requires,
+    /// or `None` when the document already has them.
+    ///
+    /// Minimal builders may leave off what the modeler reads unconditionally:
+    /// the sense and parameter range closing every analytic surface, the
+    /// range closing straight and elliptic curves, and the convexity closing
+    /// every edge. Restore also takes the first `num_bodies` records as the
+    /// saved roots, so a document that never counted its bodies gets them
+    /// moved to the front. Without these the reference application rejects
+    /// the whole drawing (modeling error 75004/75005). Records that already
+    /// carry the fields — everything the reference application writes — are
+    /// left alone.
+    pub fn completed_for_restore(&self) -> Option<SatDocument> {
+        if self.header.version.major < 7 {
+            return None;
+        }
+        let roots_uncounted = self.header.num_bodies == 0
+            && self.records.iter().any(|record| record.entity_type == "body");
+        if !roots_uncounted && !self.records.iter().any(|r| Self::missing_tail(r).is_some()) {
+            return None;
+        }
+        let mut doc = self.clone();
+        for record in &mut doc.records {
+            if let Some(tail) = Self::missing_tail(record) {
+                record.tokens.extend(tail);
+                record.raw_text = None;
+            }
+        }
+        if roots_uncounted {
+            doc.bodies_first();
+        }
+        Some(doc)
+    }
+
+    /// The closing tokens a 7.0+ record of this kind needs and lacks.
+    fn missing_tail(record: &SatRecord) -> Option<Vec<SatToken>> {
+        let ident = |name: &str| SatToken::Ident(name.to_string());
+        // Everything after the leading `$-1` that is neither a pointer nor a
+        // number: senses, range markers, convexity.
+        let keywords = record
+            .tokens
+            .iter()
+            .skip(1)
+            .filter(|token| {
+                token.as_pointer().is_none()
+                    && token.as_float().is_none()
+                    && token.coordinate_components().is_none()
+            })
+            .count();
+        let infinite = |sense: &str, ends: usize| {
+            let mut tail = vec![ident(sense)];
+            tail.extend((0..ends).map(|_| ident("I")));
+            tail
+        };
+        match record.entity_type.as_str() {
+            "plane-surface" | "sphere-surface" | "torus-surface" if keywords == 0 => {
+                Some(infinite("forward_v", 4))
+            }
+            // A cone already carries the two `I` continuation markers before
+            // its half-angle.
+            "cone-surface" if keywords <= 2 => Some(infinite("forward", 4)),
+            "straight-curve" | "ellipse-curve" if keywords == 0 => {
+                Some(vec![ident("I"), ident("I")])
+            }
+            // $-1 $start t0 $end t1 $coedge $curve sense — convexity missing.
+            "edge" if record.tokens.len() == 8 => {
+                Some(vec![SatToken::String("unknown".to_string())])
+            }
+            _ => None,
+        }
+    }
+
+    /// Moves every `body` record to the front, remapping pointers, and
+    /// counts them as the document's roots.
+    fn bodies_first(&mut self) {
+        let mut order: Vec<usize> = (0..self.records.len()).collect();
+        order.sort_by_key(|&at| self.records[at].entity_type != "body");
+        let mut index_map = vec![-1i32; order.len()];
+        for (new, &old) in order.iter().enumerate() {
+            index_map[old] = new as i32;
+        }
+        let remap = |p: &mut SatPointer| {
+            if let Some(at) = p.index().filter(|&at| at < index_map.len()) {
+                p.0 = index_map[at];
+            }
+        };
+        let mut old: Vec<Option<SatRecord>> =
+            std::mem::take(&mut self.records).into_iter().map(Some).collect();
+        for (new, &at) in order.iter().enumerate() {
+            let mut record = old[at].take().expect("each record moves once");
+            record.index = new as i32;
+            record.raw_text = None;
+            remap(&mut record.attribute);
+            for token in &mut record.tokens {
+                if let SatToken::Pointer(p) = token {
+                    remap(p);
+                }
+            }
+            self.records.push(record);
+        }
+        self.header.num_bodies = self
+            .records
+            .iter()
+            .filter(|record| record.entity_type == "body")
+            .count();
+    }
+
     /// Check if an entity type is a core ACIS geometry type that should
     /// be preserved in SAB output.
     fn is_core_geometry_type(entity_type: &str) -> bool {
