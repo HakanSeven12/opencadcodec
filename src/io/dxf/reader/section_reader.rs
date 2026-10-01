@@ -10681,25 +10681,93 @@ impl<'a> SectionReader<'a> {
 
     // ===== Common Entity/Object Code Helpers =====
 
-    /// Read an ATTRIB/ATTDEF R2018+ embedded MTEXT object (code 101 block) and
-    /// return its text. A multiline attribute keeps its real text here (the
-    /// entity's own code 1 is empty), so the caller adopts this when non-empty.
+    /// Read an ATTRIB/ATTDEF R2018+ embedded MTEXT object (code 101 block). A
+    /// multiline attribute keeps its real text here (the entity's own code 1
+    /// is empty), so the caller adopts the value when non-empty.
     /// MTEXT splits long text into 250-char `3` continuation chunks ending in a
     /// final `1` chunk; concatenate in that order.
-    fn read_attrib_embedded_text(&mut self) -> Result<String> {
-        let mut text = String::new();
+    fn read_attrib_embedded_mtext(&mut self) -> Result<MText> {
+        use crate::entities::mtext::{AttachmentPoint, DrawingDirection};
+
+        // Absent codes take the embedded object's defaults (no wrap width).
+        let mut mtext = MText {
+            rectangle_width: 0.0,
+            ..MText::new()
+        };
+        let mut insertion = PointReader::new();
+        let mut normal = PointReader::new();
+        let mut x_direction = PointReader::new();
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 || pair.code >= 1000 {
                 self.reader.push_back(pair);
                 break;
             }
             match pair.code {
-                3 => text.push_str(&pair.value_string),
-                1 => text.push_str(&pair.value_string),
+                1 | 3 => mtext.value.push_str(&pair.value_string),
+                7 => mtext.style = pair.value_string.clone(),
+                10 | 20 | 30 => {
+                    insertion.add_coordinate(&pair);
+                }
+                11 | 21 | 31 => {
+                    x_direction.add_coordinate(&pair);
+                }
+                210 | 220 | 230 => {
+                    normal.add_coordinate(&pair);
+                }
+                40 => mtext.height = pair.as_double().unwrap_or(mtext.height),
+                41 => mtext.rectangle_width = pair.as_double().unwrap_or(0.0),
+                42 => mtext.extents_width = pair.as_double().unwrap_or(0.0),
+                43 => mtext.extents_height = pair.as_double().unwrap_or(0.0),
+                44 => {
+                    mtext.line_spacing_factor =
+                        pair.as_double().unwrap_or(mtext.line_spacing_factor)
+                }
+                46 => {
+                    mtext.rectangle_height = pair.as_double().filter(|h| *h != 0.0);
+                }
+                50 => mtext.rotation = pair.as_double().unwrap_or(0.0).to_radians(),
+                71 => {
+                    mtext.attachment_point = match pair.as_i16().unwrap_or(1) {
+                        2 => AttachmentPoint::TopCenter,
+                        3 => AttachmentPoint::TopRight,
+                        4 => AttachmentPoint::MiddleLeft,
+                        5 => AttachmentPoint::MiddleCenter,
+                        6 => AttachmentPoint::MiddleRight,
+                        7 => AttachmentPoint::BottomLeft,
+                        8 => AttachmentPoint::BottomCenter,
+                        9 => AttachmentPoint::BottomRight,
+                        _ => AttachmentPoint::TopLeft,
+                    };
+                }
+                72 => {
+                    mtext.drawing_direction = match pair.as_i16().unwrap_or(1) {
+                        3 => DrawingDirection::TopToBottom,
+                        5 => DrawingDirection::ByStyle,
+                        _ => DrawingDirection::LeftToRight,
+                    };
+                }
+                73 => {
+                    if let Some(v) = pair.as_i16() {
+                        mtext.line_spacing_style = crate::entities::LineSpacingStyle::from(v);
+                    }
+                }
                 _ => {}
             }
         }
-        Ok(text)
+        if let Some(p) = insertion.get_point() {
+            mtext.insertion_point = p;
+        }
+        if let Some(n) = normal.get_point() {
+            mtext.normal = n;
+        }
+        // An explicit X-axis direction defines the rotation (as in MTEXT).
+        if let Some(xd) = x_direction.get_point() {
+            if xd.x != 0.0 || xd.y != 0.0 {
+                mtext.rotation = xd.y.atan2(xd.x);
+                mtext.dwg_x_direction = Some(xd);
+            }
+        }
+        Ok(mtext)
     }
 
     /// Read an MTEXT R2018+ embedded object (code 101 block), extracting the
@@ -15859,8 +15927,11 @@ impl<'a> SectionReader<'a> {
         // Code 71 means text-generation flags in AcDbText but the MTEXT flag
         // in AcDbAttributeDefinition (same disambiguation as ATTRIB).
         let mut in_attribute_subclass = false;
-        // Code 280 appears twice: first the version byte, then lock-position.
-        let mut seen_version = false;
+        // Code 280 ahead of the tag is the R2010+ version byte; after the tag
+        // it is the lock-position flag (R2007 files carry only the latter).
+        let mut seen_tag = false;
+        let mut mtext_flag = None;
+        let mut embedded_mtext = None;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -15881,7 +15952,13 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 1 => default_value = pair.value_string.clone(),
-                2 => tag = pair.value_string.clone(),
+                2 => {
+                    tag = pair.value_string.clone();
+                    seen_tag = true;
+                }
+                // The multiline tail repeats the alignment point and writes
+                // a zero 72; neither belongs to the AcDbText fields.
+                11 | 21 | 31 | 72 if in_attribute_subclass => {}
                 3 => prompt = pair.value_string.clone(),
                 10 | 20 | 30 => {
                     insertion_point.add_coordinate(&pair);
@@ -15914,8 +15991,12 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 71 => {
-                    if !in_attribute_subclass {
-                        if let Some(v) = pair.as_i16() {
+                    if let Some(v) = pair.as_i16() {
+                        if in_attribute_subclass {
+                            mtext_flag = Some(
+                                crate::entities::attribute_definition::MTextFlag::from_value(v),
+                            );
+                        } else {
                             text_generation_flags = Some(v);
                         }
                     }
@@ -15952,19 +16033,20 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 280 => {
-                    if !seen_version {
-                        seen_version = true;
-                    } else if let Some(v) = pair.as_i16() {
-                        lock_position = v != 0;
+                    if seen_tag {
+                        if let Some(v) = pair.as_i16() {
+                            lock_position = v != 0;
+                        }
                     }
                 }
                 // Multiline attribute-definition embedded MTEXT (R2018+) —
                 // carries the real default text when the own code 1 is empty.
                 101 => {
-                    let t = self.read_attrib_embedded_text()?;
-                    if !t.is_empty() {
-                        default_value = t;
+                    let mtext = self.read_attrib_embedded_mtext()?;
+                    if !mtext.value.is_empty() {
+                        default_value = mtext.value.clone();
                     }
+                    embedded_mtext = Some(Box::new(mtext));
                 }
                 _ => {
                     self.try_read_common_entity_code(&pair, &mut common)?;
@@ -16007,6 +16089,13 @@ impl<'a> SectionReader<'a> {
         if let Some(v) = vertical_alignment {
             attdef.vertical_alignment = v;
         }
+        if let Some(v) = mtext_flag {
+            attdef.mtext_flag = v;
+        }
+        let single_line = crate::entities::attribute_definition::MTextFlag::SingleLine;
+        attdef.is_multiline = attdef.mtext_flag != single_line || embedded_mtext.is_some();
+        attdef.line_count = attdef.default_value.matches("\\P").count() as i16 + 1;
+        attdef.embedded_mtext = embedded_mtext;
         // True color from code 420 overrides ACI
         if common.color.is_true_color() {
             color = common.color;
@@ -16690,8 +16779,9 @@ impl<'a> SectionReader<'a> {
         let mut attrib = AttributeEntity::new(String::new(), String::new());
         let mut insertion_point = PointReader::new();
         let mut alignment_point = PointReader::new();
-        // Code 280 appears twice: first the version byte, then lock-position.
-        let mut seen_attrib_version = false;
+        // Code 280 ahead of the tag is the R2010+ version byte; after the tag
+        // it is the lock-position flag (R2007 files carry only the latter).
+        let mut seen_tag = false;
         // Code 71 means different things by subclass: AcDbText → text
         // generation flags (2=backward, 4=upside-down); AcDbAttribute → the
         // MTEXT flag (2=multiline). Conflating them mirrored multiline text.
@@ -16720,7 +16810,13 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 1 => attrib.value = pair.value_string.clone(),
-                2 => attrib.tag = pair.value_string.clone(),
+                2 => {
+                    attrib.tag = pair.value_string.clone();
+                    seen_tag = true;
+                }
+                // The multiline tail repeats the alignment point and writes
+                // a zero 72; neither belongs to the AcDbText fields.
+                11 | 21 | 31 | 72 if in_attribute_subclass => {}
                 7 => attrib.text_style = pair.value_string.clone(),
                 10 | 20 | 30 => {
                     insertion_point.add_coordinate(&pair);
@@ -16791,20 +16887,21 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 280 => {
-                    // First 280 is the version byte; the second is lock-position.
-                    if !seen_attrib_version {
-                        seen_attrib_version = true;
-                    } else if let Some(v) = pair.as_i16() {
-                        attrib.lock_position = v != 0;
+                    if seen_tag {
+                        if let Some(v) = pair.as_i16() {
+                            attrib.lock_position = v != 0;
+                        }
                     }
                 }
                 // Multiline attribute's embedded MTEXT (R2018+) — carries the
                 // real text; the entity's own code 1 is empty in that case.
                 101 => {
-                    let t = self.read_attrib_embedded_text()?;
-                    if !t.is_empty() {
-                        attrib.value = t;
+                    let mtext = self.read_attrib_embedded_mtext()?;
+                    if !mtext.value.is_empty() {
+                        attrib.value = mtext.value.clone();
                     }
+                    attrib.is_multiline = true;
+                    attrib.embedded_mtext = Some(Box::new(mtext));
                 }
                 _ => {
                     self.try_read_common_entity_code(&pair, &mut attrib.common)?;
@@ -16814,6 +16911,7 @@ impl<'a> SectionReader<'a> {
 
         attrib.insertion_point = insertion_point.get_point().unwrap_or(Vector3::zero());
         attrib.alignment_point = alignment_point.get_point().unwrap_or(Vector3::zero());
+        attrib.line_count = attrib.value.matches("\\P").count() as i16 + 1;
 
         Ok(Some(attrib))
     }

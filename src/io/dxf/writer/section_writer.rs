@@ -3917,41 +3917,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(41, mtext.rectangle_width)?;
         self.writer.write_i16(71, mtext.attachment_point as i16)?;
         self.writer.write_i16(72, mtext.drawing_direction as i16)?;
-
-        // Write text value (may need to be split for long text).
-        // DXF text format is line-based, so literal \n / \r in the value would
-        // corrupt the file.  Replace them with the MText paragraph mark \P.
-        let sanitized;
-        let text: &str = if mtext.value.contains('\n') || mtext.value.contains('\r') {
-            sanitized = mtext
-                .value
-                .replace("\r\n", "\\P")
-                .replace('\r', "\\P")
-                .replace('\n', "\\P");
-            &sanitized
-        } else {
-            &mtext.value
-        };
-        if text.len() > 250 {
-            // Split into chunks at char boundaries
-            let mut remaining = text;
-            while remaining.len() > 250 {
-                // Find a valid char boundary at or before byte 250
-                let mut split_pos = 250;
-                while split_pos > 0 && !remaining.is_char_boundary(split_pos) {
-                    split_pos -= 1;
-                }
-                if split_pos == 0 {
-                    split_pos = remaining.len();
-                }
-                let (chunk, rest) = remaining.split_at(split_pos);
-                self.writer.write_string(3, chunk)?;
-                remaining = rest;
-            }
-            self.writer.write_string(1, remaining)?;
-        } else {
-            self.writer.write_string(1, text)?;
-        }
+        self.write_mtext_value(&mtext.value)?;
 
         self.writer.write_string(7, &mtext.style)?;
         if mtext.rotation != 0.0 {
@@ -4008,6 +3974,43 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             }
         }
         self.write_normal(mtext.normal)?;
+        Ok(())
+    }
+
+    /// Write an MTEXT text value (may need to be split for long text).
+    fn write_mtext_value(&mut self, value: &str) -> Result<()> {
+        // DXF text format is line-based, so literal \n / \r in the value would
+        // corrupt the file.  Replace them with the MText paragraph mark \P.
+        let sanitized;
+        let text: &str = if value.contains('\n') || value.contains('\r') {
+            sanitized = value
+                .replace("\r\n", "\\P")
+                .replace('\r', "\\P")
+                .replace('\n', "\\P");
+            &sanitized
+        } else {
+            value
+        };
+        if text.len() > 250 {
+            // Split into chunks at char boundaries
+            let mut remaining = text;
+            while remaining.len() > 250 {
+                // Find a valid char boundary at or before byte 250
+                let mut split_pos = 250;
+                while split_pos > 0 && !remaining.is_char_boundary(split_pos) {
+                    split_pos -= 1;
+                }
+                if split_pos == 0 {
+                    split_pos = remaining.len();
+                }
+                let (chunk, rest) = remaining.split_at(split_pos);
+                self.writer.write_string(3, chunk)?;
+                remaining = rest;
+            }
+            self.writer.write_string(1, remaining)?;
+        } else {
+            self.writer.write_string(1, text)?;
+        }
         Ok(())
     }
 
@@ -4978,6 +4981,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
     /// Write ATTDEF entity
     fn write_attdef(&mut self, attdef: &AttributeDefinition, owner: Handle) -> Result<()> {
+        let multiline =
+            self.attribute_is_multiline(attdef.is_multiline, attdef.embedded_mtext.as_deref());
         self.writer.write_entity_type("ATTDEF")?;
         self.write_common_entity_data(&attdef.common, owner)?;
         self.writer.write_subclass("AcDbText")?;
@@ -4988,8 +4993,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Text height
         self.writer.write_double(40, attdef.height)?;
 
-        // Default value
-        self.writer.write_string(1, &attdef.default_value)?;
+        // Default value (a multiline value lives in the embedded MTEXT)
+        let value = if multiline { "" } else { &attdef.default_value };
+        self.writer.write_string(1, value)?;
 
         // Rotation
         self.writer.write_double(50, attdef.rotation.to_degrees())?;
@@ -5019,6 +5025,14 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
         self.writer.write_subclass("AcDbAttributeDefinition")?;
 
+        // R2010+ version byte; the prompt precedes the tag.
+        if self.dxf_version >= DxfVersion::AC1024 {
+            self.writer.write_byte(280, 0)?;
+        }
+
+        // Prompt
+        self.writer.write_string(3, &attdef.prompt)?;
+
         // Tag
         self.writer.write_string(2, &attdef.tag)?;
 
@@ -5032,14 +5046,89 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer
             .write_i16(74, attdef.vertical_alignment.to_value())?;
 
-        // Prompt
-        self.writer.write_string(3, &attdef.prompt)?;
+        // R2007+ lock-position flag
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.writer.write_byte(280, u8::from(attdef.lock_position))?;
+        }
 
+        // Multiline definitions carry MTEXT flag 4 (constant or not).
+        if multiline {
+            self.write_attribute_mtext(
+                4,
+                attdef.alignment_point,
+                attdef.embedded_mtext.as_deref(),
+                &attdef.default_value,
+                attdef.insertion_point,
+                attdef.normal,
+                attdef.rotation,
+                attdef.height,
+                &attdef.text_style,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Whether an ATTDEF/ATTRIB is written as a multiline attribute (R2018+).
+    fn attribute_is_multiline(&self, is_multiline: bool, embedded: Option<&MText>) -> bool {
+        self.dxf_version >= DxfVersion::AC1032 && (is_multiline || embedded.is_some())
+    }
+
+    /// Write the multiline tail of an ATTDEF/ATTRIB: MTEXT flag, `72` 0, the
+    /// alignment point and the `101` embedded MTEXT object. Without a stored
+    /// embedded MTEXT one is built from the attribute's own text geometry,
+    /// as the DWG writer does.
+    #[allow(clippy::too_many_arguments)]
+    fn write_attribute_mtext(
+        &mut self,
+        mtext_flag: i16,
+        alignment_point: Vector3,
+        embedded: Option<&MText>,
+        value: &str,
+        insertion_point: Vector3,
+        normal: Vector3,
+        rotation: f64,
+        height: f64,
+        style: &str,
+    ) -> Result<()> {
+        let mut fallback = MText::with_value(value, insertion_point);
+        fallback.normal = normal;
+        fallback.rotation = rotation;
+        fallback.height = height;
+        fallback.style = style.to_string();
+        let mtext = embedded.unwrap_or(&fallback);
+
+        self.writer.write_i16(71, mtext_flag)?;
+        self.writer.write_i16(72, 0)?;
+        self.writer.write_point3d(11, alignment_point)?;
+        self.writer.write_string(101, "Embedded Object")?;
+        self.writer.write_point3d(10, mtext.insertion_point)?;
+        self.writer.write_double(40, mtext.height)?;
+        self.writer.write_double(41, mtext.rectangle_width)?;
+        self.writer
+            .write_double(46, mtext.rectangle_height.unwrap_or(0.0))?;
+        self.writer.write_i16(71, mtext.attachment_point as i16)?;
+        self.writer.write_i16(72, mtext.drawing_direction as i16)?;
+        self.write_mtext_value(&mtext.value)?;
+        self.writer.write_string(7, &mtext.style)?;
+        self.writer.write_point3d(210, mtext.normal)?;
+        let x_direction = mtext
+            .dwg_x_direction
+            .filter(|direction| direction.y.atan2(direction.x) == mtext.rotation)
+            .unwrap_or_else(|| Vector3::new(mtext.rotation.cos(), mtext.rotation.sin(), 0.0));
+        self.writer.write_point3d(11, x_direction)?;
+        self.writer.write_double(42, mtext.extents_width)?;
+        self.writer.write_double(43, mtext.extents_height)?;
+        self.writer.write_double(50, mtext.rotation.to_degrees())?;
+        self.writer.write_i16(73, mtext.line_spacing_style as i16)?;
+        self.writer.write_double(44, mtext.line_spacing_factor)?;
         Ok(())
     }
 
     /// Write ATTRIB entity
     fn write_attrib(&mut self, attrib: &AttributeEntity, owner: Handle) -> Result<()> {
+        let multiline =
+            self.attribute_is_multiline(attrib.is_multiline, attrib.embedded_mtext.as_deref());
         self.writer.write_entity_type("ATTRIB")?;
         self.write_common_entity_data(&attrib.common, owner)?;
         self.writer.write_subclass("AcDbText")?;
@@ -5050,8 +5139,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Text height
         self.writer.write_double(40, attrib.height)?;
 
-        // Value
-        self.writer.write_string(1, &attrib.value)?;
+        // Value (a multiline value lives in the embedded MTEXT)
+        let value = if multiline { "" } else { &attrib.value };
+        self.writer.write_string(1, value)?;
 
         // Rotation
         self.writer.write_double(50, attrib.rotation.to_degrees())?;
@@ -5081,6 +5171,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
         self.writer.write_subclass("AcDbAttribute")?;
 
+        // R2010+ version byte
+        if self.dxf_version >= DxfVersion::AC1024 {
+            self.writer.write_byte(280, 0)?;
+        }
+
         // Tag
         self.writer.write_string(2, &attrib.tag)?;
 
@@ -5093,6 +5188,26 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Vertical alignment
         self.writer
             .write_i16(74, attrib.vertical_alignment.to_value())?;
+
+        // R2007+ lock-position flag
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.writer.write_byte(280, u8::from(attrib.lock_position))?;
+        }
+
+        // Multiline attributes carry MTEXT flag 2.
+        if multiline {
+            self.write_attribute_mtext(
+                2,
+                attrib.alignment_point,
+                attrib.embedded_mtext.as_deref(),
+                &attrib.value,
+                attrib.insertion_point,
+                attrib.normal,
+                attrib.rotation,
+                attrib.height,
+                &attrib.text_style,
+            )?;
+        }
 
         // XDATA precedes the parent INSERT's child SEQEND record.
         self.write_xdata(&attrib.common.extended_data)?;
