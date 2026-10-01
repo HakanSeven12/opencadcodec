@@ -61,6 +61,25 @@ walk.
   residual notes (lines 5422–5428, 5999–6000, 7257–7258); this session's
   variant-elimination evidence above.
 - **Fixture**: none.
+- **VERIFIED NOT-IMPLEMENTED 2026-10-01 (HEAD 358dd4e, the A1 landing;
+  a verify-and-remove request ran the divergence live)**:
+  `DWG_NO_ECHO=1 dwgrewrite example_2007` → the H7g seed-mirror works
+  (`random_seed` 0x24cc9552adddcbdb and `crc_seed` 0 identical on both
+  sides), but all three draws still diverge exactly as the 2026-09-30
+  investigation recorded — `sections_map_crc_seed` 0xA4825533CF3D200D
+  → silver's 0x534B-class draw, `pages_map_crc_seed`, and
+  `crc_seed_encoded` likewise. The echo arm roundtrips her file
+  md5-identical, so the divergence bites ONLY the conventional arm
+  (non-fingerprint writes: edited documents, constructed R2007+
+  content). **Coverage note (new, this verification)**: no mechanized
+  gate sees this family — the corpus axes diff silver-read vs
+  gold-read of the SAME side (both readers carry the STORED draws; the
+  derive never fires on read), and the era census covers the objects
+  section only. The draws must be compared to the author's file by a
+  hand extraction (gold `-O JSON`, the `R2007_Header` fields) until
+  they are pinned. **Kept in the open list — the variant space (MT
+  tempering, twist offset, period, seed split, index walk) remains
+  unmeasured.**
 
 ### A3. Full era-corpus record-identity censuses — **LANDED 2026-09-30 (this session)**
 
