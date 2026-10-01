@@ -2615,7 +2615,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         &mut self,
         value: &crate::objects::SolidHistoryNodeBase,
     ) -> Result<()> {
-        self.write_dynamic_eval_dxf(&value.eval)?;
+        self.write_dynamic_eval_dxf(&value.saved_eval())?;
         self.writer.write_subclass("AcDbShHistoryNode")?;
         self.writer.write_i32(90, value.major)?;
         self.writer.write_i32(91, value.minor)?;

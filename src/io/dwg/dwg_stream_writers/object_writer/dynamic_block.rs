@@ -157,7 +157,7 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_solid_history_base(&mut self, value: &SolidHistoryNodeBase) {
-        self.write_dynamic_eval(&value.eval);
+        self.write_dynamic_eval(&value.saved_eval());
         self.writer.write_bit_long(value.major);
         self.writer.write_bit_long(value.minor);
         for item in value.transform {

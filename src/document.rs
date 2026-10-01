@@ -2324,7 +2324,7 @@ impl CadDocument {
             }
             visited.push(node_id);
             reversed.push((*current).clone());
-            if parent_id == 0 {
+            if parent_id <= 0 {
                 break;
             }
             let mut parent_matches = operations.iter().copied().filter(|operation| {

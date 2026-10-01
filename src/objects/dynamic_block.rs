@@ -869,10 +869,17 @@ pub struct SolidHistoryNodeBase {
 }
 
 impl SolidHistoryNodeBase {
+    /// Parent id of a root history node.
+    pub const ROOT_PARENT: i32 = -1;
+    /// Expression value code meaning "no value".
+    pub const NO_VALUE: i16 = -9999;
+
     pub fn new(step_id: i32) -> Self {
         Self {
             eval: BlockEvalExpression {
+                parent_id: Self::ROOT_PARENT,
                 major: 1,
+                value_code: Self::NO_VALUE,
                 node_id: step_id,
                 ..BlockEvalExpression::default()
             },
@@ -883,6 +890,22 @@ impl SolidHistoryNodeBase {
             step_id,
             ..Self::default()
         }
+    }
+
+    /// The evaluation header as stored on disk. The reference application
+    /// rejects the whole drawing when a history node's expression has parent
+    /// 0 or value code 0 without a value; it writes -1 and -9999. Nodes built
+    /// with those defaults by earlier releases of this crate are saved in the
+    /// reference form.
+    pub(crate) fn saved_eval(&self) -> BlockEvalExpression {
+        let mut eval = self.eval.clone();
+        if eval.parent_id == 0 {
+            eval.parent_id = Self::ROOT_PARENT;
+        }
+        if eval.value_code == 0 && eval.value == BlockEvalValue::None {
+            eval.value_code = Self::NO_VALUE;
+        }
+        eval
     }
 }
 
