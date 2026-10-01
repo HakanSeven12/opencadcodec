@@ -297,10 +297,6 @@ fn gold_shadow_classes(
     let mut ids: Vec<Option<crate::classes::DwgClassGoldShadow>> = Vec::new();
     let mut index: i64 = 0;
     let mut last_pos: i64 = -1;
-    // The pre-R2007 inline name strings read at gold's cursor position
-    // (TODO B1, 2026-10-01) — `None` on R2007+ (the separate string
-    // stream never desyncs; the projection falls back to the own names).
-    let mut shadow_names: Option<(String, String, String)> = None;
     // Gold's overflow bound is its FULL decompressed-section Bit_Chain
     // (sentinels + CRC included), not the class-data area — the shadow
     // reader spans data_start..end, so the bound is the reader buffer.
@@ -347,16 +343,21 @@ fn gold_shadow_classes(
             // starts at endpos (`if (dat->byte >= endpos) break;`).
             break;
         }
+        // The pre-R2007 inline name strings read at gold's cursor
+        // position (TODO B1, 2026-10-01) — `None` on R2007+ (the
+        // separate string stream never desyncs; the projection falls
+        // back to the own names).
+        let shadow_names: Option<(String, String, String)>;
         if version < DxfVersion::AC1021 {
             // Pre-R2007: the three text fields are inline TV (BS length +
             // chars) and advance the shared cursor; gold reads them the
-            // same way. TODO B1 (2026-10-01): the strings are captured
-            // with gold's EXACT semantics — past a numeric derail the
-            // garbage lengths run past the section and gold's
-            // CHK_OVERFLOW bail returns NULL without consuming the chars
-            // (the cursor keeps only the BS advance), and the printed
-            // name is the C-string PREFIX (up to the first NUL) — the
-            // structure axis projects gold's view from the shadow.
+            // same way. The strings are captured with gold's EXACT
+            // semantics — past a numeric derail the garbage lengths run
+            // past the section and gold's CHK_OVERFLOW bail returns NULL
+            // without consuming the chars (the cursor keeps only the BS
+            // advance), and the printed name is the C-string PREFIX (up
+            // to the first NUL) — the structure axis projects gold's
+            // view from the shadow.
             let app = gold_tv_cstring(&mut reader, tv_bound, encoding);
             let cpp = gold_tv_cstring(&mut reader, tv_bound, encoding);
             let dxf = gold_tv_cstring(&mut reader, tv_bound, encoding);
@@ -377,7 +378,7 @@ fn gold_shadow_classes(
             let _unknown1 = reader.read_bit_long();
             let _unknown2 = reader.read_bit_long();
         }
-        let (shadow_dxf, shadow_cpp, shadow_app) = match shadow_names.take() {
+        let (shadow_dxf, shadow_cpp, shadow_app) = match shadow_names {
             Some((dxf, cpp, app)) => (dxf, cpp, app),
             None => (String::new(), String::new(), String::new()),
         };
