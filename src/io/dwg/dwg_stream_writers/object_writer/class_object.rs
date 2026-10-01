@@ -358,9 +358,14 @@ impl<'a> DwgObjectWriter<'a> {
             ClassObjectData::SectionManager(value) => {
                 self.writer.write_bit(value.is_live);
                 self.writer.write_bit_short(value.sections.len() as i16);
+                // TODO A5 family 5 (2026-10-01): the authored wire code is
+                // SoftPointer (4) — her LiveSection1 record 0x229 carries
+                // (4.2.228) for the manager's sections vector; gold's
+                // dwg2.spec placeholder says 5, but the authored corpus is
+                // the oracle (the record-identity census).
                 for section in &value.sections {
                     self.writer
-                        .write_handle(DwgReferenceType::HardPointer, section.value());
+                        .write_handle(DwgReferenceType::SoftPointer, section.value());
                 }
             }
             ClassObjectData::SectionSettings(value) => {

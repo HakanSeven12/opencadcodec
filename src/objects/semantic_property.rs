@@ -37,6 +37,19 @@ pub struct RegisteredClassObject {
     pub properties: Vec<SemanticProperty>,
     pub payload: ProxyPayload,
     pub object_ids: Vec<ProxyObjectReference>,
+    /// The authored objids handle-stream region, verbatim (TODO A5
+    /// family 3, 2026-10-01): the author's proxy objids stream may carry
+    /// consecutive duplicate handles gold's PUSH_HV collapses in its
+    /// model (Constraints 0x3E4: her wire has FOUR entries — the
+    /// duplicate (4.0.0) included — where gold's and our model hold
+    /// three; a model-driven write drops the duplicate and the record
+    /// runs a byte short). The model keeps gold parity (three entries,
+    /// the JSON axis); the writer replays these raw bits instead when
+    /// the write targets the same version. `(bytes, bit_count)` —
+    /// MSB-first packed, from the handle-stream start to the last
+    /// whole handle.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_objids_bits: Option<(Vec<u8>, u32)>,
     #[cfg_attr(feature = "serde", serde(skip))]
     pub raw_dwg_data: Option<Vec<u8>>,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -72,6 +85,19 @@ pub struct ProxyObject {
     /// the parsed fields, which already reproduce the window bit-exact.
     #[cfg_attr(feature = "serde", serde(default))]
     pub raw_window: Option<ProxyRawWindow>,
+    /// The authored objids handle-stream region, verbatim (TODO A5
+    /// family 3, 2026-10-01 — see `RegisteredClassObject::raw_objids_bits`
+    /// for the defect): gold's PUSH_HV collapses consecutive duplicate
+    /// wire handles in its model — and ours matches for the JSON axis —
+    /// but the author's wire retains them (Constraints 0x3E3/0x3E4/0x3E5),
+    /// so the writer replays this region instead of the deduplicated
+    /// model on a same-version write.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_objids_bits: Option<(Vec<u8>, u32)>,
+    /// The version the raw twins above were captured from — the replay
+    /// gate (conversions and constructed content keep `None`/defaults).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_version: Option<crate::types::DxfVersion>,
 }
 
 /// Gold's raw PROXY data window (`dwg.spec` PROXY_OBJECT/PROXY_ENTITY

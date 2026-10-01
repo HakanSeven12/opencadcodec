@@ -232,8 +232,16 @@ impl<'a> DwgObjectWriter<'a> {
                 for point in &data.back_line_vertices {
                     self.writer.write_3bit_double(*point);
                 }
-                self.writer
-                    .write_handle(DwgReferenceType::HardPointer, data.settings_handle.value());
+                // TODO A5 family 5 (2026-10-01): the authored wire code is
+                // HardOwnership (3) — the settings object is owned by the
+                // section and dies with it. Her LiveSection1 record 0x228
+                // carries (3.2.22A); gold's dwg2.spec placeholder says 5,
+                // but the authored corpus is the oracle (the record-identity
+                // census).
+                self.writer.write_handle(
+                    DwgReferenceType::HardOwnership,
+                    data.settings_handle.value(),
+                );
             }
             ExtendedEntityData::ArcAlignedText(data) => {
                 // AcDbArcAlignedText stores these numbers as text (D2T),
@@ -407,7 +415,10 @@ impl<'a> DwgObjectWriter<'a> {
             ExtendedEntityData::DynamicBlock(_) => {}
             ExtendedEntityData::RegisteredClass(data) => {
                 if data.properties.is_empty() {
-                    self.write_registered_payload(&data.payload, &data.object_ids);
+                    // The entity-side registered class carries no raw
+                    // objids twin (TODO A5 family 3 covers the
+                    // object-side records); the model drives.
+                    self.write_registered_payload(&data.payload, &data.object_ids, None);
                 } else {
                     self.writer.write_bit_long(498);
                     if self.dxf_version > crate::types::DxfVersion::AC1015 {
@@ -429,7 +440,7 @@ impl<'a> DwgObjectWriter<'a> {
                             &data.properties,
                             &data.payload,
                         );
-                    self.write_registered_payload(&payload, &data.object_ids);
+                    self.write_registered_payload(&payload, &data.object_ids, None);
                 }
             }
         }

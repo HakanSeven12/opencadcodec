@@ -222,6 +222,18 @@ pub struct LineTypeComplexData {
     /// Offset from the element's position on the line (DXF 44, 45):
     /// `[along-line, perpendicular]` in drawing units.
     pub offset: [f64; 2],
+    /// The authored DWG `shape_flag` (BS 74) when this complex data came
+    /// from a DWG read — replayed VERBATIM at write (TODO A5 family 4,
+    /// 2026-10-01: the wire flag is the author's own marker, not
+    /// derivable — a plain dash carries flag 0 while its scale field
+    /// stores the author's 0.0, and a derived flag would add
+    /// IS_SHAPE(0x4) where the author wrote 0; gold's DWG layout writes
+    /// every dash's 8 fields unconditionally, the flag LAST —
+    /// dwg.spec's LTYPE REPEAT else-branch). `None` (the default for
+    /// constructed and deserialized content) derives the flag from
+    /// the model: absolute_rotation→0x01, text→0x02, shape→0x04.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_shape_flag: Option<i16>,
 }
 
 impl Default for LineTypeComplexData {
@@ -233,6 +245,7 @@ impl Default for LineTypeComplexData {
             rotation: 0.0,
             absolute_rotation: false,
             offset: [0.0, 0.0],
+            dwg_shape_flag: None,
         }
     }
 }
@@ -363,6 +376,7 @@ mod tests {
             rotation: 45.0,
             absolute_rotation: false,
             offset: [1.0, 2.0],
+            dwg_shape_flag: None,
         };
         assert!(c.is_shape());
         assert!(!c.is_text());
@@ -382,6 +396,7 @@ mod tests {
             rotation: 0.0,
             absolute_rotation: false,
             offset: [0.0, 0.5],
+            dwg_shape_flag: None,
         };
         assert!(!c.is_shape());
         assert!(c.is_text());
@@ -399,6 +414,7 @@ mod tests {
             rotation: 90.0,
             absolute_rotation: true,
             offset: [0.0, 0.0],
+            dwg_shape_flag: None,
         };
         assert!(c.is_shape());
         assert!(c.is_absolute_rotation());

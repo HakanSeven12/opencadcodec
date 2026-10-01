@@ -8392,3 +8392,88 @@ re-runs it (the §19.5 "honest next surface" Tier 1, now realized).
 A3 is closed out of the TODO queue; the era table's living home is
 TODO A5 (the residual families), the history in the thirteenth
 continuation above.
+
+## §20 — the sixteenth continuation (2026-10-01): A5 closed — the five 2018 residual families landed, the 2018 era at FULL record identity
+
+**The five families, five fixes** (each a per-record dissection packet,
+the H8h-ext-4 method; the era census is the gate):
+
+1. **Dynblocks 12 — the dynamic-block action records**
+   (BLOCKSTRETCHACTION 9, BLOCKMOVEACTION 2, BLOCKSCALEACTION 1 —
+   eleven at +58 main bits, the scale action at −8): gold itself
+   decodes these classes as
+   `unknown_bits` — NO spec authority exists for a typed layout, so
+   silver's typed read/write (its own invention) drifted. **The
+   DATATABLE precedent, scoped**: the reader captures the whole
+   merged-record window for the three action class names
+   (`DynamicBlockObject::raw_dwg_data` + the handle-bits split), and
+   the writer's `ObjectType::DynamicBlock` arm replays it verbatim
+   on a same-version write (`register_raw_object`); the typed model
+   stays the DXF/programmatic/conversion fallback. Verified
+   48,101/48,101 on the specimen.
+2. **Dynblocks 2 — ACDBASSOC2DCONSTRAINTGROUP blowup** (2948→29650,
+   10×): the §19 H8h-ext-8/14 nodes-region capture never covered
+   AC1032 — `era_wire` gated AC1015/AC1018/AC1021/AC1024/AC1027 only,
+   so the 2018 groups fell to the naive typed REPEAT, which balloons
+   (~200k phantom nodes read from her ~170-node region — gold's own
+   walk desyncs the same way, the recorded H8h-ext-8 finding). **The
+   frame join**: AC1032 enters `era_wire` and the R2010+ text-region
+   capture (`AC1024 | AC1027 | AC1032`) — the 2018 container is the
+   same MC/BOT shape; the capture is peek-based (bounds from the
+   frame, not the walk). Both records land byte-identical.
+3. **Constraints 3 — PROXY_OBJECT objid shrink** (973→971,
+   284→283×2; hdlsize −16/−8 bits): her objids handle stream carries
+   CONSECUTIVE DUPLICATE handles (0x3E4: four wire entries, the
+   duplicate (4.0.0) included) which gold's PUSH_HV collapses in its
+   model — and silver's model matches gold for the JSON axis — but a
+   model-driven write drops the duplicates and runs short. **The raw
+   objids twin**: the reader captures the consumed objids region
+   verbatim (`raw_objids_bits` on `RegisteredClassObject` AND
+   `ProxyObject` — the Constraints records are envelope-decode
+   failures, i.e. ProxyObjects), and `write_registered_payload` /
+   `write_proxy_object` replay the bits through the HANDLE sub-stream
+   (`write_handle_bits` — the first attempt wrote them into main and
+   exploded the record; the §19 H8h-ext-12 lesson re-learned) when
+   the write targets the same version.
+4. **Leader 1 — LTYPE dash shape_flag** (0x779, +16 bits): the DWG
+   wire writes every dash's 8 fields UNCONDITIONALLY with the
+   `shape_flag` LAST (dwg.spec's LTYPE REPEAT else-branch) — the flag
+   is the author's own complex marker, not derivable from the model
+   (a plain dash carries flag 0 while its scale field stores the
+   author's 0.0; silver's derived flag added IS_SHAPE(0x4) where the
+   author wrote 0, ×2 dashes = +16 bits). **The authored-flag twin**:
+   `LineTypeComplexData::dwg_shape_flag` retains the wire flag at
+   read and replays it verbatim at write; constructed content (None)
+   keeps the derived flag (absolute→0x01, text→0x02, shape→0x04).
+5. **LiveSection1 2 — SECTIONOBJECT/SECTION_MANAGER handle codes**
+   (1-bit, equal size): the authored wire carries
+   HardOwnership(3)/SoftPointer(4) where silver wrote HardPointer(5)
+   for both the section's `section_settings` and the manager's
+   `sections` vector — gold's dwg2.spec placeholders say 5, but the
+   authored corpus is the oracle (the semantic forms are the correct
+   ones: the settings object is owned by the section and dies with
+   it; the manager points at its sections). **Two one-line code
+   fixes** in the SECTIONOBJECT writer and the SECTION_MANAGER
+   class-object writer.
+
+**ACCEPTANCE — the era census (the standing L4 gate), the full
+six-era sweep at HEAD**: **2018 20 → 0 divergent (50,773 paired —
+FULL record identity, the first era at 100% beyond 2007's 0/3,979)**;
+2000 325 (unchanged); 2004 15 (unchanged); 2007 0 + 84 her-only
+(unchanged, the standing broken-map residual); 2010 1 (unchanged);
+**2013 24 → 22** (the A5 fixes repaired two gh44-error rows — the
+LTYPE flag and/or objids replay). The battery: the suite 1,610/0
+(53 segments); the harness self-check ok; the pair smokes 0/0 on all
+five touched specimens + PolyLine2D/Arc (the 2004/Arc structure
+key-gap 2 pre-existing); the genus pin no drift, the cargo mirror
+ok; the generation identity f2187565… UNMOVED (every capture twin
+defaults to None for constructed content — the AC1032 nodes capture
+fires only on DWG reads); the corpus — every established file 0/0,
+the untracked-B1-fixture rows unchanged (that session's follow-up).
+
+**The 2018 era is CLOSED at the record-identity tier.** The
+remaining census rows live in the older eras: 2000's 325 (PolyLine2D
+225-led, the her-only/our-only 6/4 pre-existing), 2004's 15 (HatchG
+2, Surface 13), 2010's 1 (gh209_1), 2013's 22 (gh44-error 21,
+gh109_1 1) — separate packets, each opening with the same
+per-record-dissection method this continuation ran five times.

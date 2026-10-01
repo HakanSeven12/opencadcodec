@@ -6498,6 +6498,7 @@ impl<'a> SectionReader<'a> {
                                 properties: envelope.properties,
                                 payload: envelope.payload,
                                 object_ids: object.object_ids,
+                                raw_objids_bits: None,
                                 raw_dwg_data: None,
                                 raw_dwg_handle_bits: 0,
                                 raw_dwg_version: None,

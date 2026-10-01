@@ -402,7 +402,25 @@ impl<'a> DwgObjectWriter<'a> {
             ObjectType::SpatialFilter(s) => self.write_spatial_filter(s),
             ObjectType::GeoData(g) => self.write_geodata(g),
             ObjectType::BlockVisibilityParameter(p) => self.write_block_visibility_parameter(p),
-            ObjectType::DynamicBlock(value) => self.write_dynamic_block(value),
+            ObjectType::DynamicBlock(value) => {
+                // TODO A5 family 1 (2026-10-01): the action classes gold
+                // reads as unknown_bits (no spec authority — the Dynblocks
+                // action records drifted +58 main bits each under the
+                // typed layout) replay the DATATABLE-style whole-record
+                // capture verbatim on a same-version write; the typed
+                // model stays the DXF/programmatic/conversion fallback.
+                if let Some(ref raw) = value.raw_dwg_data {
+                    if self.raw_passthrough_compatible(value.raw_dwg_version) {
+                        self.register_raw_object(
+                            value.handle,
+                            raw,
+                            value.raw_dwg_handle_bits,
+                        );
+                        return;
+                    }
+                }
+                self.write_dynamic_block(value)
+            }
             ObjectType::Associative(value) => self.write_associative_object(value),
             ObjectType::ClassObject(value) => {
                 // §19 the DATATABLE record-identity packet: a DWG-read
@@ -495,7 +513,11 @@ impl<'a> DwgObjectWriter<'a> {
             if self.version.r2000_plus() {
                 self.writer.write_bit(true);
             }
-            self.write_registered_payload(&payload, &value.object_ids);
+            self.write_registered_payload(
+                &payload,
+                &value.object_ids,
+                self.raw_objids_for(value),
+            );
             self.register_object(value.handle);
             return;
         }
@@ -507,8 +529,45 @@ impl<'a> DwgObjectWriter<'a> {
             &value.reactors,
             &value.xdictionary_handle,
         );
-        self.write_registered_payload(&value.payload, &value.object_ids);
+        self.write_registered_payload(
+            &value.payload,
+            &value.object_ids,
+            self.raw_objids_for(value),
+        );
         self.register_object(value.handle);
+    }
+
+    /// The authored objids handle region for a same-version write (TODO
+    /// A5 family 3, 2026-10-01) — see
+    /// `RegisteredClassObject::raw_objids_bits`. `None` when absent
+    /// (constructed content, DXF reads) or when the write targets a
+    /// different version.
+    /// The authored objids handle region for a ProxyObject (TODO A5
+    /// family 3, 2026-10-01) — `None` when absent or version-mismatched.
+    pub(super) fn proxy_raw_objids<'v>(
+        &self,
+        value: &'v crate::objects::ProxyObject,
+    ) -> Option<(&'v [u8], u32)> {
+        match (
+            &value.raw_objids_bits,
+            self.raw_passthrough_compatible(value.raw_dwg_version),
+        ) {
+            (Some((bytes, bits)), true) => Some((bytes, *bits)),
+            _ => None,
+        }
+    }
+
+    pub(super) fn raw_objids_for<'v>(
+        &self,
+        value: &'v crate::objects::RegisteredClassObject,
+    ) -> Option<(&'v [u8], u32)> {
+        match (
+            &value.raw_objids_bits,
+            self.raw_passthrough_compatible(value.raw_dwg_version),
+        ) {
+            (Some((bytes, bits)), true) => Some((bytes, *bits)),
+            _ => None,
+        }
     }
 
     fn write_dgn_line_style_object(&mut self, value: &DgnLineStyleObject) {
@@ -574,7 +633,7 @@ impl<'a> DwgObjectWriter<'a> {
                 payload,
                 object_ids,
                 ..
-            } => self.write_registered_payload(payload, object_ids),
+            } => self.write_registered_payload(payload, object_ids, None),
         }
         self.register_object(value.handle);
     }
@@ -668,12 +727,22 @@ impl<'a> DwgObjectWriter<'a> {
         &mut self,
         payload: &crate::objects::ProxyPayload,
         object_ids: &[crate::objects::ProxyObjectReference],
+        raw_objids: Option<(&[u8], u32)>,
     ) {
         let data = payload.data();
         for bit_index in 0..payload.bit_count as usize {
             let byte = data.get(bit_index / 8).copied().unwrap_or(0);
             self.writer
                 .write_bit((byte & (0x80 >> (bit_index % 8))) != 0);
+        }
+        // TODO A5 family 3 (2026-10-01): the authored objids handle
+        // region replays verbatim on a same-version write — the model
+        // keeps gold parity (consecutive duplicate handles collapsed,
+        // the JSON axis) while the wire retains the author's duplicates.
+        // The bits ride the HANDLE sub-stream (write_handle_bits).
+        if let Some((raw, bit_count)) = raw_objids {
+            self.writer.write_handle_bits(raw, bit_count);
+            return;
         }
         for object_id in object_ids {
             let reference_type = match object_id.kind {
@@ -735,6 +804,19 @@ impl<'a> DwgObjectWriter<'a> {
             let byte = text_payload.get(bit_index / 8).copied().unwrap_or(0);
             self.writer
                 .write_text_bit((byte & (0x80 >> (bit_index % 8))) != 0);
+        }
+        // TODO A5 family 3 (2026-10-01): the authored objids handle
+        // region replays verbatim on a same-version write — the model
+        // keeps gold parity (consecutive duplicate wire handles
+        // collapsed by PUSH_HV) while the wire retains the author's
+        // duplicates (Constraints 0x3E3/0x3E4/0x3E5). The bits ride
+        // the HANDLE sub-stream (write_handle_bits).
+        if let Some((raw, bit_count)) =
+            self.proxy_raw_objids(value)
+        {
+            self.writer.write_handle_bits(raw, bit_count);
+            self.register_object(value.handle);
+            return;
         }
         for object_id in &value.object_ids {
             let reference_type = match object_id.kind {

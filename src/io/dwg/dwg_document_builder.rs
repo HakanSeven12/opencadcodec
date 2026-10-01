@@ -1435,6 +1435,13 @@ impl DwgDocumentBuilder {
                                     rotation: s.rotation,
                                     absolute_rotation: s.dwg_flags & 0x01 != 0,
                                     offset: [s.offset_x, s.offset_y],
+                                    // The authored wire flag replays verbatim
+                                    // (TODO A5 family 4, 2026-10-01) — the
+                                    // flag is the author's own complex
+                                    // marker, not derivable from the model
+                                    // (a plain dash carries 0 while its
+                                    // scale stores the author's 0.0).
+                                    dwg_shape_flag: Some(s.dwg_flags),
                                 })
                             } else {
                                 None
@@ -6175,6 +6182,10 @@ impl DwgDocumentBuilder {
                     }
                     let mut object_ids: Vec<crate::objects::ProxyObjectReference> =
                         Vec::new();
+                    // The authored objids region start (TODO A5 family 3,
+                    // 2026-10-01) — the raw twin of the deduplicated
+                    // model below, replayed verbatim at write.
+                    let objids_wire_start = reader.handle_position_in_bits();
                     // Gold's terminator for the objids push loop
                     // (dwg.spec 5816-5831): `while (hdl_dat->byte <
                     // hdl_dat->size - 1)` — byte-quantized, so the record's
@@ -6219,6 +6230,27 @@ impl DwgDocumentBuilder {
                             });
                         }
                     }
+                    // The authored objids region, verbatim (TODO A5
+                    // family 3, 2026-10-01): peek does not move the
+                    // cursor; the region spans exactly the handles the
+                    // loop consumed — duplicates included, which the
+                    // deduplicated model below drops.
+                    let objids_wire_end = reader.handle_position_in_bits();
+                    let raw_objids_bits = if objids_wire_end > objids_wire_start {
+                        reader
+                            .peek_window_bytes(
+                                objids_wire_start,
+                                (objids_wire_end - objids_wire_start) as u32,
+                            )
+                            .map(|bytes| {
+                                (
+                                    bytes,
+                                    (objids_wire_end - objids_wire_start) as u32,
+                                )
+                            })
+                    } else {
+                        None
+                    };
                     let payload =
                         crate::objects::ProxyPayload::from_bits(
                             &object_data,
@@ -6247,9 +6279,12 @@ impl DwgDocumentBuilder {
                                 properties: envelope.properties,
                                 payload: envelope.payload,
                                 object_ids,
+                                raw_objids_bits,
                                 raw_dwg_data: None,
                                 raw_dwg_handle_bits: 0,
-                                raw_dwg_version: None,
+                                raw_dwg_version: Some(
+                                    self.obj_reader.dxf_version(),
+                                ),
                             },
                         )
                     } else {
@@ -6285,6 +6320,14 @@ impl DwgDocumentBuilder {
                                         bit_count: raw_window_bits as u32,
                                         bytes: raw_window_bytes,
                                     },
+                                ),
+                                // The authored objids region, verbatim (TODO
+                                // A5 family 3, 2026-10-01) — the model above
+                                // is deduplicated (gold parity), the wire
+                                // replay retains the author's duplicates.
+                                raw_objids_bits,
+                                raw_dwg_version: Some(
+                                    self.obj_reader.dxf_version(),
                                 ),
                             },
                         )
@@ -6564,6 +6607,9 @@ impl DwgDocumentBuilder {
                                 cpp_class_name:
                                     "AcDbBlockRepresentationData".to_string(),
                                 captured: true,
+                                raw_dwg_data: None,
+                                raw_dwg_handle_bits: 0,
+                                raw_dwg_version: None,
                                 data:
                                     crate::objects::DynamicBlockData::Representation(
                                         crate::objects::BlockRepresentationData {
@@ -6737,6 +6783,28 @@ impl DwgDocumentBuilder {
                                 .get(&type_code)
                                 .cloned()
                                 .unwrap_or_default();
+                            // TODO A5 family 1 (2026-10-01): the action
+                            // classes gold itself reads as unknown_bits
+                            // (no spec authority for the typed layout)
+                            // get the DATATABLE whole-record capture —
+                            // the writer replays verbatim on a
+                            // same-version write; the typed model stays
+                            // the DXF/programmatic/conversion fallback.
+                            let (raw_dwg_data, raw_dwg_handle_bits, raw_dwg_version) =
+                                if matches!(
+                                    dxf_name,
+                                    "BLOCKSTRETCHACTION"
+                                        | "BLOCKMOVEACTION"
+                                        | "BLOCKSCALEACTION"
+                                ) {
+                                    (
+                                        Some(reader.raw_merged_data()),
+                                        reader.get_handle_bits(),
+                                        Some(document.version),
+                                    )
+                                } else {
+                                    (None, 0, None)
+                                };
                             document.objects.insert(
                                 Handle::from(handle),
                                 crate::objects::ObjectType::DynamicBlock(
@@ -6756,6 +6824,9 @@ impl DwgDocumentBuilder {
                                         cpp_class_name,
                                         captured: true,
                                         data,
+                                        raw_dwg_data,
+                                        raw_dwg_handle_bits,
+                                        raw_dwg_version,
                                     },
                                 ),
                             );
@@ -6797,6 +6868,9 @@ impl DwgDocumentBuilder {
                                             dxf_name: dxf_name.to_string(),
                                             cpp_class_name,
                                             captured: true,
+                                            raw_dwg_data: None,
+                                            raw_dwg_handle_bits: 0,
+                                            raw_dwg_version: None,
                                             data,
                                         },
                                     ),
@@ -6917,6 +6991,7 @@ impl DwgDocumentBuilder {
                                         properties: Vec::new(),
                                         payload,
                                         object_ids,
+                                        raw_objids_bits: None,
                                         raw_dwg_data: Some(reader.raw_merged_data()),
                                         raw_dwg_handle_bits: reader.get_handle_bits(),
                                         raw_dwg_version: Some(document.version),

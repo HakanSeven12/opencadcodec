@@ -1010,6 +1010,16 @@ pub fn read_associative_data(
             let mut nodes_wire_handles_bit_len: u32 = 0;
             let mut nodes_wire_text: Option<Vec<u8>> = None;
             let mut nodes_wire_text_bit_len: u32 = 0;
+            // TODO A5 family 2 (2026-10-01): AC1032 (2018) joins the
+            // captured frames — the Dynblocks specimen's two
+            // ACDBASSOC2DCONSTRAINTGROUP records (0xBB1B/0xBB81) have
+            // the same R2010+ container shape (the MC handle-bits
+            // header, the BOT type, the flag at handle_start−1, an
+            // undecoded text region); without the capture the naive
+            // typed REPEAT balloons (200k phantom nodes read from her
+            // ~170-node region) and the rewrite explodes 2948→29650
+            // bytes. The capture is peek-based — the bounds come from
+            // the frame, not the walk.
             let era_wire = matches!(
                 dxf_version,
                 DxfVersion::AC1015
@@ -1017,6 +1027,7 @@ pub fn read_associative_data(
                     | DxfVersion::AC1021
                     | DxfVersion::AC1024
                     | DxfVersion::AC1027
+                    | DxfVersion::AC1032
             );
             if era_wire && node_count > 0 {
                 let node_region_end = reader.main_data_end();
@@ -1044,8 +1055,13 @@ pub fn read_associative_data(
                 }
                 // R2010+: the whole text region, verbatim (the naive
                 // walk reads no text, so the remaining count is the
-                // full region).
-                if matches!(dxf_version, DxfVersion::AC1024 | DxfVersion::AC1027)
+                // full region). TODO A5 family 2 (2026-10-01): AC1032
+                // joins the captured frames (the 2018 container is
+                // the same MC/BOT shape).
+                if matches!(
+                    dxf_version,
+                    DxfVersion::AC1024 | DxfVersion::AC1027 | DxfVersion::AC1032
+                )
                 {
                     let text_len = reader.text_remaining_bits().max(0) as u32;
                     if text_len > 0 {

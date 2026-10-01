@@ -33,6 +33,23 @@ pub struct DynamicBlockObject {
     /// a genus the factory does not model).
     #[cfg_attr(feature = "serde", serde(skip))]
     pub captured: bool,
+    /// The authored merged-record window, verbatim (TODO A5 family 1,
+    /// 2026-10-01 — the DATATABLE precedent, scoped to the action
+    /// classes gold itself does not model — gold decodes
+    /// BLOCKSTRETCHACTION/BLOCKMOVEACTION/BLOCKSCALEACTION as
+    /// `unknown_bits`, so silver's typed layout is its own invention and
+    /// drifted +58 main bits on every Dynblocks action record). The
+    /// writer replays it whole on a same-version write; the typed model
+    /// stays the DXF/programmatic/conversion fallback.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_data: Option<Vec<u8>>,
+    /// The handle-region bit length of the raw capture above
+    /// (register_raw_object's split point).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub raw_dwg_handle_bits: i64,
+    /// The version the raw capture came from — the replay gate.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_version: Option<crate::types::DxfVersion>,
 }
 
 impl DynamicBlockObject {

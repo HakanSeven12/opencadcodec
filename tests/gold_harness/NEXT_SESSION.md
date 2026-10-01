@@ -1,38 +1,104 @@
 # THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — **A1 AND A2 ARE CLOSED**: A1
-# (the 2018-era conventional-arm wire divergence, 2,479 census rows)
-# landed as capture-and-replay of the two authorial genus conventions
-# (the ownerhandle code choice — ODA always-absolute code-4 vs the
-# AutoCAD genus's §19 H8d relative-iff-shorter; the record-close pad —
-# a per-author genus: ODA 2018 and her R2000 PolyLine2D pad zeros, the
-# AutoCAD genus pads ones); the era census moved 2018 2,479 → 20
-# (the 17 ODA specimens fully record-identical) and repaired 50
-# pre-2004 rows; A2 (the R2007 MT crc_seed draw pinning) landed with
-# THE ENGINE PINNED — silver's table/twist/order were the author's,
-# the u64 draw assembles FIRST WORD = HIGH half (one assembly bit),
-# pinned against the raw check-data draws on all 19 R2007-era files —
-# AND the 3-field derive family replaying the retained draws verbatim
-# (the pre-draw walk start is the one cold residue, ≈4 words per
-# encoding-4 page ±3, no on-disk materialization; the
-# ac21_page_layout instrument is its opening census).
-# the era census moved 2018 **2,479 → 20 divergent** (the 17 ODA
-# specimens fully record-identical) and also repaired 50 pre-2004
-# rows (2000: 375 → 325); the corpus at 337 files — every
-# established file 0/0/0/0, the 213/213 fidelity rows + 261
-# structure key-gaps carried ENTIRELY by the untracked B1 fixture
-# set (a parallel session's work-in-progress, pre-existing per the
-# stash A/B); the genus gate queue PENDING-ZERO with --strict
-# passing; the generation identity f2187565… byte-stable through
-# the packet; the constructed-content state unchanged (every
-# fixture MODELS on both loaders — the twelfth addendum's record
-# stands). THE FIRST ACTION for the zero-context agent: re-verify
-# the battery (the verification gate section below), read the
-# thirteenth addendum's record, then the residual queue (the five
-# named 2018 families under TODO A5; the untracked-fixture
-# session's corpus rows; the §19.5 version-parity tiers —
-# maintainer decisions).
+# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3 AND A5 ARE
+# CLOSED — THE 2018 ERA IS AT FULL RECORD IDENTITY (0/50,773)**:
+# A1 (the 2018-era conventional-arm wire divergence, 2,479 census
+# rows) landed as capture-and-replay of the two authorial genus
+# conventions (the ownerhandle code choice — ODA always-absolute
+# code-4 vs the AutoCAD genus's §19 H8d relative-iff-shorter; the
+# record-close pad — a per-author genus: ODA 2018 and her R2000
+# PolyLine2D pad zeros, the AutoCAD genus pads ones), 2018
+# 2,479 → 20 and 50 pre-2004 rows repaired; A2 (the R2007 MT
+# crc_seed draw pinning) landed with the engine pinned (silver's
+# table/twist/order were the author's; the u64 draw assembles FIRST
+# WORD = HIGH half — one assembly bit) and the 3-field derive
+# family replaying the retained draws verbatim (the pre-draw walk
+# start is the one cold residue; ac21_page_layout is its opening
+# census); A3 (the era-census gate) verified at HEAD and closed
+# out; A5 (the five 2018 residual families) landed — the dynblock
+# action records via the scoped DATATABLE whole-record capture, the
+# constraint groups via AC1032 joining the H8h-ext-14 nodes-region
+# frames, the proxy objids via the raw handle-region twin (the
+# author's consecutive-duplicate handles), the LTYPE shape_flag
+# via the authored-flag twin, the section records via the authored
+# handle codes — 2018 20 → 0, 2013 24 → 22, every other era
+# unchanged; the suite 1,610/0, the genus pin no drift, the
+# generation identity f2187565… unmoved (every capture twin
+# defaults for constructed content). THE FIRST ACTION for the
+# zero-context agent: re-verify the battery (the verification gate
+# section below), read the sixteenth addendum's record, then the
+# residual queue (the older eras' census rows — 2000's 325
+# PolyLine2D-led, 2004's 15, 2010's 1, 2013's 22; the
+# untracked-fixture session's corpus rows; the §19.5
+# version-parity tiers — maintainer decisions; A4's C3 decision).
+#
+# === THE SIXTEENTH-CONTINUATION ADDENDUM (the A5 closure — the
+# five 2018 residual families; read this first after the header,
+# then the fourteenth, then the thirteenth): **2018 20 → 0
+# DIVERGENT — THE FIRST ERA AT 100% RECORD IDENTITY BEYOND 2007.**
+# Five families, five fixes, each a per-record dissection packet:
+#
+# (1) THE DYNBLOCK ACTION RECORDS (12, +58 main bits each): gold
+# decodes BLOCKSTRETCH/MOVE/SCALEACTION as unknown_bits — NO spec
+# authority, so silver's typed layout (its own invention) drifted.
+# The DATATABLE precedent, scoped to the three class names: the
+# reader captures the whole merged-record window (DynamicBlockObject
+# raw twins), the writer's DynamicBlock arm replays it verbatim on a
+# same-version write; the typed model stays the DXF/conversion
+# fallback. Verified 48,101/48,101 on the specimen.
+#
+# (2) THE CONSTRAINT-GROUP BLOWUPS (2, 2948→29650): the H8h-ext-8/14
+# nodes-region capture never covered AC1032 — era_wire gated through
+# AC1027 only, so the 2018 groups fell to the naive typed REPEAT
+# which balloons (~200k phantom nodes from her ~170-node region;
+# gold's own walk desyncs the same way). AC1032 joins era_wire and
+# the R2010+ text-region capture; the capture is peek-based (bounds
+# from the frame, not the walk). Both records byte-identical.
+#
+# (3) THE PROXY OBJID SHRINKS (3, hdlsize −16/−8 bits): her objids
+# stream carries CONSECUTIVE DUPLICATE handles (0x3E4: four wire
+# entries incl. the duplicate (4.0.0)) which gold's PUSH_HV
+# collapses — and our model matches for the JSON axis — but a
+# model-driven write drops them and runs short. The raw objids twin
+# (raw_objids_bits on RegisteredClassObject AND ProxyObject — the
+# Constraints records are envelope-decode failures, i.e.
+# ProxyObjects) replays the region through the HANDLE sub-stream
+# (write_handle_bits — the first attempt wrote main and exploded
+# the record; the H8h-ext-12 lesson re-learned).
+#
+# (4) THE LTYPE SHAPE_FLAG (+16 bits): the DWG wire writes every
+# dash's 8 fields unconditionally, flag LAST (dwg.spec's LTYPE
+# REPEAT else-branch) — the flag is the author's own complex marker
+# (a plain dash carries 0 while its scale stores the author's 0.0);
+# silver's derived flag added IS_SHAPE where the author wrote 0.
+# LineTypeComplexData::dwg_shape_flag retains the wire flag at read
+# and replays verbatim; constructed content keeps the derived flag.
+#
+# (5) THE SECTION RECORDS (2, 1-bit): the authored wire carries
+# HardOwnership(3)/SoftPointer(4) where silver wrote HardPointer(5)
+# — gold's dwg2.spec placeholders say 5, but the authored corpus is
+# the oracle. Two one-line code fixes (SECTIONOBJECT's
+# section_settings, SECTION_MANAGER's sections vector).
+#
+# (6) THE ACCEPTANCE: the six-era sweep at HEAD — 2018 **0/50,773**,
+# 2013 24 → 22 (two gh44-error rows repaired by the A5 twins), 2000
+# 325 / 2004 15 / 2007 0+84-her-only / 2010 1 all unchanged. The
+# suite 1,610/0; the harness self-check ok; the smokes 0/0 on all
+# five touched specimens; the genus pin no drift; the generation
+# identity f2187565… unmoved; the corpus established files 0/0 (the
+# untracked-B1-fixture rows unchanged, that session's follow-up).
+#
+# THE NEXT WORK, ranked: (a) the older eras' census rows (2000's
+# 325 PolyLine2D-led — the her-only/our-only 6/4 pre-existing;
+# 2004's 15 HatchG/Surface; 2010's 1 gh209_1; 2013's 22
+# gh44-error/gh109_1 — each opens with the same per-record
+# dissection method); (b) the untracked-fixture session's corpus
+# rows; (c) the §19.5 version-parity tiers (maintainer decisions);
+# (d) A4's C3 decision (the AC1009 mirroring).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE FOURTEENTH-CONTINUATION ADDENDUM (the A2 closure — the
 # R2007 crc_seed draw pinning; read this first after the header,

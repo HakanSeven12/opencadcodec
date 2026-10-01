@@ -1079,17 +1079,28 @@ impl<'a> DwgObjectWriter<'a> {
         for seg in &ltype.elements {
             let c = seg.complex.as_ref();
             let flags = if let Some(ref cx) = c {
-                let mut f: i16 = 0;
-                if cx.is_absolute_rotation() {
-                    f |= 0x01;
+                // TODO A5 family 4 (2026-10-01): an authored wire flag
+                // replays verbatim — the flag is the author's own complex
+                // marker (a plain dash carries 0 while its scale stores
+                // the author's 0.0; a derived flag would add IS_SHAPE
+                // where the author wrote 0). Constructed and deserialized
+                // content (None) derives from the model.
+                match cx.dwg_shape_flag {
+                    Some(raw) => raw,
+                    None => {
+                        let mut f: i16 = 0;
+                        if cx.is_absolute_rotation() {
+                            f |= 0x01;
+                        }
+                        if cx.is_text() {
+                            f |= 0x02;
+                        }
+                        if cx.is_shape() {
+                            f |= 0x04;
+                        }
+                        f
+                    }
                 }
-                if cx.is_text() {
-                    f |= 0x02;
-                }
-                if cx.is_shape() {
-                    f |= 0x04;
-                }
-                f
             } else {
                 0
             };
