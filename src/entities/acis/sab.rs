@@ -93,6 +93,8 @@ pub struct SabWriter;
 impl SabWriter {
     /// Convert a SAT document to SAB binary data.
     pub fn write(doc: &SatDocument) -> Vec<u8> {
+        let completed = doc.completed_for_restore();
+        let doc = completed.as_ref().unwrap_or(doc);
         let mut buf = Vec::with_capacity(8192);
 
         // Header
@@ -103,10 +105,24 @@ impl SabWriter {
             Self::write_record(&mut buf, record);
         }
 
-        // End marker: entity type "End-of-ACIS-data" with no end-of-record tag
-        Self::write_entity_type(&mut buf, "End-of-ACIS-data");
+        // End marker, with no end-of-record tag. ShapeManager bodies end with
+        // the tagged `End-of-ASM-data` components; the reference application
+        // rejects a 22300 body closed with the classic single-string marker.
+        if Self::is_asm(&doc.header) {
+            for part in ["End", "of", "ASM"] {
+                Self::write_subtype(&mut buf, part);
+            }
+            Self::write_entity_type(&mut buf, "data");
+        } else {
+            Self::write_entity_type(&mut buf, "End-of-ACIS-data");
+        }
 
         buf
+    }
+
+    /// ShapeManager-era data (ASM 218 and later, as stored in R2013+ AcDs).
+    fn is_asm(header: &SatHeader) -> bool {
+        header.version.sat_version_number() >= 21800
     }
 
     fn write_header(buf: &mut Vec<u8>, header: &SatHeader) {
@@ -128,8 +144,14 @@ impl SabWriter {
         // num_bodies (4 bytes LE)
         buf.extend_from_slice(&(header.num_bodies as u32).to_le_bytes());
 
-        // has_history (4 bytes LE)
-        let history: u32 = if header.has_history { 1 } else { 0 };
+        // Flags (4 bytes LE): bit 0 is history. A ShapeManager body also needs
+        // bits 2 and 3 (12, as the reference application's own 21800 bodies
+        // carry); measured: 21800 bodies are rejected with 0/1/4/8 and
+        // restored with 12, 22300 bodies restore with 12 too.
+        let mut history: u32 = if header.has_history { 1 } else { 0 };
+        if Self::is_asm(header) {
+            history |= 12;
+        }
         buf.extend_from_slice(&history.to_le_bytes());
 
         // Product info strings

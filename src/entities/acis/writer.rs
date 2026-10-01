@@ -10,6 +10,8 @@ pub struct SatWriter;
 impl SatWriter {
     /// Write a [`SatDocument`] to SAT text format.
     pub fn write(doc: &SatDocument) -> String {
+        let completed = doc.completed_for_restore();
+        let doc = completed.as_ref().unwrap_or(doc);
         let mut output = String::new();
 
         // Classic SAT 7.0 uses zero here. Modern SAT exports carry the actual

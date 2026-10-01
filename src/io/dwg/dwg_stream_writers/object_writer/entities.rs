@@ -5515,7 +5515,7 @@ impl<'a> DwgObjectWriter<'a> {
         if acis.is_binary && !acis.sab_data.is_empty() {
             // Already have SAB binary data
             self.sab_entries
-                .push((entity_handle, acis.sab_data.clone()));
+                .push((entity_handle, acis.sab_for_save().into_owned()));
         } else if !acis.sat_data.is_empty() {
             // Convert SAT text → SAB binary via SatDocument
             if let Ok(mut sat_doc) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
@@ -5567,7 +5567,7 @@ impl<'a> DwgObjectWriter<'a> {
             if acis.is_binary && !acis.sab_data.is_empty() {
                 // SAB binary (version 2) — write raw bytes directly.
                 self.writer.write_bit_short(2_i16);
-                self.writer.write_bytes(&acis.sab_data);
+                self.writer.write_bytes(&acis.sab_for_save());
                 if self.version.r2007_plus() {
                     let wireframe_present =
                         self.write_acis_wireframe(point, acis, wires, silhouettes);

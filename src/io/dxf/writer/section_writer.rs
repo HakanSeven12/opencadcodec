@@ -11266,7 +11266,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         if acis.is_binary && !acis.sab_data.is_empty() {
             // Already have SAB binary data, use it directly
             self.sab_entries
-                .push((entity_handle, acis.sab_data.clone()));
+                .push((entity_handle, acis.sab_for_save().into_owned()));
         } else if !acis.sat_data.is_empty() {
             // Convert SAT text to SAB binary via SatDocument.
             // Strip non-geometry entities (attributes, refinement, etc.)
