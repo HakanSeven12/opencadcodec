@@ -258,38 +258,6 @@ fn classes_section_prelude(
 /// zero-filled ones once the cursor stalls past the section end (a
 /// stalled or desynced read is never 0x1F2, which is the entire point
 /// of the mirror).
-/// Gold's `bit_read_TV` semantics for the class-name shadow (TODO B1,
-/// 2026-10-01): BS length, then `CHK_OVERFLOW_PLUS(length)` — a run
-/// past the section's end bails to NULL WITHOUT consuming the chars
-/// (the cursor keeps only the BS advance; out_json prints the empty
-/// string) — else `length` raw bytes, and the printed name is the
-/// C-string PREFIX: everything up to the first NUL. The MIF/`\U+`
-/// escape decode never applies (gold prints the class names raw).
-fn gold_tv_cstring(
-    reader: &mut DwgBitReader,
-    section_size: i64,
-    encoding: &'static encoding_rs::Encoding,
-) -> String {
-    let length = reader.read_bit_short();
-    if length <= 0 {
-        return String::new();
-    }
-    // CHK_OVERFLOW_PLUS: the bit-level form — `(byte + plus) * 8 + bit
-    // > size * 8` — reduces to the position in bits plus the run.
-    let pos_bits = reader.position_in_bits();
-    if pos_bits + (length as i64) * 8 > section_size * 8 {
-        // gold's overflow bail — no char consumption.
-        return String::new();
-    }
-    let bytes = reader.read_bytes(length as usize);
-    let (decoded, _, _) = encoding.decode(&bytes);
-    decoded
-        .split('\0')
-        .next()
-        .unwrap_or("")
-        .to_string()
-}
-
 fn gold_shadow_classes(
     data: &[u8],
     version: DxfVersion,
@@ -429,6 +397,38 @@ fn gold_shadow_classes(
     }
 
     ids
+}
+
+/// Gold's `bit_read_TV` semantics for the class-name shadow (TODO B1,
+/// 2026-10-01): BS length, then `CHK_OVERFLOW_PLUS(length)` — a run
+/// past the section's end bails to NULL WITHOUT consuming the chars
+/// (the cursor keeps only the BS advance; out_json prints the empty
+/// string) — else `length` raw bytes, and the printed name is the
+/// C-string PREFIX: everything up to the first NUL. The MIF/`\U+`
+/// escape decode never applies (gold prints the class names raw).
+fn gold_tv_cstring(
+    reader: &mut DwgBitReader,
+    section_size: i64,
+    encoding: &'static encoding_rs::Encoding,
+) -> String {
+    let length = reader.read_bit_short();
+    if length <= 0 {
+        return String::new();
+    }
+    // CHK_OVERFLOW_PLUS: the bit-level form — `(byte + plus) * 8 + bit
+    // > size * 8` — reduces to the position in bits plus the run.
+    let pos_bits = reader.position_in_bits();
+    if pos_bits + (length as i64) * 8 > section_size * 8 {
+        // gold's overflow bail — no char consumption.
+        return String::new();
+    }
+    let bytes = reader.read_bytes(length as usize);
+    let (decoded, _, _) = encoding.decode(&bytes);
+    decoded
+        .split('\0')
+        .next()
+        .unwrap_or("")
+        .to_string()
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -665,7 +665,7 @@ mod tests {
         assert_eq!(classes.len(), 3, "the own walk parses all crafted records");
         for class in classes.iter() {
             assert_eq!(
-                class.gold_shadow.map(|s| s.item_class_id),
+                class.gold_shadow.as_ref().map(|s| s.item_class_id),
                 Some(class.item_class_id as u16),
                 "the gold-shadow must equal the own walk on byte-form tails"
             );
@@ -689,7 +689,7 @@ mod tests {
         let own: Vec<i16> = classes.iter().map(|c| c.item_class_id).collect();
         let shadow: Vec<Option<u16>> = classes
             .iter()
-            .map(|c| c.gold_shadow.map(|s| s.item_class_id))
+            .map(|c| c.gold_shadow.as_ref().map(|s| s.item_class_id))
             .collect();
 
         // The records up to the multi-byte tail mirror the own walk
@@ -729,7 +729,7 @@ mod tests {
         assert_eq!(classes.len(), 2, "the own walk stops at the data end");
         let shadow: Vec<Option<u16>> = classes
             .iter()
-            .map(|c| c.gold_shadow.map(|s| s.item_class_id))
+            .map(|c| c.gold_shadow.as_ref().map(|s| s.item_class_id))
             .collect();
         assert_eq!(shadow.len(), 2);
 
@@ -739,18 +739,18 @@ mod tests {
         assert_eq!(full.len(), 21, "gold walks max - 499 records exactly");
         assert!(full.iter().all(Option::is_some), "no None mid-table");
         assert_eq!(
-            full[0].map(|s| s.item_class_id),
+            full[0].as_ref().map(|s| s.item_class_id),
             Some(crate::classes::ENTITY_ITEM_CLASS_ID as u16)
         );
         assert_eq!(
-            full[1].map(|s| s.item_class_id),
+            full[1].as_ref().map(|s| s.item_class_id),
             Some(crate::classes::OBJECT_ITEM_CLASS_ID as u16)
         );
         // The trailing records read deep inside the 256-byte zero pad:
         // all-zero bits decode through the `'00'` RS16 branch to 0 —
         // a definite never-0x1F2 id, the object classification gold
         // assigns past its table end.
-        assert_eq!(full[20].map(|s| s.item_class_id), Some(0));
+        assert_eq!(full[20].as_ref().map(|s| s.item_class_id), Some(0));
     }
 
     #[test]
