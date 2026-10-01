@@ -2619,8 +2619,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_subclass("AcDbShHistoryNode")?;
         self.writer.write_i32(90, value.major)?;
         self.writer.write_i32(91, value.minor)?;
-        for item in value.transform {
-            self.writer.write_double(40, item)?;
+        for (index, item) in value.transform.iter().enumerate() {
+            self.writer.write_double(40 + index as i32, *item)?;
         }
         self.writer.write_color(62, value.color)?;
         if let Some(true_color) = value.color.to_true_color_value() {
@@ -8242,21 +8242,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(93, obj.illumination_model)?;
         self.writer.write_i32(94, obj.channel_flags)?;
         self.writer.write_i16(282, obj.mode as i16)?;
-        if obj.has_advanced_data() {
-            self.writer.write_double(460, obj.color_bleed_scale)?;
-            self.writer.write_double(461, obj.indirect_bump_scale)?;
-            self.writer.write_double(462, obj.reflectance_scale)?;
-            self.writer.write_double(463, obj.transmittance_scale)?;
-            self.writer.write_bool(290, obj.two_sided_material)?;
-            self.writer.write_double(464, obj.luminance)?;
-            self.writer.write_i16(270, obj.luminance_mode)?;
-            self.writer.write_i16(271, obj.normal_map_method)?;
-            self.writer.write_double(465, obj.normal_map_strength)?;
-            self.write_material_dxf_map(&obj.normal_map, 42, 72, 3, 73, 74, 75, 43)?;
-            self.writer.write_bool(293, obj.is_anonymous)?;
-            self.writer.write_i16(272, obj.global_illumination)?;
-            self.writer.write_i16(273, obj.final_gather)?;
-        }
+        // Advanced properties (460-465, 290, 293, 270-273 and the normal map)
+        // are not part of the MATERIAL body: the reference application rejects
+        // them here ("Unexpected DXF group code: 460") and stores them in the
+        // ADVMATERIAL XRECORD of the material's extension dictionary, which
+        // `write_xrecord` refreshes from the model.
         Ok(())
     }
 
