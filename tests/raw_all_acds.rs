@@ -56,7 +56,7 @@ fn source_document(version: DxfVersion) -> CadDocument {
     let sat = build_box([30.0, 0.0, 0.0], 5.0, 6.0, 7.0).to_sat_string();
     let mut surface = Surface::new(SurfaceKind::Plane);
     surface.acis_data = AcisData::from_sat(&sat);
-    document.add_entity(EntityType::Surface(surface)).unwrap();
+    document.add_entity(EntityType::Surface(Box::new(surface))).unwrap();
     document
 }
 

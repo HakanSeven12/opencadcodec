@@ -27,7 +27,7 @@ fn load_doc() -> Option<CadDocument> {
 fn tables_of(doc: &CadDocument) -> Vec<opencadcodec::entities::Table> {
     doc.entities()
         .filter_map(|e| match e {
-            EntityType::Table(t) => Some(t.clone()),
+            EntityType::Table(t) => Some((**t).clone()),
             _ => None,
         })
         .collect()

@@ -68,7 +68,7 @@ fn helix_left_handed_survives_dxf_roundtrip() {
     let mut h = Helix::new();
     h.handedness = false;
     let mut doc = CadDocument::with_version(DxfVersion::AC1032);
-    doc.add_entity(EntityType::Helix(h)).unwrap();
+    doc.add_entity(EntityType::Helix(Box::new(h))).unwrap();
     let rt = dxf_roundtrip(&doc);
     let h = rt
         .entities()
@@ -165,7 +165,7 @@ fn table_merged_ranges_are_rebuilt_after_dxf_roundtrip() {
     t.merge_cells(CellRange::new(0, 0, 1, 1));
     assert_eq!(t.merged_ranges.len(), 1);
     let mut doc = CadDocument::with_version(DxfVersion::AC1032);
-    doc.add_entity(EntityType::Table(t)).unwrap();
+    doc.add_entity(EntityType::Table(Box::new(t))).unwrap();
     let rt = dxf_roundtrip(&doc);
     let t = rt
         .entities()

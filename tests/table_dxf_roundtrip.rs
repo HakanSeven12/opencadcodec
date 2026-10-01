@@ -27,7 +27,7 @@ fn table_cell_content_dxf_roundtrip() {
     table.rows[1].cells[2] = TableCell::text("2.50");
 
     let mut doc = CadDocument::with_version(DxfVersion::AC1032);
-    doc.add_entity(EntityType::Table(table)).unwrap();
+    doc.add_entity(EntityType::Table(Box::new(table))).unwrap();
 
     let bytes = DxfWriter::new(&doc).write_to_vec().expect("DXF write");
     let rt = DxfReader::from_reader(Cursor::new(bytes))

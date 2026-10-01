@@ -138,7 +138,7 @@ fn insert_children_have_nonzero_unique_handles() {
 fn missing_table_block_is_serialized_without_mutating_source() {
     let mut doc = CadDocument::with_version(DxfVersion::AC1021);
     let handle = doc
-        .add_entity(EntityType::Table(Table::new(Vector3::ZERO, 2, 2)))
+        .add_entity(EntityType::Table(Box::new(Table::new(Vector3::ZERO, 2, 2))))
         .unwrap();
     let bytes = DwgWriter::write_to_vec(&doc).unwrap();
     let loaded = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
@@ -171,7 +171,7 @@ fn existing_table_block_gets_missing_record_and_marker_handles() {
     let mut table = Table::new(Vector3::ZERO, 2, 2);
     table.block_name = "*T1".into();
     table.block_record_handle = Some(Handle::NULL);
-    let handle = doc.add_entity(EntityType::Table(table)).unwrap();
+    let handle = doc.add_entity(EntityType::Table(Box::new(table))).unwrap();
     let loaded = DwgReader::from_stream(Cursor::new(DwgWriter::write_to_vec(&doc).unwrap()))
         .read()
         .unwrap();
@@ -526,10 +526,10 @@ fn arc_text_numeric_strings_roundtrip_in_every_dwg_version() {
         let mut doc = CadDocument::with_version(version);
         let data = ExtendedEntityData::ArcAlignedText(arc_text_fixture());
         let handle = doc
-            .add_entity(EntityType::Extended(ExtendedEntity {
+            .add_entity(EntityType::Extended(Box::new(ExtendedEntity {
                 common: EntityCommon::default(),
                 data: data.clone(),
-            }))
+            })))
             .unwrap();
         let bytes = DwgWriter::write_to_vec(&doc).unwrap();
         let mut input = DwgReader::from_stream(Cursor::new(bytes));
@@ -567,10 +567,10 @@ fn arc_text_dxf_angles_use_degrees_and_api_uses_radians() {
     let mut doc = CadDocument::new();
     let data = arc_text_fixture();
     let handle = doc
-        .add_entity(EntityType::Extended(ExtendedEntity {
+        .add_entity(EntityType::Extended(Box::new(ExtendedEntity {
             common: EntityCommon::default(),
             data: ExtendedEntityData::ArcAlignedText(data.clone()),
-        }))
+        })))
         .unwrap();
     let pairs = pairs(&doc);
     let start = pairs
@@ -666,7 +666,7 @@ fn surface_and_light_dxf_common_properties_survive_all_encodings() {
             SurfaceKind::Nurb,
         ]
         .into_iter()
-        .map(|kind| EntityType::Surface(Surface::new(kind)))
+        .map(|kind| EntityType::Surface(Box::new(Surface::new(kind))))
         .collect();
         entities.push(EntityType::Light(Light::new()));
         let mut handles = Vec::new();

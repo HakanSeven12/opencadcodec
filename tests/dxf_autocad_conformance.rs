@@ -147,7 +147,7 @@ fn proxy_entity_graphics_are_written_once_inside_the_proxy_subclass() {
             object_ids: Vec::new(),
         }),
     };
-    let handle = doc.add_entity(EntityType::Extended(entity)).unwrap();
+    let handle = doc.add_entity(EntityType::Extended(Box::new(entity))).unwrap();
     let rec = record(&write_pairs(&doc), handle);
     let entity_part: Vec<i32> = {
         let start = rec.iter().position(|(c, v)| *c == 100 && v == "AcDbEntity").unwrap();
@@ -180,7 +180,7 @@ fn remote_text_uses_the_rtext_subclass_marker() {
             text: "$(getvar, \"dwgname\")".to_string(),
         }),
     };
-    let handle = doc.add_entity(EntityType::Extended(entity)).unwrap();
+    let handle = doc.add_entity(EntityType::Extended(Box::new(entity))).unwrap();
     let rec = record(&write_pairs(&doc), handle);
     assert!(rec.iter().any(|(c, v)| *c == 100 && v == "RText"), "{rec:?}");
     assert!(!rec.iter().any(|(_, v)| v == "AcDbRText"));

@@ -483,11 +483,11 @@ fn main() {
             &mut fail,
             &mut skip,
             || {
-                EntityType::MultiLeader(MultiLeader::with_text(
+                EntityType::MultiLeader(Box::new(MultiLeader::with_text(
                     "Label",
                     Vector3::new(20.0, 20.0, 0.0),
                     vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(10.0, 10.0, 0.0)],
-                ))
+                )))
             },
         );
 

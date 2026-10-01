@@ -26,11 +26,11 @@ fn same_version_writes_preserve_class_ids_and_untouched_leaders() {
         .map(|c| (c.dxf_name.clone(), c.class_number))
         .collect();
     let leader = doc
-        .add_entity(EntityType::MultiLeader(MultiLeader::with_text(
+        .add_entity(EntityType::MultiLeader(Box::new(MultiLeader::with_text(
             "Synthetic leader",
             Vector3::new(3.0, 3.0, 0.0),
             vec![Vector3::ZERO, Vector3::UNIT_X],
-        )))
+        ))))
         .unwrap();
     let mut source = roundtrip(&doc);
     for (name, number) in classes {

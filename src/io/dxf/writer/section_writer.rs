@@ -192,16 +192,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         }
         self.loft_input_entities.clear();
         for entity in &document.entities {
-            let EntityType::Surface(Surface {
-                surface_data:
-                    SurfaceData::Lofted {
-                        cross_sections,
-                        guide_curves,
-                        path_curve,
-                        ..
-                    },
+            let EntityType::Surface(surface) = entity.as_ref() else {
+                continue;
+            };
+            let SurfaceData::Lofted {
+                cross_sections,
+                guide_curves,
+                path_curve,
                 ..
-            }) = entity.as_ref()
+            } = &surface.surface_data
             else {
                 continue;
             };
@@ -1968,16 +1967,16 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 | EntityType::AttributeEntity(_)
                 | EntityType::Unknown(_)
         ) {
-            if let EntityType::Surface(Surface {
-                surface_data:
-                    SurfaceData::Lofted {
-                        cross_sections,
-                        guide_curves,
-                        path_curve,
-                        ..
-                    },
+            let lofted = match entity {
+                EntityType::Surface(surface) => Some(&surface.surface_data),
+                _ => None,
+            };
+            if let Some(SurfaceData::Lofted {
+                cross_sections,
+                guide_curves,
+                path_curve,
                 ..
-            }) = entity
+            }) = lofted
             {
                 let mut data = entity.common().extended_data.clone();
                 data.remove_record("CADCODEC_LOFT_REFERENCES");
@@ -4883,8 +4882,12 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 .copied()
                 .unwrap_or(0)
         };
-        self.writer
-            .write_i16(68, if viewport.status.is_on { id } else { 0 })?;
+        let status = match (viewport.status.is_on, viewport.off_screen) {
+            (false, _) => 0,
+            (true, true) => -1,
+            (true, false) => id,
+        };
+        self.writer.write_i16(68, status)?;
         self.writer.write_i16(69, id)?;
 
         // Status

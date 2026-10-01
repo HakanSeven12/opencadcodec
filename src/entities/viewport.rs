@@ -251,6 +251,9 @@ pub struct Viewport {
     pub status: ViewportStatusFlags,
     /// Viewport ID (unique within the drawing)
     pub id: i16,
+    /// On, but off screen or past the active-viewport limit (DXF status
+    /// `68` of -1). Neither DWG nor the status bits carry it.
+    pub off_screen: bool,
     /// View center point (DCS - Display Coordinate System)
     pub view_center: Vector3,
     /// Snap base point
@@ -345,6 +348,7 @@ impl Viewport {
             height: 210.0, // A4 height in mm
             status: ViewportStatusFlags::default_on(),
             id: 0,
+            off_screen: false,
             view_center: Vector3::ZERO,
             snap_base: Vector3::ZERO,
             snap_spacing: Vector3::new(10.0, 10.0, 0.0),

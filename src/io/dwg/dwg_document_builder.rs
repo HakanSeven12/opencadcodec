@@ -478,20 +478,59 @@ impl DwgDocumentBuilder {
     /// 2. Read entities and objects → resolve handle references
     ///
     /// Returns collected notifications (skipped records, warnings).
-    /// Give every BLOCK marker the base point of the record that owns it.
+    /// Give every BLOCK marker the name and base point of the record that
+    /// owns it.
     ///
     /// The marker and the `BlockRecord` are two views of one definition, and
-    /// a consumer that reads both must not see them disagree.
+    /// a consumer that reads both must not see them disagree. Pre-R2010
+    /// anonymous copies of a dynamic block keep the source block's name on
+    /// the marker; the record's name is the one inserts resolve to.
     fn hydrate_block_markers(document: &mut CadDocument) {
-        let points: Vec<(Handle, crate::types::Vector3)> = document
+        let records: Vec<(Handle, String, crate::types::Vector3)> = document
             .block_records
             .iter()
             .filter(|record| !record.block_entity_handle.is_null())
-            .map(|record| (record.block_entity_handle, record.base_point))
+            .map(|record| (record.block_entity_handle, record.name.clone(), record.base_point))
             .collect();
-        for (handle, base_point) in points {
+        for (handle, name, base_point) in records {
             if let Some(EntityType::Block(marker)) = document.get_entity_mut(handle) {
+                marker.name = name;
                 marker.base_point = base_point;
+            }
+        }
+    }
+
+    /// The name a BLOCK begin marker stores, read straight from its record.
+    fn block_marker_name(&self, handle: u64) -> Option<String> {
+        let offset = self.obj_reader.offset_for(handle)?;
+        let offset = usize::try_from(offset).ok()?;
+        let raw = self.obj_reader.type_code_at(offset).ok()?;
+        if raw != OBJ_BLOCK {
+            return None;
+        }
+        let (_, mut reader) = self.obj_reader.read_record_at(offset).ok()?;
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = self.obj_reader.read_common_entity_data(&mut reader, OBJ_BLOCK);
+            reader.read_variable_text()
+        }))
+        .ok()
+    }
+
+    /// Number the active layout's viewports 1, 2, … in entity order (1 is
+    /// the overall paper-space viewport), as the DXF writer does. DWG keeps
+    /// no viewport IDs; a consumer telling the overall viewport from the
+    /// authored ones needs them (#67). Other layouts keep 0.
+    fn number_active_viewports(document: &mut CadDocument) {
+        let Some(paper) = document.block_records.get("*Paper_Space") else {
+            return;
+        };
+        let mut next_id = 1i16;
+        for handle in paper.entity_handles.clone() {
+            if let Some(EntityType::Viewport(viewport)) = document.get_entity_mut(handle) {
+                if viewport.id == 0 {
+                    viewport.id = next_id;
+                }
+                next_id = next_id.saturating_add(1);
             }
         }
     }
@@ -1020,6 +1059,33 @@ impl DwgDocumentBuilder {
                     }
                 })
                 .collect();
+
+            // The BLOCK begin marker stores the definition's full name
+            // ("*U25", "*Paper_Space3") where the record keeps only the bare
+            // prefix. Reconstructing the suffix from control order drifts
+            // past null or erased slots (#55, #66), so the marker's name wins
+            // whenever it extends the record's own.
+            for (idx, h, name) in &block_info {
+                if !name.starts_with('*') {
+                    continue;
+                }
+                let ParsedEntry::Block(_, ref data) = parsed_entries[*idx] else {
+                    continue;
+                };
+                let Some(marker) = self.block_marker_name(data.block_entity_handle) else {
+                    continue;
+                };
+                let extends = marker.len() > name.len()
+                    && marker.is_char_boundary(name.len())
+                    && marker[..name.len()].eq_ignore_ascii_case(name)
+                    && marker[name.len()..].bytes().all(|b| b.is_ascii_digit());
+                if extends {
+                    if let ParsedEntry::Block(_, ref mut data) = parsed_entries[*idx] {
+                        data.name = marker.clone();
+                    }
+                    maps.blocks.insert(*h, marker);
+                }
+            }
 
             let anonymous_names = anonymous_block_names(&block_control_entries, &maps.blocks);
             for (idx, h, _) in &block_info {
@@ -3058,6 +3124,8 @@ impl DwgDocumentBuilder {
         // its own BlockRecord. Copy the record's value across now that both
         // are assembled.
         Self::hydrate_block_markers(document);
+        Self::number_active_viewports(document);
+        document.ensure_model_layout();
 
         document.original_objects = document
             .objects
@@ -3347,10 +3415,10 @@ impl DwgDocumentBuilder {
                         ),
                         _ => unreachable!(),
                     };
-                    let _ = document.add_entity(EntityType::Extended(ExtendedEntity {
+                    let _ = document.add_entity(EntityType::Extended(Box::new(ExtendedEntity {
                         common: entity_common,
                         data,
-                    }));
+                    })));
                 }
                 OBJ_ARC => {
                     let data = entities::read_arc(&mut reader);
@@ -3532,7 +3600,7 @@ impl DwgDocumentBuilder {
                     e.legacy_border_colors = data.legacy_border_colors;
                     e.legacy_border_line_weights = data.legacy_border_line_weights;
                     e.legacy_border_visibility = data.legacy_border_visibility;
-                    let _ = document.add_entity(EntityType::Table(e));
+                    let _ = document.add_entity(EntityType::Table(Box::new(e)));
                 }
                 OBJ_LWPOLYLINE => {
                     let data = entities::read_lwpolyline(&mut reader, self.obj_reader.version());
@@ -3619,7 +3687,7 @@ impl DwgDocumentBuilder {
                     e.turn_height = reader.read_bit_double();
                     e.handedness = reader.read_bit();
                     e.constraint = crate::entities::HelixConstraint::from_code(reader.read_byte());
-                    let _ = document.add_entity(EntityType::Helix(e));
+                    let _ = document.add_entity(EntityType::Helix(Box::new(e)));
                 }
                 OBJ_TEXT => {
                     let data = entities::read_text(&mut reader, self.obj_reader.version());
@@ -4257,7 +4325,7 @@ impl DwgDocumentBuilder {
                         TextAttachmentType::from(data.text_bottom_attachment);
                     e.text_top_attachment = TextAttachmentType::from(data.text_top_attachment);
                     e.extend_leader_to_text = data.extend_leader_to_text;
-                    let _ = document.add_entity(EntityType::MultiLeader(e));
+                    let _ = document.add_entity(EntityType::MultiLeader(Box::new(e)));
                 }
 
                 // ── Attribute entities ─────────────────────────────
@@ -4781,7 +4849,7 @@ impl DwgDocumentBuilder {
                     e.surface_data = data.surface_data;
                     e.history_handle =
                         (data.history_handle != 0).then(|| Handle::from(data.history_handle));
-                    let _ = document.add_entity(EntityType::Surface(e));
+                    let _ = document.add_entity(EntityType::Surface(Box::new(e)));
                 }
 
                 // ── Catch-all ──────────────────────────────────────
@@ -4804,15 +4872,15 @@ impl DwgDocumentBuilder {
                                 value.raw_dwg_version = Some(document.version);
                             }
                             let _ = document.add_entity(EntityType::Extended(
-                                ExtendedEntity {
+                                Box::new(ExtendedEntity {
                                     common: entity_common,
                                     data,
-                                },
+                                }),
                             ));
                         }
                         "mcsDbObjectFormat" => {
                             let _ = document.add_entity(EntityType::Extended(
-                                ExtendedEntity {
+                                Box::new(ExtendedEntity {
                                     common: entity_common,
                                     data: ExtendedEntityData::Format(
                                         crate::entities::FormatData {
@@ -4827,7 +4895,7 @@ impl DwgDocumentBuilder {
                                             raw_dxf_codes: None,
                                         },
                                     ),
-                                },
+                                }),
                             ));
                         }
                         "AcDbBlockAngularConstraintParameterEntity" => {
@@ -4838,10 +4906,10 @@ impl DwgDocumentBuilder {
                                 )
                             {
                                 let _ = document.add_entity(EntityType::Extended(
-                                    ExtendedEntity {
+                                    Box::new(ExtendedEntity {
                                         common: entity_common,
                                         data: ExtendedEntityData::DynamicBlock(data),
-                                    },
+                                    }),
                                 ));
                             }
                         }
@@ -4864,7 +4932,7 @@ impl DwgDocumentBuilder {
                                     entity_common.handle.value(),
                                 );
                             let _ = document.add_entity(EntityType::Extended(
-                                ExtendedEntity {
+                                Box::new(ExtendedEntity {
                                     common: entity_common,
                                     data: ExtendedEntityData::RegisteredClass(
                                         crate::entities::RegisteredClassEntityData {
@@ -4875,7 +4943,7 @@ impl DwgDocumentBuilder {
                                             object_ids,
                                         },
                                     ),
-                                },
+                                }),
                             ));
                         }
                         name @ (
@@ -4905,10 +4973,10 @@ impl DwgDocumentBuilder {
                                 )
                             {
                                 let _ = document.add_entity(EntityType::Extended(
-                                    ExtendedEntity {
+                                    Box::new(ExtendedEntity {
                                         common: entity_common,
                                         data: ExtendedEntityData::DynamicBlock(data),
-                                    },
+                                    }),
                                 ));
                             }
                         }

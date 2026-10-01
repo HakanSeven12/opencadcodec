@@ -3280,7 +3280,7 @@ impl<'a> SectionReader<'a> {
                     }
                     "HELIX" => {
                         if let Some(entity) = self.read_helix()? {
-                            block_entities.push(EntityType::Helix(entity));
+                            block_entities.push(EntityType::Helix(Box::new(entity)));
                         }
                     }
                     "DIMENSION" => {
@@ -3371,7 +3371,7 @@ impl<'a> SectionReader<'a> {
                     }
                     "MULTILEADER" | "MLEADER" => {
                         if let Some(entity) = self.read_multileader()? {
-                            block_entities.push(EntityType::MultiLeader(entity));
+                            block_entities.push(EntityType::MultiLeader(Box::new(entity)));
                         }
                     }
                     "MLINE" => {
@@ -3406,7 +3406,7 @@ impl<'a> SectionReader<'a> {
                     }
                     "ACAD_TABLE" | "TABLE" => {
                         if let Some(entity) = self.read_table_entity()? {
-                            block_entities.push(EntityType::Table(entity));
+                            block_entities.push(EntityType::Table(Box::new(entity)));
                         }
                     }
                     "PDFUNDERLAY" | "DWFUNDERLAY" | "DGNUNDERLAY" => {
@@ -3464,7 +3464,7 @@ impl<'a> SectionReader<'a> {
                     | "BLOCKANGULARCONSTRAINTPARAMETERENTITY"
                     | "XYPARAMETERENTITY" => {
                         if let Some(entity) = self.read_extended_entity(&pair.value_string)? {
-                            block_entities.push(EntityType::Extended(entity));
+                            block_entities.push(EntityType::Extended(Box::new(entity)));
                         }
                     }
                     "SEQEND" => {
@@ -3589,7 +3589,7 @@ impl<'a> SectionReader<'a> {
                     }
                     "HELIX" => {
                         if let Some(entity) = self.read_helix()? {
-                            let _ = document.add_entity(EntityType::Helix(entity));
+                            let _ = document.add_entity(EntityType::Helix(Box::new(entity)));
                         }
                     }
                     "DIMENSION" => {
@@ -3680,7 +3680,7 @@ impl<'a> SectionReader<'a> {
                     }
                     "MULTILEADER" | "MLEADER" => {
                         if let Some(entity) = self.read_multileader()? {
-                            let _ = document.add_entity(EntityType::MultiLeader(entity));
+                            let _ = document.add_entity(EntityType::MultiLeader(Box::new(entity)));
                         }
                     }
                     "MLINE" => {
@@ -3723,12 +3723,12 @@ impl<'a> SectionReader<'a> {
                         if let Some(entity) =
                             self.read_surface_entity(&entity_type, document.version)?
                         {
-                            let _ = document.add_entity(EntityType::Surface(entity));
+                            let _ = document.add_entity(EntityType::Surface(Box::new(entity)));
                         }
                     }
                     "ACAD_TABLE" | "TABLE" => {
                         if let Some(entity) = self.read_table_entity()? {
-                            let _ = document.add_entity(EntityType::Table(entity));
+                            let _ = document.add_entity(EntityType::Table(Box::new(entity)));
                         }
                     }
                     "PDFUNDERLAY" | "DWFUNDERLAY" | "DGNUNDERLAY" => {
@@ -3786,12 +3786,12 @@ impl<'a> SectionReader<'a> {
                     | "BLOCKANGULARCONSTRAINTPARAMETERENTITY"
                     | "XYPARAMETERENTITY" => {
                         if let Some(entity) = self.read_extended_entity(&entity_type)? {
-                            let _ = document.add_entity(EntityType::Extended(entity));
+                            let _ = document.add_entity(EntityType::Extended(Box::new(entity)));
                         }
                     }
                     name if is_registered_class_entity_name(name) => {
                         let entity = self.read_registered_class_entity(name)?;
-                        let _ = document.add_entity(EntityType::Extended(entity));
+                        let _ = document.add_entity(EntityType::Extended(Box::new(entity)));
                     }
                     "SEQEND" => {
                         // Standalone SEQEND — skip (normally consumed by polyline/insert reader)
@@ -16607,6 +16607,7 @@ impl<'a> SectionReader<'a> {
                         vp.status = crate::entities::viewport::ViewportStatusFlags::from_bits(v);
                     }
                 }
+                68 => vp.off_screen = pair.as_i16() == Some(-1),
                 69 => {
                     if let Some(v) = pair.as_i16() {
                         vp.id = v;

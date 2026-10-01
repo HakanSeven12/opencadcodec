@@ -63,7 +63,7 @@ fn multileader_annotation_scale_survives_dxf_roundtrip() {
             vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(10.0, 10.0, 0.0)],
         );
         ml.enable_annotation_scale = enabled;
-        doc.add_entity(EntityType::MultiLeader(ml)).unwrap();
+        doc.add_entity(EntityType::MultiLeader(Box::new(ml))).unwrap();
 
         let rt = dxf_roundtrip(&doc);
         let got = rt

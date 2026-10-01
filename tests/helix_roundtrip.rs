@@ -54,14 +54,14 @@ fn sample_helix() -> Helix {
 
 fn roundtrip_helix(via_dwg: bool, version: DxfVersion) -> Helix {
     let mut doc = CadDocument::with_version(version);
-    doc.add_entity(EntityType::Helix(sample_helix())).unwrap();
+    doc.add_entity(EntityType::Helix(Box::new(sample_helix()))).unwrap();
     let rt = if via_dwg {
         dwg_roundtrip(&doc)
     } else {
         dxf_roundtrip(&doc)
     };
     let found = rt.entities().find_map(|e| match e {
-        EntityType::Helix(h) => Some(h.clone()),
+        EntityType::Helix(h) => Some((**h).clone()),
         _ => None,
     });
     found.expect("HELIX missing after roundtrip")

@@ -81,7 +81,7 @@ fn exclusions_force_serialization_in_serial_and_parallel_writers() {
             .collect();
         let mut helix = Helix::new();
         helix.radius = 2.;
-        let helix_handle = source.add_entity(EntityType::Helix(helix)).unwrap();
+        let helix_handle = source.add_entity(EntityType::Helix(Box::new(helix))).unwrap();
         let mut xrecord = XRecord::new();
         xrecord.handle = source.allocate_handle();
         xrecord.add_string(1, "source");

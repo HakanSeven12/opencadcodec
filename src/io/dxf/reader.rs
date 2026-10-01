@@ -361,6 +361,7 @@ impl DxfReader {
         // earlier would resolve every reference to a null handle.
         rewire_stale_text_style_references(&mut document);
         rewire_dangling_layout_block_records(&mut document);
+        document.ensure_model_layout();
 
         // Pre-R2004 (R2000/R14) down-saved gradient hatches keep their gradient
         // in the ACAD round-trip metadata (GradientColor1/2ACI EED + an
@@ -709,53 +710,39 @@ fn rehandle_colliding_default_entries(
         apply!("vx_table", document.vx_table);
         apply!("block_records", document.block_records);
 
-        // Header references that still point at the moved default follow.
+        // Header references that still point at the moved default follow,
+        // but only those selecting an entry of the moved one's table: a
+        // default APPID sharing the file's `*Model_Space` handle must not
+        // drag the model-space header reference along (#64).
         let header = &mut document.header;
-        if header.current_layer_handle.value() == old {
-            header.current_layer_handle = new;
+        macro_rules! follow {
+            ($field:ident, $t:literal) => {
+                if tag == $t && header.$field.value() == old {
+                    header.$field = new;
+                }
+            };
         }
-        if header.continuous_linetype_handle.value() == old {
-            header.continuous_linetype_handle = new;
-        }
-        if header.bylayer_linetype_handle.value() == old {
-            header.bylayer_linetype_handle = new;
-        }
-        if header.current_linetype_handle.value() == old {
-            header.current_linetype_handle = new;
-        }
-        if header.byblock_linetype_handle.value() == old {
-            header.byblock_linetype_handle = new;
-        }
-        if header.current_text_style_handle.value() == old {
-            header.current_text_style_handle = new;
-        }
-        if header.dim_text_style_handle.value() == old {
-            header.dim_text_style_handle = new;
-        }
-        if header.current_dimstyle_handle.value() == old {
-            header.current_dimstyle_handle = new;
-        }
-        if header.model_space_block_handle.value() == old {
-            header.model_space_block_handle = new;
-        }
-        if header.paper_space_block_handle.value() == old {
-            header.paper_space_block_handle = new;
-        }
-        if header.dim_linetype_handle.value() == old {
-            header.dim_linetype_handle = new;
-        }
-        if header.dim_linetype1_handle.value() == old {
-            header.dim_linetype1_handle = new;
-        }
-        if header.dim_linetype2_handle.value() == old {
-            header.dim_linetype2_handle = new;
-        }
+        follow!(current_layer_handle, "layers");
+        follow!(continuous_linetype_handle, "line_types");
+        follow!(bylayer_linetype_handle, "line_types");
+        follow!(current_linetype_handle, "line_types");
+        follow!(byblock_linetype_handle, "line_types");
+        follow!(current_text_style_handle, "text_styles");
+        follow!(dim_text_style_handle, "text_styles");
+        follow!(current_dimstyle_handle, "dim_styles");
+        follow!(model_space_block_handle, "block_records");
+        follow!(paper_space_block_handle, "block_records");
+        follow!(dim_linetype_handle, "line_types");
+        follow!(dim_linetype1_handle, "line_types");
+        follow!(dim_linetype2_handle, "line_types");
 
         // Default entries cross-referencing the moved one (the Standard
         // dimstyle points at the Standard text style).
-        for ds in document.dim_styles.iter_mut() {
-            if ds.dimtxsty_handle.value() == old {
-                ds.dimtxsty_handle = new;
+        if tag == "text_styles" {
+            for ds in document.dim_styles.iter_mut() {
+                if ds.dimtxsty_handle.value() == old {
+                    ds.dimtxsty_handle = new;
+                }
             }
         }
     }

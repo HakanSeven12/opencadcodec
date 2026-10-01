@@ -3206,6 +3206,77 @@ impl CadDocument {
         Ok(layout_handle)
     }
 
+    /// Give the model block a `Model` layout when the source had none.
+    ///
+    /// R13/R14 files predate LAYOUT objects, so a reader otherwise returns a
+    /// `*Model_Space` record with no layout, or one naming a handle that
+    /// resolves to nothing (#65). Only the model layout is synthesized: paper
+    /// settings the source does not carry are not invented, and dangling
+    /// record → layout handles are cleared.
+    pub fn ensure_model_layout(&mut self) {
+        // Layouts name their record; a record left without the back link
+        // (R13/R14 block headers have none) takes it from its layout.
+        let owners: HashMap<Handle, Handle> = self
+            .objects
+            .iter()
+            .filter_map(|(handle, object)| match object {
+                ObjectType::Layout(layout) => Some((layout.block_record, *handle)),
+                _ => None,
+            })
+            .collect();
+        for record in self.block_records.iter_mut() {
+            if !matches!(self.objects.get(&record.layout), Some(ObjectType::Layout(_))) {
+                record.layout = owners.get(&record.handle).copied().unwrap_or(Handle::NULL);
+            }
+        }
+        let Some(model) = self
+            .block_records
+            .iter()
+            .find(|record| record.is_model_space())
+            .map(|record| record.handle)
+        else {
+            return;
+        };
+        let has_layout = self.objects.values().any(|object| {
+            matches!(object, ObjectType::Layout(layout) if layout.block_record == model)
+        });
+        if has_layout {
+            return;
+        }
+
+        let dict_handle = self.header.acad_layout_dict_handle;
+        let dict_handle = if matches!(self.objects.get(&dict_handle), Some(ObjectType::Dictionary(_))) {
+            dict_handle
+        } else {
+            let handle = self.allocate_handle();
+            let root = self.header.named_objects_dict_handle;
+            let mut dict = crate::objects::Dictionary::new();
+            dict.handle = handle;
+            dict.owner = root;
+            if let Some(ObjectType::Dictionary(root)) = self.objects.get_mut(&root) {
+                root.add_entry("ACAD_LAYOUT", handle);
+            }
+            self.objects.insert(handle, ObjectType::Dictionary(dict));
+            self.header.acad_layout_dict_handle = handle;
+            handle
+        };
+
+        let handle = self.allocate_handle();
+        let mut layout = crate::objects::Layout::new("Model");
+        layout.handle = handle;
+        layout.owner = dict_handle;
+        layout.tab_order = 0;
+        layout.flags = 1; // model space
+        layout.block_record = model;
+        if let Some(ObjectType::Dictionary(dict)) = self.objects.get_mut(&dict_handle) {
+            dict.add_entry("Model", handle);
+        }
+        if let Some(record) = self.block_records.iter_mut().find(|r| r.handle == model) {
+            record.layout = handle;
+        }
+        self.objects.insert(handle, ObjectType::Layout(layout));
+    }
+
     /// Get the number of entities.
     ///
     /// Structural BLOCK/ENDBLK markers are not counted — they delimit block

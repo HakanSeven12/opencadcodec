@@ -32,13 +32,13 @@ fn sample_table() -> Table {
 
 fn roundtrip(version: DxfVersion) -> Table {
     let mut doc = CadDocument::with_version(version);
-    doc.add_entity(EntityType::Table(sample_table())).unwrap();
+    doc.add_entity(EntityType::Table(Box::new(sample_table()))).unwrap();
     let bytes = DwgWriter::write_to_vec(&doc).expect("DWG write");
     let rt = DwgReader::from_stream(Cursor::new(bytes))
         .read()
         .expect("DWG read");
     let found = rt.entities().find_map(|e| match e {
-        EntityType::Table(t) => Some(t.clone()),
+        EntityType::Table(t) => Some((**t).clone()),
         _ => None,
     });
     found.expect("table missing after DWG roundtrip")
@@ -91,7 +91,7 @@ fn table_r2010_explicit_header_bit_is_preserved() {
         let mut doc = CadDocument::with_version(DxfVersion::AC1024);
         let mut table = sample_table();
         table.dwg_r2010_unknown_bit = Some(bit);
-        let handle = doc.add_entity(EntityType::Table(table)).unwrap();
+        let handle = doc.add_entity(EntityType::Table(Box::new(table))).unwrap();
         let bytes = DwgWriter::write_to_vec(&doc).unwrap();
         let loaded = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
         let Some(EntityType::Table(table)) = loaded.get_entity(handle) else {
