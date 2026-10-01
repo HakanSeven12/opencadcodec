@@ -2045,6 +2045,19 @@ fn write_ac21_impl<W: Write + Seek>(
         if let Some(sys) = document.dwg_r2007_header.as_ref() {
             if sys.crc_seed == 0 {
                 fhw.set_source_random_seed(sys.random_seed);
+                // TODO A2 (2026-10-01): the author's stored derive-family
+                // draws replay verbatim on the same-content rewrite — the
+                // 2026-10-01 pinning proved silver's engine table and the
+                // draw ORDER are the author's, but the author's pre-draw
+                // walk consumption (36–71 table words per file) has no
+                // pinned formula, so the three R2007_Header draws replay
+                // instead of re-deriving (inert seed values; the §19 H7
+                // verbatim-capture pattern).
+                fhw.set_source_crc_seed_draws(
+                    sys.sections_map_crc_seed,
+                    sys.pages_map_crc_seed,
+                    sys.crc_seed_encoded,
+                );
             }
         }
     }

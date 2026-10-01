@@ -154,14 +154,27 @@ impl CrcRandomEncoder {
         }
     }
 
-    /// Get the next u64 value from two consecutive table entries (spec §5.11 GetNextUInt64).
-    /// No MT tempering — reads raw table values.
+    /// Get the next u64 value from two consecutive table entries (spec
+    /// §5.11 GetNextUInt64). No MT tempering — reads raw table values.
+    ///
+    /// TODO A2 (2026-10-01, pinned): the assembly is FIRST WORD = HIGH
+    /// half — `table[index] << 32 | table[index+1]` — measured against
+    /// the author's stored draws on every R2007-era corpus file (19
+    /// files: `example_2007` + the 2007 named-specimen set; the raw
+    /// check-data samples `check_random1/2` at the page tail pin the
+    /// word order exactly). Silver's historical `lo | hi << 32` had the
+    /// halves reversed. The draws' single remaining unpinned property
+    /// is the walk start (the author's pre-metadata consumption, 36–71
+    /// table words per file — see the §20 thirteenth-continuation
+    /// record), so constructed-content draws still self-consistently
+    /// derive while same-content rewrites replay the retained fields
+    /// (`source_crc_seed_draws`).
     fn next_u64(&mut self) -> u64 {
         self.index += 2;
         self.update_index();
-        let lo = self.table[self.index] as u64;
-        let hi = self.table[self.index + 1] as u64;
-        lo | (hi << 32)
+        let first = self.table[self.index] as u64;
+        let second = self.table[self.index + 1] as u64;
+        (first << 32) | second
     }
 
     /// Encode a value using 10-bit spread encoding (spec §5.11 Encode).
@@ -472,6 +485,23 @@ pub struct DwgFileHeaderWriterAC21 {
     /// carries `crc_seed` 0 like our writer). `None` keeps the
     /// historical constant (0).
     source_random_seed: Option<u64>,
+    /// The author's stored derive-family draws for a same-version
+    /// content-preserving rewrite (TODO A2, 2026-10-01):
+    /// `(sections_map_crc_seed, pages_map_crc_seed, crc_seed_encoded)`
+    /// — the three R2007_Header fields the encoder historically
+    /// re-derived. The 2026-10-01 pinning measured the author's engine
+    /// on every R2007-era corpus file (the raw check-data samples):
+    /// silver's init/twist table and the §5.2.1.1 draw ORDER are the
+    /// author's, the u64 assembly is first-word-high (fixed in
+    /// `next_u64`), but the author's walk start — 36–71 table words
+    /// of pre-metadata consumption per file — did not yield its exact
+    /// structural formula (≈4 words per encoding-4 data page within
+    /// ±3). A same-content same-seed rewrite therefore REPLAYS the
+    /// three stored draws verbatim (the §19 H7 verbatim-capture
+    /// pattern — inert seed values the reader does not verify); a
+    /// constructed or edited document keeps `None` and derives fresh,
+    /// self-consistent draws.
+    source_crc_seed_draws: Option<(u64, u64, u64)>,
     /// The §19 H8b mirrored-emission finalize inputs, stored by
     /// `write_mirrored_pages` for `write_file_mirrored`.
     mirror_state: Option<MirrorState>,
@@ -500,6 +530,7 @@ impl DwgFileHeaderWriterAC21 {
             skip_lz77: false,
             source_header_bytes: None,
             source_random_seed: None,
+            source_crc_seed_draws: None,
             mirror_state: None,
         })
     }
@@ -509,6 +540,24 @@ impl DwgFileHeaderWriterAC21 {
     /// follow the author's RNG sequence then.
     pub fn set_source_random_seed(&mut self, random_seed: u64) {
         self.source_random_seed = Some(random_seed);
+    }
+
+    /// Mirror the author's stored derive-family draws (TODO A2,
+    /// 2026-10-01) for a same-version content-preserving rewrite:
+    /// `(sections_map_crc_seed, pages_map_crc_seed,
+    /// crc_seed_encoded)`, replayed verbatim by the finalize instead
+    /// of re-derived. See `source_crc_seed_draws`.
+    pub fn set_source_crc_seed_draws(
+        &mut self,
+        sections_map_crc_seed: u64,
+        pages_map_crc_seed: u64,
+        crc_seed_encoded: u64,
+    ) {
+        self.source_crc_seed_draws = Some((
+            sections_map_crc_seed,
+            pages_map_crc_seed,
+            crc_seed_encoded,
+        ));
     }
 
     /// Mirror the source file's FILEHEADER identity bytes (§19 H7f,
@@ -747,9 +796,21 @@ impl DwgFileHeaderWriterAC21 {
     ) -> Result<(), DxfError> {
         let mut rng = CrcRandomEncoder::new(random_seed);
 
-        // §5.2.1.1.3-4: Encode map CRC seeds
-        metadata.sections_map_crc_seed = rng.encode_crc_seed(self.crc_seed);
-        metadata.pages_map_crc_seed = rng.encode_crc_seed(self.crc_seed);
+        // §5.2.1.1.3-4: Encode map CRC seeds — TODO A2 (2026-10-01): a
+        // retained author triple replays verbatim; a rewrite of edited
+        // or constructed content derives fresh (the encoder's draw
+        // order matches the author's; only the pre-draw walk start
+        // lacks a pinned formula).
+        match self.source_crc_seed_draws {
+            Some((sections_map, pages_map, _)) => {
+                metadata.sections_map_crc_seed = sections_map;
+                metadata.pages_map_crc_seed = pages_map;
+            }
+            None => {
+                metadata.sections_map_crc_seed = rng.encode_crc_seed(self.crc_seed);
+                metadata.pages_map_crc_seed = rng.encode_crc_seed(self.crc_seed);
+            }
+        }
 
         // §5.2.1.1.5: Check data (random1, random2, encoded_seed, normal/mirrored CRC)
         let check_random1 = rng.next_u64();
@@ -798,7 +859,12 @@ impl DwgFileHeaderWriterAC21 {
         check_data[32..40].copy_from_slice(&check_encoded_seed.to_le_bytes());
 
         // §5.2.1.1.6: CrcSeedEncoded (AFTER check data in RNG sequence)
-        metadata.crc_seed_encoded = rng.encode_crc_seed(self.crc_seed);
+        // — TODO A2 (2026-10-01): the retained author triple replays
+        // verbatim on a same-content rewrite.
+        metadata.crc_seed_encoded = match self.source_crc_seed_draws {
+            Some((_, _, encoded)) => encoded,
+            None => rng.encode_crc_seed(self.crc_seed),
+        };
 
         // Compute header CRC-64 (spec §5.2.1.2)
         let meta_bytes = metadata.to_bytes();
@@ -825,8 +891,19 @@ impl DwgFileHeaderWriterAC21 {
 
         // Recompute with updated metadata (same RNG order as pass 1)
         let mut rng2 = CrcRandomEncoder::new(random_seed);
-        metadata.sections_map_crc_seed = rng2.encode_crc_seed(self.crc_seed); // §5.2.1.1.3
-        metadata.pages_map_crc_seed = rng2.encode_crc_seed(self.crc_seed); // §5.2.1.1.4
+        // TODO A2 (2026-10-01): the retained author triple replays
+        // verbatim in both passes (the draws do not depend on the
+        // patched file_size/header2_offset fields).
+        match self.source_crc_seed_draws {
+            Some((sections_map, pages_map, _)) => {
+                metadata.sections_map_crc_seed = sections_map; // §5.2.1.1.3
+                metadata.pages_map_crc_seed = pages_map; // §5.2.1.1.4
+            }
+            None => {
+                metadata.sections_map_crc_seed = rng2.encode_crc_seed(self.crc_seed); // §5.2.1.1.3
+                metadata.pages_map_crc_seed = rng2.encode_crc_seed(self.crc_seed); // §5.2.1.1.4
+            }
+        }
         let check_random1_2 = rng2.next_u64();
         let check_random2_2 = rng2.next_u64();
         let check_encoded_seed_2 = rng2.encode_crc_seed(self.crc_seed);
@@ -868,7 +945,10 @@ impl DwgFileHeaderWriterAC21 {
         check_data_2[16..24].copy_from_slice(&check_random1_2.to_le_bytes());
         check_data_2[24..32].copy_from_slice(&check_random2_2.to_le_bytes());
         check_data_2[32..40].copy_from_slice(&check_encoded_seed_2.to_le_bytes());
-        metadata.crc_seed_encoded = rng2.encode_crc_seed(self.crc_seed); // §5.2.1.1.6
+        metadata.crc_seed_encoded = match self.source_crc_seed_draws {
+            Some((_, _, encoded)) => encoded, // §5.2.1.1.6
+            None => rng2.encode_crc_seed(self.crc_seed), // §5.2.1.1.6
+        };
         let meta_bytes = metadata.to_bytes();
         let header_crc = dwg_ac21_header_crc64(&meta_bytes);
         metadata.header_crc64 = header_crc;
@@ -2401,6 +2481,35 @@ mod tests {
         for _ in 0..50 {
             assert_eq!(rng1.next_u64(), rng2.next_u64());
         }
+    }
+
+    /// TODO A2 (2026-10-01): the author's engine pinned on
+    /// example_2007's own bytes — her `random_seed`
+    /// 0x24cc9552adddcbdb, her raw check-data draws
+    /// (`check_random1/2`, the plainly-readable page-tail words at
+    /// file 0x3E8/0x3F0): the table construction is silver's, no
+    /// tempering, and the u64 assembly is FIRST WORD = HIGH half —
+    /// `check_random1 == table[187] << 32 | table[188]` (the draw
+    /// slots measured at table index 183..194 for the six metadata
+    /// draws; the pre-draw walk consumption is the one unpinned
+    /// property — see `source_crc_seed_draws`).
+    #[test]
+    fn test_crc_random_encoder_author_pinned() {
+        let rng = CrcRandomEncoder::new(0x24CC9552_ADDDCBDB);
+        assert_eq!(rng.table[187], 0xE58B031F);
+        assert_eq!(rng.table[188], 0xDA4636C8);
+        assert_eq!(rng.table[189], 0xD49341D4);
+        assert_eq!(rng.table[190], 0x2D360991);
+        // the assembly: first word = high half
+        assert_eq!(rng.table[187] as u64, 0xE58B031FDA4636C8 >> 32);
+        assert_eq!(
+            (rng.table[187] as u64) << 32 | rng.table[188] as u64,
+            0xE58B031FDA4636C8
+        );
+        assert_eq!(
+            (rng.table[189] as u64) << 32 | rng.table[190] as u64,
+            0xD49341D42D360991
+        );
     }
 
     #[test]

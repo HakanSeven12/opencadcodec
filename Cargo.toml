@@ -91,6 +91,10 @@ name = "ac21_token_diff"
 path = "tests/gold_harness/src/bin/ac21_token_diff.rs"
 
 [[bin]]
+name = "ac21_page_layout"
+path = "tests/gold_harness/src/bin/ac21_page_layout.rs"
+
+[[bin]]
 name = "genus_constructed"
 path = "tests/gold_harness/src/bin/genus_constructed.rs"
 

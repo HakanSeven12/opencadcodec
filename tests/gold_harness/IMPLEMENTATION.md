@@ -8263,9 +8263,96 @@ is their opening census):
    specimen's node shape: the per-node repeat defect resurfacing on an
    unmodeled variant.
 3. Constraints 3 — PROXY_OBJECT objid byte-shrink (973→971, 284→283×2;
-   hdlsize −8 bits): one handle form in the proxy handle stream our
-   raw path emits shorter.
-4. Leader 1 — LTYPE 0x779 dash `shape_flag`: our write adds
-   IS_SHAPE(0x4) where her file has 0 (+16 bits).
-5. LiveSection1 2 — SECTIONOBJECT/SECTION_MANAGER equal-size 1-bit
-   divergences (byte 11 `C4` vs `C5`, mid-record).
+    hdlsize −8 bits): one handle form in the proxy handle stream our
+    raw path emits shorter.
+ 4. Leader 1 — LTYPE 0x779 dash `shape_flag`: our write adds
+    IS_SHAPE(0x4) where her file has 0 (+16 bits).
+ 5. LiveSection1 2 — SECTIONOBJECT/SECTION_MANAGER equal-size 1-bit
+    divergences (byte 11 `C4` vs `C5`, mid-record).
+
+## §20 — the fourteenth continuation (2026-10-01): A2 closed — the R2007 CRC random encoder pinned, the derive family landing through retained-draw replay
+
+**The pinning (the 2026-09-30 investigation's open question, closed by
+direct measurement).** The A2 entry left the author's engine variant
+unpinned (three init variants eliminated; the divergence "at the same
+seed+crc_seed"). The 2026-10-01 session inverted the framing: gold's
+`-O JSON` prints the R2007_Header's stored draws, and the
+`check_random1/2` fields — the check data's tail, plainly readable at
+file offsets 0x468/0x470 of the 0x400 header page (post-RS area, no
+de-interleave) — are RAW, UNMASKED encoder draws (slots 3–4 of the
+§5.2.1.1.5 sequence; the three JSON-visible draws ride MASKED at slots
+1, 2 and 6 with the whole 10-bit value surface reading 0 for
+`crc_seed` 0 everywh). Those two 64-bit raw samples pinned the engine
+against the 19-file R2007-era ensemble (`example_2007` + every
+`2007/` specimen):
+
+1. **The table construction, the twist, and the draw ORDER are
+   silver's** — LCG init on both seed halves, the MT chain from
+   `table[1]`, the §5.11 in-place twist, the InitPadding 128-entry
+   table, NO tempering, and the §5.2.1.1 (1) sections-map, (2)
+   pages-map, (3,4) check randoms, (5) check-encoded, (6)
+   crc_seed_encoded draw order all reproduce. What differed was ONE
+   assembly property: **the u64 draw is FIRST WORD = HIGH half** —
+   `table[i] << 32 | table[i+1]` — silver's `lo | hi << 32` had the
+   halves reversed. Pinned raw: `example_2007` seed
+   `0x24cc9552adddcbdb` → `check_random1 ==
+   table[187]<<32|table[188] == 0xe58b031fda4636c8`,
+   `check_random2 == table[189]<<32|table[190]`. Validated: all six
+   draws (masked where stored) match on EVERY ensemble file at its
+   own walk start.
+2. **The pre-draw walk start is per-file** — the six draws begin at
+   table index 164..199 across the ensemble (36–71 words past the
+   padding table's 128). Exhausted probes: the words appear NOWHERE on
+   disk (whole-file search — no byte materialization); the data-page
+   RS tails and the header page's post-RS fill all draw from the
+   STATIC 128-word padding-table prefix (`table[0..]` — silver's
+   `fill_random` model is the author's, verified byte-level); the
+   stored per-page checksums are not encoder draws (no table match);
+   the system-page (map) slots carry repeat-marker copies of their
+   own streams. The consumption tracks ≈4 words per encoding-4 data
+   page within ±3 (the `ac21_page_layout` instrument prints every
+   candidate feature) but no structural formula closed at ±3 grain.
+
+**The landing** (the §19 H7 verbatim-capture pattern for the family,
+the pinned assembly for the engine):
+
+- `CrcRandomEncoder::next_u64` assembles first-word-high (the pinned
+  author convention; `test_crc_random_encoder_author_pinned` fixes
+  the table words and the assembly against her bytes hermetically).
+- `DwgFileHeaderWriterAC21` carries `source_crc_seed_draws` —
+  `(sections_map_crc_seed, pages_map_crc_seed, crc_seed_encoded)`
+  retained by the reader (the §19 H2 header projection already holds
+  them) — and the shared `write_two_pass_header` (both finalizes: the
+  conventional `write_file` and the §19 H8b mirrored path the 2007
+  rewrites exercise) replays the triple verbatim on a same-version
+  `crc_seed == 0` rewrite, both passes. Constructed documents and
+  edited rewrites keep `None` and derive fresh, self-consistent
+  draws (inert seed values — the map CRCs are computed from the
+  fixed-spec zero, not from the drawn fields, so any draw value is
+  reader-valid).
+
+**ACCEPTANCE**: the conventional rewrite (`DWG_NO_ECHO=1`) carries HER
+three draws — verified on five ensemble files (`example_2007`
+0xa4825533cf3d200d / 0x06d124375b400495 / 0x719670845579d41b, Leader,
+ATMOS-DC22S, circle, RAY — all three fields equal hers). The battery:
+the suite 1,610/0 (53 segments, the 43 ac21-header tests include the
+new pin); the harness self-check ok; the corpus 337 files — the 213
+pre-existing untracked-B1-fixture rows unchanged, ZERO non-fixture
+carriers (the family is JSON-blind: silver's dump never emits
+R2007_Header — the A2 verification stamp's coverage note); the 2007
+era census unchanged (0 divergent / 84 her-only — the standing
+broken-map residual); the genus pin no drift, mirror ok; the
+generation identity f2187565… UNMOVED — and correctly so: the
+artifact is an AC1032 (R2018) file, and R2010+ reverted to the
+2004-style section container, so the AC21 encoder is exercised by
+AC1021 (R2007) writes only (gold labels the R2004-family container
+`R2004_Header` on both her AC1032 files and ours — the container
+parity is intact).
+
+**The residue (recorded, cold)**: the pre-draw walk-start formula
+(≈4 words per encoding-4 page ±3) stays unpinned; it matters only if
+a future packet wants the FULL header derive (check randoms included)
+to match her bytes without the retained-field replay. The
+`ac21_page_layout` instrument (a permanent bin now) prints every
+structural candidate: per-page RS geometry, tail pads, the map-slot
+payloads, the header-page fill — the opening census for that packet.

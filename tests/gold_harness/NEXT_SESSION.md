@@ -1,16 +1,22 @@
 # THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — **A1 IS CLOSED: THE 2018-ERA
-# CONVENTIONAL-ARM WIRE DIVERGENCE (2,479 census rows) LANDED AS
-# CAPTURE-AND-REPLAY OF THE TWO AUTHORIAL GENUS CONVENTIONS** (the
-# ownerhandle code choice — the ODA FileConverter genus always
-# writes absolute code-4, the AutoCAD genus writes §19 H8d's
-# relative-iff-shorter pick; the record-close pad — a per-author
-# genus: the ODA FileConverter 2018 set and her R2000 PolyLine2D
-# pad zeros, the AutoCAD genus pads ones; the reader samples per
-# record, the document carries the majority, the writer replays —
-# the §19 H7 raw-retention pattern);
+# top to bottom): THE CAMPAIGN STATE — **A1 AND A2 ARE CLOSED**: A1
+# (the 2018-era conventional-arm wire divergence, 2,479 census rows)
+# landed as capture-and-replay of the two authorial genus conventions
+# (the ownerhandle code choice — ODA always-absolute code-4 vs the
+# AutoCAD genus's §19 H8d relative-iff-shorter; the record-close pad —
+# a per-author genus: ODA 2018 and her R2000 PolyLine2D pad zeros, the
+# AutoCAD genus pads ones); the era census moved 2018 2,479 → 20
+# (the 17 ODA specimens fully record-identical) and repaired 50
+# pre-2004 rows; A2 (the R2007 MT crc_seed draw pinning) landed with
+# THE ENGINE PINNED — silver's table/twist/order were the author's,
+# the u64 draw assembles FIRST WORD = HIGH half (one assembly bit),
+# pinned against the raw check-data draws on all 19 R2007-era files —
+# AND the 3-field derive family replaying the retained draws verbatim
+# (the pre-draw walk start is the one cold residue, ≈4 words per
+# encoding-4 page ±3, no on-disk materialization; the
+# ac21_page_layout instrument is its opening census).
 # the era census moved 2018 **2,479 → 20 divergent** (the 17 ODA
 # specimens fully record-identical) and also repaired 50 pre-2004
 # rows (2000: 375 → 325); the corpus at 337 files — every
@@ -26,7 +32,72 @@
 # thirteenth addendum's record, then the residual queue (the five
 # named 2018 families under TODO A5; the untracked-fixture
 # session's corpus rows; the §19.5 version-parity tiers —
-# maintainer decisions; the A2 MT crc_seed draw pinning).
+# maintainer decisions).
+#
+# === THE FOURTEENTH-CONTINUATION ADDENDUM (the A2 closure — the
+# R2007 crc_seed draw pinning; read this first after the header,
+# then the thirteenth addendum): **THE 2026-09-30 INVESTIGATION'S
+# OPEN VARIANT SPACE CLOSED — THE ENGINE WAS SILVER'S ALL ALONG
+# EXCEPT ONE ASSEMBLY BIT.** The verification-not-implemented stamp
+# (earlier today) ran the divergence live at 358dd4e; the pinning
+# session that followed extracted the RAW check-data draws
+# (`check_random1/2` — the header-page tail, file 0x468/0x470, no
+# RS de-interleave) and matched them against candidate table
+# streams on the 19-file R2007 ensemble:
+#
+# (1) THE PINNING: silver's LCG-both-halves init, MT chain from
+# table[1], §5.11 twist, 128-word padding table, NO tempering, and
+# the §5.2.1.1 draw order (sections, pages, random1, random2,
+# check-encoded, crc_seed_encoded) are the AUTHOR'S. The one
+# divergence: the u64 draw assembles FIRST WORD = HIGH HALF —
+# `table[i]<<32|table[i+1]` — silver read it lo-first. Pinned raw:
+# example_2007 seed 0x24cc9552adddcbdb → check_random1 ==
+# table[187]<<32|table[188] == 0xe58b031fda4636c8; the hermetic
+# test test_crc_random_encoder_author_pinned fixes it.
+#
+# (2) THE UNPINNED RESIDUE: the six draws begin at table index
+# 164..199 per file (36–71 words after the padding table). The
+# consumed words materialize NOWHERE on disk (whole-file search);
+# the data-page RS tails and the header-page post-RS fill all draw
+# from the STATIC 128-word padding prefix (silver's fill_random IS
+# the author's — byte-verified); the per-page checksums are not
+# encoder draws; the map slots carry repeat-marker copies of their
+# own streams. The count tracks ≈4 words per encoding-4 page ±3
+# with NO structural formula found — the residue is COLD-RECORDED;
+# the ac21_page_layout bin (new, permanent) is its opening census.
+#
+# (3) THE LANDING: the assembly fix in CrcRandomEncoder::next_u64 +
+# the §19 H7 verbatim-replay of the three-family draws
+# (set_source_crc_seed_draws on DwgFileHeaderWriterAC21; both
+# passes of the shared write_two_pass_header, so the conventional
+# AND the H8b mirror path replay) on a same-version crc_seed==0
+# rewrite. Constructed documents derive fresh self-consistent
+# draws (inert seed values; the map CRCs compute from the spec
+# zero, not from the drawn fields — any draw is reader-valid).
+#
+# (4) THE ACCEPTANCE: the conventional rewrite carries HER three
+# draws — example_2007 (0xa4825533cf3d200d / 0x06d124375b400495 /
+# 0x719670845579d41b), Leader, ATMOS-DC22S, circle, RAY all match.
+# The battery: suite 1,610/0 (53 segments; 43 ac21 tests incl.
+# the pin); the corpus 337 unchanged (the 213 pre-existing
+# untracked-fixture rows, ZERO non-fixture carriers — the family
+# is JSON-blind, silver's dump never emits R2007_Header); the
+# 2007 era census unchanged (0 divergent / 84 her-only standing);
+# the genus pin no drift; the generation identity f2187565…
+# UNMOVED — correctly: the AC1032 artifact exercises the
+# 2004-style container (R2010+ reverted to it; gold labels it
+# R2004_Header on her AC1032 files too), so the AC21 encoder is
+# exercised by R2007 (AC1021) writes ONLY.
+#
+# THE NEXT WORK, ranked: (a) the five 2018 residual families
+# (TODO A5 — the Dynblocks action family is the largest); (b) the
+# A2 residue if it ever matters for a full derive (the
+# ac21_page_layout census); (c) the untracked-fixture session's
+# corpus rows; (d) the §19.5 version-parity tiers (maintainer
+# decisions).
+# The reading order stands: AGENTS.md → IMPLEMENTATION.md
+# §7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+# file top to bottom, STARTING at THIS addendum.
 #
 # === THE THIRTEENTH-CONTINUATION ADDENDUM (the A1 closure — the
 # 2018-era conventional-arm wire divergence; read this first, then

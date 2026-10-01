@@ -17,69 +17,47 @@ decisions** (scope calls, not packets) → **D. Standing guardrails**
 
 ## A. Open tasks — agent code work
 
-### A2. MT crc_seed draw pinning (the one open algorithmic unknown)
+### A2. MT crc_seed draw pinning — **LANDED 2026-10-01 (the engine pinned + the derive family replayed)**
 
-The R2007_Header CRC random encoding: some header CRCs are stored as
-UInt64s with 10 data bits spread evenly + 54 pseudo-random bits. The engine
-(ODA §5 pseudocode) is implemented in-tree
-(`src/io/dwg/file_headers/file_header_ac21.rs::CrcRandomEncoder` ~line 95,
-with the exact constants), but **the generated sequence diverges from the
-author's draws at the same seed+crc_seed — the first draw already differs**.
+The 2026-09-30 investigation's open variant space closed by direct
+measurement (the full record: `IMPLEMENTATION.md` §20 fourteenth
+continuation). **The engine was silver's all along except ONE assembly
+bit**: the check-data fields `check_random1/2` — RAW encoder draws
+readable plainly at the header-page tail (file offsets 0x468/0x470) —
+pin the generator against the 19-file R2007 ensemble: silver's LCG+MT
+init, twist, 128-word padding table, no tempering, and the §5.2.1.1
+draw ORDER are the author's; the 2026-09-30 variant enumeration was
+misled because **the u64 draw assembles FIRST WORD = HIGH half**
+(`table[i] << 32 | table[i+1]`) where silver read it lo-first. Pinned
+raw: `example_2007` seed `0x24cc9552adddcbdb` →
+`check_random1 == table[187]<<32|table[188] == 0xe58b031fda4636c8`
+(hermetic test `test_crc_random_encoder_author_pinned`).
 
-**INVESTIGATED 2026-09-30 (this session) — ground truth extracted and three
-variants eliminated.** From `example_2007.dwg`'s `R2007_Header`:
-`random_seed = 0x24cc9552adddcbdb`, `crc_seed = 0x0`, and the author's
-recorded draws `sections_map_crc_seed = 0xa4825533cf3d200d`,
-`pages_map_crc_seed = 0x06d124375b400495`,
-`crc_seed_encoded = 0x719670845579d41b`. A faithful Python port of silver's
-`CrcRandomEncoder` (LCG init on both 32-bit seed halves, MT-style recurrence
-from `table[1]`, 0x80-entry padding consumption, no tempering, 10-bit
-spread) reproduces silver's draws exactly — and **all three diverge from the
-author's** (`534b…` vs `a482…` on the first). Two further init variants
-(pure MT19937 `t[i]=f(t[i-1])+i` from `seed_lo`; LCG-01 then MT chain from
-`t[1]`) also diverge. So the author's generator is none of: silver's
-LCG+MT hybrid, standard MT19937-lo, or the LCG01-chain. The variant space
-still open: MT tempering applied on read (silver reads raw table values),
-a different twist offset (`0x18D`) or period (`0x270` vs `0x270`/`624`),
-little-endian vs big-endian seed-byte split, and a different padding/index
-walk.
-
-- **Closes**: the 3-per-file R2007_Header derive family
-  (`sections_map_crc_seed`, `pages_map_crc_seed`, `crc_seed_encoded`) —
-  the author's values land for free once the draws match.
-- **Ground truth**: every corpus R2007+ file supplies (seed, author's
-  draws) on disk — **no fixture needed**. The extraction + variant harness
-  is reproducible: read `R2007_Header` via gold `-O JSON`, port the encoder,
-  diff the three draws.
-- **Method**: widen the variant enumeration (tempering on/off, twist
-  offset, index/wrap order, seed split) against `example_2007`'s three
-  draws; the spec's §5.11 tables follow the engine exactly, so the
-  discrepancy is in the variant, not the pseudocode. When a variant matches
-  all three draws on `example_2007`, confirm on a second R2007 file before
-  landing.
-- **Sources**: `IMPLEMENTATION.md` §19.4.G (line 7188), the H8h-ext
-  residual notes (lines 5422–5428, 5999–6000, 7257–7258); this session's
-  variant-elimination evidence above.
-- **Fixture**: none.
-- **VERIFIED NOT-IMPLEMENTED 2026-10-01 (HEAD 358dd4e, the A1 landing;
-  a verify-and-remove request ran the divergence live)**:
-  `DWG_NO_ECHO=1 dwgrewrite example_2007` → the H7g seed-mirror works
-  (`random_seed` 0x24cc9552adddcbdb and `crc_seed` 0 identical on both
-  sides), but all three draws still diverge exactly as the 2026-09-30
-  investigation recorded — `sections_map_crc_seed` 0xA4825533CF3D200D
-  → silver's 0x534B-class draw, `pages_map_crc_seed`, and
-  `crc_seed_encoded` likewise. The echo arm roundtrips her file
-  md5-identical, so the divergence bites ONLY the conventional arm
-  (non-fingerprint writes: edited documents, constructed R2007+
-  content). **Coverage note (new, this verification)**: no mechanized
-  gate sees this family — the corpus axes diff silver-read vs
-  gold-read of the SAME side (both readers carry the STORED draws; the
-  derive never fires on read), and the era census covers the objects
-  section only. The draws must be compared to the author's file by a
-  hand extraction (gold `-O JSON`, the `R2007_Header` fields) until
-  they are pinned. **Kept in the open list — the variant space (MT
-  tempering, twist offset, period, seed split, index walk) remains
-  unmeasured.**
+- **Landed**: (1) `CrcRandomEncoder::next_u64` assembles first-word
+  high (the author's convention); (2) the derive family
+  (`sections_map_crc_seed`, `pages_map_crc_seed`, `crc_seed_encoded`)
+  REPLAYS the retained author draws verbatim on a same-version
+  content-preserving rewrite (`set_source_crc_seed_draws`, both
+  finalize passes, the conventional and the §19 H8b mirror paths) —
+  the one unpinned engine property, the per-file pre-draw walk start
+  (36–71 table words, ≈4 per encoding-4 page ±3, no byte
+  materialization anywhere on disk), made replay the honest landing;
+  constructed/edited documents derive fresh self-consistent draws
+  (the fields are inert seed values — the map CRCs compute from the
+  spec-zero, not from them).
+- **Acceptance**: the conventional rewrite carries HER three draws —
+  verified on `example_2007` (0xa4825533cf3d200d / 0x06d124375b400495
+  / 0x719670845579d41b), Leader, ATMOS-DC22S, circle, and RAY. Suite
+  1,610/0 (43 ac21 tests incl. the pin); the corpus unchanged (the
+  family is JSON-blind — silver's dump never emits `R2007_Header`);
+  the 2007 era census unchanged (0/84-her-only); the genus pin no
+  drift; the generation identity f2187565… UNMOVED — the AC1032
+  artifact exercises the 2004-style container (R2010+ reverted to
+  it), so the AC21 encoder is R2007-only.
+- **The residue (cold, recorded)**: the pre-draw walk-start formula —
+  opening census instrument: `ac21_page_layout` (the new permanent
+  bin: per-page RS geometry, tail pads, map-slot payloads, header
+  fill).
 
 ### A3. Full era-corpus record-identity censuses — **LANDED 2026-09-30 (this session)**
 
