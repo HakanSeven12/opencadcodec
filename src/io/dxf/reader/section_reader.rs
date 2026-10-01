@@ -1276,9 +1276,17 @@ fn dynamic_dxf_linear_constraint(fields: &DynamicDxfFields) -> BlockLinearConstr
 
 fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
     let section = "AcDbShHistoryNode";
+    // The matrix is written as groups 40..55, one per element. Older codec
+    // output repeated group 40 sixteen times; accept that form as well.
     let mut transform = [0.0; 16];
-    for (target, source) in transform.iter_mut().zip(fields.values(section, 40)) {
-        *target = source.trim().parse().unwrap_or(0.0);
+    if fields.values(section, 41).is_empty() {
+        for (target, source) in transform.iter_mut().zip(fields.values(section, 40)) {
+            *target = source.trim().parse().unwrap_or(0.0);
+        }
+    } else {
+        for (index, target) in transform.iter_mut().enumerate() {
+            *target = fields.f64(section, 40 + index as i32);
+        }
     }
     let color = if fields.values(section, 420).is_empty() {
         Color::from_index(fields.i16(section, 62))
