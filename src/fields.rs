@@ -722,10 +722,15 @@ fn eval_acvar(doc: &CadDocument, code: &str, ctx: &dyn FieldContext) -> Option<S
             nonempty(&si.last_saved_by).or_else(|| nonempty(&doc.header.last_saved_by))
         }
         // File provenance.
-        "Filename" | "FileName" => match picture_number(fmt, "%fn") {
-            Some(bits) => filename_parts(doc, bits),
-            None => filename(doc),
-        },
+        // An unsaved drawing has only its name (DWGNAME, from the host).
+        "Filename" | "FileName" => {
+            let path = doc.source_path.clone().or_else(|| ctx.getvar("dwgname"));
+            let path = path.as_deref()?;
+            match picture_number(fmt, "%fn") {
+                Some(bits) => filename_parts(path, bits),
+                None => filename(path),
+            }
+        }
         "FilePath" => filepath(doc),
         // `%by1` bytes, `%by2` kilobytes, `%by3` megabytes (truncated).
         "Filesize" | "FileSize" => ctx.file_size().map(|n| {
@@ -795,16 +800,14 @@ fn nonempty(s: &str) -> Option<String> {
 }
 
 /// The drawing file name with extension (the common `Filename` display).
-fn filename(doc: &CadDocument) -> Option<String> {
-    let p = doc.source_path.as_deref()?;
+fn filename(p: &str) -> Option<String> {
     let base = p.rsplit(['/', '\\']).next().unwrap_or(p);
     nonempty(base)
 }
 
 /// `%fnN` filename: bit 1 folder (no trailing separator), bit 2 name, bit 4
 /// extension — `%fn7` full path, `%fn6` name.ext, `%fn5` folder.ext.
-fn filename_parts(doc: &CadDocument, bits: u32) -> Option<String> {
-    let p = doc.source_path.as_deref()?;
+fn filename_parts(p: &str, bits: u32) -> Option<String> {
     let (dir, sep, base) = match p.rfind(['/', '\\']) {
         Some(i) => (&p[..i], &p[i..i + 1], &p[i + 1..]),
         None => ("", "\\", p),
