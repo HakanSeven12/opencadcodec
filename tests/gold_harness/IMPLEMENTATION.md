@@ -8743,3 +8743,53 @@ seven-packet chain), the corpus 8/8 rows above, and the no-lz77 arm
 dying at the `AcDb:AcDsPrototype_1b` section on 2013+ authored
 files (conventional-write validation rides the 2007/2010 frames
 until that lands).
+
+**The landing (commits + the review pass)**: the packet landed as
+`b7e9bd7` on `gold-vs-silver` (pushed; the fixture modes normalized
+to 644 — the WSL mount had tagged the new .dwg files 755), preceded
+by `316d57f` landing the B1 session's unshipped fixture set (58
+files — 0abb9e4's message described "the landed fixture set" but
+the commit carried none; a stray survey JSON and an NTFS
+Zone.Identifier artifact were cleaned rather than committed). The
+pre-commit review pass caught four defects, all fixed before the
+commit: (1) the doc-append corruption — both session records had
+been fed through a double-quoted remote-shell layer that executed
+every markdown backtick pair as command substitution (the records
+were truncated back and re-appended through a literal python
+channel; the lesson recorded in the NEXT_SESSION carry-overs);
+(2) a tautological assertion in the version-gate test (always-true
+`x < 32 || x <= 32` — replaced with a real captured-width check);
+(3) an unused `roundtrip` parameter left from a debugging detour
+(the AC1021 handle-canonicalization probe — the helper now keys the
+decoded record's own handle); (4) a wrong suite count in the docs
+(1,562 claimed vs 1,616 measured). TODO.md was re-distilled to the
+post-B2 state the same session: the carry-overs formalized as its
+queue (A5 the eight pre-existing corpus rows, A6 the no-lz77
+DataStore blocker, A7 the genus pin regeneration, A8 the 42/47
+named-fields dissection, B6 the kinds 19/27 specimen watch), C1's
+Tier-1 note refreshed (the corpus growth 280 → 377 with the residue
+attribution), and the preface's state snapshot moved to 2026-10-01.
+
+
+**H8h-ext-16 addendum — the 2026-10-02 author-quads review (the
+maintainer's GUI specimens land)**: four quads dropped into
+`fixtures/sh_history/` (ConeElliptical, CylinderElliptical,
+ExtrudeE, SweepHelix — the elliptical variants of the §18.5/F2.3
+solid family plus the solid sweep along a helix, the route the
+console could not author). The review pass: all sixteen DWGs
+qualify (gold dwgread zero ERROR lines each; corpus pairs read 0 /
+write 0 each — the 16-file run needs the login PATH + GOLD_DWGREAD,
+the recorded bare-script trap); the .txt companions were written
+from the measured wire (the class tables name the ops:
+ACSH_CONE_CLASS / ACSH_CYLINDER_CLASS / ACSH_EXTRUSION_CLASS /
+ACSH_SWEEP_CLASS; the authoring command options stay the
+maintainer's, not inferred). The B6 datum the quads carry: every
+one of them holds ZERO `ASSOCEDGEACTIONPARAM` records — including
+SweepHelix, the first GUI-authored sweep specimen — so the
+solid-mode subcurve negative map now rests on independently
+authored evidence (a solid sweep, like POLYSOLID, produces no
+subcurve records; the elliptical cone/cylinder/extrusion
+primitives carry their geometry in the SH raw tails instead). The
+corpus stands at 393 files (377 + 16); TODO.md's preface, B6 (the
+GUI-sweep route measured negative, the surface-mode branch the
+remaining sweep lever) and C1 were refreshed to the new counts.

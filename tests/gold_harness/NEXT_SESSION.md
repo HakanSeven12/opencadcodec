@@ -1,10 +1,12 @@
 # THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3, A5 AND B1 ARE
-# CLOSED — THE 2018 ERA IS AT FULL RECORD IDENTITY (0/50,773), THE
-# COVERAGE-GAP ENTITY FAMILY READS TYPED (THE FIXTURE CORPUS AT 61/65
-# FULLY CLEAN)**:
+# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3, A5, B1 AND B2
+# ARE CLOSED — THE 2018 ERA IS AT FULL RECORD IDENTITY (0/50,773),
+# THE COVERAGE-GAP ENTITY FAMILY READS TYPED (THE FIXTURE CORPUS AT
+# 61/65 FULLY CLEAN), THE SUBCURVE ACTION-TYPE LADDER IS MODELED
+# (THE THREE EVIDENCED KINDS TYPED BIT-EXACT, 42/47 NETTED BY
+# CAPTURE+REPLAY, 19/27 ATTESTED NOWHERE)**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -40,9 +42,25 @@
 # §20 seventeenth continuation records the instrument trail); the
 # suite 1,610/0, the genus pin no drift, the
 # generation identity f2187565… unmoved (every capture twin
-# defaults for constructed content). THE FIRST ACTION for the
+# defaults for constructed content); B2 (the unattested subcurve
+# action types) landed: ELLIPSE 17 + LINESEG3D 23 typed bit-exact
+# (13/6 BDs, double-sourced on the authored quads + the
+# 2004/Surface.dwg corpus records), ARC 11 kept + the latent
+# R2013+ two-bit trailing-form fix (the ext-4 writer was 2 bits
+# short on 2013/2018 conventional writes — invisible: gold's spec
+# switch is dead code behind HANDLE_UNKNOWN_BITS), NURB3D 42 + the
+# gold-unknown 47 netted by verbatim capture+replay on
+# same-version writes, 19/27 attested nowhere (the full-corpus
+# census + the authoring-lever negative map; SWEEP unauthorable
+# headless); ten fixture quads landed (the corpus now 377 files,
+# every B2 fixture 0/0); the suite 1,616/0 (six new bit-exact
+# tests), the generation identity unmoved, genus --strict
+# PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read the sixteenth addendum's record (and the
+# section below), read the TODO B2 addendum at this file's bottom
+# (the 2026-10-01 halt state) and TODO.md's distilled queue (the
+# A5-A8/B6 items — the B2 carry-overs formalized 2026-10-01), then
+# the sixteenth addendum's record (and the
 # seventeenth continuation), then the
 # residual queue (the older eras' census rows — 2000's 325
 # PolyLine2D-led, 2004's 15, 2010's 1, 2013's 22; the 2004
@@ -3551,3 +3569,52 @@ feed markdown backtick content through a double-quoted remote-shell
 layer — the code marks execute as command substitutions (this
 block and its IMPLEMENTATION sibling were re-appended through a
 literal python channel after the damage was caught in review).
+
+**The halt close (2026-10-01, the session's last acts)**: the
+review pass caught the doc corruption above and three smaller
+defects (a tautological test assertion, an unused roundtrip
+parameter, a wrong suite count in the docs — all fixed); the B1
+commit's unshipped fixtures were landed as `316d57f` (58 files —
+0abb9e4's message described them but the commit carried none; a
+stray survey JSON and an NTFS Zone.Identifier artifact were
+cleaned rather than committed), and the B2 packet landed as
+`b7e9bd7` (89 files: the five src files, the six-test suite, the
+40 fixture files, the three docs) — both pushed to
+`origin/gold-vs-silver` (verified `b7e9bd7` on the remote; the
+fixture file modes normalized to 644 — the WSL mount had tagged
+them 755). TODO.md was then re-distilled to the post-B2 state: the
+carry-overs are formalized as its queue items — **A5** (the eight
+pre-existing corpus rows), **A6** (the no-lz77 DataStore blocker),
+**A7** (the genus pin regeneration), **A8** (the 42/47 named-fields
+dissection), **B6** (kinds 19/27, blocked on specimen discovery)
+— plus C1's Tier-1 note refreshed (the corpus growth 280 → 377 and
+the residue attribution). The next session starts from TODO.md's
+A5 head (or the maintainer's C-tier calls), with the battery
+re-verify as ever the first action.
+
+## The 2026-10-02 author-quads landing (the maintainer's GUI
+## specimens, reviewed + committed):
+
+Four maintainer-authored quads dropped into fixtures/sh_history/
+(ConeElliptical, CylinderElliptical, ExtrudeE, SweepHelix —
+2007/2010/2013/2018 each, sixteen DWGs, bare — the .txt companions
+were written in the review pass from the measured wire). The review
+battery: every file passes gold dwgread -O JSON with zero ERROR
+lines; every corpus pair measures **read 0 / write 0** (the
+16-file pass, run with the login env + GOLD_DWGREAD — the bare-
+script trap of carry-over (d) still bites); the class tables name
+the ops (ACSH_CONE_CLASS, ACSH_CYLINDER_CLASS, ACSH_EXTRUSION_CLASS,
+ACSH_SWEEP_CLASS — the elliptical cross-sections + the solid sweep
+the §18.5/F2.3 solid family was missing, the E in ExtrudeE being the
+elliptical-profile twin of the landed ExtrudeC).
+
+**The B6 datum**: SweepHelix is the GUI-authored sweep the B2 session
+could not produce headless — and it carries **ZERO
+EdgeActionParam records** (solid ACSH_SWEEP_CLASS genus, the
+eval-graph + history pair only). The solid-mode/sweep subcurve
+negative map now holds on independently authored GUI specimens;
+the remaining 19/27 candidate routes trim to the SURFACE-mode GUI
+sweep, constraint-network edge params, infinite-line geometry and
+era conversions. The corpus stands at **393 files** (377 + 16, all
+sixteen at 0/0); TODO.md's preface, B6 and C1 were refreshed with
+these numbers.
