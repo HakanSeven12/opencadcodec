@@ -109,11 +109,11 @@ pub fn write_aux_header(version: DxfVersion, header: &HeaderVariables) -> Vec<u8
     }
 
     // TD: TDCREATE (Julian date as 8 bytes: day + milliseconds)
-    let (create_day, create_ms) = julian_from_f64(header.create_date_julian);
+    let (create_day, create_ms) = julian_from_f64(header.universal_create_or_local());
     writer.write_8bit_julian_date(create_day, create_ms);
 
     // TD: TDUPDATE (Julian date as 8 bytes)
-    let (update_day, update_ms) = julian_from_f64(header.update_date_julian);
+    let (update_day, update_ms) = julian_from_f64(header.universal_update_or_local());
     writer.write_8bit_julian_date(update_day, update_ms);
 
     // RL: HANDSEED (if < 0x7FFFFFFF, else -1)

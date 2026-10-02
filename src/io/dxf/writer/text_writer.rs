@@ -143,6 +143,15 @@ impl<W: Write> DxfStreamWriter for DxfTextWriter<W> {
     #[inline]
     fn write_string(&mut self, code: i32, value: &str) -> Result<()> {
         self.write_code(code)?;
+        // A literal caret is written as "^ ": a bare "^x" is read as a control
+        // character (`\AcExpr (2^3)` would lose its operator).
+        let caret;
+        let value = if value.contains('^') {
+            caret = value.replace('^', "^ ");
+            caret.as_str()
+        } else {
+            value
+        };
         // DXF text format is line-based: literal newlines in string values
         // would corrupt the file.  Replace them with the MText paragraph
         // marker \P which is the standard convention in DXF/DWG ecosystems.

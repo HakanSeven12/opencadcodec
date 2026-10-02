@@ -678,7 +678,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
         // === Time ===
         self.write_header_variable("$TDCREATE", |w| w.write_double(40, hdr.create_date_julian))?;
+        // Universal times exist from R2000 on.
+        let universal = self.dxf_version >= DxfVersion::AC1015;
+        if universal {
+            self.write_header_variable("$TDUCREATE", |w| w.write_double(40, hdr.universal_create_or_local()))?;
+        }
         self.write_header_variable("$TDUPDATE", |w| w.write_double(40, hdr.update_date_julian))?;
+        if universal {
+            self.write_header_variable("$TDUUPDATE", |w| w.write_double(40, hdr.universal_update_or_local()))?;
+        }
         self.write_header_variable("$TDINDWG", |w| w.write_double(40, hdr.total_editing_time))?;
 
         // === Identity === (R2000+, as in the DWG header; empty ones are
@@ -5386,7 +5394,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             self.writer.write_handle(331, *handle)?;
         }
         if self.dxf_version < DxfVersion::AC1021 {
-            self.writer.write_string(4, &value.format)?;
+            self.writer.write_string(4, value.pre2007_format())?;
         }
         self.writer.write_i32(91, value.evaluation_option)?;
         self.writer.write_i32(92, value.filing_option)?;
@@ -5406,7 +5414,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.write_field_value_dxf(&value.value)?;
         self.writer.write_string(301, &value.value_string)?;
         self.writer.write_i32(98, value.value_string_length)?;
-        Ok(())
+        self.write_xdata(&value.xdata)
     }
 
     fn write_field_value_dxf(&mut self, value: &CellValue) -> Result<()> {

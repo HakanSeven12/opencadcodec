@@ -663,10 +663,17 @@ pub struct HeaderVariables {
     pub continuous_linetype_handle: Handle,
 
     // ==================== Date/Time ====================
-    /// Document creation time (Julian date)
+    /// TDCREATE: creation time in local time (Julian day, fraction from
+    /// midnight). DWG files store only the universal time; their reader
+    /// copies it here because the file carries no time zone.
     pub create_date_julian: f64,
-    /// Document update time (Julian date)
+    /// TDUPDATE: last save in local time (Julian day, fraction from midnight).
     pub update_date_julian: f64,
+    /// TDUCREATE: creation time in universal time — the value DWG files store.
+    /// 0 = unknown; writers then fall back to the local value.
+    pub universal_create_date_julian: f64,
+    /// TDUUPDATE: last save in universal time; 0 = unknown.
+    pub universal_update_date_julian: f64,
     /// Total editing time in days
     pub total_editing_time: f64,
     /// User elapsed time in days
@@ -709,6 +716,26 @@ pub struct HeaderVariables {
     pub current_table_style_name: String,
     /// CMLEADERSTYLE - Current multileader style name
     pub current_mleader_style_name: String,
+}
+
+impl HeaderVariables {
+    /// TDUCREATE, or TDCREATE when the universal value is unknown.
+    pub fn universal_create_or_local(&self) -> f64 {
+        if self.universal_create_date_julian != 0.0 {
+            self.universal_create_date_julian
+        } else {
+            self.create_date_julian
+        }
+    }
+
+    /// TDUUPDATE, or TDUPDATE when the universal value is unknown.
+    pub fn universal_update_or_local(&self) -> f64 {
+        if self.universal_update_date_julian != 0.0 {
+            self.universal_update_date_julian
+        } else {
+            self.update_date_julian
+        }
+    }
 }
 
 impl Default for HeaderVariables {
@@ -996,6 +1023,8 @@ impl Default for HeaderVariables {
             // Date/time
             create_date_julian: 0.0,
             update_date_julian: 0.0,
+            universal_create_date_julian: 0.0,
+            universal_update_date_julian: 0.0,
             total_editing_time: 0.0,
             user_elapsed_time: 0.0,
 

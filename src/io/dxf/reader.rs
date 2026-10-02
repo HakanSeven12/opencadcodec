@@ -55,6 +55,9 @@ pub struct DxfReader {
     config: DxfReaderConfiguration,
     /// Estimated entity count based on stream size (used for pre-allocation).
     estimated_entities: usize,
+    /// Source path, when opened from a file — copied onto the document so the
+    /// `Filename` / `Filesize` / date fields can resolve.
+    source_path: Option<String>,
 }
 
 impl DxfReader {
@@ -83,11 +86,13 @@ impl DxfReader {
             reader,
             config: DxfReaderConfiguration::default(),
             estimated_entities,
+            source_path: None,
         })
     }
 
     /// Create a new DXF reader from a file path
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let source_path = Some(path.as_ref().to_string_lossy().into_owned());
         let file = File::open(path)?;
         let mut buf_reader = BufReader::with_capacity(64 * 1024, file);
 
@@ -112,6 +117,7 @@ impl DxfReader {
             reader,
             config: DxfReaderConfiguration::default(),
             estimated_entities,
+            source_path,
         })
     }
 
@@ -389,6 +395,7 @@ impl DxfReader {
             stream_completed,
             diagnostics,
         );
+        document.source_path = self.source_path.take();
         Ok(crate::io::read::ReadOutcome::new(document, stats))
     }
 
