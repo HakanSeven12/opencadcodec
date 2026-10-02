@@ -736,6 +736,13 @@ impl<'a> DwgObjectWriter<'a> {
         if let Some(raw) = self.document.eed_by_handle.get(&handle) {
             eed.raw_dwg_eed = raw.clone();
         }
+        // XDATA records (from DXF) are encoded for applications that have no
+        // verbatim block.
+        if let Some(xdata) = self.document.object_xdata.get(&handle) {
+            for record in xdata.records() {
+                eed.add_record(record.clone());
+            }
+        }
         for (app, bytes) in extra_eed {
             eed.raw_dwg_eed.retain(|(a, _)| *a != app);
             eed.raw_dwg_eed.push((app, bytes));

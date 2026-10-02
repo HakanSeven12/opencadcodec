@@ -192,6 +192,7 @@ impl<'a> SemanticInventoryV1<'a> {
             dgn_ls_definitions: _,
             dgn_ls_components: _,
             eed_by_handle,
+            object_xdata,
             xdic_by_handle,
             reactors_by_handle,
             block_entity_handles: _,
@@ -314,6 +315,25 @@ impl<'a> SemanticInventoryV1<'a> {
                     owner: self.reference(*owner),
                     application,
                     values,
+                });
+            }
+        }
+        // Records without a verbatim EED block (read from DXF).
+        for (owner, xdata) in object_xdata {
+            for record in xdata.records() {
+                let application = app_ids.get(&record.application_name);
+                let has_raw = application.is_some_and(|app| {
+                    eed_by_handle
+                        .get(owner)
+                        .is_some_and(|blocks| blocks.iter().any(|(a, _)| *a == app.handle.value()))
+                });
+                if has_raw {
+                    continue;
+                }
+                visitor(SemanticPartV1::NonEntityExtendedData {
+                    owner: self.reference(*owner),
+                    application,
+                    values: Some(record.values.clone()),
                 });
             }
         }

@@ -8,6 +8,7 @@ mod text_reader;
 pub use binary_reader::DxfBinaryReader;
 pub use stream_reader::DxfStreamReader;
 pub use text_reader::DxfTextReader;
+use stream_reader::XDataRecorder;
 
 use section_reader::SectionReader;
 
@@ -72,11 +73,11 @@ impl DxfReader {
 
         // Create appropriate reader
         let reader: Box<dyn DxfStreamReader> = if is_binary {
-            Box::new(DxfBinaryReader::new(buf_reader)?)
+            Box::new(XDataRecorder::new(Box::new(DxfBinaryReader::new(buf_reader)?)))
         } else {
             // Seek back to start for text DXF files
             buf_reader.seek(std::io::SeekFrom::Start(0))?;
-            Box::new(DxfTextReader::new(buf_reader)?)
+            Box::new(XDataRecorder::new(Box::new(DxfTextReader::new(buf_reader)?)))
         };
 
         Ok(Self {
@@ -101,11 +102,11 @@ impl DxfReader {
 
         // Create appropriate reader
         let reader: Box<dyn DxfStreamReader> = if is_binary {
-            Box::new(DxfBinaryReader::new(buf_reader)?)
+            Box::new(XDataRecorder::new(Box::new(DxfBinaryReader::new(buf_reader)?)))
         } else {
             // Seek back to start for text DXF files
             buf_reader.seek(std::io::SeekFrom::Start(0))?;
-            Box::new(DxfTextReader::new(buf_reader)?)
+            Box::new(XDataRecorder::new(Box::new(DxfTextReader::new(buf_reader)?)))
         };
 
         Ok(Self {

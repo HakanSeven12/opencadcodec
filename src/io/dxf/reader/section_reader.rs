@@ -1077,7 +1077,7 @@ fn dynamic_dxf_eval(fields: &DynamicDxfFields) -> BlockEvalExpression {
         _ => BlockEvalValue::None,
     };
     BlockEvalExpression {
-        parent_id: 0,
+        parent_id: BlockEvalExpression::NO_PARENT,
         major: fields.i32(section, 98),
         minor: fields.i32(section, 99),
         value_code,
@@ -1299,11 +1299,8 @@ fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
             true_color_bits(&fields.text(section, 420)).unwrap_or_default(),
         )
     };
-    // DXF does not carry the parent id; history nodes store the root value.
-    let mut eval = dynamic_dxf_eval(fields);
-    eval.parent_id = SolidHistoryNodeBase::ROOT_PARENT;
     SolidHistoryNodeBase {
-        eval,
+        eval: dynamic_dxf_eval(fields),
         major: fields.i32(section, 90),
         minor: fields.i32(section, 91),
         transform,
@@ -6348,6 +6345,7 @@ impl<'a> SectionReader<'a> {
 
             if pair.code == 0 {
                 let before = document.objects.len();
+                self.reader.record_xdata(true);
                 match pair.value_string.as_str() {
                     "DICTIONARY" => {
                         if let Some(obj) = self.read_dictionary()? {
@@ -6681,6 +6679,7 @@ impl<'a> SectionReader<'a> {
                 self.decoded_records = self
                     .decoded_records
                     .saturating_add(document.objects.len().saturating_sub(before));
+                self.read_object_xdata(document)?;
             }
         }
 
@@ -16966,6 +16965,11 @@ impl<'a> SectionReader<'a> {
     /// Read a LEADER entity
     fn read_leader(&mut self) -> Result<Option<Leader>> {
         let mut leader = Leader::new();
+        // A missing 73 group means the documented default: no annotation.
+        // Keeping the "with text" constructor default leaves a text leader
+        // without text, which the reference application reports as a bad
+        // annotation id.
+        leader.creation_type = crate::entities::leader::LeaderCreationType::NoAnnotation;
         let mut normal = PointReader::new();
         let mut horiz_dir = PointReader::new();
         let mut block_offset = PointReader::new();
@@ -17098,6 +17102,10 @@ impl<'a> SectionReader<'a> {
         }
         if let Some(pt) = annotation_offset.get_point() {
             leader.annotation_offset = pt;
+        }
+        // DXF has no origin group; DWG stores the first vertex there.
+        if let Some(first) = leader.vertices.first() {
+            leader.origin = *first;
         }
 
         Ok(Some(leader))
@@ -20798,6 +20806,40 @@ impl<'a> SectionReader<'a> {
         Ok(Some(scale))
     }
 
+    /// Store the XDATA recorded while an object was read in
+    /// `object_xdata`, unless the object keeps it in its own form.
+    fn read_object_xdata(&mut self, document: &mut CadDocument) -> Result<()> {
+        let (handle, pairs) = self.reader.take_recorded_xdata();
+        self.reader.record_xdata(false);
+        let Some(handle) = handle
+            .and_then(|value| u64::from_str_radix(&value, 16).ok())
+            .map(Handle::new)
+        else {
+            return Ok(());
+        };
+        if pairs.is_empty()
+            || document
+                .objects
+                .get(&handle)
+                .is_none_or(crate::io::dxf::object_has_own_dxf_xdata)
+        {
+            return Ok(());
+        }
+        // Replay the pairs through the XDATA parser; it stops at the pair
+        // after them, which goes back to the stream.
+        for pair in pairs.into_iter().rev() {
+            self.reader.push_back(pair);
+        }
+        let (xdata, next) = self.read_extended_data()?;
+        if let Some(next) = next {
+            self.reader.push_back(next);
+        }
+        if !xdata.is_empty() {
+            document.object_xdata.insert(handle, xdata);
+        }
+        Ok(())
+    }
+
     /// Read a SORTENTSTABLE object
     fn read_sort_entities_table(
         &mut self,
@@ -20806,6 +20848,8 @@ impl<'a> SectionReader<'a> {
         let mut set = SortEntitiesTable::new();
         let mut entity_handle: Option<Handle> = None;
         let mut raw_dxf_codes = Vec::new();
+        let mut in_group = false;
+        let mut in_table = false;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -20814,6 +20858,15 @@ impl<'a> SectionReader<'a> {
             }
             raw_dxf_codes.push((pair.code, pair.value_string.clone()));
             match pair.code {
+                102 => in_group = pair.value_string.trim().starts_with('{'),
+                100 => in_table = pair.value_string.trim() == "AcDbSortentsTable",
+                // The owner dictionary precedes the subclass marker; the 330
+                // inside AcDbSortentsTable is the block record.
+                330 if !in_group && !in_table => {
+                    if let Ok(h) = u64::from_str_radix(pair.value_string.trim(), 16) {
+                        set.owner_handle = Handle::new(h);
+                    }
+                }
                 5 => {
                     if let Ok(h) = u64::from_str_radix(&pair.value_string, 16) {
                         if set.handle.is_null() {
@@ -20823,7 +20876,7 @@ impl<'a> SectionReader<'a> {
                         }
                     }
                 }
-                330 => {
+                330 if in_table => {
                     if let Ok(h) = u64::from_str_radix(&pair.value_string, 16) {
                         set.block_owner_handle = Handle::new(h);
                     }

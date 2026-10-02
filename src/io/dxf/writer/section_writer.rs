@@ -5414,8 +5414,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         {
             root_handle = Self::find_root_dict_handle(&document.objects);
         }
-        if let Some(ObjectType::Dictionary(root_dict)) = document.objects.get(&root_handle) {
+        if let Some(object @ ObjectType::Dictionary(root_dict)) = document.objects.get(&root_handle) {
             self.write_dictionary(root_dict, &document.objects)?;
+            self.write_object_xdata(document, root_handle, object)?;
         }
 
         // Write remaining objects (skip the root dictionary already written).
@@ -5506,6 +5507,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     )?;
                 }
             }
+            self.write_object_xdata(document, *handle, object)?;
         }
 
         self.writer.write_section_end()?;
@@ -9001,8 +9003,23 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         Ok(())
     }
 
+    /// Write the XDATA of a non-entity object after its groups.
+    fn write_object_xdata(
+        &mut self,
+        document: &CadDocument,
+        handle: Handle,
+        object: &ObjectType,
+    ) -> Result<()> {
+        if crate::io::dxf::object_has_own_dxf_xdata(object) {
+            return Ok(());
+        }
+        match document.object_xdata.get(&handle) {
+            Some(xdata) => self.write_xdata(xdata),
+            None => Ok(()),
+        }
+    }
+
     /// Write extended data (XDATA)
-    #[allow(dead_code)]
     fn write_xdata(&mut self, xdata: &ExtendedData) -> Result<()> {
         if xdata.is_empty() {
             return Ok(());

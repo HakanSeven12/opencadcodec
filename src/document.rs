@@ -1234,6 +1234,12 @@ pub struct CadDocument {
     /// Keyed by the object/table-entry handle. Not serialized.
     pub(crate) eed_by_handle: HashMap<Handle, Vec<(u64, Vec<u8>)>>,
 
+    /// Extended data (XDATA) of non-entity objects as application records,
+    /// keyed by object handle: read from DXF, or decoded from the DWG EED in
+    /// `eed_by_handle`. The DWG writer encodes the records whose application
+    /// has no verbatim EED block; the DXF writer writes them after the object.
+    pub(crate) object_xdata: HashMap<Handle, crate::xdata::ExtendedData>,
+
     /// Non-entity object xdictionary handles — populated during DWG read, consumed during DWG write.
     pub(crate) xdic_by_handle: HashMap<Handle, Handle>,
 
@@ -1457,6 +1463,7 @@ impl CadDocument {
             dgn_ls_definitions: HashMap::new(),
             dgn_ls_components: HashMap::new(),
             eed_by_handle: HashMap::new(),
+            object_xdata: HashMap::new(),
             xdic_by_handle: HashMap::new(),
             reactors_by_handle: HashMap::new(),
             block_entity_handles: HashMap::new(),
@@ -2967,6 +2974,13 @@ impl CadDocument {
                 }
             });
             self.objects.insert(new_handle, object);
+            // Node XDATA (e.g. loft end-profile data) travels with the node.
+            if let Some(eed) = self.eed_by_handle.get(&old_handle).cloned() {
+                self.eed_by_handle.insert(new_handle, eed);
+            }
+            if let Some(xdata) = self.object_xdata.get(&old_handle).cloned() {
+                self.object_xdata.insert(new_handle, xdata);
+            }
         }
         let new_evaluation = graph.evaluation_graph.map(|handle| remap[&handle]);
         if !self.set_entity_history_handle(target, Some(new_root)) {
@@ -5172,6 +5186,9 @@ impl CadDocument {
                 }
                 if let Some(value) = self.eed_by_handle.remove(old_handle) {
                     self.eed_by_handle.insert(*new_handle, value);
+                }
+                if let Some(value) = self.object_xdata.remove(old_handle) {
+                    self.object_xdata.insert(*new_handle, value);
                 }
                 if let Some(mut value) = self.xdic_by_handle.remove(old_handle) {
                     remap_object_handle(&mut value);

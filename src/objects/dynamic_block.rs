@@ -408,7 +408,7 @@ fn visit_solid_history_operation(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockEvalExpression {
     pub parent_id: i32,
@@ -417,6 +417,26 @@ pub struct BlockEvalExpression {
     pub value_code: i16,
     pub value: BlockEvalValue,
     pub node_id: i32,
+}
+
+impl BlockEvalExpression {
+    /// Parent id the reference application stores in DWG for an expression
+    /// without a parent. DXF does not carry the parent id, so expressions read
+    /// from DXF get this value; a 0 parent makes the drawing unreadable there.
+    pub const NO_PARENT: i32 = -1;
+}
+
+impl Default for BlockEvalExpression {
+    fn default() -> Self {
+        Self {
+            parent_id: Self::NO_PARENT,
+            major: 0,
+            minor: 0,
+            value_code: 0,
+            value: BlockEvalValue::default(),
+            node_id: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -873,7 +893,7 @@ pub struct SolidHistoryNodeBase {
 
 impl SolidHistoryNodeBase {
     /// Parent id of a root history node.
-    pub const ROOT_PARENT: i32 = -1;
+    pub const ROOT_PARENT: i32 = BlockEvalExpression::NO_PARENT;
     /// Expression value code meaning "no value".
     pub const NO_VALUE: i16 = -9999;
 
@@ -1134,6 +1154,11 @@ pub struct SolidHistorySweep {
     pub has_align_start: bool,
     pub bank: bool,
     pub check_intersections: bool,
+    /// DXF groups 294, 295 and 296. The reference application sets 295 and
+    /// 296 on every sweep it records: 295 says `sweep_entity` is already
+    /// placed on the path start and aligned to it (the profile is used as
+    /// stored, `sweep_entity_transform` identity). A sweep node with
+    /// 295 clear fails to evaluate there and the drawing is rejected.
     pub flags_294_296: [bool; 3],
     /// DXF group 11.
     pub reference_point: Vector3,

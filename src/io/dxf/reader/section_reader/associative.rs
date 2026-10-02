@@ -18,12 +18,19 @@ struct AssocDxfRecord {
 
 impl AssocDxfRecord {
     fn values(&self, section: &str, code: i32) -> Vec<&str> {
+        use crate::io::dxf::GroupCodeValueType;
+        // Numeric groups are right-aligned with spaces; only string groups
+        // keep their whitespace.
+        let preserve_whitespace = matches!(
+            GroupCodeValueType::from_raw_code(code),
+            GroupCodeValueType::String | GroupCodeValueType::None
+        );
         self.sections
             .get(section)
             .into_iter()
             .flatten()
             .filter(|(item_code, _)| *item_code == code)
-            .map(|(_, value)| value.as_str())
+            .map(|(_, value)| if preserve_whitespace { value.as_str() } else { value.trim() })
             .collect()
     }
 
