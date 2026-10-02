@@ -1307,7 +1307,7 @@ fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
         eval: dynamic_dxf_eval(fields),
         major: fields.i32(section, 90),
         minor: fields.i32(section, 91),
-        transform,
+        transform: crate::entities::surface::transpose_matrix(transform),
         color,
         step_id: fields.i32(section, 92),
         material: fields.handle(section, 347),
@@ -1391,8 +1391,8 @@ fn dynamic_dxf_history_sweep(
         twist_angle: fields.f64(section, 45),
         scale_factor: fields.f64(section, 48),
         align_angle: fields.f64(section, 49),
-        sweep_entity_transform,
-        path_entity_transform,
+        sweep_entity_transform: crate::entities::surface::transpose_matrix(sweep_entity_transform),
+        path_entity_transform: crate::entities::surface::transpose_matrix(path_entity_transform),
         align_option: fields.i16(section, 70).clamp(0, 255) as u8,
         miter_option: fields.i16(section, 71).clamp(0, 255) as u8,
         has_align_start: fields.bool(section, 290),
@@ -19021,6 +19021,7 @@ impl<'a> SectionReader<'a> {
             for (to, from) in target.iter_mut().zip(values.iter()) {
                 *to = *from;
             }
+            *target = crate::entities::surface::transpose_matrix(*target);
         };
         match &mut surface.surface_data {
             SurfaceData::Extruded {

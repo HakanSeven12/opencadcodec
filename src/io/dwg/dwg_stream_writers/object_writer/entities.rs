@@ -5179,8 +5179,8 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_surface_matrix(&mut self, value: &[f64; 16]) {
-        for item in value {
-            self.writer.write_bit_double(*item);
+        for item in crate::entities::surface::transpose_matrix(*value) {
+            self.writer.write_bit_double(item);
         }
     }
 

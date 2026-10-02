@@ -2628,7 +2628,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(91, value.minor)?;
         // Groups 50..55 are angle codes: the reference application stores
         // those matrix elements in degrees.
-        for (index, item) in value.transform.iter().enumerate() {
+        for (index, item) in crate::entities::surface::transpose_matrix(value.transform).iter().enumerate() {
             let item = if index >= 10 { item.to_degrees() } else { *item };
             self.writer.write_double(40 + index as i32, item)?;
         }
@@ -2661,10 +2661,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(48, value.scale_factor)?;
         self.writer.write_double(49, value.align_angle)?;
         // The reference application repeats 46 and 47 once per element.
-        for item in value.sweep_entity_transform {
+        for item in crate::entities::surface::transpose_matrix(value.sweep_entity_transform) {
             self.writer.write_double(46, item)?;
         }
-        for item in value.path_entity_transform {
+        for item in crate::entities::surface::transpose_matrix(value.path_entity_transform) {
             self.writer.write_double(47, item)?;
         }
         self.writer.write_bool(290, value.has_align_start)?;
@@ -9932,7 +9932,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     self.writer.write_i32(90, 0)?;
                 }
                 self.writer.write_point3d(10, *sweep_vector)?;
-                for value in sweep_transform {
+                for value in &crate::entities::surface::transpose_matrix(*sweep_transform) {
                     self.writer.write_double(40, *value)?;
                 }
                 self.write_surface_sweep_options_dxf(options)?;
@@ -9960,7 +9960,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 path_curve,
             } => {
                 self.writer.write_subclass("AcDbLoftedSurface")?;
-                for value in loft_transform {
+                for value in &crate::entities::surface::transpose_matrix(*loft_transform) {
                     self.writer.write_double(40, *value)?;
                 }
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
@@ -10071,7 +10071,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_point3d(11, *axis_vector)?;
                 self.writer.write_double(40, *revolve_angle)?;
                 self.writer.write_double(41, *start_angle)?;
-                for value in entity_transform {
+                for value in &crate::entities::surface::transpose_matrix(*entity_transform) {
                     self.writer.write_double(42, *value)?;
                 }
                 self.writer.write_double(43, *draft_angle)?;
@@ -10127,10 +10127,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     self.writer.write_i32(91, 0)?;
                     self.writer.write_i32(90, 0)?;
                 }
-                for value in sweep_transform {
+                for value in &crate::entities::surface::transpose_matrix(*sweep_transform) {
                     self.writer.write_double(40, *value)?;
                 }
-                for value in path_transform {
+                for value in &crate::entities::surface::transpose_matrix(*path_transform) {
                     self.writer.write_double(41, *value)?;
                 }
                 self.write_surface_sweep_options_dxf(options)?;
@@ -10162,10 +10162,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(45, options.twist_angle)?;
         self.writer.write_double(48, options.scale_factor)?;
         self.writer.write_double(49, options.align_angle)?;
-        for value in &options.sweep_entity_transform {
+        for value in &crate::entities::surface::transpose_matrix(options.sweep_entity_transform) {
             self.writer.write_double(46, *value)?;
         }
-        for value in &options.path_entity_transform {
+        for value in &crate::entities::surface::transpose_matrix(options.path_entity_transform) {
             self.writer.write_double(47, *value)?;
         }
         self.writer.write_bool(290, options.is_solid)?;
