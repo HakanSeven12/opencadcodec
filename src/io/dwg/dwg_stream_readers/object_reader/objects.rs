@@ -102,7 +102,6 @@ pub fn read_visual_style(
             VisualStylePropertyValue::Long(reader.read_bit_long()),
             VisualStylePropertyValue::Long(reader.read_bit_long()),
             VisualStylePropertyValue::Long(reader.read_bit_long()),
-            VisualStylePropertyValue::Double(reader.read_bit_double()),
         ] {
             value.properties.push(VisualStyleProperty {
                 value: property,
@@ -110,6 +109,12 @@ pub fn read_visual_style(
             });
         }
         value.internal_use_only = reader.read_bit();
+        // The legacy DXF form ends with group 45, which the binary record
+        // does not carry; keep the 24-entry legacy list complete.
+        value.properties.push(VisualStyleProperty {
+            value: VisualStylePropertyValue::Double(0.0),
+            enabled: 1,
+        });
         return value;
     }
 
