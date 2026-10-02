@@ -18690,7 +18690,7 @@ impl<'a> SectionReader<'a> {
         let mut sweep_data = Vec::new();
         let mut path_data = Vec::new();
         let mut swept_binary_target = 0u8;
-        let mut swept_class_version_seen = false;
+        let mut swept_lead: Vec<i32> = Vec::new();
         let mut sweep_entity_type = 0i32;
         let mut sweep_entity_bits = 0usize;
         let mut path_entity_type = 0i32;
@@ -18702,9 +18702,6 @@ impl<'a> SectionReader<'a> {
         let mut loft_options_seen = false;
         let mut proxy_graphics_size = 0usize;
         let mut proxy_graphics = Vec::new();
-        let swept_has_class_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
-            .map(|version| version.r2007_plus())
-            .unwrap_or(true);
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -18926,17 +18923,31 @@ impl<'a> SectionReader<'a> {
                     path_transform: _,
                     options,
                 } => match pair.code {
-                    90 if swept_has_class_version && !swept_class_version_seen => {
-                        *class_version = pair.as_i32().unwrap_or(0);
-                        swept_class_version_seen = true;
+                    // The reference application starts the subclass with the
+                    // profile type and bit length; older output of this crate
+                    // put a class version before them. Collect the leading
+                    // 90 groups and tell the forms apart by their count when
+                    // the first body chunk or the path type arrives.
+                    90 if swept_binary_target == 0 && swept_lead.len() < 3 => {
+                        swept_lead.push(pair.as_i32().unwrap_or(0));
                     }
-                    90 if swept_binary_target == 0 => {
-                        sweep_entity_type = pair.as_i32().unwrap_or(0);
-                        swept_binary_target = 1;
-                    }
-                    90 if swept_binary_target == 1 => {
-                        sweep_entity_bits = pair.as_i32().unwrap_or(0).max(0) as usize;
-                        swept_binary_target = 2;
+                    310 | 91 if swept_binary_target == 0 => {
+                        let lead = std::mem::take(&mut swept_lead);
+                        let lead = if lead.len() == 3 {
+                            *class_version = lead[0];
+                            &lead[1..]
+                        } else {
+                            &lead[..]
+                        };
+                        sweep_entity_type = lead.first().copied().unwrap_or(0);
+                        sweep_entity_bits = lead.get(1).copied().unwrap_or(0).max(0) as usize;
+                        if pair.code == 310 {
+                            swept_binary_target = 2;
+                            append_hex_bytes(&mut sweep_data, &pair.value_string);
+                        } else {
+                            path_entity_type = pair.as_i32().unwrap_or(0);
+                            swept_binary_target = 3;
+                        }
                     }
                     90 if swept_binary_target == 2 => {
                         path_entity_type = pair.as_i32().unwrap_or(0);

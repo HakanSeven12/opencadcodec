@@ -10082,7 +10082,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_bool(291, *close_to_axis)?;
             }
             SurfaceData::Swept {
-                class_version,
+                class_version: _,
                 sweep_entity,
                 path_entity,
                 sweep_transform,
@@ -10092,9 +10092,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_subclass("AcDbSweptSurface")?;
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                if dwg_version.r2007_plus() {
-                    self.writer.write_i32(90, *class_version)?;
-                }
+                // The reference application starts with the profile type;
+                // the class version is not written to DXF.
                 if let Some(entity) = sweep_entity {
                     let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
                         entity,

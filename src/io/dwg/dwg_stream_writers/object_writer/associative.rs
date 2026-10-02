@@ -784,6 +784,14 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_assoc_handle(DwgReferenceType::HardOwnership, value.parameter);
                 self.writer.write_bit(value.has_action);
                 self.writer.write_bit_long(value.action_type);
+                for item in &value.curve {
+                    match item {
+                        AssocCurveValue::Bool(value) => self.writer.write_bit(*value),
+                        AssocCurveValue::Int(value) => self.writer.write_bit_long(*value),
+                        AssocCurveValue::Real(value) => self.writer.write_bit_double(*value),
+                        AssocCurveValue::Point(value) => self.writer.write_3bit_double(*value),
+                    }
+                }
             }
             AssociativeData::ConstraintGroup(value) => {
                 self.write_assoc_action(&value.action);

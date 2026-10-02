@@ -669,6 +669,53 @@ fn skip_action(cursor: &mut AssocCursor<'_>) {
     }
 }
 
+/// The curve groups an edge action parameter writes after its type code
+/// (the second 90 group of the subclass).
+fn read_edge_curve(record: &AssocDxfRecord) -> Vec<AssocCurveValue> {
+    let Some(pairs) = record.sections.get("AcDbAssocEdgeActionParam") else {
+        return Vec::new();
+    };
+    let Some(start) = pairs
+        .iter()
+        .enumerate()
+        .filter(|(_, (code, _))| *code == 90)
+        .nth(1)
+        .map(|(index, _)| index + 1)
+    else {
+        return Vec::new();
+    };
+    let number = |value: &str| value.trim().parse::<f64>().unwrap_or(0.0);
+    let mut curve = Vec::new();
+    let mut index = start;
+    while index < pairs.len() {
+        let (code, value) = &pairs[index];
+        match code {
+            70 => curve.push(AssocCurveValue::Bool(number(value) != 0.0)),
+            90 => curve.push(AssocCurveValue::Int(value.trim().parse().unwrap_or(0))),
+            40 => curve.push(AssocCurveValue::Real(number(value))),
+            10 => {
+                let coordinate = |offset: usize, expected: i32| {
+                    pairs
+                        .get(index + offset)
+                        .filter(|(code, _)| *code == expected)
+                        .map(|(_, value)| number(value))
+                };
+                let y = coordinate(1, 20);
+                let z = coordinate(2, 30);
+                curve.push(AssocCurveValue::Point(Vector3::new(
+                    number(value),
+                    y.unwrap_or(0.0),
+                    z.unwrap_or(0.0),
+                )));
+                index += usize::from(y.is_some()) + usize::from(z.is_some());
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    curve
+}
+
 fn read_action_param(record: &AssocDxfRecord) -> AssocActionParam {
     let mut cursor = AssocCursor::new(record, "AcDbAssocActionParam");
     let is_r2013 = cursor.i16(90);
@@ -1262,6 +1309,7 @@ impl<'a> SectionReader<'a> {
                         27 => AssocSubcurveKind::Curve3d,
                         _ => AssocSubcurveKind::None,
                     },
+                    curve: read_edge_curve(&record),
                 })
             }
             "ASSOC2DCONSTRAINTGROUP" => {

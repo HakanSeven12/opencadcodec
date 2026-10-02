@@ -5094,9 +5094,9 @@ fn read_extra_acis_data(
         let remaining_bits =
             (inline_end.unwrap_or_else(|| reader.handle_start()) - data_start).max(0) as usize;
         let probe = reader.read_bytes(remaining_bits / 8);
-        if !probe.starts_with(b"ACIS BinaryFile")
-            && !(inline_end.is_some() && probe.starts_with(b"ASM BinaryFile"))
-        {
+        // Newer modelers write an "ASM BinaryFile" header, also in the
+        // extra modeler block of an AcDs-backed surface record.
+        if !probe.starts_with(b"ACIS BinaryFile") && !probe.starts_with(b"ASM BinaryFile") {
             reader.set_position_in_bits(prefix_start);
             return None;
         }
