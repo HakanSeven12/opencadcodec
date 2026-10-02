@@ -5275,13 +5275,22 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         Ok(())
     }
 
+    /// Table cell values: as in AcDbField values only flag bit 0 suppresses
+    /// the body (the reference application writes it with flags 2 and 6).
     fn write_field_cell_value_dxf(&mut self, value: &CellValue) -> Result<()> {
-        self.write_cell_value_dxf_masked(value, 3)
+        self.write_cell_value_dxf_masked(value, 1, true)
     }
 
     /// `body_mask`: R2007+ value flags that suppress the value body. AcDbField
     /// values use bit 0 only (flag 2 still carries a body).
-    fn write_cell_value_dxf_masked(&mut self, value: &CellValue, body_mask: i32) -> Result<()> {
+    /// `point_size`: write the size (92) before a point (table cells; AcDbField
+    /// values have none).
+    fn write_cell_value_dxf_masked(
+        &mut self,
+        value: &CellValue,
+        body_mask: i32,
+        point_size: bool,
+    ) -> Result<()> {
         if self.dxf_version >= DxfVersion::AC1021 {
             self.writer.write_i32(93, value.flags)?;
         }
@@ -5316,28 +5325,18 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     }
                 }
                 0x10 => {
-                    self.writer.write_i32(
-                        92,
-                        if value.data_size != 0 {
-                            value.data_size
-                        } else {
-                            16
-                        },
-                    )?;
+                    if point_size {
+                        self.writer.write_i32(92, if value.data_size != 0 { value.data_size } else { 16 })?;
+                    }
                     self.writer.write_point2d(
                         11,
                         crate::types::Vector2::new(value.point_value.x, value.point_value.y),
                     )?;
                 }
                 0x20 => {
-                    self.writer.write_i32(
-                        92,
-                        if value.data_size != 0 {
-                            value.data_size
-                        } else {
-                            24
-                        },
-                    )?;
+                    if point_size {
+                        self.writer.write_i32(92, if value.data_size != 0 { value.data_size } else { 24 })?;
+                    }
                     self.writer.write_point3d(11, value.point_value)?;
                 }
                 0x40 => {
@@ -5400,7 +5399,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     }
 
     fn write_field_value_dxf(&mut self, value: &CellValue) -> Result<()> {
-        self.write_cell_value_dxf_masked(value, 1)?;
+        self.write_cell_value_dxf_masked(value, 1, false)?;
         if self.dxf_version >= DxfVersion::AC1021 {
             self.writer.write_string(304, "ACVALUE_END")?;
         }
@@ -10603,8 +10602,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         }
         self.writer
             .write_i32(92, table.field_handles.len() as i32)?;
+        // The table owns its cell fields (hard owner, as the reference writes them).
         for field in &table.field_handles {
-            self.writer.write_handle(340, *field)?;
+            self.writer.write_handle(360, *field)?;
         }
         self.writer.write_subclass("AcDbFormattedTableData")?;
         self.writer.write_string(300, "TABLEFORMAT")?;
