@@ -5510,7 +5510,7 @@ fn read_surface_matrix(reader: &mut DwgMergedReader) -> [f64; 16] {
     for item in &mut value {
         *item = reader.read_bit_double();
     }
-    value
+    crate::entities::surface::transpose_matrix(value)
 }
 
 fn read_surface_sweep_options(reader: &mut DwgMergedReader) -> SurfaceSweepOptions {

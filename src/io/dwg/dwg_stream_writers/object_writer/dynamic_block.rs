@@ -160,7 +160,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_dynamic_eval(&value.saved_eval());
         self.writer.write_bit_long(value.major);
         self.writer.write_bit_long(value.minor);
-        for item in value.transform {
+        for item in crate::entities::surface::transpose_matrix(value.transform) {
             self.writer.write_bit_double(item);
         }
         self.writer.write_cm_color(&value.color);
@@ -212,10 +212,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(value.flags_294_296[1]);
         self.writer.write_3bit_double(value.dwg_vector);
         self.writer.write_bit(value.flags_294_296[2]);
-        for item in value.sweep_entity_transform {
+        for item in crate::entities::surface::transpose_matrix(value.sweep_entity_transform) {
             self.writer.write_bit_double(item);
         }
-        for item in value.path_entity_transform {
+        for item in crate::entities::surface::transpose_matrix(value.path_entity_transform) {
             self.writer.write_bit_double(item);
         }
         self.write_history_entity(value.sweep_entity.as_ref());
