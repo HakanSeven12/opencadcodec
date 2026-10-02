@@ -15,9 +15,9 @@
 //! `None`, and the caller keeps the cached text.
 
 use crate::document::{CadDocument, FieldDef};
-use crate::entities::table::{CellValueType, Table};
-use crate::entities::EntityType;
-use crate::objects::ObjectType;
+use crate::entities::table::{CellValue, CellValueType, Table};
+use crate::entities::{EntityCommon, EntityType};
+use crate::objects::{Dictionary, Field, FieldChildValue, FieldList, ObjectType};
 use crate::types::Handle;
 
 /// Environment values the field engine cannot derive from the document alone.
@@ -40,6 +40,62 @@ pub trait FieldContext {
     /// the ones the engine resolves itself. `None` keeps the cached field text.
     fn getvar(&self, _name: &str) -> Option<String> {
         None
+    }
+    /// Size of the drawing file in bytes (`\AcVar Filesize`).
+    fn file_size(&self) -> Option<u64> {
+        None
+    }
+    /// Month/day names and regional pictures for date fields (the reference
+    /// application follows the OS locale). Defaults to US English.
+    fn date_locale(&self) -> DateLocale {
+        DateLocale::default()
+    }
+}
+
+/// Names and regional pictures used by date-field formats.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DateLocale {
+    /// January … December (`MMMM`).
+    pub months: [String; 12],
+    /// Abbreviated months (`MMM`).
+    pub months_abbr: [String; 12],
+    /// Sunday … Saturday (`dddd`).
+    pub days: [String; 7],
+    /// Abbreviated days (`ddd`).
+    pub days_abbr: [String; 7],
+    /// AM / PM designators (`tt`).
+    pub am: String,
+    pub pm: String,
+    /// Short date picture (`%x`; `%c` = short date + long time).
+    pub short_date: String,
+    /// Long date picture (`%#x`; `%#c` = long date + long time).
+    pub long_date: String,
+    /// Long time picture (`%X`).
+    pub long_time: String,
+}
+
+impl Default for DateLocale {
+    fn default() -> Self {
+        let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        let months = s(&[
+            "January", "February", "March", "April", "May", "June", "July", "August",
+            "September", "October", "November", "December",
+        ]);
+        let days = s(&[
+            "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+        ]);
+        let abbr = |v: &[String]| v.iter().map(|x| x[..3].to_string()).collect::<Vec<_>>();
+        Self {
+            months_abbr: abbr(&months).try_into().unwrap(),
+            days_abbr: abbr(&days).try_into().unwrap(),
+            months: months.try_into().unwrap(),
+            days: days.try_into().unwrap(),
+            am: "AM".into(),
+            pm: "PM".into(),
+            short_date: "M/d/yyyy".into(),
+            long_date: "dddd, MMMM d, yyyy".into(),
+            long_time: "h:mm:ss tt".into(),
+        }
     }
 }
 
@@ -450,8 +506,15 @@ enum PropVal {
 /// yield `None` (→ cached text).
 fn eval_acobjprop(doc: &CadDocument, field: &FieldDef) -> Option<String> {
     let code = &field.code;
-    let idx: usize = between(code, "_ObjIdx ", ">%")?.trim().parse().ok()?;
-    let handle = field.objects.get(idx)?;
+    let direct;
+    let handle = match between(code, "_ObjIdx ", ">%") {
+        Some(idx) => field.objects.get(idx.trim().parse::<usize>().ok()?)?,
+        // `%<\_ObjId n>%` names the object directly (preview codes).
+        None => {
+            direct = Handle::new(between(code, "_ObjId ", ">%")?.trim().parse().ok()?);
+            &direct
+        }
+    };
     let prop = code.split(").").nth(1)?.split([' ', '\\']).next()?.trim();
     if prop.is_empty() {
         return None;
@@ -460,9 +523,37 @@ fn eval_acobjprop(doc: &CadDocument, field: &FieldDef) -> Option<String> {
         .find("\\f ")
         .map(|p| code[p + 3..].trim().trim_matches('"'))
         .unwrap_or("");
+    // NamedObject fields: `.Name` of a layer, block, style, linetype, view, …
+    if prop == "Name" {
+        if let Some(name) = named_object_name(doc, *handle) {
+            return Some(text_case(name, fmt));
+        }
+    }
     let entity = doc.entities().find(|e| &e.common().handle == handle)?;
     let val = object_property(entity, prop)?;
     Some(format_propval(val, fmt))
+}
+
+/// Name of a symbol-table record or of an object kept in a named dictionary
+/// (table style, multileader style, group, …).
+fn named_object_name(doc: &CadDocument, h: Handle) -> Option<String> {
+    use crate::tables::TableEntry;
+    macro_rules! find_in {
+        ($($table:ident),*) => {$(
+            if let Some(e) = doc.$table.iter().find(|e| e.handle() == h) {
+                return Some(e.name().to_string());
+            }
+        )*};
+    }
+    find_in!(layers, line_types, text_styles, block_records, dim_styles, views, ucss, vports, app_ids);
+    doc.objects.values().find_map(|o| match o {
+        ObjectType::Dictionary(d) => d
+            .entries
+            .iter()
+            .find(|(_, v)| *v == h)
+            .map(|(k, _)| k.clone()),
+        _ => None,
+    })
 }
 
 /// Substring strictly between `a` and the next `b` following it.
@@ -611,13 +702,14 @@ fn eval_acvar(doc: &CadDocument, code: &str, ctx: &dyn FieldContext) -> Option<S
         None => (body, "yyyy/MM/dd"),
     };
     let si = &doc.summary_info;
-    match name {
+    let date = |jd: f64| Some(format_dt_in(julian_parts(jd), fmt, &ctx.date_locale()));
+    let value = match name {
         // System / clock / user.
         "Login" => ctx.login(),
-        "CreateDate" => Some(format_dt(julian_parts(doc.header.create_date_julian), fmt)),
-        "SaveDate" => Some(format_dt(julian_parts(doc.header.update_date_julian), fmt)),
-        "PlotDate" => Some(format_dt(julian_parts(ctx.now_julian()), fmt)),
-        "Date" => Some(format_dt(julian_parts(ctx.now_julian()), fmt)),
+        // Header dates count the day fraction from midnight, not noon.
+        "CreateDate" => date(doc.header.create_date_julian - 0.5),
+        "SaveDate" => date(doc.header.update_date_julian - 0.5),
+        "PlotDate" | "Date" => date(ctx.now_julian()),
         // Document summary properties (DWGPROPS / SummaryInfo section).
         "Author" => nonempty(&si.author),
         "Title" => nonempty(&si.title),
@@ -630,14 +722,70 @@ fn eval_acvar(doc: &CadDocument, code: &str, ctx: &dyn FieldContext) -> Option<S
             nonempty(&si.last_saved_by).or_else(|| nonempty(&doc.header.last_saved_by))
         }
         // File provenance.
-        "Filename" | "FileName" => filename(doc),
+        "Filename" | "FileName" => match picture_number(fmt, "%fn") {
+            Some(bits) => filename_parts(doc, bits),
+            None => filename(doc),
+        },
         "FilePath" => filepath(doc),
-        // Otherwise try a custom document property of this name.
+        // `%by1` bytes, `%by2` kilobytes, `%by3` megabytes (truncated).
+        "Filesize" | "FileSize" => ctx.file_size().map(|n| {
+            let shift = 10 * picture_number(fmt, "%by").unwrap_or(1).clamp(1, 3).saturating_sub(1);
+            (n >> shift).to_string()
+        }),
+        // Otherwise a custom document property, else a system variable.
         _ => si
             .custom_properties
             .iter()
             .find(|(k, _)| k.eq_ignore_ascii_case(name))
-            .and_then(|(_, v)| nonempty(v)),
+            .and_then(|(_, v)| nonempty(v))
+            .or_else(|| {
+                let v = getvar(doc, name, ctx)?;
+                match (fmt.contains("%pr") || fmt.contains("%lu"), v.trim().parse::<f64>()) {
+                    (true, Ok(n)) => Some(format_propval(PropVal::Num(n), fmt)),
+                    _ => Some(v),
+                }
+            }),
+    }?;
+    Some(text_case(value, fmt))
+}
+
+/// The number following `key` in a format picture (`%fn6` → 6).
+fn picture_number(pic: &str, key: &str) -> Option<u32> {
+    after(pic, key)?
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse()
+        .ok()
+}
+
+/// `%tc1` upper, `%tc2` lower, `%tc3` first character upper, `%tc4` first
+/// character of every whitespace-separated word upper (the rest unchanged).
+fn text_case(s: String, pic: &str) -> String {
+    match picture_number(pic, "%tc") {
+        Some(1) => s.to_uppercase(),
+        Some(2) => s.to_lowercase(),
+        Some(3) => {
+            let mut c = s.chars();
+            match c.next() {
+                Some(f) => f.to_uppercase().chain(c).collect(),
+                None => s,
+            }
+        }
+        Some(4) => {
+            let mut out = String::with_capacity(s.len());
+            let mut start = true;
+            for c in s.chars() {
+                if start {
+                    out.extend(c.to_uppercase());
+                } else {
+                    out.push(c);
+                }
+                start = c.is_whitespace();
+            }
+            out
+        }
+        _ => s,
     }
 }
 
@@ -653,6 +801,36 @@ fn filename(doc: &CadDocument) -> Option<String> {
     nonempty(base)
 }
 
+/// `%fnN` filename: bit 1 folder (no trailing separator), bit 2 name, bit 4
+/// extension — `%fn7` full path, `%fn6` name.ext, `%fn5` folder.ext.
+fn filename_parts(doc: &CadDocument, bits: u32) -> Option<String> {
+    let p = doc.source_path.as_deref()?;
+    let (dir, sep, base) = match p.rfind(['/', '\\']) {
+        Some(i) => (&p[..i], &p[i..i + 1], &p[i + 1..]),
+        None => ("", "\\", p),
+    };
+    let (stem, ext) = match base.rfind('.') {
+        Some(i) => (&base[..i], &base[i + 1..]),
+        None => (base, ""),
+    };
+    let mut s = String::new();
+    if bits & 1 != 0 {
+        s.push_str(dir);
+    }
+    if bits & 2 != 0 {
+        if bits & 1 != 0 {
+            s.push_str(sep);
+        }
+        s.push_str(stem);
+    }
+    if bits & 4 != 0 {
+        if !s.is_empty() {
+            s.push('.');
+        }
+        s.push_str(ext);
+    }
+    nonempty(&s)
+}
 /// The full path the drawing was read from (`FilePath`).
 fn filepath(doc: &CadDocument) -> Option<String> {
     doc.source_path.as_deref().and_then(nonempty)
@@ -909,14 +1087,90 @@ fn weekday(jd: f64) -> u32 {
 /// Format (Y, M, D, h, m, s) with a .NET-style picture (`yyyy`, `yy`, `MM`,
 /// `dd`, `HH`, `mm`, `ss`) — used by `\AcVar … \f "…"`.
 pub fn format_dt(dt: (i64, u32, u32, u32, u32, u32), fmt: &str) -> String {
+    format_dt_in(dt, fmt, &DateLocale::default())
+}
+
+/// [`format_dt`] with locale names. Handles the .NET custom tokens (`d`…`dddd`,
+/// `M`…`MMMM`, `y`/`yy`/`yyyy`, `h`/`hh`, `H`/`HH`, `m`/`mm`, `s`/`ss`,
+/// `t`/`tt`, quoted literals) and the regional `%x`, `%#x`, `%c`, `%#c`, `%X`.
+pub fn format_dt_in(dt: (i64, u32, u32, u32, u32, u32), fmt: &str, loc: &DateLocale) -> String {
+    let regional = match fmt {
+        "%x" => Some(loc.short_date.clone()),
+        "%#x" => Some(loc.long_date.clone()),
+        "%X" | "%#X" => Some(loc.long_time.clone()),
+        "%c" => Some(format!("{} {}", loc.short_date, loc.long_time)),
+        "%#c" => Some(format!("{} {}", loc.long_date, loc.long_time)),
+        _ => None,
+    };
+    let fmt = regional.as_deref().unwrap_or(fmt);
     let (y, mo, d, h, mi, s) = dt;
-    fmt.replace("yyyy", &format!("{:04}", y))
-        .replace("MM", &format!("{:02}", mo))
-        .replace("dd", &format!("{:02}", d))
-        .replace("HH", &format!("{:02}", h))
-        .replace("mm", &format!("{:02}", mi))
-        .replace("ss", &format!("{:02}", s))
-        .replace("yy", &format!("{:02}", (y % 100).unsigned_abs()))
+    let h12 = if h % 12 == 0 { 12 } else { h % 12 };
+    // Day of week from the civil date (0 = Sunday).
+    let wd = {
+        let (yy, mm) = if mo <= 2 { (y - 1, mo + 12) } else { (y, mo) };
+        let k = yy.rem_euclid(100);
+        let j = yy.div_euclid(100);
+        let zeller = (d as i64 + (13 * (mm as i64 + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
+        ((zeller + 6) % 7) as usize // Zeller: 0 = Saturday
+    };
+    let month = (mo as usize).clamp(1, 12) - 1;
+    let chars: Vec<char> = fmt.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\'' || c == '"' {
+            let end = chars[i + 1..].iter().position(|&x| x == c).map_or(chars.len(), |p| i + 1 + p);
+            out.extend(&chars[i + 1..end]);
+            i = end + 1;
+            continue;
+        }
+        if c == '\\' && i + 1 < chars.len() {
+            out.push(chars[i + 1]);
+            i += 2;
+            continue;
+        }
+        let mut n = 1;
+        while i + n < chars.len() && chars[i + n] == c {
+            n += 1;
+        }
+        let ampm = if h < 12 { &loc.am } else { &loc.pm };
+        match c {
+            'd' => out.push_str(&match n {
+                1 => d.to_string(),
+                2 => format!("{:02}", d),
+                3 => loc.days_abbr[wd].clone(),
+                _ => loc.days[wd].clone(),
+            }),
+            'M' => out.push_str(&match n {
+                1 => mo.to_string(),
+                2 => format!("{:02}", mo),
+                3 => loc.months_abbr[month].clone(),
+                _ => loc.months[month].clone(),
+            }),
+            'y' => out.push_str(&match n {
+                1 => (y % 100).unsigned_abs().to_string(),
+                2 => format!("{:02}", (y % 100).unsigned_abs()),
+                _ => format!("{:0width$}", y, width = n),
+            }),
+            'h' => out.push_str(&if n == 1 { h12.to_string() } else { format!("{:02}", h12) }),
+            'H' => out.push_str(&if n == 1 { h.to_string() } else { format!("{:02}", h) }),
+            'm' => out.push_str(&if n == 1 { mi.to_string() } else { format!("{:02}", mi) }),
+            's' => out.push_str(&if n == 1 { s.to_string() } else { format!("{:02}", s) }),
+            't' => {
+                if n == 1 {
+                    out.extend(ampm.chars().next());
+                } else {
+                    out.push_str(ampm);
+                }
+            }
+            _ => {
+                out.extend(&chars[i..i + n]);
+            }
+        }
+        i += n;
+    }
+    out
 }
 
 /// `$(edtime,time,picture)` — format the Julian `time` per a DIESEL picture
@@ -1003,6 +1257,446 @@ fn edtime(jd: f64, pic: &str) -> String {
         i += 1;
     }
     out
+}
+
+// ── authoring ──────────────────────────────────────────────────────────────
+
+/// A child field for [`CadDocument::set_text_field`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewField {
+    /// Evaluator id: `AcVar`, `AcDiesel`, `AcObjProp`, `AcExpr`, …
+    pub evaluator: String,
+    /// Field code as stored, e.g. `\AcVar Date \f "yyyy-MM-dd"`.
+    pub code: String,
+    /// Objects referenced by `%<\_ObjIdx n>%` markers in `code` (AcObjProp).
+    pub objects: Vec<Handle>,
+    /// Cached value; `formatted_value` is the text shown in the host.
+    pub value: CellValue,
+    /// Evaluation option bits: 1 open, 2 save, 4 plot, 8 eTransmit,
+    /// 16 regen, 32 on demand (63 = automatic).
+    pub evaluation_option: i32,
+}
+
+impl NewField {
+    /// A field from its code and current display text. The evaluator is the
+    /// code's first word (`\AcVar Login` → `AcVar`); the cached value is a
+    /// string carrying the code's `\f "…"` format.
+    pub fn new(code: impl Into<String>, display: impl Into<String>) -> Self {
+        let code = code.into();
+        let display = display.into();
+        let evaluator = code_evaluator(&code).to_string();
+        let mut value = CellValue::text(&display);
+        value.flags = 4;
+        value.format = code_format(&code).to_string();
+        // The reference application leaves the Date field on demand only.
+        let evaluation_option = if evaluator == "AcVar" && code_word(&code, 1) == Some("Date") {
+            32
+        } else {
+            63
+        };
+        Self {
+            evaluator,
+            code,
+            objects: Vec::new(),
+            value,
+            evaluation_option,
+        }
+    }
+}
+
+/// `\AcVar Login` → `AcVar`.
+fn code_evaluator(code: &str) -> &str {
+    code_word(code, 0).unwrap_or("")
+}
+
+fn code_word(code: &str, n: usize) -> Option<&str> {
+    code.trim().trim_start_matches('\\').split_whitespace().nth(n)
+}
+
+/// The `\f "…"` format picture of a field code (empty when absent).
+fn code_format(code: &str) -> &str {
+    code.find("\\f ")
+        .map(|p| code[p + 3..].trim().trim_matches('"'))
+        .unwrap_or("")
+}
+
+/// Field-text checksum the reference application stores with a container:
+/// Σ (position + 1) × UTF-16 code unit of the host text.
+fn field_text_checksum(text: &str) -> f64 {
+    text.encode_utf16()
+        .enumerate()
+        .map(|(i, u)| (i as f64 + 1.0) * u as f64)
+        .sum()
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum TextHostKind {
+    MText,
+    Text,
+    AttributeDefinition,
+    Attribute,
+}
+
+impl CadDocument {
+    /// Attach a field to a text host (MTEXT, TEXT, ATTDEF or ATTRIB),
+    /// replacing any field it already has.
+    ///
+    /// `template` is the host's field text with `%<\_FldIdx n>%` markers for
+    /// `children[n]` and literal text between them (e.g. `A %<\_FldIdx 0>% B`).
+    /// The host's text becomes the template with every marker replaced by the
+    /// child's cached display text. Builds ACAD_XDICTIONARY → ACAD_FIELD →
+    /// TEXT → `_text` container → children and registers every field in the
+    /// drawing's FIELDLIST. Returns the container handle, or `None` when
+    /// `host` is not a text host or a marker has no child.
+    pub fn set_text_field(
+        &mut self,
+        host: Handle,
+        template: &str,
+        children: Vec<NewField>,
+    ) -> Option<Handle> {
+        let display = template_display(template, &children)?;
+        let kind = self.text_host(host, |_, _, kind| kind)?;
+        self.remove_text_field(host);
+
+        for (dxf, cpp) in [("FIELD", "AcDbField"), ("FIELDLIST", "AcDbFieldList")] {
+            if !self.classes.contains(dxf) {
+                let mut class = crate::classes::DxfClass::new(dxf, cpp);
+                class.proxy_flags = crate::classes::ProxyFlags(1152);
+                self.classes.add_or_update(class);
+            }
+        }
+
+        // ACAD_XDICTIONARY of the host (reuse an existing one).
+        let existing = self.text_host(host, |common, _, _| common.xdictionary_handle)?;
+        let xdict = match existing {
+            Some(h) if matches!(self.objects.get(&h), Some(ObjectType::Dictionary(_))) => h,
+            _ => {
+                let h = self.allocate_handle();
+                let mut d = Dictionary::new();
+                d.handle = h;
+                d.owner = host;
+                d.hard_owner = true;
+                self.objects.insert(h, ObjectType::Dictionary(d));
+                h
+            }
+        };
+        let field_dict = self.allocate_handle();
+        let mut d = Dictionary::new();
+        d.handle = field_dict;
+        d.owner = xdict;
+        d.hard_owner = true;
+        d.reactors = vec![xdict];
+        let container = self.allocate_handle();
+        d.add_entry("TEXT", container);
+        self.objects.insert(field_dict, ObjectType::Dictionary(d));
+        if let Some(ObjectType::Dictionary(x)) = self.objects.get_mut(&xdict) {
+            x.add_entry("ACAD_FIELD", field_dict);
+        }
+
+        let child_handles: Vec<Handle> = children.iter().map(|_| self.allocate_handle()).collect();
+
+        let mut checksum = CellValue::number(field_text_checksum(&display));
+        checksum.flags = 2;
+        checksum.formatted_value.clear();
+        let mut child_values = Vec::new();
+        if kind == TextHostKind::AttributeDefinition {
+            let mut v = CellValue::integer(1);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ACFD_FIELDTEXT_ATTDEF".into(),
+                value: v,
+            });
+        }
+        child_values.push(FieldChildValue {
+            key: "ACFD_FIELDTEXT_CHECKSUM".into(),
+            value: checksum,
+        });
+        let mut empty = CellValue::new();
+        empty.flags = 3;
+        let container_field = Field {
+            handle: container,
+            owner: field_dict,
+            evaluator_id: "_text".into(),
+            code: template.into(),
+            child_fields: child_handles.clone(),
+            evaluation_option: 63,
+            state: if kind == TextHostKind::MText { 13 } else { 9 },
+            evaluation_status: 2,
+            value: empty,
+            child_values,
+            ..Field::default()
+        };
+        let mut all = vec![container_field];
+        for (child, handle) in children.into_iter().zip(&child_handles) {
+            let mut child_values = Vec::new();
+            if child.evaluator.starts_with("AcVar") {
+                if let Some(name) = code_word(&child.code, 1) {
+                    let mut v = CellValue::text(name);
+                    v.flags = 2;
+                    v.formatted_value.clear();
+                    child_values.push(FieldChildValue {
+                        key: "Variable".into(),
+                        value: v,
+                    });
+                }
+            }
+            if child.evaluator == "AcDiesel" {
+                let expr = child.code.trim().trim_start_matches("\\AcDiesel").trim();
+                let mut v = CellValue::text(expr);
+                v.flags = 2;
+                v.formatted_value.clear();
+                child_values.push(FieldChildValue {
+                    key: "DieselExpression".into(),
+                    value: v,
+                });
+            }
+            if child.evaluator.starts_with("AcObjProp") {
+                if let Some(&object) = child.objects.first() {
+                    let mut id = CellValue::new();
+                    id.value_type = CellValueType::Handle;
+                    id.raw_type_code = 0x40;
+                    id.handle_value = Some(object);
+                    id.flags = 2;
+                    child_values.push(FieldChildValue {
+                        key: "ObjectPropertyId".into(),
+                        value: id,
+                    });
+                }
+                if let Some(prop) = child
+                    .code
+                    .split(").")
+                    .nth(1)
+                    .and_then(|s| s.split([' ', '\\']).next())
+                {
+                    let mut v = CellValue::text(prop);
+                    v.flags = 2;
+                    v.formatted_value.clear();
+                    child_values.push(FieldChildValue {
+                        key: "ObjectPropertyName".into(),
+                        value: v,
+                    });
+                }
+            }
+            let shown = child.value.display().to_string();
+            all.push(Field {
+                handle: *handle,
+                owner: container,
+                // Pre-R2007 files keep the format on the field itself.
+                format: child.value.format.clone(),
+                evaluator_id: child.evaluator,
+                code: child.code,
+                referenced_objects: child.objects,
+                evaluation_option: child.evaluation_option,
+                state: 59,
+                evaluation_status: 2,
+                value: child.value,
+                value_string_length: shown.encode_utf16().count() as i32,
+                value_string: shown,
+                child_values,
+                ..Field::default()
+            });
+        }
+
+        let list = self.field_list_handle();
+        if let Some(ObjectType::FieldList(l)) = self.objects.get_mut(&list) {
+            l.fields.extend(all.iter().map(|f| f.handle));
+        }
+        for f in all {
+            self.fields.insert(
+                f.handle,
+                FieldDef {
+                    handle: f.handle,
+                    owner: f.owner,
+                    evaluator: f.evaluator_id.clone(),
+                    code: f.code.clone(),
+                    objects: f.referenced_objects.clone(),
+                },
+            );
+            self.objects.insert(f.handle, ObjectType::Field(f));
+        }
+
+        self.text_host(host, |common, text, _| {
+            common.xdictionary_handle = Some(xdict);
+            *text = display;
+        })?;
+        Some(container)
+    }
+
+    /// Detach the field from a text host, keeping its current text as plain
+    /// text. Removes the ACAD_FIELD dictionary with every field under it (and
+    /// their FIELDLIST entries), and the host's extension dictionary when it
+    /// is left empty. Returns `false` when the host had no field.
+    pub fn remove_text_field(&mut self, host: Handle) -> bool {
+        let Some(Some(xdict)) = self.text_host(host, |common, _, _| common.xdictionary_handle)
+        else {
+            return false;
+        };
+        let Some(ObjectType::Dictionary(x)) = self.objects.get(&xdict) else {
+            return false;
+        };
+        let Some(field_dict) = x.get("ACAD_FIELD") else {
+            return false;
+        };
+        let doomed: Vec<Handle> = self
+            .objects
+            .keys()
+            .copied()
+            .filter(|h| self.object_or_field_reaches(*h, field_dict))
+            .collect();
+        for h in &doomed {
+            self.objects.remove(h);
+            self.fields.remove(h);
+        }
+        for obj in self.objects.values_mut() {
+            if let ObjectType::FieldList(l) = obj {
+                l.fields.retain(|h| !doomed.contains(h));
+            }
+        }
+        let now_empty = match self.objects.get_mut(&xdict) {
+            Some(ObjectType::Dictionary(x)) => {
+                x.entries.retain(|(k, _)| !k.eq_ignore_ascii_case("ACAD_FIELD"));
+                x.entries.is_empty()
+            }
+            _ => false,
+        };
+        if now_empty {
+            self.objects.remove(&xdict);
+            self.text_host(host, |common, _, _| common.xdictionary_handle = None);
+        }
+        true
+    }
+
+    /// Owner walk over objects *and* fields (`object_owner` does not know
+    /// FIELD objects).
+    fn object_or_field_reaches(&self, start: Handle, target: Handle) -> bool {
+        let mut cur = start;
+        for _ in 0..16 {
+            if cur == target {
+                return true;
+            }
+            let next = match self.objects.get(&cur) {
+                Some(ObjectType::Field(f)) => Some(f.owner),
+                _ => self.object_owner(cur),
+            };
+            match next {
+                Some(n) if n != cur && !n.is_null() => cur = n,
+                _ => return false,
+            }
+        }
+        false
+    }
+
+    /// The drawing's FIELDLIST (NOD entry `ACAD_FIELDLIST`), created on demand.
+    fn field_list_handle(&mut self) -> Handle {
+        let nod = self.header.named_objects_dict_handle;
+        let in_nod = match self.objects.get(&nod) {
+            Some(ObjectType::Dictionary(d)) => d.get("ACAD_FIELDLIST"),
+            _ => None,
+        };
+        if let Some(h) = in_nod.filter(|h| matches!(self.objects.get(h), Some(ObjectType::FieldList(_)))) {
+            return h;
+        }
+        if let Some(h) = self
+            .objects
+            .iter()
+            .find_map(|(h, o)| matches!(o, ObjectType::FieldList(_)).then_some(*h))
+        {
+            return h;
+        }
+        let h = self.allocate_handle();
+        self.objects.insert(
+            h,
+            ObjectType::FieldList(FieldList {
+                handle: h,
+                owner: nod,
+                ..FieldList::default()
+            }),
+        );
+        if let Some(ObjectType::Dictionary(d)) = self.objects.get_mut(&nod) {
+            d.add_entry("ACAD_FIELDLIST", h);
+        }
+        h
+    }
+
+    /// Run `f` on a text host's common data and text. ATTRIBs are found inside
+    /// their INSERT.
+    fn text_host<R>(
+        &mut self,
+        host: Handle,
+        f: impl FnOnce(&mut EntityCommon, &mut String, TextHostKind) -> R,
+    ) -> Option<R> {
+        if self.get_entity(host).is_some() {
+            return match self.get_entity_mut(host)? {
+                EntityType::MText(e) => Some(f(&mut e.common, &mut e.value, TextHostKind::MText)),
+                EntityType::Text(e) => Some(f(&mut e.common, &mut e.value, TextHostKind::Text)),
+                EntityType::AttributeDefinition(e) => Some(f(
+                    &mut e.common,
+                    &mut e.default_value,
+                    TextHostKind::AttributeDefinition,
+                )),
+                EntityType::AttributeEntity(e) => {
+                    Some(f(&mut e.common, &mut e.value, TextHostKind::Attribute))
+                }
+                _ => None,
+            };
+        }
+        let insert = self.entities().find_map(|e| match e {
+            EntityType::Insert(i) if i.attributes.iter().any(|a| a.common.handle == host) => {
+                Some(i.common.handle)
+            }
+            _ => None,
+        })?;
+        let EntityType::Insert(i) = self.get_entity_mut(insert)? else {
+            return None;
+        };
+        let a = i.attributes.iter_mut().find(|a| a.common.handle == host)?;
+        Some(f(&mut a.common, &mut a.value, TextHostKind::Attribute))
+    }
+}
+
+/// The host text for a container template: every `%<\_FldIdx n>%` replaced by
+/// `children[n]`'s display text. `None` when a marker has no child.
+fn template_display(template: &str, children: &[NewField]) -> Option<String> {
+    let mut out = String::new();
+    let mut rest = template;
+    while let Some(p) = rest.find("%<\\_FldIdx ") {
+        out.push_str(&rest[..p]);
+        let after = &rest[p + 11..];
+        let end = after.find(">%")?;
+        let idx: usize = after[..end].trim().parse().ok()?;
+        out.push_str(children.get(idx)?.value.display());
+        rest = &after[end + 2..];
+    }
+    out.push_str(rest);
+    Some(out)
+}
+
+/// Evaluate one field code without any field objects in the document — e.g.
+/// for a live preview. Accepts the stored child code
+/// (`\AcVar Date \f "yyyy-MM-dd"`, `\AcDiesel $(getvar,dimscale)`) or the same
+/// wrapped in `%<…>%`. `objects` are the AcObjProp references named by
+/// `%<\_ObjIdx n>%`; a code may instead name its object with `%<\_ObjId n>%`,
+/// `n` being the handle value in decimal.
+pub fn evaluate_code(
+    doc: &CadDocument,
+    code: &str,
+    objects: &[Handle],
+    host: Option<Handle>,
+    ctx: &dyn FieldContext,
+) -> Option<String> {
+    let mut code = code.trim();
+    if let Some(inner) = code.strip_prefix("%<").and_then(|c| c.strip_suffix(">%")) {
+        code = inner.trim();
+    }
+    let field = FieldDef {
+        handle: Handle::NULL,
+        owner: Handle::NULL,
+        evaluator: code_evaluator(code).to_string(),
+        code: code.to_string(),
+        objects: objects.to_vec(),
+    };
+    eval_field(doc, &field, ctx, host.unwrap_or(Handle::NULL))
 }
 
 #[cfg(test)]

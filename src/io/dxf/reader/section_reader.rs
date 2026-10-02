@@ -307,7 +307,8 @@ fn read_field_cell_value_dxf(
     let type_code = type_text.parse::<u32>().unwrap_or(0);
     value.raw_type_code = type_code as i32;
     value.value_type = CellValueType::from(type_code);
-    if version < DxfVersion::AC1021 || (value.flags & 3) == 0 {
+    // R2007+: flag bit 0 suppresses the value body (as in DWG).
+    if version < DxfVersion::AC1021 || (value.flags & 1) == 0 {
         match type_code {
             0 | 1 => {
                 value.numeric_value = field_next_code(entries, cursor, 91)
@@ -370,6 +371,9 @@ fn read_field_cell_value_dxf(
         {
             value.formatted_value = entries[*cursor].1.clone();
             *cursor += 1;
+        }
+        if entries.get(*cursor).map(|entry| entry.0) == Some(304) {
+            *cursor += 1; // ACVALUE_END
         }
     }
     value
@@ -8838,7 +8842,10 @@ impl<'a> SectionReader<'a> {
                 5 => value.handle = parse_dxf_handle(&pair.value_string),
                 330 if value.owner.is_null() => value.owner = parse_dxf_handle(&pair.value_string),
                 100 => {}
-                _ => entries.push((pair.code, pair.value_string.clone())),
+                // Numeric values are right-aligned ("        1"); keep string
+                // codes verbatim.
+                1..=9 | 300..=309 => entries.push((pair.code, pair.value_string.clone())),
+                _ => entries.push((pair.code, pair.value_string.trim().to_string())),
             }
         }
 
@@ -8878,6 +8885,11 @@ impl<'a> SectionReader<'a> {
                 .push(parse_dxf_handle(&entries[cursor].1));
             cursor += 1;
         }
+        // Pre-R2007 format string sits after the object list.
+        if version < DxfVersion::AC1021 && entries.get(cursor).map(|entry| entry.0) == Some(4) {
+            value.format = entries[cursor].1.clone();
+            cursor += 1;
+        }
         value.evaluation_option = field_next_code(&entries, &mut cursor, 91)
             .and_then(|item| item.parse().ok())
             .unwrap_or(0);
@@ -8896,7 +8908,19 @@ impl<'a> SectionReader<'a> {
         value.evaluation_error_message = field_next_code(&entries, &mut cursor, 300)
             .unwrap_or("")
             .to_string();
-        value.value = read_field_cell_value_dxf(&entries, &mut cursor, version);
+        // The reference application writes the child-value list (93 count,
+        // `6` key + value each) and then the field's own value behind a `7`
+        // key. Files from older writers of this library put the field value
+        // inline right here instead (R2007+: 93 flags + 90 type; earlier: 90).
+        let code_at = |i: usize| entries.get(i).map(|entry| entry.0);
+        let inline_value = if version >= DxfVersion::AC1021 {
+            code_at(cursor) == Some(93) && code_at(cursor + 1) == Some(90)
+        } else {
+            code_at(cursor) == Some(90)
+        };
+        if inline_value {
+            value.value = read_field_cell_value_dxf(&entries, &mut cursor, version);
+        }
         let child_value_count = if entries.get(cursor).map(|entry| entry.0) == Some(93) {
             let count = entries[cursor].1.parse::<usize>().unwrap_or(0).min(20_000);
             cursor += 1;
@@ -8912,6 +8936,10 @@ impl<'a> SectionReader<'a> {
                 key,
                 value: read_field_cell_value_dxf(&entries, &mut cursor, version),
             });
+        }
+        if !inline_value && entries.get(cursor).map(|entry| entry.0) == Some(7) {
+            cursor += 1; // ACFD_FIELD_VALUE
+            value.value = read_field_cell_value_dxf(&entries, &mut cursor, version);
         }
         if entries.get(cursor).map(|entry| entry.0) == Some(301) {
             value.value_string = entries[cursor].1.clone();
@@ -8934,8 +8962,8 @@ impl<'a> SectionReader<'a> {
             match pair.code {
                 5 => value.handle = parse_dxf_handle(&pair.value_string),
                 330 if value.owner.is_null() => value.owner = parse_dxf_handle(&pair.value_string),
-                90 => count = pair.value_string.parse::<usize>().unwrap_or(0).min(20_000),
-                290 => value.unknown = pair.value_string.parse::<i32>().unwrap_or(0) != 0,
+                90 => count = pair.value_string.trim().parse::<usize>().unwrap_or(0).min(20_000),
+                290 => value.unknown = pair.value_string.trim().parse::<i32>().unwrap_or(0) != 0,
                 330 => {
                     if value.fields.len() < count {
                         value.fields.push(parse_dxf_handle(&pair.value_string));

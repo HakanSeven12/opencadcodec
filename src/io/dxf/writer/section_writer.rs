@@ -5286,6 +5286,12 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     }
 
     fn write_field_cell_value_dxf(&mut self, value: &CellValue) -> Result<()> {
+        self.write_cell_value_dxf_masked(value, 3)
+    }
+
+    /// `body_mask`: R2007+ value flags that suppress the value body. AcDbField
+    /// values use bit 0 only (flag 2 still carries a body).
+    fn write_cell_value_dxf_masked(&mut self, value: &CellValue, body_mask: i32) -> Result<()> {
         if self.dxf_version >= DxfVersion::AC1021 {
             self.writer.write_i32(93, value.flags)?;
         }
@@ -5295,7 +5301,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             value.type_code() & !0x200
         };
         self.writer.write_i32(90, type_code)?;
-        if self.dxf_version < DxfVersion::AC1021 || (value.flags & 3) == 0 {
+        if self.dxf_version < DxfVersion::AC1021 || (value.flags & body_mask) == 0 {
             match type_code {
                 0 | 1 => {
                     self.writer.write_i32(91, value.numeric_value as i32)?;
@@ -5370,9 +5376,6 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_subclass("AcDbField")?;
         self.writer.write_string(1, &value.evaluator_id)?;
         self.writer.write_string(2, &value.code)?;
-        if self.dxf_version < DxfVersion::AC1021 {
-            self.writer.write_string(4, &value.format)?;
-        }
         self.writer.write_i32(90, value.child_fields.len() as i32)?;
         for handle in &value.child_fields {
             self.writer.write_handle(360, *handle)?;
@@ -5382,6 +5385,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         for handle in &value.referenced_objects {
             self.writer.write_handle(331, *handle)?;
         }
+        if self.dxf_version < DxfVersion::AC1021 {
+            self.writer.write_string(4, &value.format)?;
+        }
         self.writer.write_i32(91, value.evaluation_option)?;
         self.writer.write_i32(92, value.filing_option)?;
         self.writer.write_i32(94, value.state)?;
@@ -5389,14 +5395,25 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(96, value.evaluation_error_code)?;
         self.writer
             .write_string(300, &value.evaluation_error_message)?;
-        self.write_field_cell_value_dxf(&value.value)?;
+        // Reference layout: child values (`6` key + value), then the field's
+        // own value behind the `7` key, each value closed by ACVALUE_END.
         self.writer.write_i32(93, value.child_values.len() as i32)?;
         for item in &value.child_values {
             self.writer.write_string(6, &item.key)?;
-            self.write_field_cell_value_dxf(&item.value)?;
+            self.write_field_value_dxf(&item.value)?;
         }
+        self.writer.write_string(7, "ACFD_FIELD_VALUE")?;
+        self.write_field_value_dxf(&value.value)?;
         self.writer.write_string(301, &value.value_string)?;
         self.writer.write_i32(98, value.value_string_length)?;
+        Ok(())
+    }
+
+    fn write_field_value_dxf(&mut self, value: &CellValue) -> Result<()> {
+        self.write_cell_value_dxf_masked(value, 1)?;
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.writer.write_string(304, "ACVALUE_END")?;
+        }
         Ok(())
     }
 
@@ -5406,7 +5423,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_handle(330, value.owner)?;
         self.writer.write_subclass("AcDbIdSet")?;
         self.writer.write_i32(90, value.fields.len() as i32)?;
-        self.writer.write_bool(290, value.unknown)?;
+        // The reference application does not write the id-set flag (290).
+        if value.unknown {
+            self.writer.write_bool(290, value.unknown)?;
+        }
         for handle in &value.fields {
             self.writer.write_handle(330, *handle)?;
         }

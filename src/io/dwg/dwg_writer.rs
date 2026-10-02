@@ -92,6 +92,12 @@ impl DwgWriter {
             if owned.version < DxfVersion::AC1027
                 && owned.dwg_source_version != Some(owned.version)
             {
+                // FIELD / FIELDLIST objects exist from R2004 on.
+                let field_classes: &[&str] = if owned.version >= DxfVersion::AC1018 {
+                    &["FIELD", "FIELDLIST"]
+                } else {
+                    &[]
+                };
                 let required: Vec<_> = owned
                     .entities()
                     .filter_map(|entity| {
@@ -105,6 +111,11 @@ impl DwgWriter {
                         };
                         owned.classes.get_by_name(name).cloned()
                     })
+                    .chain(
+                        field_classes
+                            .iter()
+                            .filter_map(|name| owned.classes.get_by_name(name).cloned()),
+                    )
                     .collect();
                 owned.classes.retain_legacy_dwg_classes();
                 for mut class in required {
