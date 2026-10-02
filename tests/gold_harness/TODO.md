@@ -1,15 +1,19 @@
 # TODO.md — gold_harness open work
 
 The distilled work surface for the gold-vs-silver harness, extracted
-2026-09-30 from `IMPLEMENTATION.md` and re-revised 2026-10-01 after the
-B1/B2 sessions (the campaign record now 8,745 lines). Sources cited per
-item. The closed campaigns hold their zeros — parser parity, the
+2026-09-30 from `IMPLEMENTATION.md`, re-revised 2026-10-01 after the
+B1/B2 sessions and again 2026-10-02 after the author-quads landing and
+the AutoCAD-liberation investigation (the campaign record now 8,817
+lines). Sources cited per item. The closed campaigns hold their zeros — parser parity, the
 strict-load zero, the ACS/SH solid-history campaign, the §20 genus-gate
 queue at PENDING-ZERO with `--strict`, every constructed fixture MODELS
 with clean audits on both loaders, the generation identity
-`f2187565…`/25,728 stable, the suite 1,616/0. The corpus is 393 files
-(280 + the B1/B2 landings + the 2026-10-02 author quads): the forty
-B2 fixtures and the sixteen author quads read 0/0; the
+`f2187565…`/25,728 stable, the suite 1,618/0. The corpus is 401 files
+(280 + the B1/B2 landings + the 2026-10-02 author quads + the eight
+SweepSurf specimens): the forty
+B2 fixtures, the sixteen author quads and the eight SweepSurf files
+read 0/0 (the 401-file full run measured 2026-10-02: totals flat at
+the pre-existing 8/8, zero per-file failures); the
 **eight measured open rows are pre-existing B1-era residue** (verified
 pre-existing — the LIGHT row bisected on the pre-B2 tree, the
 UNKNOWN_OBJ rows B1's own recorded residue; see H8h-ext-16's
@@ -75,19 +79,27 @@ last moved the generation identity is the likely cause. The
 regeneration is mechanical; the drift review is the maintainer's
 recorded verdict. **Sources**: `README.md` D-guardrail 4; §20.3.
 
-### A8. The NURB3D (42) / composite (47) named-fields dissection
+### A8. The composite (47) named-fields dissection — the 42 half CLOSED
+(2026-10-02, the typed Nurb3d model)
 
-The two untyped subcurve regions replay verbatim on same-version
-writes (the B2 capture+replay net, `subcurve_wire`). The next depth
-packet would name the fields: the 42 form's ~110-bit header is
-constant across scenarios and eras except 2-6 scenario bits at
-82-97 (closed-vs-open differential at 87, 97 — the landed
-ExtrudeSpline/SplineOpen/Helix quads are the differential set); the
-47 composite is delta-encoded polyline vertices. Optional specimen
-enablers: a RATIONAL spline (weights ≠ 1) and a CV-method spline
-stretch the 42 weight/knot fields — authorable via the proven
-accoreconsole EXTRUDE recipe. **Sources**: H8h-ext-16 (the kind 42/47
-walks); fixtures/sh_history's ten B2 quads.
+The NURB3D (42) dissection is DONE — the SweepSurfSpline quad (the
+2026-10-02 surface-mode sweep path) was the differential that cracked
+the form: the grammar is fully named and self-delimiting (see
+`AssocNurb3dSubcurve` and the H8h-ext-16 A8 record), the reader parses
+it typed (gated on the measured constants + exact closure, falling
+back to the capture+replay net on any deviation), the writer emits it
+era-ungated (the regions are bit-identical across 2007/2018 on every
+specimen), and the bit-exact pins + the 220/220 conventional-arm
+census hold it. What remains of this item: the **47 composite** — a
+delta-encoded polyline/composite (the ExtrudePline/Extrude3DPoly/
+RevolvePline/LoftMixed quads + the 2004/Surface.dwg records carry
+it) — still replays verbatim; naming its fields is the remaining
+depth packet. Optional enablers: a RATIONAL spline (weights ≠ 1) and
+a CV-method spline would stretch the 42 weight fields beyond the
+measured set (the current parser's constant gates would fall back to
+the net — safe, and the specimen would name the new fields).
+**Sources**: H8h-ext-16 (the 42 dissection record + the A8 closure);
+fixtures/sh_history's ten B2 quads + the SweepSurf quads.
 
 ---
 
@@ -107,7 +119,12 @@ The R13/R14 parity campaign's specimen set is thin: three DWG files
 in the corpus at all). If C2 is accepted, more r14 (and any obtainable r13)
 fixtures would qualify per the §F2.1 gates — the same
 minimal-one-operation discipline, SAVEAS to R14 (AC1014) and R13 (AC1012)
-where the toolchain allows.
+where the toolchain allows. Toolchain measured 2026-10-02: AutoCAD 2027's
+SAVEAS menu floor is R14 (the menu enumerates R14/2000/2004/2007/2010/
+2013/2018 — no R13), and both headless channels are proven (the B2
+accoreconsole SCR driver at campaign scale; the prompt-free `entmake`
+LISP route, probe-validated 2026-10-02) — the r14 half of this enabler is
+authorable on demand; R13/AC1012 stays unauthorable.
 
 ### B4. ACSH_BREP_CLASS specimen — external-only (blocked on discovery)
 
@@ -150,17 +167,27 @@ GUI sweep route was measured 2026-10-02: the maintainer-authored
 **SweepHelix quad lands as a fixture and carries ZERO
 EdgeActionParam records** (solid ACSH_SWEEP_CLASS genus — the sweep
 family does not produce them in solid mode any more than POLYSOLID
-does), removing the GUI-sweep from the candidate routes. Any future
-specimen rides the capture+replay net
+does), removing the GUI-sweep from the candidate routes. The
+**surface-mode sweep was measured 2026-10-02 (the SweepSurfLine /
+SweepSurfSpline quads)**: the surface network DOES carry subcurve
+records (two per drawing — unlike the solid-mode zero) — but the
+path's kind MIRRORS THE PATH ENTITY'S OWN CURVE KIND (line path →
+23, spline path → 42; the circle profile → 11 in both), so 19/27
+remain unattested and the surface-mode sweep route closes too. The
+kind map now reads: the edge param's kind = the source entity's
+curve kind (circle→11, ellipse→17, line→23, spline→42, pline→47),
+stable across every measured era (all four versions of every quad).
+Any future specimen rides the capture+replay net
 from day one, so the modeling packet is pure upside when one surfaces.
-Remaining candidate routes: surface-mode GUI sweeps (the MOde=Surface
-branch, the one lever the solid-mode sweep quad does not cover),
-constraint-network edge params, infinite-line geometry, era conversions
-of an existing carrier.
+Remaining candidate routes: constraint-network edge params (the
+GCONSTRAIN/DIMCONSTRAINT associative networks), infinite-line
+geometry (XLINE/RAY), era conversions of an existing carrier (weak:
+the kind is era-stable in every measured quad).
 
 - **Sources**: `IMPLEMENTATION.md` H8h-ext-16 (the full-corpus census +
-  the authoring-lever negative map) + its 2026-10-02 review note (the
-  SweepHelix GUI datum); the ten B2 quads and the four author quads in
+  the authoring-lever negative map) + its 2026-10-02 review notes (the
+  SweepHelix solid-mode + SweepSurfLine/SweepSurfSpline surface-mode
+  sweep data); the ten B2 quads and the six author quads in
   `fixtures/sh_history/` (the negative-evidence levers are landed).
 
 ---
@@ -197,7 +224,34 @@ enabler: B3. **Sources**: §19.5 Tier 2 (lines 7266–7284).
 Silver's `UnsupportedVersion` reject is a defensible equivalent of gold's
 identify-only behavior; the version-code-then-empty-decode surface mirrors
 gold more literally but is a format-family addition, not a fidelity fix.
-**Sources**: §19.5 Tier 3 (lines 7286–7301).
+**Sources**: §19.5 Tier 3 (lines 7286–7301). One 2026-10-02 measurement
+bears on the fixture side of this tier: AutoCAD 2027 opens gold's r13/r14
+corpus files but refuses r1.4 ("cannot read old format drawing",
+ErrorStatus=53) and cannot author below R14 — pre-R13 fixtures have no
+AutoCAD route at all; that tier's specimens stay libredwg-sourced.
+
+### C4. The AutoCAD-liberation question — HALTED 2026-10-02 (continue on the libredwg test-files)
+
+The 2026-10-02 investigation (the record: IMPLEMENTATION.md's afternoon
+note) measured AutoCAD 2027 as a fixture engine: authoring R14→2018 (the
+SAVEAS menu; no R13/pre-R13), opening r2.10/r10/r11/r13/r14 but not r1.4
+(ErrorStatus=53), prompt-free headless generation via `entmake`
+(probe-validated), and the MCP ecosystem as wrappers over those same
+channels (no new primitive; nothing wire-level). Verdict: fixture
+SOURCING is replaceable for R14+ (the proposed golden-dataset tree:
+`generators/` + `fixtures/golden_entities/`, one campaign dir,
+version-suffixed stems per the fixtures README); the libredwg ORACLE is
+not — the semantic half (`dwgread -O JSON`) could re-base on an
+author-side census-LISP dump or a SAVEAS-DXF twin only by re-baselining
+every recorded fidelity verdict (normalize_gold's projections, the 8/8
+rows, the TOLERATED sets), and the wire-level gates (record-size census,
+unknown-bits forensics) have no AutoCAD equivalent at all.
+**Maintainer decision 2026-10-02: HALTED — the harness continues on the
+libredwg test-files; the golden-dataset design stays shelved with its
+record, re-openable by a future call.**
+
+- **Sources**: the IMPLEMENTATION.md 2026-10-02 afternoon note (the four
+  probes, the oracle-gap analysis, the proposed tree).
 
 ---
 

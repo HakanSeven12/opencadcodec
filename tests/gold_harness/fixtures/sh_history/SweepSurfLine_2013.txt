@@ -1,0 +1,27 @@
+2026-10-02 TODO B6 the surface-mode sweep specimens (the
+maintainer's GUI authoring session, per the B6 instruction).
+
+Authoring: the maintainer-authored quads dropped into fixtures/
+sh_history/ (the GUI route; file times 19:42-19:45 name the single
+session; the command options are the author's, recorded here from
+the B6 instruction): fresh drawing, default template, layer 0,
+SOLIDHIST 1; CIRCLE center 3,0,0 radius 0.5; LINE from 0,0,0 to 0,0,5; SWEEP with the MOde option set to
+Surface (the branch the solid-mode SweepHelix quad does not cover),
+profile pick then path pick; SAVEAS to 2007/2010/2013/2018 in
+sequence from the one live drawing.
+
+Summary: the associative surface network carries TWO
+ACDBASSOCEDGEACTIONPARAM records: the circle profile's edge
+(action_type 11, Arc - the modeled twelve-BD form) and the PATH's
+edge - action_type 23 (LineSeg3d, the modeled six-BD form) - NOT the unattested 19. The surface-mode sweep DOES produce subcurve records
+(unlike the solid-mode ACSH_SWEEP_CLASS genus, the SweepHelix quad's
+measured zero) - but the path kind mirrors the path entity's own
+curve kind, extending the profile-kind map: line path to 23,
+spline path to 42. Kinds 19 (Line) / 27 (Curve3d) remain unattested
+(the B6 negative datum; the route list trims again).
+
+Quality: dwgread -O JSON prints zero ERROR lines on this file; the
+corpus pair measures read 0 / write 0 (verified 2026-10-02, the
+8-file review pass); the object census is minimal (the sweep
+surface, its two edge params, the retained profile + path entities,
+the standard tables).

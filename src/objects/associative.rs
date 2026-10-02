@@ -1036,8 +1036,70 @@ pub struct AssocLineSegment3dSubcurve {
     pub end_point: Vector3,
 }
 
+/// The NURB3D subcurve (action_type 42), TODO A8 (2026-10-02).
+///
+/// Wire-reverse-engineered from five specimens — the four B2 extrude
+/// quads (ExtrudeSpline/ExtrudeSpline2 closed, ExtrudeSplineOpen open,
+/// ExtrudeHelix the CV-form) plus the SweepSurfSpline quad (the
+/// 2026-10-02 surface-mode sweep path, the differential that cracked
+/// it) — every record closing its region exactly, era-stable (the
+/// 2007 and 2018 regions are bit-identical per specimen). The
+/// measured grammar, fully self-delimiting:
+///
+/// ```text
+/// [12-bit hdr 0x103][BD knot_tolerance][4 bits 0x4]
+/// [flags 6][BL num_knots][BL 8]
+/// [knots BD x num_knots]
+/// [BL 0][BL 0][BL 8][BL num_ctrl][BL gap_b][BL 8]
+/// [control points 3BD x num_ctrl]   <- closes at main_data_end
+/// ```
+///
+/// The knots are the clamped chord-length parameterization (verified
+/// against the source entities' own knot lists — the helix's 58
+/// knots match value-for-value; the fit-form specimens' cumulative
+/// chord lengths reproduce the wire values exactly). The 6 flag bits
+/// carry partially unnamed semantics: bit 4 separates the measured
+/// extrusion profiles from the sweep path, bit 5 tracks closed on
+/// the extrude-form specimens, bits 0-1 mark the helix (the only
+/// CV-form source); they are stored verbatim. `gap_b` is the gap's
+/// one variable field — 8 on every fit-form specimen, 54 (the
+/// control-point count) on the helix — semantics unnamed, stored
+/// verbatim. The constants (the 12-bit header, the 4-bit field, the
+/// BL 8s and the 1e-09 knot tolerance measured on all five) are
+/// emitted by the writer and verified by the reader's typed-parse
+/// gate; any deviation falls back to the verbatim capture+replay
+/// net (`subcurve_wire`).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocNurb3dSubcurve {
+    /// The measured 6-bit flag field (verbatim; see the form docs).
+    pub flags: u8,
+    /// The knot tolerance (the BD after the 12-bit header; 1e-09 on
+    /// every measured specimen).
+    pub knot_tolerance: f64,
+    /// The knot vector (BD[] on the wire; 0.0 encodes as the 2-bit
+    /// short form).
+    pub knots: Vec<f64>,
+    /// The gap's variable BL field (verbatim; see the form docs).
+    pub gap_b: i32,
+    /// The control points (3BD[]; the array closes the region).
+    pub control_points: Vec<Vector3>,
+}
+
+impl Default for AssocNurb3dSubcurve {
+    fn default() -> Self {
+        Self {
+            flags: 0,
+            knot_tolerance: 1e-9,
+            knots: Vec::new(),
+            gap_b: 8,
+            control_points: Vec::new(),
+        }
+    }
+}
+
 /// The typed subcurve geometries the DWG reader models; the ladder's
-/// remaining rungs (NURB3D, CURVE3D, Line) stay untyped — see
+/// remaining rungs (CURVE3D, Line) stay untyped — see
 /// `AssocEdgeActionParam::subcurve_wire`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -1045,6 +1107,7 @@ pub enum AssocSubcurve {
     Arc(AssocArcSubcurve),
     Ellipse(AssocEllipseSubcurve),
     LineSegment3d(AssocLineSegment3dSubcurve),
+    Nurb3d(AssocNurb3dSubcurve),
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

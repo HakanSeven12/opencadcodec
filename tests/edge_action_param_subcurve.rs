@@ -15,8 +15,8 @@
 
 use acadrust::objects::{
     AssocActionParam, AssocArcSubcurve, AssocEdgeActionParam, AssocEllipseSubcurve,
-    AssocLineSegment3dSubcurve, AssocSingleDependencyActionParam, AssocSubcurve,
-    AssocSubcurveKind, AssociativeData, AssociativeObject, ObjectType,
+    AssocLineSegment3dSubcurve, AssocNurb3dSubcurve, AssocSingleDependencyActionParam,
+    AssocSubcurve, AssocSubcurveKind, AssociativeData, AssociativeObject, ObjectType,
 };
 use acadrust::types::{DxfVersion, Vector3};
 use acadrust::{CadDocument, DwgReader, DwgWriter};
@@ -46,16 +46,14 @@ const ELLIPSE_R2013_BODY_HEX: &str =
 const LINESEG3D_R2013_BODY_BITS: u32 = 103;
 const LINESEG3D_R2013_BODY_HEX: &str = "406AA2F5000000000000020814";
 
-// Her ExtrudeSpline_2018 record 0x739: the NURB3D (42) region,
-// 1304 bits, region-only (the capture's first 27 prefix bits are
-// excluded) — the verbatim replay payload.
-const NURB_R2013_REGION_BITS: u32 = 1304;
-const NURB_R2013_REGION_HEX: &str = concat!(
-    "103257589BA02CB844F90B42D08AA000000000000041000000000000001C400000000000",
-    "00099000000000000002C400000000000000B1000000000000002C400000000000000B10",
-    "290841D08422A062970D4D020FC4FC1AFE487E815DE8BF83A0E3BBF668F12400A657A9A0",
-    "C63BCAFE2DEB38A61DB184900DA3D7B3202471040822BDBC56FCB2E3BF017F4DEE46B404",
-    "102295DE95F78113AAFC94BEB61E2146E23FAA"
+// Her ExtrudePline_2018 record 0x739: the gold-unknown composite (47)
+// region, 610 bits — the verbatim replay payload (the capture+replay
+// net's remaining user now that 42 parses typed, TODO A8 2026-10-02).
+const PLINE47_REGION_BITS: u32 = 610;
+const PLINE47_REGION_HEX: &str = concat!(
+    "41117A80000000000001040A45C0000000000001040A8000000000000084091700000000",
+    "0000041000000000000000840800000000000010C0A45E00000000000002102800000000",
+    "000008C080"
 );
 
 fn unhex(value: &str) -> Vec<u8> {
@@ -290,25 +288,28 @@ fn dwg_subcurve_linesegment3d_typed_emission_r2013() {
 
 #[test]
 fn dwg_subcurve_untyped_kind_replays_captured_wire_same_version() {
-    let wire = unhex(NURB_R2013_REGION_HEX.replace('"', "").as_str());
-    let wire_bits = NURB_R2013_REGION_BITS;
+    // the gold-unknown composite (47) — the capture+replay net's
+    // remaining user since the NURB3D (42) moved to the typed ladder
+    // (TODO A8, 2026-10-02).
+    let wire = unhex(PLINE47_REGION_HEX.replace('"', "").as_str());
+    let wire_bits = PLINE47_REGION_BITS;
     let (document, _) = document_with_edge_param(
         DxfVersion::AC1032,
-        42,
+        47,
         None,
         Some((wire, wire_bits, Some(DxfVersion::AC1032))),
     );
     let (captured, record) = roundtrip(document);
     // the replay lands at the read-back capture offset 27 (after the
-    // typed prefix): capture[27 .. 27+1304) == the pinned region bits.
+    // typed prefix): capture[27 .. 27+610) == the pinned region bits.
     let got = capture_bits(&captured, 27 + wire_bits);
-    let want = capture_bits(NURB_R2013_REGION_HEX, wire_bits);
+    let want = capture_bits(PLINE47_REGION_HEX, wire_bits);
     assert_eq!(
         got[27..27 + wire_bits as usize],
         want[..wire_bits as usize],
-        "the NURB3D region replay diverged from the captured specimen"
+        "the kind-47 region replay diverged from the captured specimen"
     );
-    assert_eq!(record.subcurve_kind, AssocSubcurveKind::Nurb3d);
+    assert_eq!(record.subcurve_kind, AssocSubcurveKind::None);
     assert!(record.subcurve.is_none());
     assert_eq!(record.subcurve_wire_bit_len, wire_bits);
     assert!(record.subcurve_wire.is_some());
@@ -316,27 +317,120 @@ fn dwg_subcurve_untyped_kind_replays_captured_wire_same_version() {
 
 #[test]
 fn dwg_subcurve_wire_replay_is_version_gated() {
-    let wire = unhex(NURB_R2013_REGION_HEX.replace('"', "").as_str());
+    let wire = unhex(PLINE47_REGION_HEX.replace('"', "").as_str());
     let (document, _) = document_with_edge_param(
         DxfVersion::AC1032,
-        42,
+        47,
         None,
         // capture claims AC1021 while the write targets AC1032: the
         // replay must NOT fire (era forms differ across versions).
-        Some((wire, NURB_R2013_REGION_BITS, Some(DxfVersion::AC1021))),
+        Some((wire, PLINE47_REGION_BITS, Some(DxfVersion::AC1021))),
     );
     let (captured, record) = roundtrip(document);
     // the region is absent: the whole captured record (typed body +
     // framing tail) must be far shorter than one carrying the
-    // 1304-bit region after its 27-bit prefix.
+    // 610-bit region after its 27-bit prefix.
     assert!(
         record.subcurve_wire.is_none(),
         "a mismatched-capture record must not replay the region"
     );
     let captured_bits = unhex(&captured).len() as u32 * 8;
     assert!(
-        captured_bits < 27 + NURB_R2013_REGION_BITS,
+        captured_bits < 27 + PLINE47_REGION_BITS,
         "the region should not have been emitted (capture: {captured_bits} bits)"
     );
+}
+
+// Her SweepSurfSpline_2018 record 0x746 (the 2026-10-02 surface-mode
+// sweep path): the typed NURB3D region, 1224 bits — the measured
+// grammar's smallest full specimen (TODO A8, 2026-10-02).
+const NURB_SWEEP_REGION_BITS: u32 = 1224;
+const NURB_SWEEP_REGION_HEX: &str = concat!(
+    "103257589BA02CB844F90942508AA0D1BFF64DCA20290031480354801017400C5200D520",
+    "0405D0031480354801017400C5200D5200405D0290841508422A3A06228D15B8F84FC692",
+    "388674F29D33F172735CB69DCBC0FC87453A705E7EF83F1769FBD2EDCF3A8FCFC59842B8",
+    "A8506400F16581DC40DB74FCF3805467D85EFA3F1874D3F13DD904502000000000000001",
+    "000000000000001440",
+);
+
+fn sweep_path_nurb() -> AssocNurb3dSubcurve {
+    AssocNurb3dSubcurve {
+        flags: 0b001001,
+        knot_tolerance: 1e-9,
+        knots: vec![
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            3.3166247903554,
+            5.766114533138578,
+            5.766114533138578,
+            5.766114533138578,
+            5.766114533138578,
+        ],
+        gap_b: 8,
+        control_points: vec![
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(0.5590010667954433, 0.29939637289549254, 1.027991465636453),
+            Vector3::new(1.5308517822162189, 0.819911621392048, 2.8152049445882295),
+            Vector3::new(0.45642482431266607, 1.6481555973369353, 4.348601405498671),
+            Vector3::new(0.0, 2.0, 5.0),
+        ],
+    }
+}
+
+#[test]
+fn dwg_subcurve_nurb3d_typed_emission_r2013() {
+    let (document, _) = document_with_edge_param(
+        DxfVersion::AC1032,
+        42,
+        Some(AssocSubcurve::Nurb3d(sweep_path_nurb())),
+        None,
+    );
+    let (captured, record) = roundtrip(document);
+    // the typed prefix (27 bits at R2013+) precedes the region
+    let got = capture_bits(&captured, 27 + NURB_SWEEP_REGION_BITS);
+    let want = capture_bits(NURB_SWEEP_REGION_HEX, NURB_SWEEP_REGION_BITS);
+    assert_eq!(
+        got[27..27 + NURB_SWEEP_REGION_BITS as usize],
+        want[..],
+        "the NURB3D region diverged from the captured specimen"
+    );
+    assert_eq!(record.subcurve_kind, AssocSubcurveKind::Nurb3d);
+    let nurb = match &record.subcurve {
+        Some(AssocSubcurve::Nurb3d(value)) => value,
+        other => panic!("expected the typed NURB3D round-trip, got {other:?}"),
+    };
+    assert_eq!(nurb.flags, 0b001001);
+    assert_eq!(nurb.knot_tolerance, 1e-9);
+    assert_eq!(nurb.knots.len(), 9);
+    assert_eq!(nurb.knots[4], 3.3166247903554);
+    assert_eq!(nurb.gap_b, 8);
+    assert_eq!(nurb.control_points.len(), 5);
+    assert_eq!(nurb.control_points[4], Vector3::new(0.0, 2.0, 5.0));
+    assert!(record.subcurve_wire.is_none());
+}
+
+#[test]
+fn dwg_subcurve_nurb3d_emission_is_era_stable() {
+    // The measured NURB3D regions are bit-identical across eras
+    // (2007 vs 2018 on every specimen), so the typed emission is
+    // NOT version-gated: a pre-R2013 write carries the same region
+    // after its 17-bit prefix (no aap_version BL there).
+    let (document, _) = document_with_edge_param(
+        DxfVersion::AC1021,
+        42,
+        Some(AssocSubcurve::Nurb3d(sweep_path_nurb())),
+        None,
+    );
+    let (captured, record) = roundtrip(document);
+    let got = capture_bits(&captured, 17 + NURB_SWEEP_REGION_BITS);
+    let want = capture_bits(NURB_SWEEP_REGION_HEX, NURB_SWEEP_REGION_BITS);
+    assert_eq!(
+        got[17..17 + NURB_SWEEP_REGION_BITS as usize],
+        want[..],
+        "the NURB3D region must be era-stable (the 2007/2018 specimens are bit-identical)"
+    );
+    assert!(matches!(record.subcurve, Some(AssocSubcurve::Nurb3d(_))));
 }
 

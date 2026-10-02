@@ -423,6 +423,16 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
+    /// Write `count` raw bits of `value`, MSB first — the measured
+    /// NURB3D subcurve constants (TODO A8, 2026-10-02) are not
+    /// whole-bitcode fields: the 12-bit header 0x103 and the 4-bit
+    /// 0x4 straddle the byte/bitcode boundaries.
+    fn write_raw_bits(&mut self, value: u32, count: u32) {
+        for index in (0..count).rev() {
+            self.writer.write_bit((value >> index) & 1 == 1);
+        }
+    }
+
     pub(super) fn write_associative_object(&mut self, object: &AssociativeObject) {
         let canonical = associative_canonical_name(&object.dxf_name);
         let prefixed = format!("ACDB{canonical}");
@@ -609,6 +619,36 @@ impl<'a> DwgObjectWriter<'a> {
                     Some(AssocSubcurve::LineSegment3d(subcurve)) => {
                         self.writer.write_3bit_double(subcurve.start_point);
                         self.writer.write_3bit_double(subcurve.end_point);
+                    }
+                    Some(AssocSubcurve::Nurb3d(subcurve)) => {
+                        // TODO A8 (2026-10-02): the measured NURB3D
+                        // grammar (see `AssocNurb3dSubcurve`). The form
+                        // is ERA-STABLE — the 2007 and 2018 regions
+                        // are bit-identical on every specimen — so the
+                        // emission is not version-gated (unlike the
+                        // ARC/ELLIPSE trailing form): a cross-version
+                        // conversion re-emits the region correctly.
+                        self.write_raw_bits(0x103, 12);
+                        self.writer.write_bit_double(subcurve.knot_tolerance);
+                        self.write_raw_bits(0x4, 4);
+                        self.write_raw_bits(subcurve.flags as u32, 6);
+                        self.writer
+                            .write_bit_long(subcurve.knots.len() as i32);
+                        self.writer.write_bit_long(8);
+                        for knot in &subcurve.knots {
+                            self.writer.write_bit_double(*knot);
+                        }
+                        self.writer.write_bit_long(0);
+                        self.writer.write_bit_long(0);
+                        self.writer.write_bit_long(8);
+                        self.writer.write_bit_long(
+                            subcurve.control_points.len() as i32,
+                        );
+                        self.writer.write_bit_long(subcurve.gap_b);
+                        self.writer.write_bit_long(8);
+                        for point in &subcurve.control_points {
+                            self.writer.write_3bit_double(*point);
+                        }
                     }
                     None => {
                         if let Some(bytes) = &value.subcurve_wire {

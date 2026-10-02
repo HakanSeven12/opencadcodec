@@ -2,7 +2,7 @@ use crate::entities::solid3d::AcisVersion;
 use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
 use crate::io::dwg::dwg_version::DwgVersion;
 use crate::objects::*;
-use crate::types::{DxfVersion, Handle};
+use crate::types::{DxfVersion, Handle, Vector3};
 
 use super::safe_count;
 
@@ -936,8 +936,30 @@ pub fn read_associative_data(
                         if let Some(bytes) =
                             reader.peek_window_bytes(region_start, count)
                         {
-                            subcurve_wire = Some(bytes);
-                            subcurve_wire_bit_len = count;
+                            // TODO A8 (2026-10-02): the NURB3D (42)
+                            // region parses TYPED — the measured
+                            // grammar (see `AssocNurb3dSubcurve`):
+                            // fully self-delimiting and era-stable
+                            // (bit-identical 2007/2018 regions on
+                            // every specimen). The parser gates on
+                            // the measured constants and exact
+                            // closure; any deviation (a future
+                            // variant) rides the verbatim
+                            // capture+replay net instead.
+                            if action_type == 42 {
+                                if let Some(nurb) =
+                                    parse_nurb3d_region(&bytes, count)
+                                {
+                                    subcurve =
+                                        Some(AssocSubcurve::Nurb3d(nurb));
+                                } else {
+                                    subcurve_wire = Some(bytes);
+                                    subcurve_wire_bit_len = count;
+                                }
+                            } else {
+                                subcurve_wire = Some(bytes);
+                                subcurve_wire_bit_len = count;
+                            }
                         }
                     }
                 }
@@ -1377,4 +1399,117 @@ pub fn read_associative_data(
         _ => return None,
     };
     Some(value)
+}
+
+/// TODO A8 (2026-10-02): the typed NURB3D (action_type 42) region
+/// parser — the measured grammar (see AssocNurb3dSubcurve for the
+/// dissection record): a 12-bit header constant, the knot-tolerance
+/// BD, a 4-bit constant, the 6 flag bits, BL num_knots + a constant
+/// BL 8, the knot array (BD[]; 0.0 as the 2-bit short), the gap (BL
+/// 0, BL 0, BL 8, BL num_ctrl, BL gap_b, BL 8) and the control-point
+/// array (3BD[]) closing the region exactly. The parse gates on the
+/// measured constants and exact closure; None on any deviation
+/// (the caller then keeps the verbatim capture+replay net).
+fn parse_nurb3d_region(bytes: &[u8], bit_len: u32) -> Option<AssocNurb3dSubcurve> {
+    // a minimal MSB-first bit cursor over the captured window
+    struct WindowBits<'a> {
+        bytes: &'a [u8],
+        pos: u32,
+        len: u32,
+    }
+
+    impl WindowBits<'_> {
+        fn bit(&mut self) -> Option<bool> {
+            if self.pos >= self.len {
+                return None;
+            }
+            let byte = *self.bytes.get((self.pos / 8) as usize)?;
+            let value = (byte >> (7 - self.pos % 8)) & 1 == 1;
+            self.pos += 1;
+            Some(value)
+        }
+
+        fn raw(&mut self, count: u32) -> Option<u32> {
+            let mut value = 0u32;
+            for _ in 0..count {
+                value = (value << 1) | self.bit()? as u32;
+            }
+            Some(value)
+        }
+
+        fn bl(&mut self) -> Option<i32> {
+            match self.raw(2)? {
+                0 => Some(self.raw(32)? as i32),
+                1 => Some(self.raw(8)? as i32),
+                2 => Some(0),
+                _ => Some(256),
+            }
+        }
+
+        fn bd(&mut self) -> Option<f64> {
+            match self.raw(2)? {
+                0 => {
+                    let mut array = [0u8; 8];
+                    for slot in array.iter_mut() {
+                        *slot = self.raw(8)? as u8;
+                    }
+                    Some(f64::from_le_bytes(array))
+                }
+                1 => Some(1.0),
+                2 => Some(0.0),
+                _ => None,
+            }
+        }
+    }
+
+    let mut bits = WindowBits { bytes, pos: 0, len: bit_len };
+    // the measured constants gate the typed path
+    if bits.raw(12)? != 0x103 {
+        return None;
+    }
+    let knot_tolerance = bits.bd()?;
+    if bits.raw(4)? != 0x4 {
+        return None;
+    }
+    let flags = bits.raw(6)? as u8;
+    let num_knots = bits.bl()?;
+    if bits.bl()? != 8 {
+        return None;
+    }
+    if num_knots <= 0 || num_knots > 8192 {
+        return None;
+    }
+    let mut knots = Vec::with_capacity(num_knots as usize);
+    for _ in 0..num_knots {
+        knots.push(bits.bd()?);
+    }
+    if bits.bl()? != 0 || bits.bl()? != 0 || bits.bl()? != 8 {
+        return None;
+    }
+    let num_ctrl = bits.bl()?;
+    let gap_b = bits.bl()?;
+    if bits.bl()? != 8 {
+        return None;
+    }
+    if num_ctrl <= 0 || num_ctrl > 8192 {
+        return None;
+    }
+    let mut control_points = Vec::with_capacity(num_ctrl as usize);
+    for _ in 0..num_ctrl {
+        let x = bits.bd()?;
+        let y = bits.bd()?;
+        let z = bits.bd()?;
+        control_points.push(Vector3::new(x, y, z));
+    }
+    // the region must close exactly — the typed form's own gate
+    if bits.pos != bit_len {
+        return None;
+    }
+    Some(AssocNurb3dSubcurve {
+        flags,
+        knot_tolerance,
+        knots,
+        gap_b,
+        control_points,
+    })
 }

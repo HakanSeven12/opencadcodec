@@ -8815,3 +8815,183 @@ merge b8655ce) — the only ellipse-curve code this campaign added
 is the ASSOCIATIVE kind-17 subcurve form (the B2 packet's
 `AssocEllipseSubcurve`, reader walk + writer emission), a
 different surface from the entity.
+
+**The 2026-10-02 afternoon investigation — AutoCAD as the fixture
+engine (the liberation question), HALTED at the maintainer's call**:
+
+The ask: whether a golden dataset authored in AutoCAD could liberate
+the harness from the libredwg test-files (the maintainer's framing: a
+pre-defined golden dataset split by entity and version, automated
+through accoreconsole if possible — with the noted gap that gold's
+`dwgread -O JSON` serialization would be missing for comparison).
+Four probes, all measured on this machine (AutoCAD 2027.1):
+
+- **The authoring menu** (a bogus-format keyword at the SAVEAS prompt
+  enumerates it verbatim): R14(LT98&LT97)/2000/2004/2007/2010/2013/
+  2018/Standards/DXF/Template — **the authoring floor is R14**; R13
+  and pre-R13 are unauthorable.
+- **The open-era matrix** (accoreconsole `/i` on gold's own pre-2000
+  corpus files, the script's live run as the open verdict): r2.10,
+  r10, r11 (2d/3d), r13, r14 all open and run live; **r1.4 is
+  refused** ("AutoCAD cannot read old format drawing", ErrorStatus=53)
+  — the open floor sits between r1.4 and r2.10; r2.6/r9 unmeasured
+  (the batch was cut off at the wall-clock cap).
+- **The generation channels**: SCR is campaign-proven (the B2 ten
+  quads); **`entmake` LISP is now probe-proven** — LINE/CIRCLE/TEXT
+  created prompt-free in accoreconsole (the transcript echoes each
+  entmake's returned entity list; nil is the failure form), saved
+  2018 at 31,824 bytes. entmake bypasses the command-prompt dialect
+  entirely (the B2 crash class: no selection prompts, no 2D-strict
+  coordinates, no tangent blanks), making a primitive-entity matrix
+  deterministic; composites that require command machinery (the
+  associative/SH family) keep the B2 recipe pattern.
+- **The MCP survey** (six 2026-community servers): every backend
+  reduces to COM/ActiveX, a .NET plugin via NETLOAD, AutoLISP
+  file-IPC, or accoreconsole itself (one server's headless mode is
+  literally accoreconsole running .scr/.lsp) — wrappers, not new
+  primitives; none expose wire-level record data. Useful only as an
+  interactive authoring assistant; not harness critical-path
+  material. Two ideas worth stealing without adopting MCP:
+  audit_dxf (a DXF→normalized-JSON oracle primitive) and the
+  deliver-manifest discipline (artifact + re-audit + hashes — the
+  fixtures README conventions already approximate it).
+
+**The oracle-gap analysis** — what liberation would actually take,
+in three layers: (1) the corpus FILES are replaceable — the entity ×
+version matrix (~30 kinds × 7 versions ≈ 210 cells), the proposed
+tree `generators/` (recipes as committed provenance) +
+`fixtures/golden_entities/` (one campaign dir, version-suffixed
+stems, auto-in-scope via the `in_scope_files` rglob — with one
+two-line driver guard needed so `_r14` cells stay parked out of the
+R2000–R2018 corpus the way the gold-tree r13/r14 files are);
+(2) the SEMANTIC read oracle is replaceable only by re-baselining —
+normalize_gold's ~4,200 lines of gold-quirk projections, the recorded
+8/8 rows, the TOLERATED sets and every 0/0 campaign verdict are keyed
+to dwgread's output shape; an author-side census-LISP dump (the
+strict-probe census is the validated seed; entget reads cleanly in
+accoreconsole) or a SAVEAS-DXF twin is a NEW harness — arguably
+cleaner for authored fixtures (no UNKNOWN_OBJ desync, no CLASSES
+mojibake) but carrying none of the old verdicts forward; (3) the
+WIRE-LEVEL gates are not replaceable at all — no AutoCAD API (LISP,
+COM, .NET, MCP-wrapped) exposes record sizes, bit positions, or the
+raw bitstream; the record-size census that caught B2's latent 2-bit
+ARC drift has no AutoCAD equivalent, so an independent decoder
+stays for any wire-level write-fidelity goal.
+
+**The maintainer's decision (2026-10-02): HALT — the harness
+continues on the libredwg test-files for now.** The Phase-1 design
+stays shelved with this record (re-openable by a future call; the
+decision is distilled as TODO.md C4). The one durable enabler the
+investigation leaves behind regardless: **B3's r14 specimens are
+authorable headless** (the menu floor is R14; both channels proven) —
+recorded in TODO.md's B3.
+
+**The B6 surface-mode-sweep specimens (2026-10-02 evening, the
+maintainer's second authoring drop)**: the SweepSurfLine /
+SweepSurfSpline quads (eight DWGs, the GUI route per the B6
+instruction — SWEEP with MOde=Surface, the one sweep branch the
+solid-mode SweepHelix quad left open; bare drops, the .txt
+companions written from the measured wire in the review pass).
+The battery: all eight qualify (gold zero ERROR lines; corpus
+pairs 0/0 each; the 401-file full run — totals flat at the
+pre-existing 8/8, zero per-file failures). **The datum**: the
+surface-mode sweep DOES produce subcurve records — two per
+drawing, unlike the solid-mode zero — but the path's kind MIRRORS
+THE PATH ENTITY'S OWN CURVE KIND: the line path's edge is
+action_type 23 (LineSeg3d, the modeled six-BD form), the spline
+path's is 42 (Nurb3d, the capture+replay net), the circle
+profile's 11 in both. Kinds 19 (Line) / 27 (Curve3d) remain
+unattested; the surface-mode sweep route closes. The kind map now
+reads: the edge param's kind = the source entity's curve kind
+(circle to 11, ellipse to 17, line to 23, spline to 42, pline to
+47), era-stable across every measured quad — which also weakens
+the era-conversion candidate route. The B6 route list trims to
+constraint-network edge params and infinite-line geometry. TODO.md's
+preface (401 files) and B6 were refreshed with these numbers.
+
+**The A8 closure — the NURB3D (42) named-fields dissection and the
+typed model (2026-10-02 evening, the B6-instructed session)**:
+
+The maintainer's instruction was "implement B6 using the added
+fixtures" — but the review had already measured that the SweepSurf
+quads carry 11+23 and 11+42, NOT the unattested 19/27 (B6 stays
+blocked on specimen discovery; the negative datum stands). What the
+fixtures DID enable was the other open subcurve item: the 42
+named-fields dissection (TODO A8), for which the sweep-path spline
+was the decisive differential — a genuinely different nurb shape
+(3 fit points, 3D, open) against the four B2 extrude-profile
+specimens.
+
+**The dissection method (the B2 instrument set, plus the Rosetta
+walk)**: the B2-era probes had found the 42 region's constant 82-bit
+header and its scenario bits at 82-97 but stalled on the
+"~110-bit header" reading — the misaligned 66-bit BD-walk stride.
+The breakthrough sequence: (1) the closure scan — walk 3BDs from
+every start offset; the regions close EXACTLY at their ends on
+control-point arrays (the last fit point ends the region on the
+open specimens; the CV rings wrap on the closed ones), anchoring
+the CV arrays at 622/622/556/490/3724; (2) the value probes —
+known source-geometry doubles (fit-point coordinates, tolerances,
+tangents) located the geometry zones; (3) the helix Rosetta walk —
+ExtrudeHelix carries REAL knot values (its entity's 58-knot list)
+and 54 CVs, so walking its region against the entity's own lists
+verified EVERY knot and CV value-for-value with EXACT closure at
+14096; (4) the knot walk from 108 then decoded the other
+specimens' knots as the clamped chord-length parameterization
+(cumulative chord lengths reproduce every wire value: the
+4-3-4-3 rectangle perimeter 14, the sqrt-26/sqrt-17/sqrt-26
+ExtrudeSpline2 params, the sweep's sqrt-11 + sqrt-6).
+
+**The measured grammar (fully self-delimiting; every field named or
+measured-constant; all five specimens x both eras closing exactly)**:
+
+- a 12-bit constant header `0x103`;
+- a BD raw double = 1e-09 (the knot tolerance; constant on all
+  five);
+- a 4-bit constant `0x4`;
+- a 6-bit flag field (bit 4 separates the measured extrusion
+  profiles from the sweep path; bit 5 tracks closed on the
+  extrude-form specimens; bits 0-1 mark the helix, the only
+  CV-form source — semantics partially unnamed, stored verbatim);
+- BL num_knots, then a constant BL 8;
+- the knot array, BD x num_knots (0.0 as the 2-bit short; the
+  clamped chord-length parameterization; num_knots = num_ctrl +
+  degree + 1 on every specimen);
+- the gap: BL 0, BL 0, BL 8, BL num_ctrl, BL gap_b, BL 8 — gap_b
+  is the one variable field (8 on every fit-form specimen, 54 =
+  the control-point count on the helix; semantics unnamed, stored
+  verbatim);
+- the control points, 3BD x num_ctrl — closing the region EXACTLY
+  at main_data_end.
+
+**The era finding**: the 42 regions are BIT-IDENTICAL across 2007
+and 2018 on every specimen — era-stable, unlike the ARC/ELLIPSE
+trailing form. The typed emission is therefore NOT version-gated:
+a cross-version conversion re-emits the region correctly (the
+capture+replay net stays version-gated for the remaining untyped
+kinds).
+
+**The implementation**: `AssocNurb3dSubcurve` (flags, knot
+tolerance, knots, gap_b, control points; the measured constants
+documented, `Default` = the measured values) joins the typed
+`AssocSubcurve` ladder. The reader's 42 arm peeks the region and
+parses the typed grammar through a small window parser
+(`parse_nurb3d_region`) that gates on the measured constants and
+EXACT closure — any deviation (a future variant: rational weights,
+a CV-method source) returns None and the record rides the verbatim
+capture+replay net unchanged. The writer's Nurb3d arm re-emits the
+grammar (a `write_raw_bits` helper for the straddled constants).
+The net's remaining user is the gold-unknown 47 (the replay tests
+re-pinned on an ExtrudePline 610-bit region).
+
+**The validation record**: the typed parse verified on all TEN
+records (five specimens x 2007/2018 — knots and CV counts all
+correct); the bit-exact suite extended to 8 tests (the sweep-path
+pin: the constructed write-then-read capture matches her 1224-bit
+region bit-for-bit at both AC1032 and — the era-stability pin —
+AC1021); the full suite 1,618/0; the conventional-arm censuses
+record-identical (SweepSurfSpline_2007 220/220, ExtrudeSpline_2007
+214/214 — the typed emission byte-exact end-to-end); the corpus at
+401 files flat at the pre-existing 8/8, zero per-file failures;
+gold_roundtrip ok; the generation identity f2187565…/25,728
+UNMOVED. TODO.md's A8 now carries only the 47 composite.

@@ -3631,3 +3631,81 @@ on the existing code; `src/entities/ellipse.rs` last moved at the
 upstream merge b8655ce) — the only ellipse-curve code this
 campaign added is the associative kind-17 SUBCURVE form (B2's
 `AssocEllipseSubcurve`), a different surface from the entity.
+
+## The 2026-10-02 afternoon halt addendum (the AutoCAD-liberation
+## question — HALTED at the maintainer's call):
+
+The afternoon investigated whether AutoCAD could generate a golden
+fixture set and liberate the harness from the libredwg test-files
+(the full record: IMPLEMENTATION.md's 2026-10-02 afternoon note).
+Measured: the SAVEAS menu floor is R14 (R14/2000/2004/2007/2010/
+2013/2018 — no R13/pre-R13 authoring); accoreconsole opens gold's
+r2.10/r10/r11/r13/r14 files but refuses r1.4 (ErrorStatus=53);
+`entmake` LISP generates entities prompt-free headless
+(probe-validated — the B2 crash class bypassed); the MCP ecosystem is
+wrappers over those same channels with nothing wire-level. Verdict:
+fixture SOURCING replaceable for R14+; the libredwg ORACLE is not
+(the semantic half = a full re-baselining campaign; the wire-level
+gates have no AutoCAD equivalent). **THE MAINTAINER HALTED THE
+DIRECTION 2026-10-02: the harness continues on the libredwg
+test-files; do NOT start the golden-dataset campaign
+(`generators/` + `fixtures/golden_entities/`) without a new
+maintainer call — the decision and the shelved design are distilled
+as TODO.md C4.** Durable leftover: B3's r14 specimens ARE authorable
+headless (TODO.md B3 carries the measured note — the menu floor is
+R14 and both channels are proven). The four docs were synced at this
+halt; the sync is uncommitted pending the maintainer's word.
+
+## The 2026-10-02 evening addendum (the B6 surface-mode-sweep
+## specimens — the route measured, 19/27 still unattested):
+
+The maintainer dropped the demanded B6 fixtures (the SweepSurfLine /
+SweepSurfSpline quads, eight DWGs — SWEEP with MOde=Surface, the one
+sweep branch the solid-mode SweepHelix quad left open; GUI route per
+the B6 instruction). The review battery: all eight qualify (gold
+zero ERROR lines; corpus pairs 0/0 each; the **401-file full corpus
+run — totals flat at the pre-existing 8/8, zero per-file failures**;
+the .txt companions written from the measured wire). **THE B6
+DATUM**: the surface-mode sweep DOES produce subcurve records (two
+per drawing — the circle profile's kind 11 plus the PATH's edge) —
+but the path's kind MIRRORS THE PATH ENTITY'S CURVE KIND: line path
+to 23 (LineSeg3d, modeled), spline path to 42 (Nurb3d, netted). NOT
+19, NOT 27 — the surface-mode sweep route closes. The kind map now
+reads: the edge param's kind = the source entity's curve kind
+(circle 11, ellipse 17, line 23, spline 42, pline 47), era-stable
+in every measured quad (which also weakens the era-conversion
+candidate). **B6's remaining routes: constraint-network edge params
+(GCONSTRAIN/DIMCONSTRAINT) and infinite-line geometry (XLINE/RAY)**
+— see TODO.md B6 for the trimmed list. The corpus stands at 401
+files; TODO.md's preface and B6 were refreshed. Everything from
+this halt (the C4 sync + this landing) is uncommitted pending the
+maintainer's word.
+
+## The 2026-10-02 evening A8 addendum (the NURB3D 42 typed — B6's
+## fixtures put to work):
+
+The maintainer instructed "implement B6 using the added fixtures";
+the honest reading (measured): the SweepSurf quads carry 11+23 and
+11+42 — NOT 19/27 — so B6 stays blocked on specimen discovery. The
+fixtures' real yield was the OTHER open subcurve item: **the 42
+named-fields dissection (TODO A8) is CLOSED** — the sweep-path
+spline was the differential that cracked the form. The grammar (see
+`AssocNurb3dSubcurve` + the H8h-ext-16 A8 record): a 12-bit
+constant, BD 1e-09, a 4-bit constant, 6 flag bits, BL num_knots +
+BL 8, the clamped chord-length knot array (BD[]; verified
+value-for-value against the helix entity's own 58-knot list), the
+gap (BL 0, 0, 8, num_ctrl, gap_b, 8) and the control-point 3BD
+array closing the region EXACTLY — self-delimiting, and
+ERA-STABLE (bit-identical 2007/2018 regions on every specimen, so
+the typed emission is NOT version-gated). The reader parses it
+typed with constant+closure gates (any deviation rides the
+capture+replay net — the net's remaining user is the 47 composite;
+the replay tests re-pinned on an ExtrudePline 47 region). Gates:
+the suite 1,618/0 (the subcurve file now 8 bit-exact tests — the
+sweep pin at AC1032 AND the era-stability pin at AC1021), the
+conventional censuses 220/220 + 214/214 record-identical, the
+corpus 401 files flat at the pre-existing 8/8, gold_roundtrip ok,
+the generation identity unmoved. TODO.md: A8 trimmed to the 47
+composite; B6 unchanged (the 19/27 watch); the preface count
+1,618/0. Uncommitted at this halt alongside the C4 halt-sync and
+the SweepSurf landing docs.
