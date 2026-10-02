@@ -296,6 +296,40 @@ fn evaluate_json(doc: &CadDocument, json: &str) -> Option<usize> {
     }
 }
 
+/// What a count field's JSON asks for.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CountQuery {
+    /// A block's references (`type` `block`), in a boundary polyline for
+    /// `AcCount2`.
+    Block { name: String, key: CountKey, boundary: Option<Handle> },
+    /// The picked objects (`type` `single`).
+    Single(Vec<Handle>),
+}
+
+/// Read a count field's JSON; `None` when it does not parse.
+pub fn parse_query(json: &str) -> Option<CountQuery> {
+    let value = Json::parse(json.trim())?;
+    let obj = value.object()?;
+    match get(obj, "type")?.str()? {
+        "single" => Some(CountQuery::Single(
+            get(obj, "targets")?
+                .array()?
+                .iter()
+                .filter_map(|t| u64::from_str_radix(t.str()?, 16).ok().map(Handle::new))
+                .collect(),
+        )),
+        "block" => Some(CountQuery::Block {
+            name: get(obj, "name")?.str()?.to_string(),
+            key: parse_key(get(obj, "key"))?,
+            boundary: get(obj, "boundaryObjectHandle")
+                .and_then(|h| h.str())
+                .and_then(|h| u64::from_str_radix(h, 16).ok())
+                .map(Handle::new),
+        }),
+        _ => None,
+    }
+}
+
 fn parse_key(key: Option<&Json>) -> Option<CountKey> {
     let Some(key) = key else {
         return Some(CountKey::default());
