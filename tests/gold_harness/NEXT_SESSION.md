@@ -3618,3 +3618,16 @@ sweep, constraint-network edge params, infinite-line geometry and
 era conversions. The corpus stands at **393 files** (377 + 16, all
 sixteen at 0/0); TODO.md's preface, B6 and C1 were refreshed with
 these numbers.
+
+**The review verification (2026-10-02, post-landing)**: the
+author-quads claims hardened: a FULL corpus run backs the totals
+(393 files, 8/8 exactly the pre-existing rows, zero per-file
+failures); the "elliptical" naming verified from the SAT bodies
+(one `ellipse` curve each; SweepHelix = `helix`+`spline` paths);
+no product string survives in the raw bytes (the companions'
+wire-is-the-record hedge validated). **The ellipse-code audit**:
+the ELLIPSE ENTITY codec is untouched (the quads read/write 0/0
+on the existing code; `src/entities/ellipse.rs` last moved at the
+upstream merge b8655ce) — the only ellipse-curve code this
+campaign added is the associative kind-17 SUBCURVE form (B2's
+`AssocEllipseSubcurve`), a different surface from the entity.

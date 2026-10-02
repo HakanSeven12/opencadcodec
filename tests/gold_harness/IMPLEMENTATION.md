@@ -8793,3 +8793,25 @@ primitives carry their geometry in the SH raw tails instead). The
 corpus stands at 393 files (377 + 16); TODO.md's preface, B6 (the
 GUI-sweep route measured negative, the surface-mode branch the
 remaining sweep lever) and C1 were refreshed to the new counts.
+
+**The review verification (2026-10-02, post-landing)**: the
+author-quads packet's claims were re-verified and hardened before
+the next halt: (1) a FULL corpus run backs the totals — 393 files,
+read 8 / write 8, exactly the pre-existing rows (LIGHT.light_color
+x5 + UNKNOWN_OBJ x3), zero per-file failures (the 16 new quads at
+0/0 inside the full run, not just the per-file pairs); (2) the
+"elliptical" claims verified from the wire, not the stems — the
+SAT/ASM bodies carry exactly one `ellipse` curve each in
+ConeElliptical/CylinderElliptical/ExtrudeE, and SweepHelix carries
+`helix` + `spline` path curves (its companion claims only the
+sweep-along-helix — measured true); (3) no product string survives
+in the raw bytes (only the Autodesk ASM modeler marker;
+`last_saved_by` empty in every header) — the companions'
+"the wire is the record" hedge was the honest phrasing. **The
+ellipse-code audit**: the ELLIPSE ENTITY codec needed no changes
+for the elliptical quads (they read/write 0/0 on the existing
+codec; `src/entities/ellipse.rs` untouched since the upstream
+merge b8655ce) — the only ellipse-curve code this campaign added
+is the ASSOCIATIVE kind-17 subcurve form (the B2 packet's
+`AssocEllipseSubcurve`, reader walk + writer emission), a
+different surface from the entity.
