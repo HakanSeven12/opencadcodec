@@ -775,11 +775,19 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_subclass("AcDbAssocGeomDependency")?;
                 self.writer.write_i16(90, value.class_version)?;
                 self.writer.write_bool(290, value.enabled)?;
-                self.writer.write_subclass("AcDbAssocPersSubentId")?;
+                let subent = &value.persistent_subent;
+                let class_name = if subent.class_name.is_empty() {
+                    AssocPersistentSubentId::class_name_for_code(subent.class_code)
+                        .unwrap_or_default()
+                } else {
+                    subent.class_name.as_str()
+                };
+                self.writer.write_string(1, class_name)?;
+                for item in &subent.values {
+                    self.writer.write_i32(90, *item)?;
+                }
                 self.writer
-                    .write_string(1, &value.persistent_subent.class_name)?;
-                self.writer
-                    .write_bool(290, value.persistent_subent.dependent_on_compound_object)?;
+                    .write_bool(290, subent.dependent_on_compound_object)?;
             }
             AssociativeData::SurfaceActionBody(value) => self.write_assoc_surface(value)?,
             AssociativeData::Action(value) => self.write_assoc_action(value)?,
@@ -824,6 +832,18 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_handle(330, value.parameter)?;
                 self.writer.write_bool(290, value.has_action)?;
                 self.writer.write_i32(90, value.action_type)?;
+                for item in &value.curve {
+                    match item {
+                        AssocCurveValue::Bool(value) => self.writer.write_bool(70, *value)?,
+                        AssocCurveValue::Int(value) => self.writer.write_i32(90, *value)?,
+                        AssocCurveValue::Real(value) => self.writer.write_double(40, *value)?,
+                        AssocCurveValue::Point(value) => {
+                            self.writer.write_double(10, value.x)?;
+                            self.writer.write_double(20, value.y)?;
+                            self.writer.write_double(30, value.z)?;
+                        }
+                    }
+                }
             }
             AssociativeData::ConstraintGroup(value) => {
                 self.write_assoc_action(&value.action)?;

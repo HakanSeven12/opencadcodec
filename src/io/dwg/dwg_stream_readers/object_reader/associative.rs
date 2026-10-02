@@ -6,6 +6,59 @@ use crate::types::{DxfVersion, Handle};
 
 use super::safe_count;
 
+/// Read the curve an edge action parameter stores after its type code.
+fn read_edge_curve(
+    reader: &mut DwgMergedReader,
+    curve_type: i32,
+    out: &mut Vec<AssocCurveValue>,
+    depth: usize,
+) {
+    let point = |reader: &mut DwgMergedReader| AssocCurveValue::Point(reader.read_3bit_double());
+    let real = |reader: &mut DwgMergedReader| AssocCurveValue::Real(reader.read_bit_double());
+    match curve_type {
+        // Arc and ellipse: three vectors, then four or five reals.
+        11 | 17 => {
+            for _ in 0..3 {
+                out.push(point(reader));
+            }
+            for _ in 0..if curve_type == 11 { 4 } else { 5 } {
+                out.push(real(reader));
+            }
+        }
+        23 => {
+            out.push(point(reader));
+            out.push(point(reader));
+        }
+        42 => {
+            out.push(AssocCurveValue::Bool(reader.read_bit()));
+            out.push(AssocCurveValue::Bool(reader.read_bit()));
+            out.push(AssocCurveValue::Int(reader.read_bit_long()));
+            out.push(real(reader));
+            // Knots, weights and control points: length, physical length and
+            // grow length, then the items.
+            for points in [false, false, true] {
+                let length = reader.read_bit_long();
+                out.push(AssocCurveValue::Int(length));
+                out.push(AssocCurveValue::Int(reader.read_bit_long()));
+                out.push(AssocCurveValue::Int(reader.read_bit_long()));
+                for _ in 0..safe_count(length) {
+                    out.push(if points { point(reader) } else { real(reader) });
+                }
+            }
+        }
+        47 if depth < 8 => {
+            let count = reader.read_bit_long();
+            out.push(AssocCurveValue::Int(count));
+            for _ in 0..safe_count(count) {
+                let part = reader.read_bit_long();
+                out.push(AssocCurveValue::Int(part));
+                read_edge_curve(reader, part, out, depth + 1);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn handle(reader: &mut DwgMergedReader) -> Handle {
     Handle::from(reader.read_handle())
 }
@@ -912,9 +965,24 @@ pub fn read_associative_data(
                 dependency,
                 class_version: reader.read_bit_short(),
                 enabled: reader.read_bit(),
-                persistent_subent: AssocPersistentSubentId {
-                    class_name: reader.read_variable_text(),
-                    dependent_on_compound_object: reader.read_bit(),
+                persistent_subent: {
+                    // Flag, class code, the class's fields, then the
+                    // compound-object bit, which ends the record.
+                    let leading_flag = reader.read_bit();
+                    let class_code = reader.read_bit_long();
+                    let mut values = Vec::new();
+                    while reader.main_remaining_bits() > 1 && values.len() < 64 {
+                        values.push(reader.read_bit_long());
+                    }
+                    AssocPersistentSubentId {
+                        class_name: AssocPersistentSubentId::class_name_for_code(class_code)
+                            .unwrap_or_default()
+                            .to_string(),
+                        dependent_on_compound_object: reader.read_bit(),
+                        class_code,
+                        values,
+                        leading_flag,
+                    }
                 },
             })
         }
@@ -1033,12 +1101,15 @@ pub fn read_associative_data(
                 27 => AssocSubcurveKind::Curve3d,
                 _ => AssocSubcurveKind::None,
             };
+            let mut curve = Vec::new();
+            read_edge_curve(reader, action_type, &mut curve, 0);
             AssociativeData::EdgeActionParam(AssocEdgeActionParam {
                 single_dependency,
                 parameter,
                 has_action,
                 action_type,
                 subcurve_kind,
+                curve,
             })
         }
         "ASSOC2DCONSTRAINTGROUP" => {
