@@ -2,9 +2,11 @@
 
 The distilled work surface for the gold-vs-silver harness, extracted
 2026-09-30 from `IMPLEMENTATION.md`, re-revised 2026-10-01 after the
-B1/B2 sessions and again 2026-10-02 after the author-quads landing and
-the AutoCAD-liberation investigation (the campaign record now 8,817
-lines). Sources cited per item. The closed campaigns hold their zeros — parser parity, the
+B1/B2 sessions and again 2026-10-02 through the day's arc (the
+author-quads landing, the AutoCAD-liberation investigation and its
+halt, the SweepSurf specimens + the A8 typed-NURB3D closure, the B5
+dead-rows closure, the R13/R14 authoring-wave survey — the campaign
+record now 9,078 lines). Sources cited per item. The closed campaigns hold their zeros — parser parity, the
 strict-load zero, the ACS/SH solid-history campaign, the §20 genus-gate
 queue at PENDING-ZERO with `--strict`, every constructed fixture MODELS
 with clean audits on both loaders, the generation identity
@@ -111,20 +113,44 @@ target version; qualify with `dwgread -O JSON` (zero `Error` lines, target
 class present, minimal object census); land with a sibling `.txt`
 provenance companion. Either AutoCAD or BricsCAD may author (record which).
 
-### B3. More r14 specimens (the Tier 2 campaign enabler — see C2)
+### B3. The R13/R14 specimen wave (the Tier 2 campaign enabler — see C2)
 
-The R13/R14 parity campaign's specimen set is thin: three DWG files
-(`r14/Constraints.dwg`, `r14/Leader.dwg`, `r14/v.dwg` — all AC1014) measure
-89/153/149 read+write fidelity diffs; `r13/` holds only `v.dxf` (no R13 DWG
-in the corpus at all). If C2 is accepted, more r14 (and any obtainable r13)
-fixtures would qualify per the §F2.1 gates — the same
-minimal-one-operation discipline, SAVEAS to R14 (AC1014) and R13 (AC1012)
-where the toolchain allows. Toolchain measured 2026-10-02: AutoCAD 2027's
-SAVEAS menu floor is R14 (the menu enumerates R14/2000/2004/2007/2010/
-2013/2018 — no R13), and both headless channels are proven (the B2
-accoreconsole SCR driver at campaign scale; the prompt-free `entmake`
-LISP route, probe-validated 2026-10-02) — the r14 half of this enabler is
-authorable on demand; R13/AC1012 stays unauthorable.
+The R13/R14 parity campaign's specimen set is thin: three real-world
+r14 DWGs (`r14/Constraints.dwg`, `r14/Leader.dwg`, `r14/v.dwg` — all
+AC1014) measure 89/153/149 read+write fidelity diffs (attribution-
+hard); `r13/` holds only `v.dxf` (no R13 DWG in the corpus at all);
+`example_r13.dwg`/`example_r14.dwg` sit at gold's tree root, outside
+the corpus dirs. **Toolchain measured 2026-10-02 (the maintainer's
+report): AutoCAD saves DWG R14+; BricsCAD saves R13+ — both halves of
+the enabler are authorable on demand** (BricsCAD is the R13 author;
+either app for R14; record which per the fixtures README). The
+corpus-driver's fixtures walk now carries the parked-campaign guard
+(the r13/r14 substring, mirroring the gold-tree guard) so the wave
+lands safely without touching the R2000-R2018 totals.
+
+**The required-fixture list (the 2026-10-02 survey of gold's
+2000-2018 backbone vs the era dirs; one op per file, minimal census,
+`Stem_r13.dwg`/`Stem_r14.dwg`, dropped in
+`fixtures/r13_r14/` — PARKED until C2 accepts the era extension):**
+
+Wave 1 — the era-certain backbone (16 families × 2 eras = 32 files):
+`Line`, `Circle`, `Arc`, `Point`, `Text`, `Polyline` (the heavy 2D
+polyline — the R13/R14-native form), `PolyLine3D`, `Polygon`,
+`Donut`, `Ellipse` (new in R13), `Spline` (new in R13), `Multiline`
+(new in R13), `ConstructionLine` (XLINE, new in R13), `RAY` (new in
+R13), `Dimension` (one linear), `Block` (one insert).
+
+Wave 2 — the attempt set (era-introduction uncertain; a refusal is
+recorded as data in the `.txt`, not a failure): `Leader` (R14-proven
+by gold's own r14/Leader.dwg), `LWPolyline` (R13-or-R14
+introduction), `MText` (R13+), `Hatch` (R14+), `Tolerance` (R13+).
+
+NOT era-valid — do not author: `Helix` (2007+), the parametric
+constraint manager (2010+; gold's same-named 2000-era file is an
+early line+circle assoc demo, census-verified 2026-10-02), the whole
+`sh_history`/ACSH surface family (2007+). Pre-R13 (r1.4-r12) stays
+unauthorable by both tools — that tier's specimens remain
+libredwg-sourced (see C3/A4).
 
 ### B4. ACSH_BREP_CLASS specimen — external-only (blocked on discovery)
 
@@ -142,15 +168,39 @@ exists.
 - **Sources**: `IMPLEMENTATION.md` §F2.3 Brep row (line 3365),
   §19.5 Tier 1 (line 7260).
 
-### B5. Dead rows — record, no fixture path (for completeness)
+### B5. Dead rows — CLOSED 2026-10-02 (recorded-dead; all three lever
+routes measured)
+
+Both rows are terminal as recorded-dead; the naming they point at ran
+to its evidence limit:
 
 - **LoftD** (LOFT Settings → Ruled + draft fields): the authoring path
   does not exist in this AutoCAD release (maintainer-verified
-  2026-09-24). The π/2 draft pair's naming path is the loft container walk
-  or the LoftM raw tail (code work), not a fixture.
-- **The SH revolve option shorts + flags**: the typed anchor is already
-  in-corpus via RevolveM; the remaining option short rows are code work
-  (container walk), not fixtures.
+  2026-09-24). The §18 container walk (2026-09-26) named the
+  per-section `[center.x][center.y][height][radius]` runs and the
+  trailing `[π/2, π/2]` draft pair provisionally
+  (`SolidHistoryLoftTail`); the leading region, the inter-section gaps
+  and the 14-bit trailer stay documented-verbatim (the conservative
+  decode-fidelity rule).
+- **The SH revolve option shorts + flags**: the grammar is CLOSED
+  bit-exactly (§18.6); the six option shorts + two flags stay
+  positionally named (`option_doubles`) — every corpus specimen
+  carries zeros. The three lever routes are ALL measured dead:
+  (1) the REVOLVE command exposes no draft/twist prompt in this
+  release; (2) the GUI Properties surface for a revolved surface
+  carries only the angle of revolution (maintainer-verified
+  2026-10-02 — no draft/twist fields); (3) the ASSOC body's named
+  pab-values carry only `RevolveAngle` (2007/2010; none at 2013+) —
+  no semantic anchor for any option slot.
+
+Re-opens only if a specimen with non-default values surfaces (a
+real-world file, a future release's settings path, a different
+authoring app) — the raw-retention/verbatim nets keep any such file
+safe from day one.
+
+- **Sources**: `IMPLEMENTATION.md` §18.6/§18.7 (the closure records)
+  + the B5 consult record (2026-10-02, the ASSOC-body probe + the
+  maintainer's GUI confirmation).
 
 ### B6. The unattested subcurve kinds 19 (Line) / 27 (Curve3d) — blocked
 on specimen discovery
@@ -183,6 +233,25 @@ Remaining candidate routes: constraint-network edge params (the
 GCONSTRAIN/DIMCONSTRAINT associative networks), infinite-line
 geometry (XLINE/RAY), era conversions of an existing carrier (weak:
 the kind is era-stable in every measured quad).
+
+**The concrete specimen recipes (the 2026-10-02 consult; author at
+2010/2013/2018 — the constraint-manager eras — or 2007+ for the
+sweep route; drop in `fixtures/b6_routes/`, IN-SCOPE, one op per
+file, qualify per §F2.1; a refusal is recorded as data, not a
+failure):**
+
+1. `SweepSurfXline_<v>` — SWEEP with MOde=Surface, a CIRCLE profile,
+   an XLINE (construction line) as the path. The kind-19 hypothesis:
+   the bounded LINE path gave 23 (LineSeg3d) — the INFINITE line may
+   give 19 (Line). If the app refuses an infinite path, record the
+   refusal text verbatim in the `.txt` (the route's negative datum).
+2. `DimConstr_<v>` — DIMCONSTRAINT: a linear constraint on a LINE
+   plus a radius constraint on a CIRCLE (the dimensional network,
+   distinct from gold's plain geometric-constraint files, which the
+   B2 census measured negative).
+3. `GConstrNet_<v>` — GCONSTRAIN: tangent + parallel constraints
+   between a LINE and a CIRCLE (weak — gold's plain files carry no
+   EdgeActionParam; the network variant is the untested lever).
 
 - **Sources**: `IMPLEMENTATION.md` H8h-ext-16 (the full-corpus census +
   the authoring-lever negative map) + its 2026-10-02 review notes (the
@@ -217,7 +286,11 @@ files (the 89–153 rows are the opening census); record-count mismatches
 10 missing, IMAGE 15 vs 5) come first, then the era-field projections
 (`isbylayerlt`, `linewt`, `plotstyle_flags`, `ltype_flags` — R2000-era
 fields silver carries where gold's R14 spec block lacks them). Fixture
-enabler: B3. **Sources**: §19.5 Tier 2 (lines 7266–7284).
+enabler: B3 — **COMPLETE as of 2026-10-02 (both eras authorable:
+BricsCAD R13+, AutoCAD R14+); the specimen wave is accumulating
+PARKED under `fixtures/r13_r14/` (the corpus driver's parked-campaign
+guard keeps it out of the R2000-R2018 totals until this decision
+flips the scope)**. **Sources**: §19.5 Tier 2 (lines 7266–7284).
 
 ### C3. Accept the pre-R13 mirror (A4) or keep the outright reject?
 

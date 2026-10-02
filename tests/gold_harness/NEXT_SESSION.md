@@ -1,12 +1,16 @@
 # THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3, A5, B1 AND B2
-# ARE CLOSED — THE 2018 ERA IS AT FULL RECORD IDENTITY (0/50,773),
-# THE COVERAGE-GAP ENTITY FAMILY READS TYPED (THE FIXTURE CORPUS AT
-# 61/65 FULLY CLEAN), THE SUBCURVE ACTION-TYPE LADDER IS MODELED
-# (THE THREE EVIDENCED KINDS TYPED BIT-EXACT, 42/47 NETTED BY
-# CAPTURE+REPLAY, 19/27 ATTESTED NOWHERE)**:
+# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3, A5, B1, B2 AND
+# B5 ARE CLOSED, A8's 42 HALF IS CLOSED (TYPED) — THE 2018 ERA IS AT
+# FULL RECORD IDENTITY (0/50,773), THE COVERAGE-GAP ENTITY FAMILY
+# READS TYPED (THE FIXTURE CORPUS AT 61/65 FULLY CLEAN), THE
+# SUBCURVE ACTION-TYPE LADDER IS MODELED (FOUR KINDS TYPED
+# BIT-EXACT — ARC 11, ELLIPSE 17, LINESEG3D 23, NURB3D 42 (the
+# 2026-10-02 A8 closure: the grammar named, era-stable, the helix
+# Rosetta verification); 47 NETTED BY CAPTURE+REPLAY; 19/27
+# ATTESTED NOWHERE — the B6 route recipes are recorded in
+# TODO.md)**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -48,18 +52,26 @@
 # 2004/Surface.dwg corpus records), ARC 11 kept + the latent
 # R2013+ two-bit trailing-form fix (the ext-4 writer was 2 bits
 # short on 2013/2018 conventional writes — invisible: gold's spec
-# switch is dead code behind HANDLE_UNKNOWN_BITS), NURB3D 42 + the
+# switch is dead code behind HANDLE_UNKNOWN_BITS), NURB3D 42
+# TYPED at the 2026-10-02 A8 closure (the measured grammar: the
+# 12-bit constant, BD 1e-09, the clamped chord-length knot array,
+# the gap BLs and the CV 3BD array closing the region exactly —
+# era-stable, so the typed emission is version-ungated) + the
 # gold-unknown 47 netted by verbatim capture+replay on
 # same-version writes, 19/27 attested nowhere (the full-corpus
 # census + the authoring-lever negative map; SWEEP unauthorable
-# headless); ten fixture quads landed (the corpus now 377 files,
-# every B2 fixture 0/0); the suite 1,616/0 (six new bit-exact
-# tests), the generation identity unmoved, genus --strict
+# headless); ten fixture quads landed (the corpus now 401 files —
+# the B2 fixtures + the 2026-10-02 author quads + the SweepSurf
+# specimens, all at 0/0); the suite 1,618/0 (eight bit-exact
+# subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read the TODO B2 addendum at this file's bottom
-# (the 2026-10-01 halt state) and TODO.md's distilled queue (the
-# A5-A8/B6 items — the B2 carry-overs formalized 2026-10-01), then
+# section below), read this file's 2026-10-02 addenda bottom-up
+# (the authoring-wave handover — the maintainer's next fixture
+# drop — then the B5 closure, then the A8 closure, then the
+# SweepSurf landing), then TODO.md's distilled queue (A5-A8/B6 —
+# the carry-overs formalized, B5 and A8's 42 half marked closed),
+# then
 # the sixteenth addendum's record (and the
 # seventeenth continuation), then the
 # residual queue (the older eras' census rows — 2000's 325
@@ -3709,3 +3721,81 @@ the generation identity unmoved. TODO.md: A8 trimmed to the 47
 composite; B6 unchanged (the 19/27 watch); the preface count
 1,618/0. Uncommitted at this halt alongside the C4 halt-sync and
 the SweepSurf landing docs.
+
+## The 2026-10-02 B5 closure addendum (the dead rows recorded
+## terminal):
+
+The consult on B5 ("implement or consult") found the code work
+already run to its evidence limit (the loft container walk's
+provisional naming; the revolve grammar's positional options), and
+the maintainer's GUI pass closed the last candidate lever: **the
+Properties surface for a revolved surface carries ONLY the angle of
+revolution** — no draft/twist fields. All three routes measured dead
+(the command prompts, the GUI properties, the ASSOC body's
+pab-values — only RevolveAngle at 2007/2010, none later). B5 is
+CLOSED as recorded-dead: the six revolve option shorts + two flags
+and the loft draft pair stay positionally/provisionally named per
+the conservative decode-fidelity rule; re-open only on a specimen
+with non-default values (any such file rides the verbatim nets).
+The closure record: IMPLEMENTATION.md's B5 note; TODO.md's B5
+marked closed with the three-route evidence. Doc-only at this
+halt — no code changed, no gates due.
+
+## The 2026-10-02 authoring-wave handover (the maintainer's next
+## fixture drop - WHERE THE FILES GO and what happens on landing):
+
+The maintainer's toolchain report (2026-10-02): **AutoCAD saves DWG
+R14+; BricsCAD saves R13+** - both halves of the B3 enabler are
+authorable, and the R13 half is NEW (B3 previously recorded R13 as
+unauthorable). The corpus survey (gold test-data + the fixtures
+tree) produced the required-fixtures list; the corpus driver's
+fixtures walk now carries the parked-campaign guard (the r13/r14
+substring, mirroring the gold-tree guard - verified a no-op on the
+current tree: 401 files unchanged).
+
+**DROP LOCATION 1 - the R13/R14 specimen wave (PARKED, safe to
+drop incrementally):** `tests/gold_harness/fixtures/r13_r14/`,
+named `Stem_r13.dwg` / `Stem_r14.dwg` (BricsCAD authors the r13
+files; either app the r14; record which in a `.txt` companion or
+drop bare - the review pass writes the companions from the
+measured wire, the 2026-10-02 pattern). One operation per file,
+minimal census, per the fixtures README. The wave list (TODO.md
+B3): Wave 1 - the 16 era-certain families (Line, Circle, Arc,
+Point, Text, Polyline-the-heavy-2D-form, PolyLine3D, Polygon,
+Donut, Ellipse, Spline, Multiline, ConstructionLine/XLINE, RAY,
+Dimension-one-linear, Block-one-insert); Wave 2 - the attempt set
+whose era introduction is uncertain (Leader - R14-proven by gold's
+own r14/Leader.dwg; LWPolyline; MText; Hatch; Tolerance) - a
+refusal is recorded as data, not a failure. NOT era-valid (do not
+author): Helix (2007+), the parametric constraint manager (2010+;
+gold's same-named 2000-era file is an early line+circle assoc
+demo), the whole sh_history/ACSH family (2007+). Pre-R13 (r1.4-
+r12) stays unauthorable by both tools - libredwg-sourced only.
+THE PARKED GUARD keeps these files OUT of the R2000-R2018 corpus
+(Tier 2 is implemented-not-at-parity; the 89/153/149 rows on
+gold's r14 files are the recorded state) until C2 accepts the era
+extension - dropping them cannot break the corpus zero.
+
+**DROP LOCATION 2 - the B6 route specimens (IN-SCOPE, must
+qualify 0/0):** `tests/gold_harness/fixtures/b6_routes/`, the
+concrete recipes in TODO.md B6: (1) `SweepSurfXline_<v>` - SWEEP
+MOde=Surface with an XLINE path (the kind-19 hypothesis: the
+bounded line path gave 23, the INFINITE line may give 19; a
+refusal is the negative datum, record it verbatim); (2)
+`DimConstr_<v>` - DIMCONSTRAINT on a line+circle (the dimensional
+network, distinct from gold's plain geometric-constraint files
+the B2 census measured negative); (3) `GConstrNet_<v>` - GCONSTRAIN
+tangent/parallel on line+circle (the weak lever). Author at
+2010/2013/2018 (the constraint-manager eras) or 2007+ for the
+sweep route.
+
+**ON LANDING, the zero-context agent runs the review battery:**
+gold qualification (`dwgread -O JSON`, zero Error lines - note R13
+files have no gold DWG precedent in the corpus dirs, the
+qualification is the same), the subcurve census trace for the
+b6_routes files (the 19/27 question), per-file corpus pairs for
+the in-scope drops, and the companions. The r13_r14 wave stays
+parked: no corpus totals move until C2. If a b6_routes file
+carries action_type 19 or 27, the B6 modeling packet opens (the
+B2/A8 pattern: dissection -> typed model -> bit-exact pin); if
+not, the negative datum trims the B6 route list again.

@@ -53,7 +53,17 @@ def in_scope_files(testdata: Path) -> List[Path]:
     # before landing. Collected after the gold tree so a fixture stem
     # colliding with a gold stem stays visible in the report (stems
     # are required globally unique; a collision is a fixture bug).
-    files.extend(sorted((SCRIPT_DIR.parent / "fixtures").rglob("*.dwg")))
+    # Parked campaigns (TODO B3/C2): R13/R14-era fixtures land under
+    # fixtures/r13_r14/ as `Stem_r13.dwg`/`Stem_r14.dwg` — the same
+    # substring guard the gold-tree walk carries keeps them OUT of the
+    # R2000-R2018 corpus (Tier 2 is implemented-not-at-parity; the
+    # 89/153/149 rows on gold's r14 files are the recorded state)
+    # until C2 accepts the era extension and this guard is retired.
+    files.extend(
+        p
+        for p in sorted((SCRIPT_DIR.parent / "fixtures").rglob("*.dwg"))
+        if "r13" not in p.name.lower() and "r14" not in p.name.lower()
+    )
     return sorted(set(files))
 
 

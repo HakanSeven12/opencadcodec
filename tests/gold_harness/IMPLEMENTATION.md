@@ -8995,3 +8995,84 @@ record-identical (SweepSurfSpline_2007 220/220, ExtrudeSpline_2007
 401 files flat at the pre-existing 8/8, zero per-file failures;
 gold_roundtrip ok; the generation identity f2187565…/25,728
 UNMOVED. TODO.md's A8 now carries only the 47 composite.
+
+**The B5 closure — the dead rows recorded terminal (2026-10-02, the
+consult + the maintainer's GUI confirmation)**:
+
+The TODO's B5 held the two dead fixture rows whose naming paths are
+code work, not fixtures. The consult re-measured the state and found
+the code work already run to its evidence limit: the §18 loft
+container walk (2026-09-26) names the per-section
+`[center.x][center.y][height][radius]` runs and the trailing
+`[pi/2, pi/2]` draft pair provisionally (`SolidHistoryLoftTail`'s
+`sections` + `draft_angles`, wired through `walk_loft_sections`);
+the revolve grammar is CLOSED bit-exactly (the 2026-09-23 full-tree
+scan) with the six option shorts + two flags exposed positionally
+(`option_doubles`). What kept the item open was the one candidate
+lever left for naming the revolve options semantically: the GUI
+Properties path for a revolved surface's draft/twist.
+
+The maintainer's GUI pass (2026-10-02) closes it: **the Properties
+surface for a revolved surface carries ONLY the angle of
+revolution** — no draft, no twist, no close-to-axis fields. All
+three lever routes are now measured dead: (1) the REVOLVE command's
+prompts (no draft/twist option in this release); (2) the GUI
+Properties surface (only the angle of revolution — the
+maintainer's observation); (3) the ASSOC body's named pab-values
+(the consult's probe across all four RevolveM eras: only
+`RevolveAngle` at 2007/2010, none at 2013/2018 — no semantic
+anchor for any option slot).
+
+The verdict: the six revolve option shorts and the two flag bits
+stay POSITIONALLY named, and the loft draft pair stays
+provisionally named — the conservative decode-fidelity rule.
+Naming the revolve slots by analogy to the ExtrudeT-named
+SweepOptions spine would be inference, not measurement. Re-open
+condition: a specimen with non-default values (a real-world file,
+a future release's settings path, a different authoring app) — any
+such file rides the raw-retention/verbatim nets unchanged from day
+one. TODO.md's B5 is marked CLOSED-recorded with the three-route
+evidence.
+
+**The 2026-10-02 authoring-wave survey (the maintainer's toolchain
+report + the corpus gap analysis + the parked-campaign guard)**:
+
+The maintainer's report: **AutoCAD saves DWG R14+; BricsCAD saves
+R13+** - the R13/AC1012 half of the B3 enabler is authorable for
+the first time (B3's earlier "R13 stays unauthorable" recorded
+against AutoCAD-only tooling is corrected). The survey of both
+trees: the six gold era dirs (2000-2018) share a 17-family
+backbone (Arc, Constraints, ConstructionLine, Donut, Ellipse,
+Helix, Leader, Line, Multiline, Point, PolyLine3D, Polygon,
+Polyline, RAY, Spline, Text, circle) plus era-specific extras;
+`r13/` holds only `v.dxf`; `r14/` holds three real-world files
+(Constraints/Leader/v.dwg - the 89/153/149 attribution-hard rows);
+`example_r13.dwg`/`example_r14.dwg` sit at gold's root, outside
+the corpus dirs; the fixtures tree covers the coverage-gap
+families (3dface/arcdimension/camera/light/mesh/ole2/polyface/
+solid/tolerance/wipeout/xref) + the 55-stem sh_history family -
+none of it R13/R14. The era-validity census: gold's 2000-era
+`Constraints.dwg` is an early line+circle assoc demo (1 Line + 1
+Circle + 5 Associative records - NOT the 2010+ parametric
+constraint manager), so the family is not era-valid for the wave.
+
+**The required-fixtures list** (TODO.md B3, the drop locations in
+the NEXT_SESSION handover): Wave 1 - the 16 era-certain families x
+{r13, r14} (32 files); Wave 2 - the uncertain-introduction
+attempt set (Leader/LWPolyline/MText/Hatch/Tolerance - refusals
+recorded as data); NOT era-valid: Helix, the constraint manager,
+the ACSH family; pre-R13 unauthorable by both tools.
+
+**The parked-campaign guard** (the one code change, a no-op on
+the current tree - verified: `in_scope_files` returns 401
+unchanged, no fixture name carries the r13/r14 substring): the
+fixtures walk in `run_corpus.py::in_scope_files` now skips
+filenames containing r13/r14 (mirroring the gold-tree guard), so
+`fixtures/r13_r14/*` lands PARKED - present on disk, qualified
+per-file on landing, but invisible to the R2000-R2018 corpus
+totals until C2 accepts the era extension and retires the guard.
+B6's concrete specimen recipes (the XLINE sweep path - the kind-19
+hypothesis; the DIMCONSTRAINT network; the GCONSTRAIN weak lever)
+are recorded with the drop location `fixtures/b6_routes/`
+(IN-SCOPE - the census trace answers the 19/27 question on
+landing). C2's note now carries the completed enabler.
