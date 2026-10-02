@@ -656,12 +656,44 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2000_plus() {
             let color_book_handle = if self.version.r2004_plus() {
                 color_book_handle
-                    .filter(|handle| !handle.is_null() && self.is_writable_object(handle))
+                    .filter(|h| !h.is_null() && self.is_writable_object(h))
             } else {
                 None
             };
-            self.writer
-                .write_en_color_with_book(color, transparency, color_book_handle.is_some());
+            // §19 H8h-ext-17: replay the authored ENC wire form when it
+            // still decodes to the entity's current color (the A1
+            // same-target gate) and the write targets an era the form
+            // fits. The flags/index BS's ACI slot is author data the
+            // collapsed model cannot derive (HatchG's slot 112 vs the
+            // nearest-ACI 110), so a recomputed ENC loses it; the
+            // captured words replay verbatim. Edited colors, absent
+            // captures, book-flag disagreements and cross-era writes
+            // fall back to the modeled emission.
+            let raw_replay = if self.version.r2004_plus() {
+                self.document
+                    .entity_color_raw_by_handle
+                    .get(&handle)
+                    .filter(|raw| {
+                        raw.decoded_color == *color
+                            && raw.decoded_transparency == *transparency
+                            && ((raw.size & 0x4000) > 0) == color_book_handle.is_some()
+                    })
+                    .cloned()
+            } else {
+                None
+            };
+            if let Some(raw) = raw_replay {
+                self.writer.write_bit_short(raw.size as i16);
+                if let Some(rgb) = raw.rgb {
+                    self.writer.write_bit_long(rgb as i32);
+                }
+                if let Some(value) = raw.transparency {
+                    self.writer.write_bit_long(value);
+                }
+            } else {
+                self.writer
+                    .write_en_color_with_book(color, transparency, color_book_handle.is_some());
+            }
             if let Some(handle) = color_book_handle {
                 self.writer
                     .write_handle(DwgReferenceType::HardPointer, handle.value());

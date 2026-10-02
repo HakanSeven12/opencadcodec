@@ -2036,7 +2036,10 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_short(ps.shade_plot_resolution as i16);
             self.writer.write_bit_short(ps.shade_plot_dpi);
 
-            // Plot view handle (soft pointer)
+            // Plot view handle — hard pointer per the authored genus
+            // (§19 ref-code lesson: every measured PLOTSETTINGS record,
+            // all eras, carries (5.0.0); gh109_1's 0.2.9A4 was the one
+            // divergent row. The LAYOUT-embedded arm already emits 5).
             let plot_view_handle = if !ps.plot_view_handle.is_null() {
                 ps.plot_view_handle
             } else {
@@ -2047,7 +2050,7 @@ impl<'a> DwgObjectWriter<'a> {
                     .unwrap_or(Handle::NULL)
             };
             self.writer
-                .write_handle(DwgReferenceType::SoftPointer, plot_view_handle.value());
+                .write_handle(DwgReferenceType::HardPointer, plot_view_handle.value());
         }
 
         // R2007+: visual style handle

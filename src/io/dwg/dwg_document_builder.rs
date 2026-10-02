@@ -185,6 +185,10 @@ struct Pass2Output {
     /// record's own handle (TODO A1, 2026-10-01) — drained into
     /// `CadDocument::owner_handle_form_by_handle` at commit.
     owner_forms: HashMap<Handle, (u8, u8, u64)>,
+    /// Authored entity-color (ENC) wire forms keyed by the entity's own
+    /// handle (§19 H8h-ext-17) — drained into
+    /// `CadDocument::entity_color_raw_by_handle` at commit.
+    entity_color_raw: HashMap<Handle, crate::document::DwgRawEnc>,
     /// Close-pad genus votes (TODO A1, 2026-10-01): records whose authored
     /// close pad is all zeros / all ones. The majority decides
     /// `CadDocument::close_pad_zeros` at commit.
@@ -222,6 +226,7 @@ impl Pass2Output {
             xdic_by_handle: HashMap::new(),
             reactors_by_handle: HashMap::new(),
             owner_forms: HashMap::new(),
+            entity_color_raw: HashMap::new(),
             pad_zero_votes: 0,
             pad_one_votes: 0,
             unknown_bits_by_handle: HashMap::new(),
@@ -988,10 +993,42 @@ impl DwgDocumentBuilder {
                     OBJ_VPORT_CONTROL => {
                         document.vports.set_handle(control_handle);
                         document.header.vport_control_handle = control_handle;
+                        // §19 H8h-ext-17: capture the authored entry slots
+                        // (gold dwg.spec 3926: FIELD_BS num_entries + the
+                        // code-2 entries HANDLE_VECTOR). The author's
+                        // control carries null deleted-slot tails the live
+                        // table cannot know (entities-2d/3d: entries
+                        // [0, 0, 52] for one live vport). Echoed by the
+                        // writer under the same-universe gate.
+                        let num_entries = reader.read_bit_short().max(0) as i32;
+                        let mut entries = Vec::new();
+                        for _ in 0..num_entries {
+                            let handle_value = reader.read_handle();
+                            entries.push(Handle::from(handle_value));
+                        }
+                        document
+                            .table_control_entries
+                            .insert(control_handle, entries);
                     }
                     OBJ_APPID_CONTROL => {
                         document.app_ids.set_handle(control_handle);
                         document.header.appid_control_handle = control_handle;
+                        // §19 H8h-ext-17: capture the authored entry slots
+                        // (gold dwg.spec 4138: FIELD_BS num_entries + the
+                        // code-2 entries HANDLE_VECTOR). The author's table
+                        // order is author data — gh209_1's control carries
+                        // [15, 34, 35, 36, 2F, C, 6E, 6F, 96, 99] against
+                        // the file's own record order — echoed by the
+                        // writer under the same-universe gate.
+                        let num_entries = reader.read_bit_short().max(0) as i32;
+                        let mut entries = Vec::new();
+                        for _ in 0..num_entries {
+                            let handle_value = reader.read_handle();
+                            entries.push(Handle::from(handle_value));
+                        }
+                        document
+                            .table_control_entries
+                            .insert(control_handle, entries);
                     }
                     OBJ_DIMSTYLE_CONTROL => {
                         document.dim_styles.set_handle(control_handle);
@@ -2061,6 +2098,9 @@ impl DwgDocumentBuilder {
                 document
                     .owner_handle_form_by_handle
                     .extend(chunk.output.owner_forms.drain());
+                document
+                    .entity_color_raw_by_handle
+                    .extend(chunk.output.entity_color_raw.drain());
                 pad_zero_votes += chunk.output.pad_zero_votes;
                 pad_one_votes += chunk.output.pad_one_votes;
                 document
@@ -3676,6 +3716,16 @@ impl DwgDocumentBuilder {
             // verbatim instead of recomputing the code choice.
             if let Some(form) = entity_data.owner_handle_form {
                 document.owner_forms.insert(Handle::from(handle), form);
+            }
+            // §19 H8h-ext-17: retain the authored entity-color (ENC) wire
+            // form — the flags/index BS's ACI slot is author data the
+            // collapsed model cannot derive (HatchG's slot 112 vs the
+            // nearest-ACI 110), so the writer replays the captured words
+            // whenever they still decode to the entity's current color.
+            if let Some(raw) = entity_data.color_raw.clone() {
+                document
+                    .entity_color_raw
+                    .insert(Handle::from(handle), raw);
             }
             let entity_common = map_entity_common(
                 &entity_data,

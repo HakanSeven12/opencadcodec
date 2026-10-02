@@ -87,6 +87,13 @@ pub struct EntityCommonData {
     pub color: Color,
     /// Transparency
     pub transparency: Transparency,
+    /// The authored ENC wire form (§19 H8h-ext-17) — the raw-retention
+    /// twin of the collapsed pair: the flags/index BS (whose ACI slot is
+    /// author data), the true-color BL and the transparency BL, plus the
+    /// decoded pair for the writer's replay gate. Serde-skipped —
+    /// roundtrip plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub color_raw: Option<crate::document::DwgRawEnc>,
     /// Line weight (raw DWG index)
     pub line_weight: u8,
     /// Linetype scale
@@ -560,10 +567,10 @@ impl DwgObjectReader {
         }
 
         // Color
-        let (color, transparency, has_color_handle) = if self.version.r2000_plus() {
+        let (color, transparency, has_color_handle, color_raw) = if self.version.r2000_plus() {
             reader.read_en_color()
         } else {
-            (reader.read_cm_color(), Transparency::default(), false)
+            (reader.read_cm_color(), Transparency::default(), false, None)
         };
 
         // R2004+: Color book color handle (hard pointer) — only if flagged
@@ -592,6 +599,7 @@ impl DwgObjectReader {
                 xdictionary_handle,
                 color,
                 transparency,
+                color_raw,
                 line_weight: 0,
                 linetype_scale,
                 invisible,
@@ -707,6 +715,7 @@ impl DwgObjectReader {
             xdictionary_handle,
             color,
             transparency,
+            color_raw,
             line_weight,
             linetype_scale,
             invisible,

@@ -401,6 +401,7 @@ impl<'a> DwgObjectWriter<'a> {
                 self.document.layers.handle(),
                 common::OBJ_LAYER_CONTROL,
                 &entries,
+                false,
             );
         }
         self.write_text_style_control();
@@ -417,6 +418,7 @@ impl<'a> DwgObjectWriter<'a> {
                 self.document.views.handle(),
                 common::OBJ_VIEW_CONTROL,
                 &entries,
+                false,
             );
         }
         self.write_table_control(
@@ -428,17 +430,29 @@ impl<'a> DwgObjectWriter<'a> {
                 .iter()
                 .map(|u| u.handle)
                 .collect::<Vec<_>>(),
+            true,
         );
-        self.write_table_control(
-            self.document.vports.handle(),
-            common::OBJ_VPORT_CONTROL,
-            &self
-                .document
-                .vports
-                .iter()
-                .map(|v| v.handle)
-                .collect::<Vec<_>>(),
-        );
+        // §19 H8h-ext-17: the authored VPORT slots echo (entities-2d/3d
+        // carry the null deleted-slot tails — her [0, 0, 52] against our
+        // modeled [52], size 15 vs 13).
+        {
+            let live: Vec<Handle> =
+                self.document.vports.iter().map(|v| v.handle).collect();
+            let entries = self
+                .authored_control_entries(self.document.vports.handle(), &live)
+                .unwrap_or(live);
+            self.write_table_control(
+                self.document.vports.handle(),
+                common::OBJ_VPORT_CONTROL,
+                &entries,
+                true,
+            );
+        }
+        // §19 H8h-ext-17: the author's APPID table order is author data
+        // (gh209_1's control carries [15, 34, 35, 36, 2F, C, 6E, 6F,
+        // 96, 99] against the file's own record order) — replay the
+        // captured slots under the same-universe gate; the ACAD-first
+        // model order stays the constructed/edited fallback.
         let mut appid_handles: Vec<_> = self
             .document
             .app_ids
@@ -446,13 +460,18 @@ impl<'a> DwgObjectWriter<'a> {
             .map(|a| (a.name.eq_ignore_ascii_case("ACAD"), a.handle))
             .collect();
         appid_handles.sort_by_key(|(is_acad, _)| !*is_acad);
+        let fallback: Vec<Handle> = appid_handles
+            .into_iter()
+            .map(|(_, handle)| handle)
+            .collect();
+        let entries = self
+            .authored_control_entries(self.document.app_ids.handle(), &fallback)
+            .unwrap_or(fallback);
         self.write_table_control(
             self.document.app_ids.handle(),
             common::OBJ_APPID_CONTROL,
-            &appid_handles
-                .into_iter()
-                .map(|(_, handle)| handle)
-                .collect::<Vec<_>>(),
+            &entries,
+            true,
         );
         self.write_dimstyle_control();
 
@@ -581,12 +600,21 @@ impl<'a> DwgObjectWriter<'a> {
         table_handle: Handle,
         type_code: i16,
         entry_handles: &[Handle],
+        bs_count: bool,
     ) {
         // Owner is always 0 for table controls (owned by header)
         self.write_common_non_entity_data(type_code, table_handle, Handle::NULL, &[], &None);
 
-        // Entry count
-        self.writer.write_bit_long(entry_handles.len() as i32);
+        // Entry count — the wire form is per-control (gold dwg.spec:
+        // BLOCK/LAYER/STYLE/VIEW num_entries are BL; LTYPE/UCS/VPORT/
+        // APPID/DIMSTYLE/VX are BS). The two encodings coincide for
+        // 0..255; beyond that a BL count would desync a BS reader
+        // mid-record (the B2 latent-form class).
+        if bs_count {
+            self.writer.write_bit_short(entry_handles.len() as i16);
+        } else {
+            self.writer.write_bit_long(entry_handles.len() as i32);
+        }
 
         // Entry handles (soft ownership)
         for h in entry_handles {
@@ -657,6 +685,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.document.text_styles.handle(),
             common::OBJ_STYLE_CONTROL,
             &entries,
+            false,
         );
     }
 
@@ -688,7 +717,9 @@ impl<'a> DwgObjectWriter<'a> {
         let entries = self
             .authored_control_entries(table_handle, &regular)
             .unwrap_or(regular);
-        self.writer.write_bit_long(entries.len() as i32);
+        // Gold dwg.spec 3566: LTYPE_CONTROL num_entries is BS (coincides
+        // with BL for 0..255 — the B2 latent-form class beyond).
+        self.writer.write_bit_short(entries.len() as i16);
         for h in &entries {
             self.writer
                 .write_handle(DwgReferenceType::SoftOwnership, h.value());
@@ -720,7 +751,10 @@ impl<'a> DwgObjectWriter<'a> {
         let entries = self
             .authored_control_entries(table_handle, &handles)
             .unwrap_or(handles);
-        self.writer.write_bit_long(entries.len() as i32);
+        // Gold dwg.spec 4172: DIMSTYLE_CONTROL num_entries is BS
+        // (coincides with BL for 0..255 — the B2 latent-form class
+        // beyond).
+        self.writer.write_bit_short(entries.len() as i16);
 
         // Gold dwg.spec 4177: the R2000+ record carries one raw RCu byte —
         // num_morehandles, "additional hard handles, undocumented" — whose

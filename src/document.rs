@@ -1125,6 +1125,31 @@ impl DwgRawCmc {
     }
 }
 
+/// The authored entity-color (ENC) wire form, retained verbatim at read —
+/// the raw-retention twin of the collapsed `Color` + `Transparency` pair
+/// (§19 H8h-ext-17, the B1 LIGHT raw-CMC precedent). The R2004+ ENC
+/// flags/index BS carries an ACI index slot alongside the true-color flag
+/// that the collapsed model cannot reproduce: HatchG's authored records
+/// carry slot 112 where the nearest-ACI derivation reads 110 — the slot
+/// is author data, not a derivable convention. The writer replays the
+/// captured words whenever they still decode to the entity's current
+/// color (the A1 same-target gate).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DwgRawEnc {
+    /// The raw flags/index BS word as read (`color.raw` in gold's trace:
+    /// e.g. `0x8070` = true-color flag + ACI slot 112).
+    pub size: u16,
+    /// The true-color BL as read, present when the 0x8000 flag is set.
+    pub rgb: Option<u32>,
+    /// The transparency BL as read, present when the 0x2000 flag is set.
+    pub transparency: Option<i32>,
+    /// The pair the raw words decode to (the replay gate compares these
+    /// against the entity's current values — an edited color falls back
+    /// to the modeled emission).
+    pub decoded_color: Color,
+    pub decoded_transparency: crate::types::Transparency,
+}
+
 /// Gold-JSON mirror of the DWG `AcDb:Header` variables (§19 H3 read row).
 ///
 /// One field per key of gold's `HEADER` JSON output, named after gold's
@@ -2765,6 +2790,17 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) owner_handle_form_by_handle: HashMap<Handle, (u8, u8, u64)>,
 
+    /// Authored entity-color (ENC) wire forms, keyed by the entity's own
+    /// handle — the raw-retention twin of the collapsed `Color` +
+    /// `Transparency` pair (§19 H8h-ext-17): the R2004+ flags/index BS
+    /// carries an ACI slot the collapsed model cannot derive (HatchG's
+    /// authored slot 112 vs the nearest-ACI 110 — author data), so the
+    /// writer replays the captured words verbatim whenever they still
+    /// decode to the entity's current color. Populated during DWG read,
+    /// consumed during DWG write. Wire-only state: not serialized.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) entity_color_raw_by_handle: HashMap<Handle, DwgRawEnc>,
+
     /// The record-close pad genus captured at read (the majority sample of
     /// the authored records' close pads, TODO A1 2026-10-01): `true` pads
     /// the merged stream's final partial byte with 0s (measured on the
@@ -3205,6 +3241,7 @@ impl CadDocument {
             xdic_by_handle: HashMap::new(),
             reactors_by_handle: HashMap::new(),
             owner_handle_form_by_handle: HashMap::new(),
+            entity_color_raw_by_handle: HashMap::new(),
             close_pad_zeros: false,
             unknown_bits_by_handle: HashMap::new(),
             block_entity_handles: HashMap::new(),

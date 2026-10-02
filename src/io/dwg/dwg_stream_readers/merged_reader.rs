@@ -433,7 +433,14 @@ impl DwgMergedReader {
         }
         color
     }
-    pub fn read_en_color(&mut self) -> (Color, crate::types::Transparency, bool) {
+    pub fn read_en_color(
+        &mut self,
+    ) -> (
+        Color,
+        crate::types::Transparency,
+        bool,
+        Option<crate::document::DwgRawEnc>,
+    ) {
         self.main.read_en_color()
     }
     pub fn read_color_by_index(&mut self) -> Color {

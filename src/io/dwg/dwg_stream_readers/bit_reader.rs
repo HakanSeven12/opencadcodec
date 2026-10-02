@@ -925,8 +925,14 @@ impl DwgBitReader {
 
     /// Read an EnColor (entity color with transparency).
     ///
-    /// Returns (Color, Transparency, bool has_color_handle).
-    pub fn read_en_color(&mut self) -> (Color, Transparency, bool) {
+    /// Returns (Color, Transparency, bool has_color_handle, raw form).
+    /// The raw form (§19 H8h-ext-17) retains the authored flags/index BS,
+    /// the true-color BL and the transparency BL verbatim for the writer's
+    /// same-decode replay gate — the ACI slot the BS carries alongside the
+    /// true-color flag is author data the collapsed model cannot derive.
+    pub fn read_en_color(
+        &mut self,
+    ) -> (Color, Transparency, bool, Option<crate::document::DwgRawEnc>) {
         if self.dxf_version >= DxfVersion::AC1018 {
             // R2004+
             let size = self.read_bit_short();
@@ -948,6 +954,7 @@ impl DwgBitReader {
                 // transparency BL. (An entity with both a true colour and a
                 // transparency has flags 0x8000|0x2000 = 0xA000; the rgb long
                 // precedes the transparency long.)
+                let mut rgb_raw: Option<u32> = None;
                 let color = if is_book_color {
                     Color::from_index((size & 0x0FFF) as i16)
                 } else if (flags & 0x8000) > 0 {
@@ -956,6 +963,7 @@ impl DwgBitReader {
                     //   0xC0000000 = ByLayer, flag byte bit 0 set = ACI index,
                     //   otherwise = true RGB color.
                     let rgb = self.read_bit_long() as u32;
+                    rgb_raw = Some(rgb);
                     let arr = rgb.to_le_bytes();
                     if rgb == 0xC000_0000 {
                         Color::ByLayer
@@ -973,14 +981,23 @@ impl DwgBitReader {
 
                 // 0x2000: transparency (BL) — read AFTER the rgb/color-book
                 // value, matching the entity ENC field order.
+                let mut transparency_raw: Option<i32> = None;
                 if (flags & 0x2000) > 0 {
                     let value = self.read_bit_long();
+                    transparency_raw = Some(value);
                     transparency = Transparency::from_alpha_value(value as u32);
                 }
 
-                (color, transparency, is_book_color)
+                let raw = crate::document::DwgRawEnc {
+                    size: size as u16,
+                    rgb: rgb_raw,
+                    transparency: transparency_raw,
+                    decoded_color: color.clone(),
+                    decoded_transparency: transparency,
+                };
+                (color, transparency, is_book_color, Some(raw))
             } else {
-                (Color::ByBlock, Transparency::BY_LAYER, false)
+                (Color::ByBlock, Transparency::BY_LAYER, false, None)
             }
         } else {
             // Pre-R2004
@@ -989,6 +1006,7 @@ impl DwgBitReader {
                 Color::from_index(color_number),
                 Transparency::BY_LAYER,
                 false,
+                None,
             )
         }
     }
