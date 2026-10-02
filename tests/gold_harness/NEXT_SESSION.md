@@ -66,19 +66,29 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read this file's 2026-10-02 addenda bottom-up
-# (the authoring-wave handover — the maintainer's next fixture
-# drop — then the B5 closure, then the A8 closure, then the
-# SweepSurf landing), then TODO.md's distilled queue (A5-A8/B6 —
-# the carry-overs formalized, B5 and A8's 42 half marked closed),
+# section below), read THE 2026-10-03 ERA-CENSUS ADDENDUM at this
+# file's BOTTOM first (the three record-identity packets — the
+# table-control entries, the PLOTSETTINGS plotview code, the
+# entity-color ENC raw twin — 2010 gh209_1 and 2013 gh109_1 and
+# 2004 HatchG all at full record identity now), then this file's
+# 2026-10-02 addenda bottom-up (the authoring-wave handover — the
+# maintainer's next fixture drop — then the B5 closure, then the
+# A8 closure, then the SweepSurf landing), then TODO.md's distilled
+# queue (A5-A9/B6 — the carry-overs formalized, B5 and A8's 42 half
+# marked closed, A9 the era-census residue),
 # then
 # the sixteenth addendum's record (and the
 # seventeenth continuation), then the
-# residual queue (the older eras' census rows — 2000's 325
-# PolyLine2D-led, 2004's 15, 2010's 1, 2013's 22; the 2004
-# CLASSES-skew rows + the Wipeout_2004 unknown-object record; the
-# untracked-fixture session's remaining rows; the §19.5
-# version-parity tiers — maintainer decisions; A4's C3 decision).
+# residual queue (the era-census rows, refreshed 2026-10-03:
+# 2000's 323 (PolyLine2D 225 + entities-2d/3d 49 each — the
+# boilerplate family) + the pre-existing her-only/our-only 6/4;
+# 2004's 6 (Surface only — the recorded "15" was stale, the B2
+# subcurve landing had already repaired 7 of Surface's rows);
+# 2013's 18 (the pathological gh44-error file: LEADER 6, HATCH 5,
+# type-57 5, DIMASSOC 2); the 2004 CLASSES-skew rows + the
+# Wipeout_2004 unknown-object record; the untracked-fixture
+# session's remaining rows; the §19.5 version-parity tiers —
+# maintainer decisions; A4's C3 decision).
 #
 # === THE SIXTEENTH-CONTINUATION ADDENDUM (the A5 closure — the
 # five 2018 residual families; read this first after the header,
@@ -3799,3 +3809,147 @@ parked: no corpus totals move until C2. If a b6_routes file
 carries action_type 19 or 27, the B6 modeling packet opens (the
 B2/A8 pattern: dissection -> typed model -> bit-exact pin); if
 not, the negative datum trims the B6 route list again.
+
+## THE 2026-10-03 ERA-CENSUS ADDENDUM (the eighteenth continuation —
+## three record-identity packets; read this FIRST, then the
+## 2026-10-02 sections above it bottom-up):
+
+The session opened at the recorded state and closed three
+dissection packets from the residual queue's "older eras' census
+rows" — the same per-record method the A5 campaign used (census →
+-v9 pair diff → root → the minimal fix class). **THE 2010 ERA IS
+AT FULL RECORD IDENTITY (gh209_1 166/166), 2013's gh109_1 closed
+(664/664 — the 2013 residue is the pathological gh44-error file
+only), and 2004's HatchG closed (229/229).**
+
+(1) THE TABLE-CONTROL ENTRIES PACKET (gh209_1's one divergent
+record, APPID_CONTROL 0.1.30, size-identical/CRC-different): her
+`entries` handle vector carries the AUTHOR'S OWN TABLE ORDER —
+[15, 34, 35, 36, 2F, C, 6E, 6F, 96, 99] — neither the file's
+record order (C, 15, 2F, 34…) nor handle-sorted; our rewrite
+emitted the ACAD-first model order. The same census pass found
+VPORT_CONTROL divergent on entities-2d/3d (size 15→13: her
+entries [0, 0, 52] carry two null deleted-slot tails — the
+H8h-ext-9 genus — where the live table knows only the one live
+vport). THE FIX (the §19 H7 capture+replay pattern, the
+existing `table_control_entries` map widened): the reader
+captures the VPORT and APPID entry slots (gold dwg.spec 3926 /
+4138: BS num_entries + the code-2 HANDLE_VECTOR); the writer's
+`write_table_control` gains the `bs_count` wire-form parameter
+(the spec's per-control count forms: BLOCK/LAYER/STYLE/VIEW are
+BL, LTYPE/UCS/VPORT/APPID/DIMSTYLE/VX are BS — the two encodings
+coincide for 0..255, the B2 latent-form class beyond) and the
+APPID/VPORT arms replay the captured slots through the existing
+`authored_control_entries` same-universe gate (the LTYPE/VIEW/
+DIMSTYLE precedent); the LTYPE/DIMSTYLE inline count sites moved
+to BS with it. ACCEPTANCE: gh209_1 1 → 0 (166/166 — the 2010 era
+joins 2007/2018 at full record identity), entities-2d/3d 50 → 49
+each (the VPORT rows fell).
+
+(2) THE PLOTSETTINGS PLOTVIEW REF CODE (gh109_1's one divergent
+record, 0.2.9A4, size-identical/CRC-different): her `plotview`
+NULL handle carries CODE 5 (hard pointer) where the standalone
+PLOTSETTINGS arm wrote code 4 — the §19 ref-code lesson class.
+The genus measured UNIFORM across every authored -v9 log in the
+census corpus (50+ files, every era: always `(5.0.0)`), and the
+LAYOUT-embedded plotsettings arm already emitted 5 — only
+`write_plot_settings_obj` (objects.rs) carried the wrong
+`DwgReferenceType::SoftPointer`. One-line fix to HardPointer.
+ACCEPTANCE: gh109_1 1 → 0 (664/664). NOTE: gold's dwg.spec
+declares `FIELD_HANDLE (plotview, 4, 0)` — the declared group
+code is wrong vs the wire, exactly the recorded ref-code lesson
+(the authored corpus is the oracle).
+
+(3) THE ENTITY-COLOR ENC RAW TWIN (HatchG's two rows — LWPOLYLINE
+0x28D + HATCH 0x29F, size-identical/CRC-different — plus
+gh44-error's three IMAGE rows): her true-color entity ENCs carry
+a NON-ZERO ACI SLOT in the flags/index BS (HatchG `color.raw
+0x8070/0xa070`: slot 112; gh44 `0x8007`: slot 7) where our
+modeled emission writes slot 0 for `Color::Rgb`. THE SLOT IS
+AUTHOR DATA, NOT DERIVABLE: HatchG's rgb (26, 228, 100) maps to
+our nearest-ACI 110, her slot is 112 — no metric reproduces it
+(the §19 author-data lesson; the B1 LIGHT raw-CMC twin's exact
+class at the entity-color scale). THE FIX (the A1 map pattern +
+the B1 raw-twin precedent): `DwgRawEnc {size, rgb, transparency,
+decoded_color, decoded_transparency}` (document.rs);
+`read_en_color` returns the raw words alongside the decoded pair
+(bit_reader + the merged wrapper); `EntityCommonData.color_raw`
+carries it; the builder inserts into
+`CadDocument::entity_color_raw_by_handle` (the Pass2Output map
+drained at commit; the field excluded from the semantic
+inventory like the A1 maps); the writer's single emission site
+(`write_common_entity_data`) replays the captured BS + rgb BL +
+transparency BL verbatim under the GATE — decoded-color equality
++ transparency equality + book-flag agreement + `r2004_plus`
+(cross-era writes, edited colors, absent captures and
+constructed content all fall back to the modeled emission).
+ACCEPTANCE: HatchG 2 → 0 (229/229), gh44-error 21 → 18 (the
+three IMAGE rows fell).
+
+(4) THE STALE-NUMBER CORRECTION: the recorded "2004's 15" census
+rows measure 8 today (HatchG 2 + Surface 6) — the 2026-10-01 B2
+subcurve landing had already repaired 7 of Surface.dwg's rows
+(the typed 17/23 + the netted 47) after the number was last
+verified; all six 2004-versioned B1 fixtures measure 0 (the
+ArcDimension/OLE2/Solid/Tolerance/Wipeout/Xref quads re-censused
+clean this session). With HatchG closed, THE 2004 RESIDUE IS
+SURFACE.DWG'S 6 ROWS ONLY — the §18 surface family
+(EXTRUDEDSURFACE +12KB et al.), the known large modeled-emission
+packet.
+
+THE MEASURED LEADS (the next packets, ranked): (a) THE 2000-ERA
+BOILERPLATE FAMILY — 323 rows (PolyLine2D 225 + entities-2d/3d 49
+each; the pre-existing her-only/our-only 6/4 rows on PolyLine2D
+stand), a repeated cross-file family (DICTIONARY 56, XRECORD 46,
+class? 39, VISUALSTYLE 26, SCALE 17, DICTIONARYVAR 11, BLOCK 11,
+LAYOUT 8 …) of mostly +1-2-byte size drifts — the largest
+remaining packet, opens with the same per-record dissection
+method; (b) THE GH44-ERROR PATHOLOGICAL RESIDUE — 18 rows in
+four families: LEADER 6 (bitsize −2 / hdlsize +2: her records
+declare a 2-bit SLACK between the main-data end and the
+handle-stream start — all six of her LEADER bitsizes
+nibble-aligned (1412/1348/1476/1524, %4==0) where ours are
+%4==2; the census's `+N` handle-stream skip lines elsewhere are
+gold's own decode-trace noise on MISSING objects, not record
+content), HATCH 5 (crc-only), type-57 5 (the class? rows, one
+crc-only + four size −2/hdlsize −16), DIMASSOC 2 (crc-only);
+(c) SURFACE 6 (the §18 surface family).
+
+THE BATTERY at this halt: the suite 1,618/0; gold_roundtrip ok;
+issue80 ok; the four family smokes 0/0 (e2004's 1/1 the recorded
+pre-existing LIGHT row); the specimen censuses — gh209_1
+166/166, gh109_1 664/664, HatchG 229/229, example_2000 750/750,
+example_2004 735/735, Constraints_2010 216/216,
+Constraints_2013 160/160, example_2010 536/536, example_2018
+474/474 — every standing record-identity fact unmoved; the corpus
+401 files at the recorded 8/8 fidelity + 6 read key-gaps (the
+B1-era rows, untouched by this session — the ENC capture is
+serde-skip and the corpus axes never see it); genus 3/1/0
+PENDING-ZERO with `--strict`; the generation identity
+`f2187565…`/25,728 UNMOVED (all three packets touch only the
+DWG-read capture maps and the authored-replay arms — the
+constructed canonical never reads, so every new gate falls back
+to the modeled emission, and the BS count forms coincide
+bit-for-bit below 256).
+
+THE b6_routes DROP IS IN FLIGHT (the maintainer's notice, standing
+at this halt): 13 DWGs observed mid-session (DimConstr ×3,
+GConstrNet ×3, GConstrXline ×3, SweepSurfArc ×4) plus the
+SweepSurfXline/Ray/ConstrHelix authoring scripts whose DWGs are
+absent — the companions record the XLINE/RAY sweep REFUSALS (the
+negative datum: the infinite-line path yields no surface at all)
+and the arc route completing with SWEPTSURFACE +
+ASSOCPATHACTIONPARAM. The mid-flight corpus snapshot read the
+partial drop: the three DimConstr files carry 1/1 fidelity rows
+each (the +3 in the 411-file snapshot) — every other partial-drop
+file 0/0, and THE ESTABLISHED 401-FILE CORPUS UNMOVED (8/8
+exactly the pre-existing rows, verified from the same report).
+THE ON-LANDING REVIEW BATTERY (gold qualification, the 19/27
+subcurve census, per-file pairs, the companions) RUNS ON THE
+MAINTAINER'S COMPLETION NOTICE — the partial numbers are
+provisional until then.
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
++ §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
+bottom, STARTING at THIS addendum (the file bottom), then the
+2026-10-02 sections above it bottom-up.

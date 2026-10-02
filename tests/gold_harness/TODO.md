@@ -6,7 +6,9 @@ B1/B2 sessions and again 2026-10-02 through the day's arc (the
 author-quads landing, the AutoCAD-liberation investigation and its
 halt, the SweepSurf specimens + the A8 typed-NURB3D closure, the B5
 dead-rows closure, the R13/R14 authoring-wave survey — the campaign
-record now 9,078 lines). Sources cited per item. The closed campaigns hold their zeros — parser parity, the
+record now 9,078 lines) and refreshed 2026-10-03 (the era-census
+packets: 2010 at full record identity, gh109_1/HatchG closed, the
+A9 item distilled). Sources cited per item. The closed campaigns hold their zeros — parser parity, the
 strict-load zero, the ACS/SH solid-history campaign, the §20 genus-gate
 queue at PENDING-ZERO with `--strict`, every constructed fixture MODELS
 with clean audits on both loaders, the generation identity
@@ -102,6 +104,32 @@ measured set (the current parser's constant gates would fall back to
 the net — safe, and the specimen would name the new fields).
 **Sources**: H8h-ext-16 (the 42 dissection record + the A8 closure);
 fixtures/sh_history's ten B2 quads + the SweepSurf quads.
+
+### A9. The era-census residue (the older eras' record-identity rows)
+
+The conventional-arm record-identity censuses (`analysis/record_size_census.py`,
+`DWG_NO_ECHO=1 target/debug/dwgrewrite` staging) — refreshed 2026-10-03 after
+three packets closed (the table-control entries, the PLOTSETTINGS plotview
+code, the entity-color ENC raw twin: gh209_1 1→0, gh109_1 1→0, HatchG 2→0,
+gh44-error 21→18, entities-2d/3d 50→49 each). **THE 2010 ERA IS AT FULL
+RECORD IDENTITY (gh209_1 166/166); 2013 = the pathological gh44-error file
+only (gh109_1 664/664); 2004 = Surface.dwg only (HatchG 229/229; the
+recorded "15" was stale — the B2 subcurve landing had already repaired 7 of
+Surface's rows).** The remaining rows, ranked: (a) **the 2000-era boilerplate
+family — 323 rows** (PolyLine2D 225 + entities-2d/3d 49 each; the
+pre-existing her-only/our-only 6/4 on PolyLine2D stand): a repeated
+cross-file family (DICTIONARY 56, XRECORD 46, class? 39, VISUALSTYLE 26,
+SCALE 17, DICTIONARYVAR 11, BLOCK 11, LAYOUT 8 …) of mostly +1-2-byte size
+drifts — the largest packet, opens with the per-record dissection method;
+(b) **gh44-error 18** (the pathological issue-44 file): LEADER 6 (her
+records declare a 2-bit slack between main end and handle-stream start, all
+nibble-aligned bitsizes — the measured lead), HATCH 5 (crc-only), type-57 5,
+DIMASSOC 2; (c) **Surface 6** (the §18 surface family — EXTRUDEDSURFACE
++12KB, the known large modeled-emission packet). Every era's example file
+and both Constraints specimens stand at full identity (750/750, 735/735,
+536/536, 474/474, 216/216, 160/160). **Sources**: the 2026-10-03
+era-census addendum (NEXT_SESSION.md, the file bottom); the sixteenth
+addendum's era table.
 
 ---
 
