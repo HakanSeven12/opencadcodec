@@ -65,6 +65,15 @@ pub trait FieldContext {
     fn date_locale(&self) -> DateLocale {
         DateLocale::default()
     }
+    /// The open sheet sets, for `\AcSm` fields: call `f` on each in turn and
+    /// return its first answer. A host without sheet sets answers `None`
+    /// (sheet set fields then show `####`).
+    fn sheet_sets(
+        &self,
+        _f: &mut dyn FnMut(&crate::sheet_set::SheetSetDatabase) -> Option<String>,
+    ) -> Option<String> {
+        None
+    }
 }
 
 /// Names and regional pictures used by date-field formats.
@@ -198,6 +207,11 @@ fn eval_field(
         "AcExpr" => eval_acexpr(doc, &field.code, host),
         // AcObjProp[.ver] — a property of a referenced object.
         e if e.starts_with("AcObjProp") => eval_acobjprop(doc, field),
+        // AcSm[.16.2] — a property of the drawing's sheet in its sheet set.
+        e if e.starts_with("AcSm") => {
+            let layout = host_layout(doc, host, ctx).map(|l| l.name.as_str());
+            crate::sheet_set::eval_acsm(doc, &field.code, ctx, layout, text_case)
+        }
         _ => None,
     }
 }
@@ -1968,8 +1982,32 @@ impl CadDocument {
                     });
                 }
             }
+            // A sheet set field names its component and property; in a
+            // drawing that is no sheet it is left unevaluated (`####`).
+            let mut unevaluated = false;
+            if child.evaluator.starts_with("AcSm") {
+                if let Some((component, property, _)) = crate::sheet_set::parse_code(&child.code) {
+                    for (key, text) in [("SheetSetCompName", component), ("SheetSetPropertyName", property)] {
+                        let mut v = CellValue::text(&text);
+                        v.flags = 2;
+                        v.formatted_value.clear();
+                        child_values.push(FieldChildValue { key: key.into(), value: v });
+                    }
+                }
+                unevaluated = child.value.display() == "####";
+            }
             let shown = child.value.display().to_string();
             let xdata = hyperlink_xdata(&child.code).unwrap_or_default();
+            let value = if unevaluated {
+                let mut v = CellValue::new();
+                v.flags = 1;
+                v.format = child.value.format.clone();
+                v
+            } else {
+                child.value.clone()
+            };
+            let (state, evaluation_status, evaluation_error_code) =
+                if unevaluated { (43, 32, 22) } else { (59, 2, 0) };
             all.push(Field {
                 handle: *handle,
                 owner: container,
@@ -1979,9 +2017,10 @@ impl CadDocument {
                 code: child.code,
                 referenced_objects: child.objects,
                 evaluation_option: child.evaluation_option,
-                state: 59,
-                evaluation_status: 2,
-                value: child.value,
+                state,
+                evaluation_status,
+                evaluation_error_code,
+                value,
                 value_string_length: shown.encode_utf16().count() as i32,
                 value_string: shown,
                 xdata,
