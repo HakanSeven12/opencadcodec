@@ -5565,6 +5565,32 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_acis_data_impl(point, acis, wires, silhouettes, false)
     }
 
+    /// Modeler data of a B-rep history node. From R2007 on the record ends
+    /// with the SAB stream: no wireframe cache, materials or revision follow.
+    pub(super) fn write_history_acis_data(&mut self, acis: &AcisData) {
+        if !self.version.r2007_plus() {
+            self.write_acis_data(Vector3::ZERO, acis, &[], &[]);
+            return;
+        }
+        let converted;
+        let acis = if acis.is_binary && !acis.sab_data.is_empty() {
+            acis
+        } else if let Ok(sat) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
+            let mut binary = acis.clone();
+            binary.is_binary = true;
+            binary.sab_data = crate::entities::acis::SabWriter::write(&sat);
+            converted = binary;
+            &converted
+        } else {
+            self.writer.write_bit(true); // acis_empty
+            return;
+        };
+        self.writer.write_bit(false); // acis_empty
+        self.writer.write_bit(false); // binary payload
+        self.writer.write_bit_short(2_i16);
+        self.writer.write_bytes(&acis.sab_for_save());
+    }
+
     fn write_acis_data_impl(
         &mut self,
         point: Vector3,

@@ -1276,8 +1276,9 @@ fn dynamic_dxf_linear_constraint(fields: &DynamicDxfFields) -> BlockLinearConstr
 
 fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
     let section = "AcDbShHistoryNode";
-    // The matrix is written as groups 40..55, one per element. Older codec
-    // output repeated group 40 sixteen times; accept that form as well.
+    // The matrix is written as groups 40..55, one per element. Groups 50..55
+    // are angle codes, so those six elements are stored in degrees. Older
+    // codec output repeated group 40 sixteen times; accept that form as well.
     let mut transform = [0.0; 16];
     if fields.values(section, 41).is_empty() {
         for (target, source) in transform.iter_mut().zip(fields.values(section, 40)) {
@@ -1286,6 +1287,9 @@ fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
     } else {
         for (index, target) in transform.iter_mut().enumerate() {
             *target = fields.f64(section, 40 + index as i32);
+            if index >= 10 {
+                *target = target.to_radians();
+            }
         }
     }
     let color = if fields.values(section, 420).is_empty() {
@@ -1295,8 +1299,11 @@ fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
             true_color_bits(&fields.text(section, 420)).unwrap_or_default(),
         )
     };
+    // DXF does not carry the parent id; history nodes store the root value.
+    let mut eval = dynamic_dxf_eval(fields);
+    eval.parent_id = SolidHistoryNodeBase::ROOT_PARENT;
     SolidHistoryNodeBase {
-        eval: dynamic_dxf_eval(fields),
+        eval,
         major: fields.i32(section, 90),
         minor: fields.i32(section, 91),
         transform,
@@ -1380,8 +1387,8 @@ fn dynamic_dxf_history_sweep(
         draft_angle: fields.f64(section, 42),
         start_draft_distance: fields.f64(section, 43),
         end_draft_distance: fields.f64(section, 44),
-        scale_factor: fields.f64(section, 45),
-        twist_angle: fields.f64(section, 48),
+        twist_angle: fields.f64(section, 45),
+        scale_factor: fields.f64(section, 48),
         align_angle: fields.f64(section, 49),
         sweep_entity_transform,
         path_entity_transform,
@@ -1396,6 +1403,7 @@ fn dynamic_dxf_history_sweep(
             fields.bool(section, 296),
         ],
         reference_point: fields.point(section, 11),
+        ..SolidHistorySweep::default()
     }
 }
 
@@ -3917,7 +3925,13 @@ impl<'a> SectionReader<'a> {
                 ))
             }
             "ACSH_CONE_CLASS" => {
-                let section = "AcDbShCone";
+                // Cone fields belong to the AcDbShCylinder subclass; codec
+                // output before this fix wrote them under AcDbShCone.
+                let section = if fields.values("AcDbShCone", 40).is_empty() {
+                    "AcDbShCylinder"
+                } else {
+                    "AcDbShCone"
+                };
                 DynamicBlockData::SolidHistoryNode(SolidHistoryOperation::Cone(SolidHistoryCone {
                     base: dynamic_dxf_history_base(&fields),
                     operation_major: fields.i32(section, 90),
@@ -3997,22 +4011,22 @@ impl<'a> SectionReader<'a> {
                         edges: fields
                             .values(section, 94)
                             .into_iter()
-                            .filter_map(|value| value.parse().ok())
+                            .filter_map(|value| value.trim().parse().ok())
                             .collect(),
                         radii: fields
                             .values(section, 41)
                             .into_iter()
-                            .filter_map(|value| value.parse().ok())
+                            .filter_map(|value| value.trim().parse().ok())
                             .collect(),
                         start_setbacks: fields
                             .values(section, 42)
                             .into_iter()
-                            .filter_map(|value| value.parse().ok())
+                            .filter_map(|value| value.trim().parse().ok())
                             .collect(),
                         end_setbacks: fields
                             .values(section, 43)
                             .into_iter()
-                            .filter_map(|value| value.parse().ok())
+                            .filter_map(|value| value.trim().parse().ok())
                             .collect(),
                     },
                 ))
@@ -4020,7 +4034,13 @@ impl<'a> SectionReader<'a> {
             "ACSH_BREP_CLASS" => {
                 let section = "AcDbShBrep";
                 let mut acis_data = AcisData::new();
-                let modeler = "AcDbModelerGeometry";
+                // Modeler data follows in AcDbShBrep; codec output before
+                // this fix put it in an AcDbModelerGeometry subclass.
+                let modeler = if fields.sections.contains_key("AcDbModelerGeometry") {
+                    "AcDbModelerGeometry"
+                } else {
+                    section
+                };
                 let mut text = String::new();
                 for value in fields.values(modeler, 1) {
                     text.push_str(value);
@@ -4049,51 +4069,54 @@ impl<'a> SectionReader<'a> {
             ),
             "ACSH_LOFT_CLASS" => {
                 let section = "AcDbShLoft";
-                let mut binary = Vec::new();
-                for value in fields.values(section, 310) {
-                    append_hex_bytes(&mut binary, value);
-                }
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                let mut offset = 0usize;
-                let mut decode_list = |type_code: i32, bit_length: usize| {
-                    let byte_length = bit_length.div_ceil(8);
-                    let end = offset.saturating_add(byte_length).min(binary.len());
-                    let bytes = binary[offset..end].to_vec();
-                    offset = end;
-                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                // Each body is its type (93 section, 96 guide, 98 path), its
+                // bit size (94/97/99) and its own 310 chunks. The chunks may
+                // carry a trailing byte beyond the bit size, so bodies cannot
+                // be cut out of the concatenated binary data.
+                let mut bodies: Vec<(i32, i32, usize, Vec<u8>)> = Vec::new();
+                for (code, value) in fields.sections.get(section).into_iter().flatten() {
+                    match *code {
+                        93 | 96 | 98 => bodies.push((
+                            *code,
+                            value.trim().parse().unwrap_or(0),
+                            0,
+                            Vec::new(),
+                        )),
+                        94 | 97 | 99 => {
+                            if let Some(body) = bodies.last_mut() {
+                                body.2 = value.trim().parse().unwrap_or(0);
+                            }
+                        }
+                        310 => {
+                            if let Some(body) = bodies.last_mut() {
+                                append_hex_bytes(&mut body.3, value);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                let mut cross_sections = Vec::new();
+                let mut guides = Vec::new();
+                let mut path_entity = None;
+                for (kind, type_code, bit_length, bytes) in bodies {
+                    let entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
                         type_code,
                         bit_length,
                         bytes,
                         dwg_version,
                         dxf_version,
-                    )
-                };
-                let cross_types = fields.values(section, 93);
-                let cross_sizes = fields.values(section, 94);
-                let mut cross_sections = Vec::with_capacity(cross_types.len());
-                for (index, type_value) in cross_types.iter().enumerate() {
-                    let entity_type = type_value.trim().parse().unwrap_or(0);
-                    let bit_length = cross_sizes
-                        .get(index)
-                        .and_then(|value| value.trim().parse().ok())
-                        .unwrap_or(0);
-                    if let Some(entity) = decode_list(entity_type, bit_length) {
-                        cross_sections.push(entity);
+                    );
+                    match kind {
+                        93 => cross_sections.extend(entity),
+                        96 => guides.extend(entity),
+                        _ => path_entity = entity,
                     }
                 }
-                let guide_types = fields.values(section, 96);
-                let guide_sizes = fields.values(section, 97);
-                let mut guides = Vec::with_capacity(guide_types.len());
-                for (index, type_value) in guide_types.iter().enumerate() {
-                    let entity_type = type_value.trim().parse().unwrap_or(0);
-                    let bit_length = guide_sizes
-                        .get(index)
-                        .and_then(|value| value.trim().parse().ok())
-                        .unwrap_or(0);
-                    if let Some(entity) = decode_list(entity_type, bit_length) {
-                        guides.push(entity);
-                    }
+                let mut flags = [false; 8];
+                for (index, flag) in flags.iter_mut().enumerate() {
+                    *flag = fields.bool(section, 290 + index as i32);
                 }
                 DynamicBlockData::SolidHistoryNode(SolidHistoryOperation::Loft(SolidHistoryLoft {
                     base: dynamic_dxf_history_base(&fields),
@@ -4101,19 +4124,32 @@ impl<'a> SectionReader<'a> {
                     operation_minor: fields.i32(section, 91),
                     cross_sections,
                     guides,
+                    path_entity,
+                    // Older codec output had no native options.
+                    options: if fields.values(section, 41).is_empty() {
+                        Default::default()
+                    } else {
+                        crate::objects::SolidHistoryLoftOptions {
+                            surface_option: fields.i32(section, 70),
+                            start_draft_angle: fields.f64(section, 41),
+                            end_draft_angle: fields.f64(section, 42),
+                            start_magnitude: fields.f64(section, 43),
+                            end_magnitude: fields.f64(section, 44),
+                            flags,
+                        }
+                    },
                     ..Default::default()
                 }))
             }
             "ACSH_REVOLVE_CLASS" => {
                 let section = "AcDbShRevolve";
+                // 90 holds the operation version and, after the entity type
+                // (92), the entity's bit size.
                 let values_90 = fields.values(section, 90);
-                let entity_type = values_90
-                    .get(1)
-                    .and_then(|value| value.parse().ok())
-                    .unwrap_or(0);
+                let entity_type = fields.i32(section, 92);
                 let bit_length = values_90
-                    .get(2)
-                    .and_then(|value| value.parse::<usize>().ok())
+                    .get(1)
+                    .and_then(|value| value.trim().parse::<usize>().ok())
                     .unwrap_or(0);
                 let mut binary = Vec::new();
                 for value in fields.values(section, 310) {
@@ -4131,7 +4167,10 @@ impl<'a> SectionReader<'a> {
                 DynamicBlockData::SolidHistoryNode(SolidHistoryOperation::Revolve(
                     SolidHistoryRevolve {
                         base: dynamic_dxf_history_base(&fields),
-                        operation_major: fields.i32(section, 90),
+                        operation_major: values_90
+                            .first()
+                            .and_then(|value| value.trim().parse().ok())
+                            .unwrap_or(0),
                         operation_minor: fields.i32(section, 91),
                         axis_point: fields.point(section, 10),
                         direction: fields.point(section, 11),
@@ -4712,12 +4751,12 @@ impl<'a> SectionReader<'a> {
                             .iter_mut()
                             .zip(entries[index + 4..index + 8].iter())
                         {
-                            *target = item.1.parse().unwrap_or(0);
+                            *target = item.1.trim().parse().unwrap_or(0);
                         }
                         nodes.push(BlockEvaluationNode {
-                            id: entries[index].1.parse().unwrap_or(0),
-                            edge_flags: entries[index + 1].1.parse().unwrap_or(0),
-                            next_id: entries[index + 2].1.parse().unwrap_or(0),
+                            id: entries[index].1.trim().parse().unwrap_or(0),
+                            edge_flags: entries[index + 1].1.trim().parse().unwrap_or(0),
+                            next_id: entries[index + 2].1.trim().parse().unwrap_or(0),
                             expression: parse_dxf_handle(&entries[index + 3].1),
                             node_data,
                             active_cycles: None,
@@ -4735,14 +4774,14 @@ impl<'a> SectionReader<'a> {
                             .iter_mut()
                             .zip(entries[index + 5..index + 10].iter())
                         {
-                            *target = item.1.parse().unwrap_or(0);
+                            *target = item.1.trim().parse().unwrap_or(0);
                         }
                         edges.push(BlockEvaluationEdge {
-                            id: entries[index].1.parse().unwrap_or(0),
-                            next_id: entries[index + 1].1.parse().unwrap_or(0),
-                            incoming_edge: entries[index + 2].1.parse().unwrap_or(0),
-                            source_node: entries[index + 3].1.parse().unwrap_or(0),
-                            destination_node: entries[index + 4].1.parse().unwrap_or(0),
+                            id: entries[index].1.trim().parse().unwrap_or(0),
+                            next_id: entries[index + 1].1.trim().parse().unwrap_or(0),
+                            incoming_edge: entries[index + 2].1.trim().parse().unwrap_or(0),
+                            source_node: entries[index + 3].1.trim().parse().unwrap_or(0),
+                            destination_node: entries[index + 4].1.trim().parse().unwrap_or(0),
                             outgoing_edges,
                         });
                         index += 10;

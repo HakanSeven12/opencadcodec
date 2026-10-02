@@ -318,13 +318,18 @@ pub(crate) fn prepared(document: &CadDocument) -> Cow<'_, CadDocument> {
                 .then(|| (*handle, loft.parameters.clone()))
         })
         .collect::<Vec<_>>();
+    let legacy_histories = document.legacy_solid_history_entities();
     if settings.is_empty()
+        && legacy_histories.is_empty()
         && !super::loft_surface_curves::has_inputs(document)
         && !super::surface_history::has_references(document)
     {
         return Cow::Borrowed(document);
     }
     let mut output = document.clone();
+    for entity in legacy_histories {
+        output.ensure_solid_history_evaluation_graph(entity);
+    }
     for (node, settings) in settings {
         let previous = match output.objects.get(&node) {
             Some(ObjectType::DynamicBlock(object)) => object.xdictionary_handle,
