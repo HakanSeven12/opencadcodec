@@ -2745,8 +2745,10 @@ impl DwgDocumentBuilder {
                 // same way so the DXF writer can write it after the object.
                 let mut object_xdata = HashMap::new();
                 for (handle, blocks) in &document.eed_by_handle {
-                    if !document.objects.contains_key(handle) {
-                        continue;
+                    match document.objects.get(handle) {
+                        // FIELD decodes its XDATA onto `Field::xdata` itself.
+                        None | Some(crate::objects::ObjectType::Field(_)) => continue,
+                        Some(_) => {}
                     }
                     let mut xdata = crate::xdata::ExtendedData::default();
                     for (app_handle, bytes) in blocks {

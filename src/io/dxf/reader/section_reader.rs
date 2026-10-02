@@ -307,7 +307,8 @@ fn read_field_cell_value_dxf(
     let type_code = type_text.parse::<u32>().unwrap_or(0);
     value.raw_type_code = type_code as i32;
     value.value_type = CellValueType::from(type_code);
-    if version < DxfVersion::AC1021 || (value.flags & 3) == 0 {
+    // R2007+: flag bit 0 suppresses the value body (as in DWG).
+    if version < DxfVersion::AC1021 || (value.flags & 1) == 0 {
         match type_code {
             0 | 1 => {
                 value.numeric_value = field_next_code(entries, cursor, 91)
@@ -370,6 +371,9 @@ fn read_field_cell_value_dxf(
         {
             value.formatted_value = entries[*cursor].1.clone();
             *cursor += 1;
+        }
+        if entries.get(*cursor).map(|entry| entry.0) == Some(304) {
+            *cursor += 1; // ACVALUE_END
         }
     }
     value
@@ -2867,8 +2871,12 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 "$TDUCREATE" => {
-                    self.reader.read_pair()?;
-                } // UTC variant: skip (no field)
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.universal_create_date_julian = v;
+                        }
+                    }
+                }
                 "$TDUPDATE" => {
                     if let Some(p) = self.reader.read_pair()? {
                         if let Some(v) = p.as_double() {
@@ -2877,7 +2885,11 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 "$TDUUPDATE" => {
-                    self.reader.read_pair()?;
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.universal_update_date_julian = v;
+                        }
+                    }
                 }
                 "$TDINDWG" => {
                     if let Some(p) = self.reader.read_pair()? {
@@ -7060,6 +7072,8 @@ impl<'a> SectionReader<'a> {
 
         if !plot_settings_codes.is_empty() {
             for &(code, ref val) in &plot_settings_codes {
+                // Integer values arrive right-aligned ("     1").
+                let t = val.trim();
                 match code {
                     1 => layout.plot_page_name = val.clone(),
                     2 => layout.plot_printer_name = val.clone(),
@@ -7067,132 +7081,132 @@ impl<'a> SectionReader<'a> {
                     6 => layout.plot_view_name = val.clone(),
                     7 => layout.plot_style_sheet = val.clone(),
                     40 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_margin_left = v;
                         }
                     }
                     41 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_margin_bottom = v;
                         }
                     }
                     42 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_margin_right = v;
                         }
                     }
                     43 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_margin_top = v;
                         }
                     }
                     44 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.paper_width = v;
                         }
                     }
                     45 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.paper_height = v;
                         }
                     }
                     46 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_origin_x = v;
                         }
                     }
                     47 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_origin_y = v;
                         }
                     }
                     48 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_window_min_x = v;
                         }
                     }
                     49 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_window_min_y = v;
                         }
                     }
                     70 => {
-                        if let Ok(v) = val.parse::<i32>() {
+                        if let Ok(v) = t.parse::<i32>() {
                             layout.plot_flags = crate::objects::PlotFlags::from_bits(v);
                         }
                     }
                     72 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.plot_paper_units = v;
                         }
                     }
                     73 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.plot_rotation = v;
                         }
                     }
                     74 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.plot_type = v;
                         }
                     }
                     75 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.plot_scale_type = v;
                         }
                     }
                     76 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.shade_plot_mode = v;
                         }
                     }
                     77 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.shade_plot_resolution = v;
                         }
                     }
                     78 => {
-                        if let Ok(v) = val.parse::<i16>() {
+                        if let Ok(v) = t.parse::<i16>() {
                             layout.shade_plot_dpi = v;
                         }
                     }
                     140 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_window_max_x = v;
                         }
                     }
                     141 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_window_max_y = v;
                         }
                     }
                     142 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_scale_numerator = v;
                         }
                     }
                     143 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_scale_denominator = v;
                         }
                     }
                     147 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.plot_scale_factor = v;
                         }
                     }
                     148 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.paper_image_origin_x = v;
                         }
                     }
                     149 => {
-                        if let Ok(v) = val.parse::<f64>() {
+                        if let Ok(v) = t.parse::<f64>() {
                             layout.paper_image_origin_y = v;
                         }
                     }
                     333 => {
-                        if let Ok(v) = u64::from_str_radix(val, 16) {
+                        if let Ok(v) = u64::from_str_radix(t, 16) {
                             layout.visual_style_handle = Handle::new(v);
                         }
                     }
@@ -8876,7 +8890,19 @@ impl<'a> SectionReader<'a> {
                 5 => value.handle = parse_dxf_handle(&pair.value_string),
                 330 if value.owner.is_null() => value.owner = parse_dxf_handle(&pair.value_string),
                 100 => {}
-                _ => entries.push((pair.code, pair.value_string.clone())),
+                // XDATA (a hyperlink field's PE_URL record).
+                1001 => {
+                    self.reader.push_back(pair);
+                    let (xdata, next_pair) = self.read_extended_data()?;
+                    value.xdata = xdata;
+                    if let Some(next_pair) = next_pair {
+                        self.reader.push_back(next_pair);
+                    }
+                }
+                // Numeric values are right-aligned ("        1"); keep string
+                // codes verbatim.
+                1..=9 | 300..=309 => entries.push((pair.code, pair.value_string.clone())),
+                _ => entries.push((pair.code, pair.value_string.trim().to_string())),
             }
         }
 
@@ -8916,6 +8942,11 @@ impl<'a> SectionReader<'a> {
                 .push(parse_dxf_handle(&entries[cursor].1));
             cursor += 1;
         }
+        // Pre-R2007 format string sits after the object list.
+        if version < DxfVersion::AC1021 && entries.get(cursor).map(|entry| entry.0) == Some(4) {
+            value.format = entries[cursor].1.clone();
+            cursor += 1;
+        }
         value.evaluation_option = field_next_code(&entries, &mut cursor, 91)
             .and_then(|item| item.parse().ok())
             .unwrap_or(0);
@@ -8934,7 +8965,19 @@ impl<'a> SectionReader<'a> {
         value.evaluation_error_message = field_next_code(&entries, &mut cursor, 300)
             .unwrap_or("")
             .to_string();
-        value.value = read_field_cell_value_dxf(&entries, &mut cursor, version);
+        // The reference application writes the child-value list (93 count,
+        // `6` key + value each) and then the field's own value behind a `7`
+        // key. Files from older writers of this library put the field value
+        // inline right here instead (R2007+: 93 flags + 90 type; earlier: 90).
+        let code_at = |i: usize| entries.get(i).map(|entry| entry.0);
+        let inline_value = if version >= DxfVersion::AC1021 {
+            code_at(cursor) == Some(93) && code_at(cursor + 1) == Some(90)
+        } else {
+            code_at(cursor) == Some(90)
+        };
+        if inline_value {
+            value.value = read_field_cell_value_dxf(&entries, &mut cursor, version);
+        }
         let child_value_count = if entries.get(cursor).map(|entry| entry.0) == Some(93) {
             let count = entries[cursor].1.parse::<usize>().unwrap_or(0).min(20_000);
             cursor += 1;
@@ -8950,6 +8993,10 @@ impl<'a> SectionReader<'a> {
                 key,
                 value: read_field_cell_value_dxf(&entries, &mut cursor, version),
             });
+        }
+        if !inline_value && entries.get(cursor).map(|entry| entry.0) == Some(7) {
+            cursor += 1; // ACFD_FIELD_VALUE
+            value.value = read_field_cell_value_dxf(&entries, &mut cursor, version);
         }
         if entries.get(cursor).map(|entry| entry.0) == Some(301) {
             value.value_string = entries[cursor].1.clone();
@@ -8972,8 +9019,8 @@ impl<'a> SectionReader<'a> {
             match pair.code {
                 5 => value.handle = parse_dxf_handle(&pair.value_string),
                 330 if value.owner.is_null() => value.owner = parse_dxf_handle(&pair.value_string),
-                90 => count = pair.value_string.parse::<usize>().unwrap_or(0).min(20_000),
-                290 => value.unknown = pair.value_string.parse::<i32>().unwrap_or(0) != 0,
+                90 => count = pair.value_string.trim().parse::<usize>().unwrap_or(0).min(20_000),
+                290 => value.unknown = pair.value_string.trim().parse::<i32>().unwrap_or(0) != 0,
                 330 => {
                     if value.fields.len() < count {
                         value.fields.push(parse_dxf_handle(&pair.value_string));

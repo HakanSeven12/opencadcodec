@@ -427,10 +427,14 @@ fn read_header_fields(r: &mut SectionReader, v: DxfVersion, h: &mut HeaderVariab
     h.menu_name = r.read_variable_text();
 
     // ── Date/time (Common) ──
+    // DWG stores universal time (TDUCREATE / TDUUPDATE); the file has no time
+    // zone, so the local values start out equal to them.
     let (cd, cms) = r.read_datetime();
-    h.create_date_julian = day_ms_to_julian(cd, cms);
+    h.universal_create_date_julian = day_ms_to_julian(cd, cms);
+    h.create_date_julian = h.universal_create_date_julian;
     let (ud, ums) = r.read_datetime();
-    h.update_date_julian = day_ms_to_julian(ud, ums);
+    h.universal_update_date_julian = day_ms_to_julian(ud, ums);
+    h.update_date_julian = h.universal_update_date_julian;
 
     if r2004_plus(v) {
         let _ = r.read_bit_long(); // unknown

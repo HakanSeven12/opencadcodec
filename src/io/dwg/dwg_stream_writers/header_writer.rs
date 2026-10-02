@@ -493,9 +493,10 @@ fn write_header_fields(w: &mut SectionWriter, v: DxfVersion, h: &HeaderVariables
     w.write_variable_text(&h.menu_name);
 
     // ── Date/time (Common) ──
-    let (cd, cms) = julian_to_day_ms(h.create_date_julian);
+    // DWG stores universal time.
+    let (cd, cms) = julian_to_day_ms(h.universal_create_or_local());
     w.write_datetime(cd, cms);
-    let (ud, ums) = julian_to_day_ms(h.update_date_julian);
+    let (ud, ums) = julian_to_day_ms(h.universal_update_or_local());
     w.write_datetime(ud, ums);
 
     if r2004_plus(v) {

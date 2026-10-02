@@ -712,6 +712,40 @@ fn read_t16(cur: &mut &[u8], utf16: bool) -> String {
     }
 }
 
+/// Decode the EED of FIELD objects into their `xdata` (a hyperlink field's
+/// `PE_URL` record) so it survives a save to DXF or to another DWG version.
+fn decode_field_xdata(document: &mut crate::document::CadDocument) {
+    let wide = document.version >= crate::types::DxfVersion::AC1021;
+    let fields: Vec<_> = document
+        .eed_by_handle
+        .keys()
+        .copied()
+        .filter(|h| matches!(document.objects.get(h), Some(crate::objects::ObjectType::Field(_))))
+        .collect();
+    for h in fields {
+        let Some(blocks) = document.eed_by_handle.remove(&h) else { continue };
+        let mut kept = Vec::new();
+        let mut xdata = crate::xdata::ExtendedData::new();
+        for (app, bytes) in blocks {
+            let name = document.app_ids.iter().find(|a| a.handle.value() == app).map(|a| a.name.clone());
+            match (name, crate::io::dwg::eed_codec::decode_values(&bytes, wide, |_| None)) {
+                (Some(name), Some(values)) => {
+                    let mut rec = crate::xdata::ExtendedDataRecord::new(name);
+                    rec.values = values;
+                    xdata.add_record(rec);
+                }
+                _ => kept.push((app, bytes)),
+            }
+        }
+        if !kept.is_empty() {
+            document.eed_by_handle.insert(h, kept);
+        }
+        if let Some(crate::objects::ObjectType::Field(f)) = document.objects.get_mut(&h) {
+            f.xdata = xdata;
+        }
+    }
+}
+
 /// Parse the decompressed `AcDb:SummaryInfo` section (R2004+): eight fixed
 /// strings, three 8-byte timers, then the custom-property pairs.
 fn parse_summary_info(buf: &[u8], utf16: bool) -> crate::document::SummaryInfo {
@@ -1228,6 +1262,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // Record the source path (Filename / FilePath fields) when opened from a
         // file rather than a bare stream.
         document.source_path = self.source_path.clone();
+        decode_field_xdata(&mut document);
 
         // Document summary information (Author/Title/Subject/… → the
         // Document-category dynamic-text fields).
@@ -1293,6 +1328,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // Record the source path (Filename / FilePath fields) when opened from a
         // file rather than a bare stream.
         document.source_path = self.source_path.clone();
+        decode_field_xdata(&mut document);
 
         // Document summary information (Author/Title/Subject/… → the
         // Document-category dynamic-text fields).
