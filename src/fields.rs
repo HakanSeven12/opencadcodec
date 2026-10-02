@@ -660,7 +660,9 @@ fn format_propval(val: PropVal, pic: &str) -> String {
                 .parse()
                 .ok()
         })
-        .unwrap_or(4);
+        // With no format at all the reference application shows six decimals
+        // (a circle's Area: 78.539816).
+        .unwrap_or(if pic.trim().is_empty() { 6 } else { 4 });
     let (pre, suf) = between(pic, "%ps[", "]")
         .map(|ps| {
             let mut it = ps.splitn(2, ',');
