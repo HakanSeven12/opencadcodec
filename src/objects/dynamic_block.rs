@@ -408,7 +408,7 @@ fn visit_solid_history_operation(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockEvalExpression {
     pub parent_id: i32,
@@ -417,6 +417,26 @@ pub struct BlockEvalExpression {
     pub value_code: i16,
     pub value: BlockEvalValue,
     pub node_id: i32,
+}
+
+impl BlockEvalExpression {
+    /// Parent id the reference application stores in DWG for an expression
+    /// without a parent. DXF does not carry the parent id, so expressions read
+    /// from DXF get this value; a 0 parent makes the drawing unreadable there.
+    pub const NO_PARENT: i32 = -1;
+}
+
+impl Default for BlockEvalExpression {
+    fn default() -> Self {
+        Self {
+            parent_id: Self::NO_PARENT,
+            major: 0,
+            minor: 0,
+            value_code: 0,
+            value: BlockEvalValue::default(),
+            node_id: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -850,6 +870,9 @@ pub struct BlockEvaluationGraph {
 pub struct SolidHistory {
     pub major: i32,
     pub minor: i32,
+    /// DXF 360: the hard-owned evaluation graph (AcDbEvalGraph) that links
+    /// the history nodes. Histories written by older releases of this crate
+    /// stored the solid here.
     pub owner: Handle,
     pub history_node_id: i32,
     pub show_history: bool,
@@ -870,7 +893,7 @@ pub struct SolidHistoryNodeBase {
 
 impl SolidHistoryNodeBase {
     /// Parent id of a root history node.
-    pub const ROOT_PARENT: i32 = -1;
+    pub const ROOT_PARENT: i32 = BlockEvalExpression::NO_PARENT;
     /// Expression value code meaning "no value".
     pub const NO_VALUE: i16 = -9999;
 
@@ -1109,7 +1132,7 @@ pub struct SolidHistoryChamfer {
     pub base_face: i32,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SolidHistorySweep {
     pub base: SolidHistoryNodeBase,
@@ -1131,8 +1154,52 @@ pub struct SolidHistorySweep {
     pub has_align_start: bool,
     pub bank: bool,
     pub check_intersections: bool,
+    /// DXF groups 294, 295 and 296. The reference application sets 295 and
+    /// 296 on every sweep it records: 295 says `sweep_entity` is already
+    /// placed on the path start and aligned to it (the profile is used as
+    /// stored, `sweep_entity_transform` identity). A sweep node with
+    /// 295 clear fails to evaluate there and the drawing is rejected.
     pub flags_294_296: [bool; 3],
+    /// DXF group 11.
     pub reference_point: Vector3,
+    /// Vector stored only in DWG, between flags 295 and 296. The reference
+    /// application writes (1, 1, 1) and does not export it to DXF.
+    #[cfg_attr(feature = "serde", serde(default = "unit_xyz"))]
+    pub dwg_vector: Vector3,
+}
+
+#[cfg(feature = "serde")]
+fn unit_xyz() -> Vector3 {
+    Vector3::new(1.0, 1.0, 1.0)
+}
+
+impl Default for SolidHistorySweep {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            operation_major: 0,
+            operation_minor: 0,
+            direction: Vector3::ZERO,
+            sweep_entity: None,
+            path_entity: None,
+            draft_angle: 0.0,
+            start_draft_distance: 0.0,
+            end_draft_distance: 0.0,
+            scale_factor: 0.0,
+            twist_angle: 0.0,
+            align_angle: 0.0,
+            sweep_entity_transform: [0.0; 16],
+            path_entity_transform: [0.0; 16],
+            align_option: 0,
+            miter_option: 0,
+            has_align_start: false,
+            bank: false,
+            check_intersections: false,
+            flags_294_296: [false; 3],
+            reference_point: Vector3::ZERO,
+            dwg_vector: Vector3::new(1.0, 1.0, 1.0),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1147,6 +1214,67 @@ pub struct SolidHistoryLoft {
     /// The native history stream remains unchanged for other consumers.
     #[cfg_attr(feature = "serde", serde(default))]
     pub parameters: Option<SolidHistoryLoftParameters>,
+    /// Path curve stored in the native record (DXF 98/99).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub path_entity: Option<crate::entities::EmbeddedEntity>,
+    /// Remaining native record fields (DXF 70, 41..44, 290..297).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub options: SolidHistoryLoftOptions,
+}
+
+impl SolidHistoryLoft {
+    /// Path and native options as saved. Settings in `parameters` win for the
+    /// fields both describe, so lofts built with parameters save them natively.
+    pub(crate) fn native(
+        &self,
+    ) -> (
+        Option<&crate::entities::EmbeddedEntity>,
+        SolidHistoryLoftOptions,
+    ) {
+        let mut options = self.options.clone();
+        let Some(parameters) = &self.parameters else {
+            return (self.path_entity.as_ref(), options);
+        };
+        options.start_draft_angle = parameters.start_draft_angle;
+        options.end_draft_angle = parameters.end_draft_angle;
+        options.start_magnitude = parameters.start_magnitude;
+        options.end_magnitude = parameters.end_magnitude;
+        (
+            parameters.path_entity.as_ref().or(self.path_entity.as_ref()),
+            options,
+        )
+    }
+}
+
+/// Native loft record fields. The default is what the reference application
+/// stores for a loft made with its default settings.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct SolidHistoryLoftOptions {
+    /// DXF 70.
+    pub surface_option: i32,
+    /// DXF 41/42, radians.
+    pub start_draft_angle: f64,
+    pub end_draft_angle: f64,
+    /// DXF 43/44.
+    pub start_magnitude: f64,
+    pub end_magnitude: f64,
+    /// DXF 290..297.
+    pub flags: [bool; 8],
+}
+
+impl Default for SolidHistoryLoftOptions {
+    fn default() -> Self {
+        Self {
+            surface_option: 0,
+            start_draft_angle: std::f64::consts::FRAC_PI_2,
+            end_draft_angle: std::f64::consts::FRAC_PI_2,
+            start_magnitude: 0.0,
+            end_magnitude: 0.0,
+            flags: [false, true, true, true, false, true, false, true],
+        }
+    }
 }
 
 /// Parametric loft settings. Angles are radians; magnitudes are nonnegative.

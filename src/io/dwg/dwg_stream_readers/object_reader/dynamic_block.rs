@@ -219,39 +219,54 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
     }
 }
 
+/// Embedded construction entity of a history node: type, then (unless the
+/// type is 0) its body length in bits and the body itself.
+fn read_history_entity(
+    reader: &mut DwgMergedReader,
+    version: DwgVersion,
+    dxf_version: DxfVersion,
+) -> Option<crate::entities::EmbeddedEntity> {
+    let type_code = reader.read_bit_long();
+    if type_code == 0 {
+        return None;
+    }
+    let bit_length = safe_count(reader.read_bit_long()) as usize;
+    crate::io::dwg::embedded_entity::read_embedded_entity_bits(
+        reader,
+        type_code,
+        bit_length,
+        version,
+        dxf_version,
+    )
+}
+
 fn read_history_sweep(
     reader: &mut DwgMergedReader,
     base: SolidHistoryNodeBase,
     version: DwgVersion,
     dxf_version: DxfVersion,
 ) -> SolidHistorySweep {
+    // DWG stores the AcDbShSweepBase fields in a different order than DXF:
+    // scalars, flags and a DWG-only vector first, then both matrices,
+    // then the profile and path entities.
     let operation_major = reader.read_bit_long();
     let operation_minor = reader.read_bit_long();
     let direction = reader.read_3bit_double();
-    let sweep_entity_type = reader.read_bit_long();
-    let sweep_size = safe_count(reader.read_bit_long()) as usize;
-    let sweep_entity = crate::io::dwg::embedded_entity::read_embedded_entity(
-        reader,
-        sweep_entity_type,
-        sweep_size,
-        version,
-        dxf_version,
-    );
-    let path_entity_type = reader.read_bit_long();
-    let path_size = safe_count(reader.read_bit_long()) as usize;
-    let path_entity = crate::io::dwg::embedded_entity::read_embedded_entity(
-        reader,
-        path_entity_type,
-        path_size,
-        version,
-        dxf_version,
-    );
     let draft_angle = reader.read_bit_double();
     let start_draft_distance = reader.read_bit_double();
     let end_draft_distance = reader.read_bit_double();
-    let scale_factor = reader.read_bit_double();
     let twist_angle = reader.read_bit_double();
+    let scale_factor = reader.read_bit_double();
     let align_angle = reader.read_bit_double();
+    let has_align_start = reader.read_bit();
+    let align_option = reader.read_bit_short().clamp(0, 255) as u8;
+    let miter_option = reader.read_bit_short().clamp(0, 255) as u8;
+    let bank = reader.read_bit();
+    let check_intersections = reader.read_bit();
+    let flag_294 = reader.read_bit();
+    let flag_295 = reader.read_bit();
+    let dwg_vector = reader.read_3bit_double();
+    let flag_296 = reader.read_bit();
     let mut sweep_entity_transform = [0.0; 16];
     let mut path_entity_transform = [0.0; 16];
     for value in &mut sweep_entity_transform {
@@ -260,6 +275,8 @@ fn read_history_sweep(
     for value in &mut path_entity_transform {
         *value = reader.read_bit_double();
     }
+    let sweep_entity = read_history_entity(reader, version, dxf_version);
+    let path_entity = read_history_entity(reader, version, dxf_version);
     SolidHistorySweep {
         base,
         operation_major,
@@ -275,13 +292,14 @@ fn read_history_sweep(
         align_angle,
         sweep_entity_transform,
         path_entity_transform,
-        align_option: reader.read_byte(),
-        miter_option: reader.read_byte(),
-        has_align_start: reader.read_bit(),
-        bank: reader.read_bit(),
-        check_intersections: reader.read_bit(),
-        flags_294_296: [reader.read_bit(), reader.read_bit(), reader.read_bit()],
-        reference_point: reader.read_3bit_double(),
+        align_option,
+        miter_option,
+        has_align_start,
+        bank,
+        check_intersections,
+        flags_294_296: [flag_294, flag_295, flag_296],
+        dwg_vector,
+        ..SolidHistorySweep::default()
     }
 }
 
@@ -424,15 +442,16 @@ pub fn read_solid_history_data(
             for _ in 0..radius_count {
                 radii.push(reader.read_bit_double());
             }
+            // Each setback list directly follows its own count.
             let start_count = safe_count(reader.read_bit_long());
+            let mut start_setbacks = Vec::with_capacity(start_count as usize);
+            for _ in 0..start_count {
+                start_setbacks.push(reader.read_bit_double());
+            }
             let end_count = safe_count(reader.read_bit_long());
             let mut end_setbacks = Vec::with_capacity(end_count as usize);
             for _ in 0..end_count {
                 end_setbacks.push(reader.read_bit_double());
-            }
-            let mut start_setbacks = Vec::with_capacity(start_count as usize);
-            for _ in 0..start_count {
-                start_setbacks.push(reader.read_bit_double());
             }
             SolidHistoryOperation::Fillet(SolidHistoryFillet {
                 base,
@@ -446,8 +465,10 @@ pub fn read_solid_history_data(
             })
         }
         "ACSH_BREP_CLASS" => {
-            let operation_major = reader.read_bit_long();
-            let operation_minor = reader.read_bit_long();
+            // Like the loft record, the DWG record has no operation version
+            // of its own; DXF repeats the node version there.
+            let operation_major = base.major;
+            let operation_minor = base.minor;
             let data = super::entities::read_history_acis_entity(reader, version, dxf_version);
             let mut acis_data = crate::entities::AcisData::new();
             acis_data.sat_data = data.sat_data;
@@ -475,52 +496,55 @@ pub fn read_solid_history_data(
             SolidHistoryOperation::Extrusion(read_history_sweep(reader, base, version, dxf_version))
         }
         "ACSH_LOFT_CLASS" => {
-            let operation_major = reader.read_bit_long();
-            let operation_minor = reader.read_bit_long();
+            // The DWG record has no operation version of its own; DXF repeats
+            // the node version there.
             let cross_count = safe_count(reader.read_bit_long());
             let mut cross_sections = Vec::with_capacity(cross_count as usize);
             for _ in 0..cross_count {
-                let entity_type = reader.read_bit_long();
-                let byte_length = safe_count(reader.read_bit_long()) as usize;
-                if let Some(entity) = crate::io::dwg::embedded_entity::read_embedded_entity(
-                    reader,
-                    entity_type,
-                    byte_length,
-                    version,
-                    dxf_version,
-                ) {
+                if let Some(entity) = read_history_entity(reader, version, dxf_version) {
                     cross_sections.push(entity);
                 }
             }
             let guide_count = safe_count(reader.read_bit_long());
             let mut guides = Vec::with_capacity(guide_count as usize);
             for _ in 0..guide_count {
-                let entity_type = reader.read_bit_long();
-                let byte_length = safe_count(reader.read_bit_long()) as usize;
-                if let Some(entity) = crate::io::dwg::embedded_entity::read_embedded_entity(
-                    reader,
-                    entity_type,
-                    byte_length,
-                    version,
-                    dxf_version,
-                ) {
+                if let Some(entity) = read_history_entity(reader, version, dxf_version) {
                     guides.push(entity);
                 }
             }
+            let path_entity = read_history_entity(reader, version, dxf_version);
+            let start_draft_angle = reader.read_bit_double();
+            let end_draft_angle = reader.read_bit_double();
+            let start_magnitude = reader.read_bit_double();
+            let end_magnitude = reader.read_bit_double();
+            let mut flags = [false; 8];
+            for flag in &mut flags {
+                *flag = reader.read_bit();
+            }
+            let surface_option = reader.read_bit_long();
             SolidHistoryOperation::Loft(SolidHistoryLoft {
+                operation_major: base.major,
+                operation_minor: base.minor,
                 base,
-                operation_major,
-                operation_minor,
                 cross_sections,
                 guides,
                 parameters: None,
+                path_entity,
+                options: crate::objects::SolidHistoryLoftOptions {
+                    surface_option,
+                    start_draft_angle,
+                    end_draft_angle,
+                    start_magnitude,
+                    end_magnitude,
+                    flags,
+                },
             })
         }
         "ACSH_REVOLVE_CLASS" => {
             let operation_major = reader.read_bit_long();
             let operation_minor = reader.read_bit_long();
             let axis_point = reader.read_3bit_double();
-            let direction = reader.read_3raw_double();
+            let direction = reader.read_3bit_double();
             let revolve_angle = reader.read_bit_double();
             let start_angle = reader.read_bit_double();
             let draft_angle = reader.read_bit_double();
@@ -529,15 +553,7 @@ pub fn read_solid_history_data(
             let twist_angle = reader.read_bit_double();
             let flag_290 = reader.read_bit();
             let close_to_axis = reader.read_bit();
-            let entity_type = reader.read_bit_long();
-            let byte_length = safe_count(reader.read_bit_long()) as usize;
-            let sweep_entity = crate::io::dwg::embedded_entity::read_embedded_entity(
-                reader,
-                entity_type,
-                byte_length,
-                version,
-                dxf_version,
-            );
+            let sweep_entity = read_history_entity(reader, version, dxf_version);
             SolidHistoryOperation::Revolve(SolidHistoryRevolve {
                 base,
                 operation_major,

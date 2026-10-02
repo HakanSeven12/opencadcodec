@@ -41,7 +41,10 @@ fn appended_history_is_returned_root_to_active() {
     assert!(matches!(operations[0], SolidHistoryOperation::Box(_)));
     assert!(matches!(operations[1], SolidHistoryOperation::Fillet(_)));
     assert_eq!(operations[0].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
-    assert_eq!(operations[1].base().unwrap().eval.parent_id, 1);
+    // Nodes are linked through the evaluation graph; every node stores the
+    // root parent id.
+    assert_eq!(operations[1].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
+    assert!(document.solid_history_graph(entity).unwrap().evaluation_graph.is_some());
 }
 
 #[test]
@@ -67,7 +70,7 @@ fn updating_a_step_preserves_its_graph_identity() {
 
     let operations = document.solid_history_operations(entity).unwrap();
     assert_eq!(operations[0].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
-    assert_eq!(operations[1].base().unwrap().eval.parent_id, 1);
+    assert_eq!(operations[1].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
     assert!(matches!(
         &operations[0],
         SolidHistoryOperation::Box(value) if value.length == 8.0

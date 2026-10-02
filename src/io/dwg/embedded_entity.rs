@@ -50,18 +50,6 @@ fn preserves_embedded_body(
     (encoded.bit_length..bit_length).all(|bit| bytes[bit / 8] & (1 << (7 - bit % 8)) == 0)
 }
 
-/// Read one embedded entity body directly from an enclosing DWG bitstream.
-pub(crate) fn read_embedded_entity(
-    reader: &mut DwgMergedReader,
-    type_code: i32,
-    byte_length: usize,
-    version: DwgVersion,
-    dxf_version: DxfVersion,
-) -> Option<EmbeddedEntity> {
-    let bytes = reader.read_bytes(byte_length);
-    decode_embedded_entity(type_code, byte_length * 8, bytes, version, dxf_version)
-}
-
 /// Read an embedded entity whose size prefix is a meaningful bit count.
 pub(crate) fn read_embedded_entity_bits(
     reader: &mut DwgMergedReader,
@@ -137,53 +125,48 @@ pub(crate) fn decode_embedded_entity(
                 Some(preserve_unknown())
             }
         }
+        // Curve bodies keep their extrusion as a full 3BD and, except for
+        // points, carry no thickness. An ellipse stores its normal before its
+        // major axis.
         common::OBJ_POINT => {
-            let data = entities::read_point(&mut reader);
             let mut entity = Point::new();
-            entity.location = data.location;
-            entity.thickness = data.thickness;
-            entity.normal = data.normal;
-            entity.x_axis_angle = data.x_axis_angle;
+            entity.location = reader.read_3bit_double();
+            entity.thickness = reader.read_bit_double();
+            entity.normal = reader.read_3bit_double();
+            entity.x_axis_angle = reader.read_bit_double();
             Some(EmbeddedEntity::Point(entity))
         }
         common::OBJ_LINE => {
-            let data = entities::read_line(&mut reader, DwgVersion::AC12);
             let mut entity = Line::new();
-            entity.start = data.start;
-            entity.end = data.end;
-            entity.thickness = data.thickness;
-            entity.normal = data.normal;
+            entity.start = reader.read_3bit_double();
+            entity.end = reader.read_3bit_double();
+            entity.normal = reader.read_3bit_double();
             Some(EmbeddedEntity::Line(entity))
         }
         common::OBJ_ARC => {
-            let data = entities::read_arc(&mut reader);
             let mut entity = Arc::new();
-            entity.center = data.center;
-            entity.radius = data.radius;
-            entity.thickness = data.thickness;
-            entity.normal = data.normal;
-            entity.start_angle = data.start_angle;
-            entity.end_angle = data.end_angle;
+            entity.center = reader.read_3bit_double();
+            entity.radius = reader.read_bit_double();
+            entity.normal = reader.read_3bit_double();
+            entity.start_angle = reader.read_bit_double();
+            entity.end_angle = reader.read_bit_double();
             Some(EmbeddedEntity::Arc(entity))
         }
         common::OBJ_CIRCLE => {
-            let data = entities::read_circle(&mut reader);
             let mut entity = Circle::new();
-            entity.center = data.center;
-            entity.radius = data.radius;
-            entity.thickness = data.thickness;
-            entity.normal = data.normal;
+            entity.center = reader.read_3bit_double();
+            entity.radius = reader.read_bit_double();
+            entity.normal = reader.read_3bit_double();
             Some(EmbeddedEntity::Circle(entity))
         }
         common::OBJ_ELLIPSE => {
-            let data = entities::read_ellipse(&mut reader);
             let mut entity = Ellipse::new();
-            entity.center = data.center;
-            entity.major_axis = data.major_axis;
-            entity.normal = data.normal;
-            entity.minor_axis_ratio = data.minor_axis_ratio;
-            entity.start_parameter = data.start_parameter;
-            entity.end_parameter = data.end_parameter;
+            entity.center = reader.read_3bit_double();
+            entity.normal = reader.read_3bit_double();
+            entity.major_axis = reader.read_3bit_double();
+            entity.minor_axis_ratio = reader.read_bit_double();
+            entity.start_parameter = reader.read_bit_double();
+            entity.end_parameter = reader.read_bit_double();
             Some(EmbeddedEntity::Ellipse(entity))
         }
         common::OBJ_SPLINE => {
@@ -273,38 +256,35 @@ pub(crate) fn encode_embedded_entity(
         }
         EmbeddedEntity::Point(entity) => {
             writer.write_3bit_double(entity.location);
-            writer.write_bit_thickness(entity.thickness);
-            writer.write_bit_extrusion(entity.normal);
+            writer.write_bit_double(entity.thickness);
+            writer.write_3bit_double(entity.normal);
             writer.write_bit_double(entity.x_axis_angle);
             common::OBJ_POINT
         }
         EmbeddedEntity::Line(entity) => {
             writer.write_3bit_double(entity.start);
             writer.write_3bit_double(entity.end);
-            writer.write_bit_thickness(entity.thickness);
-            writer.write_bit_extrusion(entity.normal);
+            writer.write_3bit_double(entity.normal);
             common::OBJ_LINE
         }
         EmbeddedEntity::Circle(entity) => {
             writer.write_3bit_double(entity.center);
             writer.write_bit_double(entity.radius);
-            writer.write_bit_thickness(entity.thickness);
-            writer.write_bit_extrusion(entity.normal);
+            writer.write_3bit_double(entity.normal);
             common::OBJ_CIRCLE
         }
         EmbeddedEntity::Arc(entity) => {
             writer.write_3bit_double(entity.center);
             writer.write_bit_double(entity.radius);
-            writer.write_bit_thickness(entity.thickness);
-            writer.write_bit_extrusion(entity.normal);
+            writer.write_3bit_double(entity.normal);
             writer.write_bit_double(entity.start_angle);
             writer.write_bit_double(entity.end_angle);
             common::OBJ_ARC
         }
         EmbeddedEntity::Ellipse(entity) => {
             writer.write_3bit_double(entity.center);
-            writer.write_3bit_double(entity.major_axis);
             writer.write_3bit_double(entity.normal);
+            writer.write_3bit_double(entity.major_axis);
             writer.write_bit_double(entity.minor_axis_ratio);
             writer.write_bit_double(entity.start_parameter);
             writer.write_bit_double(entity.end_parameter);
@@ -346,11 +326,6 @@ pub(crate) fn encode_embedded_entity(
         bit_length,
         bytes: writer.into_bytes(),
     }
-}
-
-/// Append a byte-sized embedded body to the enclosing bitstream.
-pub(crate) fn write_embedded_bytes(writer: &mut DwgMergedWriter, encoded: &EncodedEmbeddedEntity) {
-    writer.write_bytes(&encoded.bytes);
 }
 
 pub(crate) fn write_embedded_bits_with_length(
