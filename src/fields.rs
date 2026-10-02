@@ -198,6 +198,8 @@ fn eval_field(
         "AcExpr" => eval_acexpr(doc, &field.code, host),
         // AcObjProp[.ver] — a property of a referenced object.
         e if e.starts_with("AcObjProp") => eval_acobjprop(doc, field),
+        // AcCount / AcCount2 — block counts (see `crate::count`).
+        "AcCount" | "AcCount2" => Some(crate::count::evaluate(doc, &field.code)),
         _ => None,
     }
 }
@@ -1769,6 +1771,13 @@ impl NewField {
         value.flags = 4;
         value.format = code_format(&code).to_string();
         // The reference application leaves the Date field on demand only.
+        // A count is an integer value (`####` while its code is empty).
+        if evaluator.starts_with("AcCount") {
+            if let Ok(n) = display.parse::<i64>() {
+                value = CellValue::integer(n);
+                value.flags = 4;
+            }
+        }
         let evaluation_option = if evaluator == "AcVar" && code_word(&code, 1) == Some("Date") {
             32
         } else {
@@ -1917,79 +1926,68 @@ impl CadDocument {
         };
         let mut all = vec![container_field];
         for (child, handle) in children.into_iter().zip(&child_handles) {
-            let mut child_values = Vec::new();
-            if child.evaluator.starts_with("AcVar") {
-                if let Some(name) = code_word(&child.code, 1) {
-                    // A hyperlink (`\href`) names no variable.
-                    let name = if name.starts_with('\\') { "" } else { name };
-                    let mut v = CellValue::text(name);
-                    v.flags = 2;
-                    v.formatted_value.clear();
-                    child_values.push(FieldChildValue {
-                        key: "Variable".into(),
-                        value: v,
-                    });
-                }
-            }
-            if child.evaluator == "AcDiesel" {
-                let expr = child.code.trim().trim_start_matches("\\AcDiesel").trim();
-                let mut v = CellValue::text(expr);
-                v.flags = 2;
-                v.formatted_value.clear();
-                child_values.push(FieldChildValue {
-                    key: "DieselExpression".into(),
-                    value: v,
-                });
-            }
-            if child.evaluator.starts_with("AcObjProp") {
-                if let Some(&object) = child.objects.first() {
-                    let mut id = CellValue::new();
-                    id.value_type = CellValueType::Handle;
-                    id.raw_type_code = 0x40;
-                    id.handle_value = Some(object);
-                    id.flags = 2;
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyId".into(),
-                        value: id,
-                    });
-                }
-                if let Some(prop) = child
-                    .code
-                    .split(").")
-                    .nth(1)
-                    .and_then(|s| s.split([' ', '\\']).next())
-                {
-                    let mut v = CellValue::text(prop);
-                    v.flags = 2;
-                    v.formatted_value.clear();
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyName".into(),
-                        value: v,
-                    });
-                }
-            }
-            let shown = child.value.display().to_string();
-            let xdata = hyperlink_xdata(&child.code).unwrap_or_default();
-            all.push(Field {
-                handle: *handle,
-                owner: container,
-                // Pre-R2007 files keep the format on the field itself.
-                format: child.value.format.clone(),
-                evaluator_id: child.evaluator,
-                code: child.code,
-                referenced_objects: child.objects,
-                evaluation_option: child.evaluation_option,
-                state: 59,
-                evaluation_status: 2,
-                value: child.value,
-                value_string_length: shown.encode_utf16().count() as i32,
-                value_string: shown,
-                xdata,
-                child_values,
-                ..Field::default()
-            });
+            all.push(child_field(child, *handle, container));
         }
 
+        self.register_fields(all);
+
+        self.text_host(host, |common, text, _| {
+            common.xdictionary_handle = Some(xdict);
+            *text = display;
+        })?;
+        Some(container)
+    }
+
+    /// A field for a table cell: a `_text` container owned by the table
+    /// holding `children` (template `%<\_FldIdx n>%` markers), registered in
+    /// the FIELDLIST. The cell's content refers to the returned container.
+    /// `None` when a marker has no child.
+    pub fn new_table_cell_field(
+        &mut self,
+        table: Handle,
+        template: &str,
+        children: Vec<NewField>,
+    ) -> Option<Handle> {
+        let display = template_display(template, &children, false)?;
+        for (dxf, cpp) in [("FIELD", "AcDbField"), ("FIELDLIST", "AcDbFieldList")] {
+            if !self.classes.contains(dxf) {
+                let mut class = crate::classes::DxfClass::new(dxf, cpp);
+                class.proxy_flags = crate::classes::ProxyFlags(1152);
+                self.classes.add_or_update(class);
+            }
+        }
+        let container = self.allocate_handle();
+        let child_handles: Vec<Handle> = children.iter().map(|_| self.allocate_handle()).collect();
+        let mut checksum = CellValue::number(field_text_checksum(&display));
+        checksum.flags = 2;
+        checksum.formatted_value.clear();
+        let mut empty = CellValue::new();
+        empty.flags = 3;
+        let mut all = vec![Field {
+            handle: container,
+            owner: table,
+            evaluator_id: "_text".into(),
+            code: template.into(),
+            child_fields: child_handles.clone(),
+            evaluation_option: 63,
+            state: 13,
+            evaluation_status: 2,
+            value: empty,
+            child_values: vec![FieldChildValue {
+                key: "ACFD_FIELDTEXT_CHECKSUM".into(),
+                value: checksum,
+            }],
+            ..Field::default()
+        }];
+        for (child, handle) in children.into_iter().zip(&child_handles) {
+            all.push(child_field(child, *handle, container));
+        }
+        self.register_fields(all);
+        Some(container)
+    }
+
+    /// Add fields to the document and its FIELDLIST.
+    fn register_fields(&mut self, all: Vec<Field>) {
         let list = self.field_list_handle();
         if let Some(ObjectType::FieldList(l)) = self.objects.get_mut(&list) {
             l.fields.extend(all.iter().map(|f| f.handle));
@@ -2007,12 +2005,6 @@ impl CadDocument {
             );
             self.objects.insert(f.handle, ObjectType::Field(f));
         }
-
-        self.text_host(host, |common, text, _| {
-            common.xdictionary_handle = Some(xdict);
-            *text = display;
-        })?;
-        Some(container)
     }
 
     /// Detach the field from a text host, keeping its current text as plain
@@ -2144,6 +2136,95 @@ impl CadDocument {
         };
         let a = i.attributes.iter_mut().find(|a| a.common.handle == host)?;
         Some(f(&mut a.common, &mut a.value, TextHostKind::Attribute))
+    }
+}
+
+/// A child FIELD of `owner` (a `_text` container) from its description.
+fn child_field(child: NewField, handle: Handle, owner: Handle) -> Field {
+    let mut child_values = Vec::new();
+    if child.evaluator.starts_with("AcVar") {
+        if let Some(name) = code_word(&child.code, 1) {
+            // A hyperlink (`\href`) names no variable.
+            let name = if name.starts_with('\\') { "" } else { name };
+            let mut v = CellValue::text(name);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "Variable".into(),
+                value: v,
+            });
+        }
+    }
+    if child.evaluator == "AcDiesel" {
+        let expr = child.code.trim().trim_start_matches("\\AcDiesel").trim();
+        let mut v = CellValue::text(expr);
+        v.flags = 2;
+        v.formatted_value.clear();
+        child_values.push(FieldChildValue {
+            key: "DieselExpression".into(),
+            value: v,
+        });
+    }
+    if child.evaluator.starts_with("AcObjProp") {
+        if let Some(&object) = child.objects.first() {
+            let mut id = CellValue::new();
+            id.value_type = CellValueType::Handle;
+            id.raw_type_code = 0x40;
+            id.handle_value = Some(object);
+            id.flags = 2;
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyId".into(),
+                value: id,
+            });
+        }
+        if let Some(prop) = child
+            .code
+            .split(").")
+            .nth(1)
+            .and_then(|s| s.split([' ', '\\']).next())
+        {
+            let mut v = CellValue::text(prop);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyName".into(),
+                value: v,
+            });
+        }
+    }
+    if child.evaluator.starts_with("AcCount") {
+        // The count's JSON query, kept beside the code.
+        let body = child.code.trim().trim_start_matches('\\');
+        let json = body.split_once(char::is_whitespace).map(|(_, j)| j.trim()).unwrap_or("");
+        if !json.is_empty() {
+            let mut v = CellValue::text(json);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "CountJsonString".into(),
+                value: v,
+            });
+        }
+    }
+    let shown = child.value.display().to_string();
+    let xdata = hyperlink_xdata(&child.code).unwrap_or_default();
+    Field {
+        handle,
+        owner,
+        // Pre-R2007 files keep the format on the field itself.
+        format: child.value.format.clone(),
+        evaluator_id: child.evaluator,
+        code: child.code,
+        referenced_objects: child.objects,
+        evaluation_option: child.evaluation_option,
+        state: 59,
+        evaluation_status: 2,
+        value: child.value,
+        value_string_length: shown.encode_utf16().count() as i32,
+        value_string: shown,
+        xdata,
+        child_values,
+        ..Field::default()
     }
 }
 

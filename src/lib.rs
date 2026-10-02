@@ -160,6 +160,7 @@
 
 pub mod classes;
 pub mod compound_file;
+pub mod count;
 pub mod document;
 mod current_transparency;
 pub mod nested_copy;
