@@ -18,6 +18,13 @@ pub(crate) struct EncodedEmbeddedEntity {
     pub bytes: Vec<u8>,
 }
 
+/// Profile types the modeler stores as a wire body (2D and 3D polylines):
+/// the record carries a modeler block where other types carry a bit length
+/// and an entity body.
+pub(crate) fn is_body_profile(type_code: i32) -> bool {
+    type_code == common::OBJ_POLYLINE_2D as i32 || type_code == common::OBJ_POLYLINE_3D as i32
+}
+
 /// Compare meaningful body bits without interpreting unused final-byte bits.
 /// Byte-sized records may include up to seven zero padding bits, but an
 /// otherwise different native layout must retain its original opaque body.
@@ -307,6 +314,14 @@ pub(crate) fn encode_embedded_entity(
             writer.write_3bit_double(entity.base_point);
             writer.write_3bit_double(entity.direction);
             common::OBJ_XLINE
+        }
+        // Written by the surface writers; a body has no entity bits.
+        EmbeddedEntity::Body { type_code, .. } => {
+            return EncodedEmbeddedEntity {
+                type_code: *type_code,
+                bit_length: 0,
+                bytes: Vec::new(),
+            };
         }
         EmbeddedEntity::Unknown {
             type_code,

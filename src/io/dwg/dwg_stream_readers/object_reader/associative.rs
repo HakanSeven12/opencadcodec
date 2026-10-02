@@ -965,9 +965,24 @@ pub fn read_associative_data(
                 dependency,
                 class_version: reader.read_bit_short(),
                 enabled: reader.read_bit(),
-                persistent_subent: AssocPersistentSubentId {
-                    class_name: reader.read_variable_text(),
-                    dependent_on_compound_object: reader.read_bit(),
+                persistent_subent: {
+                    // Flag, class code, the class's fields, then the
+                    // compound-object bit, which ends the record.
+                    let leading_flag = reader.read_bit();
+                    let class_code = reader.read_bit_long();
+                    let mut values = Vec::new();
+                    while reader.main_remaining_bits() > 1 && values.len() < 64 {
+                        values.push(reader.read_bit_long());
+                    }
+                    AssocPersistentSubentId {
+                        class_name: AssocPersistentSubentId::class_name_for_code(class_code)
+                            .unwrap_or_default()
+                            .to_string(),
+                        dependent_on_compound_object: reader.read_bit(),
+                        class_code,
+                        values,
+                        leading_flag,
+                    }
                 },
             })
         }

@@ -1116,23 +1116,42 @@ impl<'a> SectionReader<'a> {
                     value: read_eval(&mut cursor),
                 })
             }
-            "ASSOCGEOMDEPENDENCY" => AssociativeData::GeomDependency(AssocGeomDependency {
-                dependency: read_dependency(&record),
-                class_version: record.i16("AcDbAssocGeomDependency", 90, 0),
-                enabled: record.bool("AcDbAssocGeomDependency", 290, 0),
-                persistent_subent: AssocPersistentSubentId {
-                    class_name: {
-                        let value = record.text("AcDbAssocPersSubentId", 1, 0);
-                        if value.is_empty() {
-                            record.text("AcDbAssocAsmBasedEntityPersSubentId", 1, 0)
-                        } else {
-                            value
-                        }
+            "ASSOCGEOMDEPENDENCY" => {
+                // 90 version, 290 enabled, then the subentity id: 1 class
+                // name, 90 fields, 290 compound-object bit. Older output of
+                // this crate put the id under an AcDbAssocPersSubentId marker.
+                let section = if record.sections.contains_key("AcDbAssocPersSubentId") {
+                    "AcDbAssocPersSubentId"
+                } else {
+                    "AcDbAssocGeomDependency"
+                };
+                let entries = record.sections.get(section).map(Vec::as_slice).unwrap_or_default();
+                let start = entries.iter().position(|(code, _)| *code == 1);
+                let class_name = start.map(|index| entries[index].1.clone()).unwrap_or_default();
+                let tail = start.map(|index| &entries[index + 1..]).unwrap_or_default();
+                let values = tail
+                    .iter()
+                    .take_while(|(code, _)| *code == 90)
+                    .map(|(_, value)| value.trim().parse().unwrap_or(0))
+                    .collect();
+                let dependent_on_compound_object = tail
+                    .iter()
+                    .find(|(code, _)| *code == 290)
+                    .is_some_and(|(_, value)| value.trim() != "0");
+                AssociativeData::GeomDependency(AssocGeomDependency {
+                    dependency: read_dependency(&record),
+                    class_version: record.i16("AcDbAssocGeomDependency", 90, 0),
+                    enabled: record.bool("AcDbAssocGeomDependency", 290, 0),
+                    persistent_subent: AssocPersistentSubentId {
+                        class_code: AssocPersistentSubentId::code_for_class_name(&class_name)
+                            .unwrap_or(0),
+                        class_name,
+                        dependent_on_compound_object,
+                        values,
+                        leading_flag: false,
                     },
-                    dependent_on_compound_object: record.bool("AcDbAssocPersSubentId", 290, 0)
-                        || record.bool("AcDbAssocAsmBasedEntityPersSubentId", 290, 0),
-                },
-            }),
+                })
+            }
             "ASSOCACTION" => AssociativeData::Action(read_action(&record)),
             "ASSOCNETWORK" => {
                 let mut cursor = AssocCursor::new(&record, "AcDbAssocNetwork");

@@ -9913,20 +9913,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 sweep_transform,
             } => {
                 self.writer.write_subclass("AcDbExtrudedSurface")?;
-                let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
-                    .unwrap_or(crate::io::dwg::DwgVersion::AC24);
                 if let Some(entity) = sweep_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(90, encoded.type_code)?;
-                    self.writer
-                        .write_i32(90, (encoded.bytes.len() * 8) as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(90, entity, false)?;
                 } else {
                     self.writer.write_i32(90, 0)?;
                     self.writer.write_i32(90, 0)?;
@@ -9963,8 +9951,6 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for value in loft_transform {
                     self.writer.write_double(40, *value)?;
                 }
-                let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
-                    .unwrap_or(crate::io::dwg::DwgVersion::AC24);
                 let resolve_inputs = |embedded: &[EmbeddedEntity], handles: &[Handle]| {
                     if embedded.is_empty() {
                         handles
@@ -9982,40 +9968,13 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     path_curve.and_then(|handle| self.loft_input_entities.get(&handle).cloned())
                 });
                 for entity in &section_entities {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(90, encoded.type_code)?;
-                    self.writer.write_i32(90, encoded.bit_length as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(90, entity, true)?;
                 }
                 for entity in &guide_entities {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(91, encoded.type_code)?;
-                    self.writer.write_i32(90, encoded.bit_length as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(91, entity, true)?;
                 }
                 if let Some(entity) = &path_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(92, encoded.type_code)?;
-                    self.writer.write_i32(90, encoded.bit_length as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(92, entity, true)?;
                 }
                 self.writer
                     .write_i16(70, *plane_normal_lofting_type as i16)?;
@@ -10049,20 +10008,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 close_to_axis,
             } => {
                 self.writer.write_subclass("AcDbRevolvedSurface")?;
-                let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
-                    .unwrap_or(crate::io::dwg::DwgVersion::AC24);
                 if let Some(entity) = revolve_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(90, encoded.type_code)?;
-                    self.writer
-                        .write_i32(90, (encoded.bytes.len() * 8) as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(90, entity, false)?;
                 } else {
                     self.writer.write_i32(90, *class_version)?;
                     self.writer.write_i32(90, *entity_id)?;
@@ -10090,38 +10037,16 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 options,
             } => {
                 self.writer.write_subclass("AcDbSweptSurface")?;
-                let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
-                    .unwrap_or(crate::io::dwg::DwgVersion::AC24);
                 // The reference application starts with the profile type;
                 // the class version is not written to DXF.
                 if let Some(entity) = sweep_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(90, encoded.type_code)?;
-                    self.writer
-                        .write_i32(90, (encoded.bytes.len() * 8) as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(90, entity, false)?;
                 } else {
                     self.writer.write_i32(90, 0)?;
                     self.writer.write_i32(90, 0)?;
                 }
                 if let Some(entity) = path_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        dwg_version,
-                        self.dxf_version,
-                    );
-                    self.writer.write_i32(91, encoded.type_code)?;
-                    self.writer
-                        .write_i32(90, (encoded.bytes.len() * 8) as i32)?;
-                    for chunk in encoded.bytes.chunks(127) {
-                        self.writer.write_binary(310, chunk)?;
-                    }
+                    self.write_surface_profile(91, entity, false)?;
                 } else {
                     self.writer.write_i32(91, 0)?;
                     self.writer.write_i32(90, 0)?;
@@ -10191,6 +10116,44 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     ///
     /// When only SAB binary data is present (no SAT text), attempts to
     /// convert via `SabReader` before falling back to an empty entry.
+    /// One profile of a surface record: the type under `type_group`, then
+    /// the body bit length and chunks; a polyline the modeler keeps as a body
+    /// writes the SAT version (1) and the encrypted SAT text instead.
+    fn write_surface_profile(
+        &mut self,
+        type_group: i32,
+        entity: &EmbeddedEntity,
+        exact_bits: bool,
+    ) -> Result<()> {
+        if let EmbeddedEntity::Body {
+            type_code,
+            acis_data,
+        } = entity
+        {
+            self.writer.write_i32(type_group, *type_code)?;
+            self.writer.write_i16(70, 1)?;
+            return self.write_acis_data(acis_data);
+        }
+        let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)
+            .unwrap_or(crate::io::dwg::DwgVersion::AC24);
+        let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
+            entity,
+            dwg_version,
+            self.dxf_version,
+        );
+        let bit_length = if exact_bits {
+            encoded.bit_length
+        } else {
+            encoded.bytes.len() * 8
+        };
+        self.writer.write_i32(type_group, encoded.type_code)?;
+        self.writer.write_i32(90, bit_length as i32)?;
+        for chunk in encoded.bytes.chunks(127) {
+            self.writer.write_binary(310, chunk)?;
+        }
+        Ok(())
+    }
+
     fn write_acis_data(&mut self, acis: &AcisData) -> Result<()> {
         let converted;
         let data: &str = if acis.sat_data.is_empty() && !acis.sab_data.is_empty() {

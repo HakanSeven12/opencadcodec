@@ -18698,6 +18698,19 @@ impl<'a> SectionReader<'a> {
         // Native loft input records use 90/91/92 for section/guide/path
         // entity types, then 90 for bit length and 310 for body chunks.
         let mut loft_entities: Vec<(i32, i32, usize, Vec<u8>)> = Vec::new();
+        // A polyline profile is kept as a modeler body: after its type come
+        // the SAT version (70) and the encrypted SAT text (1/3) instead of a
+        // bit length and chunks.
+        let mut loft_sat: Vec<String> = Vec::new();
+        let mut loft_body = false;
+        let mut sweep_sat = String::new();
+        let mut path_sat = String::new();
+        let add_sat = |text: &mut String, code: i32, value: &str| {
+            if code == 1 && !text.is_empty() {
+                text.push('\n');
+            }
+            text.push_str(value);
+        };
         let mut loft_expecting_length = false;
         let mut loft_options_seen = false;
         let mut proxy_graphics_size = 0usize;
@@ -18770,6 +18783,10 @@ impl<'a> SectionReader<'a> {
                         sweep_entity_type = pair.as_i32().unwrap_or(0);
                         swept_binary_target = 1;
                     }
+                    70 if swept_binary_target == 1 => swept_binary_target = 5,
+                    1 | 3 if swept_binary_target == 5 => {
+                        add_sat(&mut sweep_sat, pair.code, &pair.value_string)
+                    }
                     90 => {
                         sweep_entity_bits = pair.as_i32().unwrap_or(0).max(0) as usize;
                         swept_binary_target = 2;
@@ -18830,9 +18847,20 @@ impl<'a> SectionReader<'a> {
                         }
                         loft_expecting_length = false;
                     }
+                    70 if loft_expecting_length => {
+                        loft_expecting_length = false;
+                        loft_body = true;
+                    }
+                    1 | 3 if loft_body => {
+                        if let Some(text) = loft_sat.last_mut() {
+                            add_sat(text, pair.code, &pair.value_string);
+                        }
+                    }
                     90..=92 if !loft_options_seen => {
                         loft_entities.push((pair.code, pair.as_i32().unwrap_or(0), 0, Vec::new()));
+                        loft_sat.push(String::new());
                         loft_expecting_length = true;
+                        loft_body = false;
                     }
                     310 if !loft_options_seen => {
                         if let Some((_, _, _, bytes)) = loft_entities.last_mut() {
@@ -18841,6 +18869,7 @@ impl<'a> SectionReader<'a> {
                     }
                     70 => {
                         loft_options_seen = true;
+                        loft_body = false;
                         *plane_normal_lofting_type = pair.as_i32().unwrap_or(0)
                     }
                     41 => *start_draft_angle = pair.as_double().unwrap_or(0.0),
@@ -18891,6 +18920,10 @@ impl<'a> SectionReader<'a> {
                         sweep_entity_type = pair.as_i32().unwrap_or(0);
                         swept_binary_target = 1;
                     }
+                    70 if swept_binary_target == 1 => swept_binary_target = 5,
+                    1 | 3 if swept_binary_target == 5 => {
+                        add_sat(&mut sweep_sat, pair.code, &pair.value_string)
+                    }
                     90 => {
                         sweep_entity_bits = pair.as_i32().unwrap_or(0).max(0) as usize;
                         swept_binary_target = 2;
@@ -18930,6 +18963,21 @@ impl<'a> SectionReader<'a> {
                     // the first body chunk or the path type arrives.
                     90 if swept_binary_target == 0 && swept_lead.len() < 3 => {
                         swept_lead.push(pair.as_i32().unwrap_or(0));
+                    }
+                    70 if swept_binary_target == 0 && !swept_lead.is_empty() => {
+                        sweep_entity_type = swept_lead.pop().unwrap_or(0);
+                        if let Some(version) = swept_lead.first() {
+                            *class_version = *version;
+                        }
+                        swept_lead.clear();
+                        swept_binary_target = 5;
+                    }
+                    70 if swept_binary_target == 3 => swept_binary_target = 6,
+                    1 | 3 if swept_binary_target == 5 => {
+                        add_sat(&mut sweep_sat, pair.code, &pair.value_string)
+                    }
+                    1 | 3 if swept_binary_target == 6 => {
+                        add_sat(&mut path_sat, pair.code, &pair.value_string)
                     }
                     310 | 91 if swept_binary_target == 0 => {
                         let lead = std::mem::take(&mut swept_lead);
@@ -19028,6 +19076,12 @@ impl<'a> SectionReader<'a> {
             AcisVersion::Version1
         };
 
+        let body_profile = |type_code: i32, sat: &str| {
+            (!sat.is_empty()).then(|| EmbeddedEntity::Body {
+                type_code,
+                acis_data: AcisData::from_sat(&AcisData::decode_sat_binary(sat)),
+            })
+        };
         let fill_matrix = |target: &mut [f64; 16], values: &[f64]| {
             for (to, from) in target.iter_mut().zip(values.iter()) {
                 *to = *from;
@@ -19042,13 +19096,15 @@ impl<'a> SectionReader<'a> {
             } => {
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                *sweep_entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                    sweep_entity_type,
-                    sweep_entity_bits,
-                    sweep_data,
-                    dwg_version,
-                    dxf_version,
-                );
+                *sweep_entity = body_profile(sweep_entity_type, &sweep_sat).or_else(|| {
+                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                        sweep_entity_type,
+                        sweep_entity_bits,
+                        sweep_data,
+                        dwg_version,
+                        dxf_version,
+                    )
+                });
                 *sweep_vector = point_10.get_point().unwrap_or(Vector3::ZERO);
                 options.reference_vector = point_11.get_point().unwrap_or(Vector3::UNIT_Z);
                 fill_matrix(sweep_transform, &matrix);
@@ -19068,17 +19124,22 @@ impl<'a> SectionReader<'a> {
                 fill_matrix(loft_transform, &matrix);
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                for (group, entity_type, bit_length, bytes) in loft_entities {
-                    if bytes.len() < bit_length.div_ceil(8) {
+                for ((group, entity_type, bit_length, bytes), sat) in
+                    loft_entities.into_iter().zip(loft_sat)
+                {
+                    let body = body_profile(entity_type, &sat);
+                    if body.is_none() && bytes.len() < bit_length.div_ceil(8) {
                         continue;
                     }
-                    if let Some(entity) = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                        entity_type,
-                        bit_length,
-                        bytes,
-                        dwg_version,
-                        dxf_version,
-                    ) {
+                    if let Some(entity) = body.or_else(|| {
+                        crate::io::dwg::embedded_entity::decode_embedded_entity(
+                            entity_type,
+                            bit_length,
+                            bytes,
+                            dwg_version,
+                            dxf_version,
+                        )
+                    }) {
                         match group {
                             90 => cross_section_entities.push(entity),
                             91 => guide_entities.push(entity),
@@ -19104,7 +19165,9 @@ impl<'a> SectionReader<'a> {
                 entity_transform,
                 ..
             } => {
-                if sweep_data.is_empty() {
+                if let Some(body) = body_profile(sweep_entity_type, &sweep_sat) {
+                    *revolve_entity = Some(body);
+                } else if sweep_data.is_empty() {
                     *class_version = sweep_entity_type;
                     *entity_id = sweep_entity_bits as i32;
                 } else {
@@ -19132,20 +19195,24 @@ impl<'a> SectionReader<'a> {
             } => {
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                *sweep_entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                    sweep_entity_type,
-                    sweep_entity_bits,
-                    sweep_data,
-                    dwg_version,
-                    dxf_version,
-                );
-                *path_entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                    path_entity_type,
-                    path_entity_bits,
-                    path_data,
-                    dwg_version,
-                    dxf_version,
-                );
+                *sweep_entity = body_profile(sweep_entity_type, &sweep_sat).or_else(|| {
+                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                        sweep_entity_type,
+                        sweep_entity_bits,
+                        sweep_data,
+                        dwg_version,
+                        dxf_version,
+                    )
+                });
+                *path_entity = body_profile(path_entity_type, &path_sat).or_else(|| {
+                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                        path_entity_type,
+                        path_entity_bits,
+                        path_data,
+                        dwg_version,
+                        dxf_version,
+                    )
+                });
                 fill_matrix(sweep_transform, &matrix);
                 fill_matrix(path_transform, &path_matrix);
                 options.reference_vector = point_11.get_point().unwrap_or(Vector3::UNIT_Z);

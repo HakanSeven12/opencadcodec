@@ -737,10 +737,16 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_assoc_dependency(&value.dependency);
                 self.writer.write_bit_short(value.class_version);
                 self.writer.write_bit(value.enabled);
-                self.writer
-                    .write_variable_text(&value.persistent_subent.class_name);
-                self.writer
-                    .write_bit(value.persistent_subent.dependent_on_compound_object);
+                let subent = &value.persistent_subent;
+                self.writer.write_bit(subent.leading_flag);
+                self.writer.write_bit_long(
+                    AssocPersistentSubentId::code_for_class_name(&subent.class_name)
+                        .unwrap_or(subent.class_code),
+                );
+                for item in &subent.values {
+                    self.writer.write_bit_long(*item);
+                }
+                self.writer.write_bit(subent.dependent_on_compound_object);
             }
             AssociativeData::SurfaceActionBody(value) => self.write_assoc_surface(value),
             AssociativeData::Action(value) => self.write_assoc_action(value),

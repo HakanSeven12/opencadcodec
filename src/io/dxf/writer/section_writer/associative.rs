@@ -775,11 +775,19 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_subclass("AcDbAssocGeomDependency")?;
                 self.writer.write_i16(90, value.class_version)?;
                 self.writer.write_bool(290, value.enabled)?;
-                self.writer.write_subclass("AcDbAssocPersSubentId")?;
+                let subent = &value.persistent_subent;
+                let class_name = if subent.class_name.is_empty() {
+                    AssocPersistentSubentId::class_name_for_code(subent.class_code)
+                        .unwrap_or_default()
+                } else {
+                    subent.class_name.as_str()
+                };
+                self.writer.write_string(1, class_name)?;
+                for item in &subent.values {
+                    self.writer.write_i32(90, *item)?;
+                }
                 self.writer
-                    .write_string(1, &value.persistent_subent.class_name)?;
-                self.writer
-                    .write_bool(290, value.persistent_subent.dependent_on_compound_object)?;
+                    .write_bool(290, subent.dependent_on_compound_object)?;
             }
             AssociativeData::SurfaceActionBody(value) => self.write_assoc_surface(value)?,
             AssociativeData::Action(value) => self.write_assoc_action(value)?,

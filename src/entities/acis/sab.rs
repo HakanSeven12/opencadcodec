@@ -233,6 +233,18 @@ impl SabWriter {
         let tokens = if base_entity_type(&record.entity_type) == "face" {
             contextual = Self::encode_face_boolean_roles(&record.tokens);
             &contextual
+        } else if base_entity_type(&record.entity_type) == "wire" {
+            // The wire side is TRUE for "out", unlike the generic mapping.
+            contextual = record
+                .tokens
+                .iter()
+                .map(|token| match token.as_ident() {
+                    Some("out") => SatToken::True,
+                    Some("in") => SatToken::False,
+                    _ => token.clone(),
+                })
+                .collect();
+            &contextual
         } else if matches!(
             record.entity_type.as_str(),
             "intcurve-curve" | "spline-surface" | "pcurve"
@@ -456,7 +468,7 @@ impl SabWriter {
             return;
         }
         match name {
-            "full" | "open" | "none" | "closed" | "periodic" => {
+            "full" | "open" | "none" | "closed" | "periodic" | "UNEXTENDED" => {
                 let value: i32 = match name {
                     "closed" => 1,
                     "periodic" => 2,
@@ -528,6 +540,11 @@ impl SabWriter {
             if matches!(token.as_ident(), Some("nurbs" | "nubs")) {
                 let previous = index.checked_sub(1).and_then(|i| tokens[i].as_ident());
                 let parent = index.checked_sub(2).and_then(|i| tokens[i].as_ident());
+                // ShapeManager curves write `exact_int_cur <version> full`.
+                let parent = match subtypes.last() {
+                    Some(Some("exact_int_cur")) => Some("exactcur"),
+                    _ => parent,
+                };
                 let dimensions = match (parent, previous) {
                     (Some("exactcur"), Some("full")) => Some((3, false)),
                     (Some("exactsur"), Some("full")) => Some((3, true)),
@@ -556,10 +573,13 @@ impl SabWriter {
                 && index + 1 < tokens.len()
                 && matches!(
                     subtypes.last(),
-                    None | Some(Some("exactcur" | "exactsur" | "exppc"))
+                    None | Some(Some("exactcur" | "exact_int_cur" | "exactsur" | "exppc"))
                 )
             {
                 doubles.push(index + 1);
+            }
+            if token.as_ident() == Some("UNEXTENDED") && !subtypes.is_empty() {
+                enums.push(index);
             }
             // An explicit pcurve ends with an inline analytic support surface.
             // All numbers in that geometry (including bounded intervals) are doubles.
@@ -587,7 +607,7 @@ impl SabWriter {
             if let SatToken::Ident(name) = &result[index] {
                 if matches!(
                     name.as_str(),
-                    "full" | "open" | "closed" | "periodic" | "none"
+                    "full" | "open" | "closed" | "periodic" | "none" | "UNEXTENDED"
                 ) {
                     result[index] = SatToken::Enum(name.clone());
                 }
@@ -956,6 +976,7 @@ impl SabReader {
         //   surface: sense (forward_v/reversed_v), bounds (I/F)
         for record in &mut records {
             convert_sab_booleans(&record.entity_type, &mut record.tokens);
+            name_curve_enums(&mut record.tokens);
         }
 
         Ok((SatDocument { header, records }, pos))
@@ -1162,6 +1183,64 @@ impl SabReader {
 // SAB boolean → SAT keyword conversion
 // ============================================================================
 
+/// Name the enumeration tags of an exact spline curve the way SAT text
+/// writes them: `exact_int_cur <version> full nubs <degree> open ...
+/// UNEXTENDED UNEXTENDED }` (completeness, closure, then the two end
+/// extensions). Values not seen in reference output stay numeric.
+fn name_curve_enums(tokens: &mut [SatToken]) {
+    let mut depth = 0usize;
+    let mut role = None;
+    for index in 0..tokens.len() {
+        match tokens[index].as_ident() {
+            Some("{") => {
+                depth += 1;
+                if matches!(
+                    tokens.get(index + 1).and_then(SatToken::as_ident),
+                    Some("exactcur" | "exact_int_cur")
+                ) && depth == 1
+                {
+                    role = Some(0);
+                }
+                continue;
+            }
+            Some("}") => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    role = None;
+                }
+                continue;
+            }
+            Some("nubs" | "nurbs") if role == Some(1) => {
+                role = Some(2);
+                continue;
+            }
+            _ => {}
+        }
+        // Only the curve's own fields; nested subtypes keep their values.
+        if depth != 1 {
+            continue;
+        }
+        let (Some(current), SatToken::Sab { tag: 0x15, data }) = (role, &tokens[index]) else {
+            continue;
+        };
+        let value = data
+            .get(..4)
+            .map(|bytes| i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
+        let name = match (current, value) {
+            (0, Some(0)) => Some("full"),
+            (2, Some(0)) => Some("open"),
+            (2, Some(1)) => Some("closed"),
+            (2, Some(2)) => Some("periodic"),
+            (3.., Some(0)) => Some("UNEXTENDED"),
+            _ => None,
+        };
+        if let Some(name) = name {
+            tokens[index] = SatToken::Enum(name.to_string());
+        }
+        role = Some(current + 1);
+    }
+}
+
 /// Convert SAB TRUE/FALSE tokens to ACIS SAT keywords based on entity context.
 ///
 /// SAB binary uses generic TRUE(0x0B)/FALSE(0x0A) tags for all boolean fields.
@@ -1246,6 +1325,18 @@ fn convert_sab_booleans(entity_type: &str, tokens: &mut Vec<SatToken>) {
                     }
                 };
                 tokens[index] = SatToken::Ident(name.to_string());
+            }
+        }
+        "wire" => {
+            // wire: ... $shell $subshell side #. TRUE is "out", as in the
+            // reference application's SAT text of a polyline profile body.
+            if let Some(token) = tokens
+                .iter_mut()
+                .rev()
+                .find(|token| matches!(token, SatToken::True | SatToken::False))
+            {
+                let out = matches!(token, SatToken::True);
+                *token = SatToken::Enum(if out { "out" } else { "in" }.to_string());
             }
         }
         "coedge" => {
