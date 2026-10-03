@@ -92,9 +92,10 @@
 # 2026-10-02 addenda bottom-up (the authoring-wave handover — the
 # maintainer's next fixture
 # drop — then the B5 closure, then the A8 closure, then the
-# SweepSurf landing), then TODO.md's distilled
-# queue (A5-A9/B6/C4 — the carry-overs formalized, B5/A8/B4 marked
-# closed/falsified, A9 the era-census residue, C4 the golden campaign),
+# SweepSurf landing), then TODO.md (REWRITTEN 2026-10-03 in plain
+# prose: the open items A4-A9, the maintainer decisions C1-C3, the
+# guardrails D; the finished items B3/B4/B5/B6/C4 removed to a
+# closed-list in its preface),
 # then
 # the sixteenth addendum's record (and the
 # seventeenth continuation), then the
