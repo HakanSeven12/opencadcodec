@@ -1131,6 +1131,11 @@ def normalize_silver(
         # comparison payload on any entity type. A captured value rides
         # these keys on every DWG read; popping them loop-universal
         # keeps the read-axis comparison to semantic structure.
+        # The spline's wire scenario BL feeds the semantic `scenario`
+        # projection (gold dwg.spec 2571: the BL stands pre-R2013; the
+        # R2013b decoder re-derives) — stash it before the pop; the raw
+        # key itself never compares.
+        _spline_wire_scenario = payload.get("dwg_wire_scenario")
         for _wk in ("dwg_wire_scenario",
                     "dwg_wire_text",
                     "wire_main", "wire_main_bit_len",
@@ -2286,17 +2291,36 @@ def normalize_silver(
                 fields["flip_arrow1"] = 1 if dim.get("flip_arrow1") else 0
                 fields["flip_arrow2"] = 1 if dim.get("flip_arrow2") else 0
             fb = dim.get("dwg_flags_byte", 0)
+            # Gold's DIMENSION_COMMON DECODER (dwg.spec 1612-1624) derives
+            # the 70-flag from the wire flag1 RC: keep flag1's own high
+            # bits (0xE0), bit 7 (user-positioned text) is the INVERSE of
+            # flag1 bit 0, bit 5 (use-block) comes from flag1 bit 1, then
+            # the fixed dimension type's low bits are OR'd in. Verified on
+            # the b6 DimConstr quads: her flag1=10 -> 0xA0=160 (the
+            # DCLINEAR-placed text position sets bit 7); the old
+            # special-case projection (32 for every linear, 128 hardcoded
+            # on Ordinate/Diameter/Radius) dropped the bit-7 derivation.
             flag = {"Aligned": 1, "Angular2Ln": 2, "Diameter": 3, "Radius": 4,
                     "Arc": 5, "Angular3Pt": 5, "Ordinate": 6, "Linear": 0}.get(kind, 0)
-            if isinstance(fb, int) and (fb & 2):
-                # verified corpus-wide: the wire's flag1 bit 1 carries the
-                # dimension's 32-flag bit (has-block class records)
-                flag |= 32
+            if isinstance(fb, int):
+                flag |= (fb & 0xE0)
+                if fb & 1:
+                    flag &= 0x7F
+                else:
+                    flag |= 0x80
+                if fb & 2:
+                    flag |= 0x20
+                else:
+                    flag &= 0xDF
             if kind == "Ordinate":
+                # Gold dwg.spec 1729 (DIMENSION_ORDINATE DECODER): the
+                # per-kind flag2 RC sets bit 7 (X-type — silver's
+                # is_ordinate_type_x, read as flag2 == 1) or clears bit
+                # 6, applied AFTER the common flag1 derivation.
                 if dim.get("is_ordinate_type_x"):
-                    flag |= 128
-            elif kind in ("Diameter", "Radius"):
-                flag |= 128
+                    flag |= 0x80
+                else:
+                    flag &= 0xBF
             fields["flag"] = flag
             fields["flag1"] = fb
             fields["user_text"] = dim.get("text", "") or ""
@@ -3304,8 +3328,24 @@ def normalize_silver(
             rational = bool(fl.get("rational")) if isinstance(fl, dict) else False
             weighted = bool(fl.get("weighted")) if isinstance(fl, dict) else False
             kp = payload.get("knot_parameterization")
-            # scenario: 1 = spline (knotparam==15), 2 = bezier.
-            scenario = 1 if kp == 15 else 2
+            # Gold dwg.spec 2571 (SPLINE): the scenario BL is read on every
+            # version and STANDS pre-R2013 (the UNTIL(R_2013) decoder only
+            # validates 1/2); the R2013b+ decoder re-derives it —
+            # splineflags bit 0 -> 2, knotparam 15 -> 1. Silver's reader
+            # retains the wire BL as dwg_wire_scenario (34c75d0); project
+            # from it, then apply the R2013b overrides. The old
+            # unconditional `1 if kp == 15 else 2` mis-scenario'd every
+            # pre-2013 CV-form spline as 2 (the b6 ConstrSmooth_2010
+            # specimen: wire scenario 1, gold 1, old projection 2 with the
+            # whole knots/ctrl_pts block dropped).
+            ws = _spline_wire_scenario
+            scenario = ws if isinstance(ws, int) else (1 if kp == 15 else 2)
+            if r2013_plus:
+                df1 = payload.get("dwg_flags1")
+                if isinstance(df1, int) and (df1 & 1):
+                    scenario = 2
+                if isinstance(kp, int) and kp == 15:
+                    scenario = 1
             fields["scenario"] = scenario
             # knotparam + splineflags are R2013+ only (dwg.spec 2588-2590).
             if r2013_plus:

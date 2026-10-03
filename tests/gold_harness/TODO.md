@@ -257,10 +257,24 @@ curve kind (circle→11, ellipse→17, line→23, spline→42, pline→47),
 stable across every measured era (all four versions of every quad).
 Any future specimen rides the capture+replay net
 from day one, so the modeling packet is pure upside when one surfaces.
-Remaining candidate routes: constraint-network edge params (the
-GCONSTRAIN/DIMCONSTRAINT associative networks), infinite-line
-geometry (XLINE/RAY), era conversions of an existing carrier (weak:
-the kind is era-stable in every measured quad).
+**The 2026-10-03 b6_routes review measured every remaining route
+dead**: the constraint-network probes (DimConstr — the dimensional
+DCLINEAR/DCRADIUS network; GConstrNet — tangent/parallel; ConstrSmooth
+— GCSMOOTH between two 2D splines, the strongest kind-27 candidate;
+GConstrXline — an XLINE in a GCPARALLEL/GCPERPENDICULAR network, the
+kind-19 candidate) ALL produce **zero EdgeActionParam records** —
+their ASSOC class lists carry only NETWORK/2DCONSTRAINTGROUP/
+GEOMDEPENDENCY (+ the dimensional family's DIMDEPENDENCYBODY/
+VALUEDEPENDENCY/VARIABLE); the infinite-line routes are REFUSED by
+geometry (SweepSurfXline/Ray: "This entity cannot be a sweeping
+path") and the 3D-curve constraint route by the manager's own domain
+(ConstrHelix: the picker accepts "line/straight polyline segment/arc/
+curved polyline segment" only). **19/27 remain attested nowhere;
+B6 is the pure watch** — no authoring route exists on this toolchain;
+the one weak remaining candidate is an era conversion of an existing
+carrier (the kind is era-stable in every measured quad). Sources: the
+b6_routes companions (the refusal records verbatim); the 2026-10-03
+b6 review (NEXT_SESSION.md's era-census addendum, the b6 paragraph).
 
 **The concrete specimen recipes (the 2026-10-02 consult; author at
 2010/2013/2018 — the constraint-manager eras — or 2007+ for the

@@ -3932,22 +3932,55 @@ constructed canonical never reads, so every new gate falls back
 to the modeled emission, and the BS count forms coincide
 bit-for-bit below 256).
 
-THE b6_routes DROP IS IN FLIGHT (the maintainer's notice, standing
-at this halt): 13 DWGs observed mid-session (DimConstr ×3,
-GConstrNet ×3, GConstrXline ×3, SweepSurfArc ×4) plus the
-SweepSurfXline/Ray/ConstrHelix authoring scripts whose DWGs are
-absent — the companions record the XLINE/RAY sweep REFUSALS (the
-negative datum: the infinite-line path yields no surface at all)
-and the arc route completing with SWEPTSURFACE +
-ASSOCPATHACTIONPARAM. The mid-flight corpus snapshot read the
-partial drop: the three DimConstr files carry 1/1 fidelity rows
-each (the +3 in the 411-file snapshot) — every other partial-drop
-file 0/0, and THE ESTABLISHED 401-FILE CORPUS UNMOVED (8/8
-exactly the pre-existing rows, verified from the same report).
-THE ON-LANDING REVIEW BATTERY (gold qualification, the 19/27
-subcurve census, per-file pairs, the companions) RUNS ON THE
-MAINTAINER'S COMPLETION NOTICE — the partial numbers are
-provisional until then.
+THE b6_routes DROP IS REVIEWED (2026-10-03, the maintainer's
+completion notice; SweepSurfArc ×4 EXCLUDED — the family was in
+rebuild at review time, its re-verify belongs to the next halt):
+19 DWGs observed (ConstrSmooth ×3, DimConstr ×3, GConstrNet ×3,
+GConstrXline ×3 — the stable twelve — plus the rebuilding
+SweepSurfArc ×4) and three recorded REFUSALS (SweepSurfXline/
+SweepSurfRay: "This entity cannot be a sweeping path" — the
+infinite-line sweep route closed on both classes; ConstrHelix:
+the 2D constraint manager's picker accepts "line/straight
+polyline segment/arc/curved polyline segment" only — the 3D-
+curve route closed). THE 19/27 DATUM: the constraint-network
+routes produce NO EdgeActionParam records at all — the ASSOC
+class lists carry only NETWORK/2DCONSTRAINTGROUP/GEOMDEPENDENCY
+(+ the dimensional family's DIMDEPENDENCYBODY/VALUEDEPENDENCY/
+VARIABLE) — kinds 19/27 remain ATTESTED NOWHERE, every route in
+the trimmed list now measured; B6 is the pure watch (the
+capture+replay net keeps any future specimen safe from day one).
+THE REVIEW'S TWO NORMALIZER FIXES (both faithful projections of
+gold's own decode, found in gold's spec source — the review
+battery's real yield): (a) THE DIMENSION FLAG FORMULA (dwg.spec
+1612-1624 + the ordinate's own 1729): the 70-flag is DERIVED from
+the wire flag1 RC — bit 7 the inverse of flag1 bit 0 (user-
+positioned text), bit 5 from flag1 bit 1 (use-block), the type's
+low bits OR'd — plus the ordinate's flag2 RC rule (bit 0 → set
+0x80, else clear 0x40). The old projection hardcoded 32/128 on
+the special kinds and dropped the bit-7 derivation — the b6
+DimConstr quads (DCLINEAR with a user-placed dim line: flag1=10
+→ gold 160 vs our 32) exposed it; the first fix attempt
+regressed the corpus ordinates (gold 166 = flag2-X|block|6) and
+pinned the flag2 rule — the complete formula verified. (b) THE
+SPLINE SCENARIO PROJECTION (dwg.spec 2571): the wire scenario BL
+STANDS pre-R2013 (the UNTIL(R_2013) decoder only validates); the
+R2013b decoder re-derives (splineflags bit 0 → 2, knotparam 15 →
+1). The old unconditional `1 if kp == 15 else 2` mis-scenario'd
+every pre-2013 CV-form spline as 2 (ConstrSmooth_2010: wire
+scenario 1, gold 1, old 2 with the whole knots/ctrl_pts block
+dropped); the fix projects from the reader's retained wire BL
+(stashed before the loop-universal wire-channel pop) with the
+R2013b overrides on top. ACCEPTANCE: the stable twelve ALL 0/0
+read/write (GConstrNet ×3, GConstrXline ×3 clean on landing;
+DimConstr ×3, ConstrSmooth ×3 clean after the fixes); gold
+qualification all pass (rc=0, zero Error lines); the companions
+verified. THE CORPUS GATE (the zero-keeping rule — both
+projections touch every dimension and spline corpus-wide): 421
+files at the recorded 8/8 fidelity + 6 read key-gaps + 0 write
+key-gaps — NOTHING moved; genus 3/1/0 PENDING-ZERO with
+--strict. The fixture files themselves stay UNTRACKED until the
+SweepSurfArc rebuild completes — the drop's own commit lands with
+its re-review at the next halt.
 
 The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
