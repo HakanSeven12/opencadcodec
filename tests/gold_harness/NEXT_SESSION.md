@@ -4201,13 +4201,32 @@ Insert/LWPolyline ALL 0/0 — the golden R13 residue is THE ACIS
 CLASS ONLY (Region/Solid3d's acis_data — the era-modeler SAT
 re-serialization, the Brep dataset's own recorded class).
 
-THE BATTERY at this halt (the eighth packet in): the suite 1,618/0
+(9) THE SEQEND PLOTSTYLE HANDLE (the loop cycle's packet — the
+golden R2004+ polylines' 8 one-row class): gold's golden-file
+SEQENDs carry `plotstyle: [5, 1, 236, 236]` — the code-5 handle
+TARGETING THE MATERIAL OBJECT — with plotstyle_flags == 3 (gold
+common_entity_handle_data.spec 137: the handle is pulled when the
+flags say 3), where the example corpus's SEQENDs carry the null
+[5,0,0,0] ref. THE TARGET IS PER-RECORD AUTHOR DATA. THE FIX (the
+seqend_flags tuple extension): the builder's OBJ_SEQEND capture
+gains the plotstyle handle (the tuple now (flags, shadow, iblt,
+handle)); the five poly-family models gain
+`seqend_plotstyle_handle` (serde-default); the writer's four
+seqend call sites pass the captured handle (None keeps the null
+ref — the example corpus behavior); the normalizer emits the
+captured handle in the synthesized SEQEND kid. ACCEPTANCE: the
+golden Polyline2D/Polyline3D quads at AC1021/AC1024/AC1027/AC1032
+ALL 0/0 (was 1/1 each); the example corpus regression-checked
+(circle/e2000 0/0; e2004/e2010/e2018 at the recorded LIGHT 1/1).
+
+THE BATTERY at this halt (the ninth packet in): the suite 1,618/0
 (the three deep-roundtrip tests' allowances extended — the
-seqend_isbylayerlt/wire_* captures are read-side legitimate: the
+seqend_isbylayerlt/seqend_plotstyle_handle/wire_* captures are
+read-side legitimate: the
 constructed defaults vs the read-back's derived values — the
 ignore_attachment precedent); gold_roundtrip ok; issue80 ok; the
 four smokes 0/0 (e2004 1/1 the recorded LIGHT row); the corpus
-**648 files** — **32/32 fidelity** (the golden residue: the
+**648 files** — **24/24 fidelity** (the golden residue: the
 R2004+ polyline/seqend SEQEND-plotstyle 1-rows ×8,
 Leader_AC1014 1, Region/Solid3d_AC1012's ACIS 1-rows ×2, plus
 the brep dataset's rows) + 2631 struct read key-gaps + 0 write
@@ -4237,17 +4256,15 @@ container-coded and double-sourced (64 at R14/2000,
 refusals recorded (both engines closed at R13; the downsave's
 wholesale SH strip at 2004).
 
-THE REMAINING QUEUE (TODO.md's A9 refreshed): (a) the R2010+
-SEQEND plotstyle HANDLE (1 row per R2004+ golden polyline — the
-seqend_flags capture extension); (b) the golden R13 ACIS class
-(Region/Solid3d_AC1012/1014's acis_data — the era-modeler SAT
-re-serialization); (c) the BREP R2013+ trailing region (the brep
-dataset's 6/7 rows — the named raw-remainder packet); (d) the
+THE REMAINING QUEUE (TODO.md's A9 refreshed): (a) the golden R13
+ACIS class (Region/Solid3d_AC1012/1014's acis_data — the era-modeler
+SAT re-serialization); (b) the BREP R2013+ trailing region (the brep
+dataset's 6/7 rows — the named raw-remainder packet); (c) the
 STRUCT-axis key-gaps (2631 — the R13/R14 golden key-shape
-class); (e) the class? desync-mirror rows (entities-2d 8 +
-entities-3d 7 — the B1-era mojibake family); (f) PolyLine2D's
-last 2 POLYLINE_2D crc rows; (g) Surface.dwg 6 + gh44-error 18
-(the recorded queue); (h) Leader_AC1014's last row.
+class); (d) the class? desync-mirror rows (entities-2d 8 +
+entities-3d 7 — the B1-era mojibake family); (e) PolyLine2D's
+last 2 POLYLINE_2D crc rows; (f) Surface.dwg 6 + gh44-error 18
+(the recorded queue); (g) Leader_AC1014's last row.
 
 The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to

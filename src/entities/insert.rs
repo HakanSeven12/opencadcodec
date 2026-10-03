@@ -66,6 +66,10 @@ pub struct Insert {
     /// (§19 H8h-ext-17).
     #[cfg_attr(feature = "serde", serde(default))]
     pub seqend_isbylayerlt: bool,
+    /// The chain's wire SEQEND record's own plotstyle HANDLE (§19
+    /// H8h-ext-17) — the raw value; None when absent.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_plotstyle_handle: Option<u64>,
 }
 
 impl Insert {
@@ -91,6 +95,7 @@ impl Insert {
             seqend_plotstyle_flags: 0,
             seqend_shadow_flags: 0,
             seqend_isbylayerlt: false,
+            seqend_plotstyle_handle: None,
         }
     }
 

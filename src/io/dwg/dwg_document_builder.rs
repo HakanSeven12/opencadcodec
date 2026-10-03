@@ -163,7 +163,7 @@ struct PendingPolylines {
     /// shadow_flags) keyed by owner — gold re-emits them verbatim per
     /// record (LibreDWG-authored example files carry 3/null, DWG-native
     /// chains 0), so parent-flags guesses are wrong either way.
-    seqend_flags: HashMap<u64, (u8, u8, bool)>,
+    seqend_flags: HashMap<u64, (u8, u8, bool, Option<u64>)>,
     /// Polyline entities awaiting vertex assembly, keyed by their handle.
     polylines: Vec<(u64, EntityType)>,
 }
@@ -2292,12 +2292,13 @@ impl DwgDocumentBuilder {
                         // Preserve the wire's SEQEND handle for this chain.
                         if let Some(sh) = pending.seqends.get(&poly_handle).copied() {
                             e.seqend_handle = Some(sh);
-                            if let Some((pf, sf, iblt)) =
+                            if let Some((pf, sf, iblt, ph)) =
                                 pending.seqend_flags.get(&poly_handle).copied()
                             {
                                 e.seqend_plotstyle_flags = pf;
                                 e.seqend_shadow_flags = sf;
                                 e.seqend_isbylayerlt = iblt;
+                                e.seqend_plotstyle_handle = ph;
                             }
                         }
                     }
@@ -2334,12 +2335,13 @@ impl DwgDocumentBuilder {
                         // Preserve the wire's SEQEND handle for this chain.
                         if let Some(sh) = pending.seqends.get(&poly_handle).copied() {
                             e.seqend_handle = Some(sh);
-                            if let Some((pf, sf, iblt)) =
+                            if let Some((pf, sf, iblt, ph)) =
                                 pending.seqend_flags.get(&poly_handle).copied()
                             {
                                 e.seqend_plotstyle_flags = pf;
                                 e.seqend_shadow_flags = sf;
                                 e.seqend_isbylayerlt = iblt;
+                                e.seqend_plotstyle_handle = ph;
                             }
                         }
                     }
@@ -2375,12 +2377,13 @@ impl DwgDocumentBuilder {
                         // Restore the seqend handle for this polyface mesh
                         if let Some(sh) = pending.seqends.get(&poly_handle).copied() {
                             e.seqend_handle = Some(sh);
-                            if let Some((pf, sf, iblt)) =
+                            if let Some((pf, sf, iblt, ph)) =
                                 pending.seqend_flags.get(&poly_handle).copied()
                             {
                                 e.seqend_plotstyle_flags = pf;
                                 e.seqend_shadow_flags = sf;
                                 e.seqend_isbylayerlt = iblt;
+                                e.seqend_plotstyle_handle = ph;
                             }
                         }
                     }
@@ -2409,12 +2412,13 @@ impl DwgDocumentBuilder {
                         // Preserve the wire's SEQEND handle for this chain.
                         if let Some(sh) = pending.seqends.get(&poly_handle).copied() {
                             e.seqend_handle = Some(sh);
-                            if let Some((pf, sf, iblt)) =
+                            if let Some((pf, sf, iblt, ph)) =
                                 pending.seqend_flags.get(&poly_handle).copied()
                             {
                                 e.seqend_plotstyle_flags = pf;
                                 e.seqend_shadow_flags = sf;
                                 e.seqend_isbylayerlt = iblt;
+                                e.seqend_plotstyle_handle = ph;
                             }
                         }
                     }
@@ -2441,12 +2445,13 @@ impl DwgDocumentBuilder {
                     if let Some(seqend) = pending.seqends.get(&insert_handle).copied() {
                         ins.seqend_handle = Some(seqend);
                     }
-                    if let Some((pf, sf, iblt)) =
+                    if let Some((pf, sf, iblt, ph)) =
                         pending.seqend_flags.get(&insert_handle).copied()
                     {
                         ins.seqend_plotstyle_flags = pf;
                         ins.seqend_shadow_flags = sf;
                         ins.seqend_isbylayerlt = iblt;
+                        ins.seqend_plotstyle_handle = ph;
                     }
                 }
             }
@@ -5063,6 +5068,17 @@ impl DwgDocumentBuilder {
                             entity_data.plotstyle_flags,
                             entity_data.shadow_flags,
                             entity_common.linetype_flags != 0b11,
+                            // §19 H8h-ext-17: the plotstyle HANDLE (code 5,
+                            // pulled when plotstyle_flags == 3 — gold's
+                            // golden-file SEQENDs target the MATERIAL
+                            // object where the example corpus carries the
+                            // null ref; the handle is per-record author
+                            // data).
+                            if entity_data.plotstyle_flags == 3 {
+                                entity_common.plotstyle_handle.map(|h| h.value())
+                            } else {
+                                None
+                            },
                         ),
                     );
                     pending

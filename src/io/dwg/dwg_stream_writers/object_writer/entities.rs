@@ -2589,6 +2589,11 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.seqend_era_flags()
         };
+        // §19 H8h-ext-17: replay the captured plotstyle handle — the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2610,7 +2615,7 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
             seqend_flags.0,
             seqend_flags.1,
-            &None,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
@@ -2800,6 +2805,11 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.seqend_era_flags()
         };
+        // §19 H8h-ext-17: replay the captured plotstyle handle — the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2821,7 +2831,7 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
             seqend_flags.0,
             seqend_flags.1,
-            &None,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
@@ -3029,6 +3039,11 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.seqend_era_flags()
         };
+        // §19 H8h-ext-17: replay the captured plotstyle handle — the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -3050,7 +3065,7 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
             seqend_flags.0,
             seqend_flags.1,
-            &None,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
@@ -3180,6 +3195,11 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.seqend_era_flags()
         };
+        // §19 H8h-ext-17: replay the captured plotstyle handle — the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -3201,7 +3221,7 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
             seqend_flags.0,
             seqend_flags.1,
-            &None,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,

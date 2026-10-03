@@ -273,6 +273,13 @@ pub struct Polyline2D {
     /// re-derives it from the seqend's linetype on the R13/R14 arm.
     #[cfg_attr(feature = "serde", serde(default))]
     pub seqend_isbylayerlt: bool,
+    /// The chain's wire SEQEND record's own plotstyle HANDLE (§19
+    /// H8h-ext-17): pulled on the wire when plotstyle_flags == 3 — the
+    /// authored target is per-record data (the golden files' SEQENDs
+    /// target the MATERIAL object where the example corpus carries the
+    /// null ref). The raw value; None when absent.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_plotstyle_handle: Option<u64>,
 }
 
 impl Polyline2D {
@@ -291,6 +298,7 @@ impl Polyline2D {
             seqend_plotstyle_flags: 0,
             seqend_shadow_flags: 0,
             seqend_isbylayerlt: false,
+            seqend_plotstyle_handle: None,
         }
     }
 

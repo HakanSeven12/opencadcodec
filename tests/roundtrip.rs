@@ -1496,6 +1496,7 @@ fn dwg_roundtrip_deep_r2018() {
                 !difference.starts_with("Object count mismatch:")
                     && !difference.starts_with("Class count mismatch:")
                     && !difference.contains("seqend_isbylayerlt")
+                    && !difference.contains("seqend_plotstyle_handle")
                     && !difference.contains("wire_nolinks")
                     && !difference.contains("wire_prev_entity")
                     && !difference.contains("wire_next_entity")
@@ -1559,6 +1560,11 @@ fn dwg_roundtrip_deep_r2000() {
                     // false vs the read-back's derived true is the
                     // legitimate capture, not a loss.
                     && !difference.contains("seqend_isbylayerlt")
+                    && !difference.contains("seqend_plotstyle_handle")
+                    // The seqend's captured plotstyle handle (§19
+                    // H8h-ext-17): same class — the constructed None vs
+                    // the read-back's wire-captured null ref.
+                    && !difference.contains("seqend_plotstyle_handle")
             })
             .cloned()
             .collect(),
@@ -1602,6 +1608,7 @@ fn dwg_roundtrip_deep_r2013() {
                 !difference.starts_with("Object count mismatch:")
                     && !difference.starts_with("Class count mismatch:")
                     && !difference.contains("seqend_isbylayerlt")
+                    && !difference.contains("seqend_plotstyle_handle")
                     && !difference.contains("wire_nolinks")
                     && !difference.contains("wire_prev_entity")
                     && !difference.contains("wire_next_entity")

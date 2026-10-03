@@ -1303,6 +1303,7 @@ def normalize_silver(
         _seq_pf_stash = payload.pop("seqend_plotstyle_flags", None)
         _seq_sf_stash = payload.pop("seqend_shadow_flags", None)
         _seq_iblt_stash = payload.pop("seqend_isbylayerlt", None)
+        _seq_psh_stash = payload.pop("seqend_plotstyle_handle", None)
         if gold_type == "UNKNOWN_ENT" and "graphic_data" in fields:
             # Silver's raw passthrough entities keep their graphic-data bytes
             # in the serde-skipped EntityCommon map (_common_dwg), which
@@ -4280,7 +4281,12 @@ def normalize_silver(
                 # R13 SEQENDs carry no plotstyle field.)
                 _sf["plotstyle_flags"] = _seq_pf_stash
                 if _seq_pf_stash == 3:
-                    _sf["plotstyle"] = normalize_handle_value(0)
+                    # §19 H8h-ext-17: the captured plotstyle handle — the
+                    # authored target is per-record data (the golden
+                    # SEQENDs target the MATERIAL object); the null ref
+                    # is the fallback.
+                    _sf["plotstyle"] = normalize_handle_value(
+                        _seq_psh_stash if _seq_psh_stash else 0)
             if r2007_plus and isinstance(_seq_sf_stash, int):
                 _sf["shadow_flags"] = _seq_sf_stash
                 if _seq_sf_stash == 3:
