@@ -345,28 +345,67 @@ corpus files but refuses r1.4 ("cannot read old format drawing",
 ErrorStatus=53) and cannot author below R14 — pre-R13 fixtures have no
 AutoCAD route at all; that tier's specimens stay libredwg-sourced.
 
-### C4. The AutoCAD-liberation question — HALTED 2026-10-02 (continue on the libredwg test-files)
+### C4. The AutoCAD-liberation question — REOPENED 2026-10-03 (the golden-entities campaign LANDED)
 
 The 2026-10-02 investigation (the record: IMPLEMENTATION.md's afternoon
 note) measured AutoCAD 2027 as a fixture engine: authoring R14→2018 (the
 SAVEAS menu; no R13/pre-R13), opening r2.10/r10/r11/r13/r14 but not r1.4
 (ErrorStatus=53), prompt-free headless generation via `entmake`
 (probe-validated), and the MCP ecosystem as wrappers over those same
-channels (no new primitive; nothing wire-level). Verdict: fixture
-SOURCING is replaceable for R14+ (the proposed golden-dataset tree:
-`generators/` + `fixtures/golden_entities/`, one campaign dir,
-version-suffixed stems per the fixtures README); the libredwg ORACLE is
-not — the semantic half (`dwgread -O JSON`) could re-base on an
-author-side census-LISP dump or a SAVEAS-DXF twin only by re-baselining
-every recorded fidelity verdict (normalize_gold's projections, the 8/8
-rows, the TOLERATED sets), and the wire-level gates (record-size census,
-unknown-bits forensics) have no AutoCAD equivalent at all.
-**Maintainer decision 2026-10-02: HALTED — the harness continues on the
-libredwg test-files; the golden-dataset design stays shelved with its
-record, re-openable by a future call.**
+channels (no new primitive; nothing wire-level). The 2026-10-02 halt
+("continue on the libredwg test-files") was REVERSED by the
+2026-10-03 maintainer call: "generate per version supported in cadcodec
+all supported entities separately to replace libredwg test-files and
+beyond". **THE CAMPAIGN LANDED THE SAME DAY** (the maintainer's
+authoring session): `fixtures/golden_entities/` — 30 families × 8
+versions (AC1012..AC1032), **221 fixtures + 8 Body refusals + 10
+version-gated cells**, every `.dwg` with its `.scr` replication record
+and `.txt` provenance (engine, seed, op, save token, qualification,
+gold census); the engines per the measured map (R13 = BricsCAD —
+AutoCAD's save floor is R14; R14+ = AutoCAD core console); the
+version gates measured in-campaign (HATCH is R14+ — the R13 downsave
+explodes it; MULTILEADER is AC1021+; MESH is AC1024+); the LWPolyline
+R13 downsave datum (the light polyline converts to the era-native
+heavy POLYLINE_2D — the B3 two-class datum); the BODY refusals
+consistent on both engines (INTERFERE non-functional headless —
+the B4 no-user-facing-lever class).
 
-- **Sources**: the IMPLEMENTATION.md 2026-10-02 afternoon note (the four
-  probes, the oracle-gap analysis, the proposed tree).
+**THE REVIEW VERDICT (the 642-file corpus run, 2026-10-03)**: the
+established 401 UNMOVED at 8/8; the b6 population all twenty 0/0
+(including both arc families — the BricsCAD A/B SweepSurfArcB with
+its gold-UNKNOWN_ENT surface reads clean on the differ axes); **the
+golden population: SIX ERAS AT 0/0** (AC1015/1018/1021/1024/1027/
+1032 — every family except the polyline pair; the maintainer's
+authored corpus validates the codec per-era at zero) — **the R13/R14
+eras carry the ~104-row shared boilerplate family on EVERY family**
+(the §19.5 Tier-2 state, uniform across all 52 AC1012/AC1014 files —
+one shared root class, not per-entity divergence; the outliers:
+Dimension 161, Polyface 131, Insert 125, Polyline2D 120/123,
+LWPolyline-R13 123, Viewport 121, Leader 112/111, Text 113) **plus
+the polyline family's cross-era rows** (Polyline2D 3→7 by era,
+Polyline3D 1 on 2007+, Polyface-2000 3 — the known 2000-era class
+at the minimal-file scale). The new corpus baseline: **642 files,
+5825/5825 fidelity + 2581 read key-gaps** — the totals now carry the
+C4 work surface; the established-zero rule holds per-population.
+
+**THE C4 WORK SURFACE (the campaign's queue, ranked)**: (a) **the
+R13/R14 boilerplate family** — the ~104-row uniform class across all
+52 golden R13/R14 files (one root, the 2000-era boilerplate family's
+dissection method applies: the per-record pair diff names the class;
+§19.5's Tier-2 "implemented-but-divergent" gets its first named
+root); (b) the polyline family's minimal-file rows (the known
+Polyline2D class — the golden files give it a per-era minimal
+specimen set); (c) **C2's era-extension decision** (the parked
+r13_r14 B3 wave's corpus admission — now the same question as the
+golden R13/R14 population: the corpus already carries the golden
+files in-scope by the maintainer's intent, so C2 reduces to whether
+the r13_r14 wave adds coverage beyond the golden set).
+
+- **Sources**: the golden_entities README (the matrix, the engines,
+  the gates, the corpus note — the stems are in-scope by design);
+  the 2026-10-03 landing record (NEXT_SESSION.md's era-census
+  addendum, the golden-entities section); the corpus report.json
+  (the per-file rows).
 
 ---
 

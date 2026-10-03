@@ -66,16 +66,19 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read THE 2026-10-03 ERA-CENSUS ADDENDUM at this
-# file's BOTTOM first (the three record-identity packets — the
-# table-control entries, the PLOTSETTINGS plotview code, the
-# entity-color ENC raw twin — 2010 gh209_1 and 2013 gh109_1 and
-# 2004 HatchG all at full record identity now), then this file's
+# section below), read THE 2026-10-03 GOLDEN-ENTITIES LANDING at this
+# file's BOTTOM first (the C4 reopen — the maintainer's call, the 221-
+# fixture campaign, the 642-file corpus baseline: the established 401
+# at 8/8 unmoved, the b6 twenty at 0/0, the golden six eras at 0/0,
+# the R13/R14 ~104-row boilerplate family the C4 work surface), then
+# the b6 review section, then the era-census addendum (the three
+# record-identity packets), then this file's
 # 2026-10-02 addenda bottom-up (the authoring-wave handover — the
-# maintainer's next fixture drop — then the B5 closure, then the
-# A8 closure, then the SweepSurf landing), then TODO.md's distilled
-# queue (A5-A9/B6 — the carry-overs formalized, B5 and A8's 42 half
-# marked closed, A9 the era-census residue),
+# maintainer's next fixture
+# drop — then the B5 closure, then the A8 closure, then the
+# SweepSurf landing), then TODO.md's distilled
+# queue (A5-A9/B6/C4 — the carry-overs formalized, B5 and A8's 42 half
+# marked closed, A9 the era-census residue, C4 the golden campaign),
 # then
 # the sixteenth addendum's record (and the
 # seventeenth continuation), then the
@@ -3982,7 +3985,77 @@ key-gaps — NOTHING moved; genus 3/1/0 PENDING-ZERO with
 SweepSurfArc rebuild completes — the drop's own commit lands with
 its re-review at the next halt.
 
+## THE 2026-10-03 GOLDEN-ENTITIES LANDING (the C4 reopen — the
+## maintainer's call, the campaign authored, the review battery, the
+## fixture commit — read this FIRST, then the b6 section above it):
+
+The maintainer's call ("generate per version supported in cadcodec
+all supported entities separately to replace libredwg test-files
+and beyond") REVERSED the 2026-10-02 C4 halt, and the authoring
+session landed the campaign the same day:
+`fixtures/golden_entities/` — 30 families × 8 versions
+(AC1012..AC1032), **221 fixtures** (every `.dwg` with its `.scr`
+replication record + `.txt` provenance) + **8 Body refusals**
+(INTERFERE non-functional headless on BOTH engines — the B4
+no-user-facing-lever class; the refusal records carry the verbatim
+measurements) + **10 version-gated cells** (HATCH is R14+ — the
+R13 downsave explodes it, the same datum as the r13_r14 wave's
+Hatch_r13 refusal; MULTILEADER is AC1021+; MESH is AC1024+ — both
+confirmed by the pass at the gate's floor). The engines per the
+measured map: **R13 = BricsCAD V26** (AutoCAD's save floor is
+R14 — the B3 toolchain record; the ACIS solid SURVIVES the R13
+downsave, gold reads Region/Solid3d typed; BricsCAD LOADs
+AutoCAD's ltypeshp.shx and places the Shape), **R14+ = AutoCAD
+2027 core console** (the pre-validated recipe battery: entmake
+for the 14 direct families, REGEN+ename for Region, typed-point
+commands for the rest). The LWPolyline-R13 datum: the downsave
+converts the light polyline to the era-native heavy POLYLINE_2D
+(+VERTEX_2Ds +SEQEND) — the B3 campaign's two-class datum, the
+surviving class per era IS the measurement.
+
+THE REVIEW BATTERY (this cycle, the 642-file corpus run): **the
+established 401 UNMOVED at 8/8** (Wipeout ×3 + the five LIGHT
+rows — the zero-keeping rule holds); **the b6 population all
+twenty at 0/0** — including the rebuilt SweepSurfArcB ×4 (the
+BricsCAD engine A/B: its surface sweep writes NO ASSOC network —
+ASSOCPATHACTIONPARAM is AutoCAD-modeler-specific, the measured
+negative; SURFACEASSOCIATIVITY absent in BricsCAD; the sweep
+CONSUMES the profile circle — and its gold-UNKNOWN_ENT surface
+reads CLEAN on the differ axes) and the original SweepSurfArc ×4;
+**the golden population: SIX ERAS AT 0/0** — AC1015/1018/1021/
+1024/1027/1032, every family except the polyline pair (the
+maintainer's authored corpus validates the codec per-era at
+zero — the "replace the libredwg test-files" intent's first
+measurement); **the R13/R14 eras carry the ~104-row shared
+boilerplate family on EVERY golden file** (the §19.5 Tier-2
+"implemented-but-divergent" state, uniform across all 52
+AC1012/AC1014 files — ONE shared root class, not per-entity
+divergence; the per-family outliers: Dimension 161, Polyface
+131, Insert 125, LWPolyline-R13 123, Polyline2D 120/123,
+Viewport 121, Leader 112/111, Text 113) **plus the polyline
+family's cross-era rows** (Polyline2D 3→7 by era, Polyline3D 1
+on 2007+, Polyface-2000 3 — the known 2000-era boilerplate
+class at the minimal-file scale). THE NEW CORPUS BASELINE:
+**642 files, 5825/5825 fidelity + 2581 read key-gaps + 0 write
+key-gaps** — the totals now carry the C4 work surface; the
+per-population zeros are the regression floor (the established
+8/8, the b6 0/0, the golden six-era 0/0).
+
+THE COMMIT (this cycle): the three fixture populations land —
+golden_entities (221 DWG + 229 scr + 229 txt + the README),
+b6_routes (20 DWG + companions — the stable twelve + both arc
+families + the three refusal records), the parked r13_r14 B3
+wave (41 DWG + companions — corpus-guarded, its admission is
+C2's question), and README_HEADLESS.md (the authoring
+mechanism). THE NEXT WORK (the C4 campaign, ranked): (a) the
+R13/R14 boilerplate family — the ~104-row uniform class, one
+root, the 2000-era family's dissection method applies (census →
+pair diff → root → packet); (b) the polyline family's
+minimal-file rows; (c) C2 (the r13_r14 wave's corpus admission —
+now a coverage question: the golden set already carries the eras).
+
 The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
 bottom, STARTING at THIS addendum (the file bottom), then the
-2026-10-02 sections above it bottom-up.
+b6 and era-census sections above it, then the 2026-10-02
+sections bottom-up.
