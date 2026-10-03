@@ -1,16 +1,26 @@
-# THE 2026-10-01 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
+# THE 2026-10-03 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
-# top to bottom): THE CAMPAIGN STATE — **A1, A2, A3, A5, B1, B2 AND
-# B5 ARE CLOSED, A8's 42 HALF IS CLOSED (TYPED) — THE 2018 ERA IS AT
-# FULL RECORD IDENTITY (0/50,773), THE COVERAGE-GAP ENTITY FAMILY
+# bottom-up per the FIRST ACTION pointer below): THE CAMPAIGN
+# STATE — **A1, A2, A3, A5, B1, B2 AND B5 ARE CLOSED, A8's 42
+# HALF IS CLOSED (TYPED), B4 IS FALSIFIED (THE FROM-SCRATCH MINTS),
+# B6 IS THE PURE WATCH (every authoring route measured dead) —
+# THE 2018 ERA IS AT
+# FULL RECORD IDENTITY (0/50,773), AND THE 2010 ERA TOO (gh209_1
+# 166/166), WITH 2013's gh109_1 (664/664) AND 2004's HatchG
+# (229/229) CLOSED AT THE MORNING PACKETS; **C4 REOPENED** (THE
+# GOLDEN-ENTITIES CAMPAIGN — 221 FIXTURES ACROSS 8 VERSIONS; THE
+# 648-FILE CORPUS AT 24/24 FIDELITY, THE GOLDEN RESIDUE = THE
+# R13/R14 ACIS CLASS + LEADER_AC1014's ROW); THE COVERAGE-GAP
+# ENTITY FAMILY
 # READS TYPED (THE FIXTURE CORPUS AT 61/65 FULLY CLEAN), THE
 # SUBCURVE ACTION-TYPE LADDER IS MODELED (FOUR KINDS TYPED
 # BIT-EXACT — ARC 11, ELLIPSE 17, LINESEG3D 23, NURB3D 42 (the
 # 2026-10-02 A8 closure: the grammar named, era-stable, the helix
 # Rosetta verification); 47 NETTED BY CAPTURE+REPLAY; 19/27
-# ATTESTED NOWHERE — the B6 route recipes are recorded in
-# TODO.md)**:
+# ATTESTED NOWHERE — the b6_routes drop measured every route
+# dead, the capture+replay net keeps any future specimen
+# safe)**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -67,19 +77,24 @@
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
 # section below), read THE 2026-10-03 ERA-CENSUS CONTINUATION at this
-# file's BOTTOM first (the "shrink TODO.md" directive's seven packets —
-# the golden corpus collapsed 5825→122 fidelity rows: the R13/R14
+# file's BOTTOM first (the "shrink TODO.md" directive's twelve-packet
+# day — the golden corpus collapsed 5825→24/24 fidelity rows and the
+# b6 review's two normalizer projections landed: the R13/R14
 # gates, the vertex chain retention, the TV plain-form, the XRECORD
 # codepage, the exact close-pad, the dictionary wire-text, the golden
-# polyline projections), then the golden-entities landing, then the
-# b6 review section, then the era-census addendum (the three
-# record-identity packets), then this file's
+# polyline projections, the isbylayerlt + R13 family gates, the
+# SEQEND plotstyle handle — plus the three morning record-identity
+# packets: the table-control entries, the plotview code, the ENC
+# raw twin — plus the b6 19/27 datum: every authoring route measured
+# dead), then the golden-entities landing (the C4 REOPEN — 221
+# fixtures, the R13/R14 boilerplate the work surface), then the
+# b6 review section, then this file's
 # 2026-10-02 addenda bottom-up (the authoring-wave handover — the
 # maintainer's next fixture
 # drop — then the B5 closure, then the A8 closure, then the
 # SweepSurf landing), then TODO.md's distilled
-# queue (A5-A9/B6/C4 — the carry-overs formalized, B5 and A8's 42 half
-# marked closed, A9 the era-census residue, C4 the golden campaign),
+# queue (A5-A9/B6/C4 — the carry-overs formalized, B5/A8/B4 marked
+# closed/falsified, A9 the era-census residue, C4 the golden campaign),
 # then
 # the sixteenth addendum's record (and the
 # seventeenth continuation), then the
@@ -4062,13 +4077,16 @@ b6 and era-census sections above it, then the 2026-10-02
 sections bottom-up.
 
 ## THE 2026-10-03 ERA-CENSUS CONTINUATION (the "shrink TODO.md to
-## minimum" directive — SEVEN PACKETS, the golden corpus collapsed
-## 5825→122 fidelity rows; read this FIRST):
+## minimum" directive — NINE PACKETS in this section (twelve across
+## the day with the morning addendum's three), the golden corpus
+## collapsed 5825→24/24 fidelity rows; read this FIRST):
 
 The maintainer's loop directive ("continue, then review, update,
 commit and re-continue until TODO.md has shrunk to minimum")
-drove seven dissection packets through the C4 work surface. **THE
-642-FILE CORPUS NOW READS 122/122 FIDELITY (from 5825/5825 at the
+drove seven dissection packets through the C4 work surface, then
+two more in the follow-up loop cycles (the isbylayerlt retention +
+the SEQEND plotstyle handle). **THE 648-FILE CORPUS NOW READS
+24/24 FIDELITY (from 5825/5825 at the
 golden landing) — the golden population's six modern eras at 0/0,
 the established 401 at the recorded 8/8 UNMOVED, the identity
 `f2187565…`/25,728 UNMOVED, genus PENDING-ZERO, the suite

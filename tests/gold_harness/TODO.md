@@ -2,28 +2,32 @@
 
 The distilled work surface for the gold-vs-silver harness, extracted
 2026-09-30 from `IMPLEMENTATION.md`, re-revised 2026-10-01 after the
-B1/B2 sessions and again 2026-10-02 through the day's arc (the
-author-quads landing, the AutoCAD-liberation investigation and its
-halt, the SweepSurf specimens + the A8 typed-NURB3D closure, the B5
-dead-rows closure, the R13/R14 authoring-wave survey — the campaign
-record now 9,078 lines) and refreshed 2026-10-03 (the era-census
-packets: 2010 at full record identity, gh109_1/HatchG closed, the
-A9 item distilled). Sources cited per item. The closed campaigns hold their zeros — parser parity, the
-strict-load zero, the ACS/SH solid-history campaign, the §20 genus-gate
-queue at PENDING-ZERO with `--strict`, every constructed fixture MODELS
-with clean audits on both loaders, the generation identity
-`f2187565…`/25,728 stable, the suite 1,618/0. The corpus is 401 files
-(280 + the B1/B2 landings + the 2026-10-02 author quads + the eight
-SweepSurf specimens): the forty
-B2 fixtures, the sixteen author quads and the eight SweepSurf files
-read 0/0 (the 401-file full run measured 2026-10-02: totals flat at
-the pre-existing 8/8, zero per-file failures); the
-**eight measured open rows are pre-existing B1-era residue** (verified
-pre-existing — the LIGHT row bisected on the pre-B2 tree, the
-UNKNOWN_OBJ rows B1's own recorded residue; see H8h-ext-16's
-validation record): LIGHT.light_color ×5 on `example_2004…2018` +
-UNKNOWN_OBJ common-fields ×3 on Wipeout_2004/gh44 — see A5. The genus
-cargo pin assertion is red pre-existing too (A7).
+B1/B2 sessions, 2026-10-02 through the day's arc (the author-quads
+landing, the AutoCAD-liberation investigation and its halt, the
+SweepSurf specimens + the A8 typed-NURB3D closure, the B5 dead-rows
+closure, the R13/R14 authoring-wave survey), and re-refreshed
+2026-10-03 through the day's four arcs (the b6_routes review — the
+19/27 datum, kinds attested nowhere, every route measured dead; the
+golden-entities landing — C4 reopened, 221 fixtures across 8
+versions; the era-census continuation — twelve packets, the golden
+corpus collapsed 5825→24/24 fidelity rows; the brep swap — B4
+falsified, the from-scratch mints). Sources cited per item. The closed
+campaigns hold their zeros — parser parity, the strict-load zero, the
+ACS/SH solid-history campaign, the §20 genus-gate queue at
+PENDING-ZERO with `--strict`, every constructed fixture MODELS with
+clean audits on both loaders, the generation identity
+`f2187565…`/25,728 stable, the suite 1,618/0. The corpus stands at
+**648 files** (the established 401 + the b6 twenty + the 221 golden
++ the six brep mints): the established population's **eight measured
+open rows are pre-existing B1-era residue** (verified pre-existing —
+the LIGHT row bisected on the pre-B2 tree, the UNKNOWN_OBJ rows B1's
+own recorded residue; see H8h-ext-16's validation record):
+LIGHT.light_color ×5 on `example_2004…2018` + UNKNOWN_OBJ
+common-fields ×3 on Wipeout_2004/gh44 — see A5; the golden population
+measures 3 rows (Leader_AC1014 1 + the Region/Solid3d_AC1012 ACIS
+pair — the A9 queue's head); the brep population 13 (the R2013+
+trailing region — the named raw-remainder packet). The genus cargo
+pin assertion is red pre-existing too (A7).
 
 Sections: **A. Open tasks** (agent code work, no fixtures needed) →
 **B. Fixture-needed tasks** (require authored DWGs) → **C. Maintainer
@@ -46,10 +50,12 @@ empty document instead of the error. Blocked on the C3 decision.
 
 ### A5. The corpus's eight pre-existing rows (B1-era residue)
 
-The only measured fidelity rows on the 377-file corpus, verified
+The only measured fidelity rows on the established 401-file population,
+verified
 pre-existing (the LIGHT row bisected — stashing `src/` alone reproduces
 it on the pre-B2 tree; the UNKNOWN_OBJ rows are the B1 session's own
-recorded residue):
+recorded residue); the newer golden/brep populations' rows are the A9
+queue:
 **LIGHT.light_color ×5** — `example_2004/2007/2010/2013/2018`
 read gold 5 vs silver null (the B1 raw-CMC twin family's leftover);
 **UNKNOWN_OBJ ×3** on Wipeout_2004 + gh44 (the common-data convention
@@ -425,24 +431,25 @@ at the minimal-file scale). The new corpus baseline: **642 files,
 5825/5825 fidelity + 2581 read key-gaps** — the totals now carry the
 C4 work surface; the established-zero rule holds per-population.
 
-**THE C4 WORK SURFACE (the campaign's queue, ranked)**: (a) **the
-R13/R14 boilerplate family** — the ~104-row uniform class across all
-52 golden R13/R14 files (one root, the 2000-era boilerplate family's
-dissection method applies: the per-record pair diff names the class;
-§19.5's Tier-2 "implemented-but-divergent" gets its first named
-root); (b) the polyline family's minimal-file rows (the known
-Polyline2D class — the golden files give it a per-era minimal
-specimen set); (c) **C2's era-extension decision** (the parked
-r13_r14 B3 wave's corpus admission — now the same question as the
-golden R13/R14 population: the corpus already carries the golden
-files in-scope by the maintainer's intent, so C2 reduces to whether
-the r13_r14 wave adds coverage beyond the golden set).
+**THE C4 WORK SURFACE (demolished by the era-census continuation —
+see A9)**: the landing-time queue — (a) the R13/R14 boilerplate
+family (~104 rows across all 52 golden R13/R14 files) and (b) the
+polyline family's minimal-file rows — **BOTH GONE** (the
+continuation's twelve packets: the R13/R14 gates, the vertex chain
+retention, the isbylayerlt retention, the golden polyline
+projections, the SEQEND plotstyle handle — the golden R13/R14
+families at 0/0, the golden residue = the R13/R14 ACIS class +
+Leader_AC1014's row, all in A9's queue). **What remains for C4
+itself: C2's era-extension decision** (the parked r13_r14 B3 wave's
+corpus admission — the corpus already carries the golden files
+in-scope by the maintainer's intent, so C2 reduces to whether the
+r13_r14 wave adds coverage beyond the golden set).
 
 - **Sources**: the golden_entities README (the matrix, the engines,
   the gates, the corpus note — the stems are in-scope by design);
-  the 2026-10-03 landing record (NEXT_SESSION.md's era-census
-  addendum, the golden-entities section); the corpus report.json
-  (the per-file rows).
+  the 2026-10-03 records (NEXT_SESSION.md's golden-entities landing
+  + the era-census continuation; IMPLEMENTATION.md's 2026-10-03
+  session chain); the corpus report.json (the per-file rows).
 
 ---
 

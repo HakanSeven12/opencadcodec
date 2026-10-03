@@ -3362,7 +3362,7 @@ Fixture rules (deltas from the gold-tree convention above):
 | `Cone_<v>` / `Torus_<v>` (Phase C) | `CONE` / `TORUS` | the SH primitive classes | landed 2026-09-23, qualified (all 0/0) |
 | `Pyramid_<v>` (Phase C) | `PYRAMID` | `ACSH_PYRAMID_CLASS` | landed 2026-09-23, qualified (all 0/0) |
 | `Fillet_<v>` / `Chamfer_<v>` (Phase C) | `BOX` + `FILLET` / `BOX` + `CHAMFER` | the edge-modification nodes (with the parent `ACSH_BOX_CLASS` chain) | landed 2026-09-23, qualified (all 0/0) |
-| `Brep_<v>` | **DEFERRED** (2026-09-23): `ACSH_BREP_CLASS` is not reachable through any user-facing AutoCAD op — seven authored attempts (plain op, SLICE, single-op, foreign-body graft, SOLIDEDIT face edit, real-template source) all produced either parametric chains or history-stripped plain solids. The class stays elided; silver already tolerates the one real-world carrier (`ATMOS-DC22S.dwg`) at 0/0. The row re-opens if an authentic specimen surfaces (legacy SAT-era import paths). | — | — |
+| `Brep_<v>` | **MINTED FROM SCRATCH — B4 FALSIFIED** (2026-10-03; the row supersedes the 2026-09-23 DEFERRED verdict): the class IS mintable headless in one script — the confound behind the original seven failures was the `SOLIDHIST` profile default (0 strips boolean history; with `SOLIDHIST=1` a `UNION` of a parametric BOX with any raw-geometry solid — `MESH`→`CONVTOSOLID` or `ACISIN` — records the chain and the raw operand's node IS `ACSH_BREP_CLASS`). The dataset landed as `fixtures/brep/` (fully self-authored from a naked `acadiso.dwt` seed — no legacy content; a parallel agent first shipped ATMOS-carrier re-emissions, then swapped the set for the fresh mints): 6 versions (R14/2000/2007/2010 at **0/0** silver pairs, 2013/2018 at 6/7 — the R2013+ trailing region, the named raw-remainder packet), the `major` field container-coded and double-sourced (64 / 3528495168 / 3545534528), the R13 + 2004 refusals measured (both engines closed at R13; the downsave's wholesale SH strip). The full story + the engine dialects: `fixtures/brep/README.md`, TODO.md B4. | the four-node chain `ACSH_BOX_CLASS`+`ACSH_BREP_CLASS`+`ACSH_BOOLEAN_CLASS`+`ACSH_HISTORY_CLASS` + one 3DSOLID | landed 2026-10-03, qualified (0/0 ×4; 6/7 the trailing region) |
 | *(differential queue — CLOSED 2026-09-24)* | **ALL 17 STEMS AUTHORED AND QUALIFIED** (the maintainer landed the full §18.7 set): the 14 solid stems (56 files) are IN THE CORPUS at 0/0 (244 files now) with their quads bit-identical and their OBSERVED outcomes recorded per row in §18.7 — the sweep spine is named (ExtrudeT: the draft_angle raw at bit 70, the SweepOptions order), the extrusion payload is the profile (ExtrudeR/P), the height lives in the direction (ExtrudeH), the loft height/radius slots are named (LoftH/R), the sweep frame direction entries are confirmed (PolysolidX/D), the revolve axis pair takes offset/tilt with world-X profile centers and normalized directions (RevolveO/T), 360° = plain 2π (RevolveF), and RevolveW is BIT-IDENTICAL to the original. The 3 M-stems (12 files) + the 8 surface-mode C first attempts (renamed `ExtrudeCSurf_<v>`/`LoftCSurf_<v>` — their Solid re-authors kept the C names) LANDED 2026-09-24 with the surface-parser row (see §18.6's decode record: the classes gold-shadow walk + the R2013+ sab grammar): the corpus stands at **280 files 0/0**, every §18.7 specimen in the tree. **Closing-set state (2026-09-24, COMPLETE — the maintainer
    fixture surface is EMPTY): PolysolidL landed in-corpus and its probe
    was DECISIVE — the 2.0109 single (and @900/@1092) is
@@ -9076,3 +9076,97 @@ hypothesis; the DIMCONSTRAINT network; the GCONSTRAIN weak lever)
 are recorded with the drop location `fixtures/b6_routes/`
 (IN-SCOPE - the census trace answers the 19/27 question on
 landing). C2's note now carries the completed enabler.
+
+**The 2026-10-03 session chain (four arcs — the b6 review, the
+golden-entities landing, the era-census continuation, the brep
+swap; the chronological record of the day):**
+
+**(1) The b6_routes review** (the drop completed 2026-10-03
+morning; SweepSurfArc rebuilt mid-review): the stable twelve
+(DimConstr/GConstrNet/GConstrXline/ConstrSmooth ×3 eras) carry
+**ZERO EdgeActionParam records** — the ASSOC class lists hold
+only NETWORK/2DCONSTRAINTGROUP/GEOMDEPENDENCY (+ the dimensional
+family's DIMDEPENDENCYBODY/VALUEDEPENDENCY/VARIABLE). With the
+recorded refusals (SweepSurfXline/Ray: "This entity cannot be a
+sweeping path"; ConstrHelix: the 2D constraint manager accepts
+line/polyline-segment/arc only), **kinds 19/27 remain attested
+NOWHERE and every authoring route on this toolchain is measured
+dead** — B6 is the pure watch. The review's two normalizer
+projections (both faithful to gold's own spec decode): the
+**dimension flag formula** (dwg.spec 1612-1624 + the ordinate's
+own 1729: the 70-flag derives from the wire flag1 RC — bit 7 the
+inverse of flag1 bit 0, bit 5 from flag1 bit 1, the type low bits
+OR'd — plus the ordinate flag2 rule), and the **splinew scenario
+projection** (dwg.spec 2571: the wire scenario BL stands
+pre-R2013; the R2013b decoder re-derives from splineflags/
+knotparam). The stable twelve ALL 0/0; the corpus gate unmoved.
+
+**(2) The golden-entities landing** (the C4 REOPEN — the
+maintainer's call "generate per version supported in cadcodec all
+supported entities separately to replace libredwg test-files and
+beyond" reverses the 2026-10-02 halt): `fixtures/golden_entities/`
+— 30 families × 8 versions (AC1012..AC1032), **221 fixtures** +
+8 Body refusals (INTERFERE non-functional headless, the B4 class)
++ 10 version-gated cells (HATCH R14+, MLEADER AC1021+, MESH
+AC1024+) — every file with .scr replication + .txt provenance;
+the engines per the measured map (R13 = BricsCAD, R14+ = AutoCAD
+core console); the LWPolyline-R13 downsave datum (the era-native
+heavy POLYLINE_2D). THE 642-FILE CORPUS BASELINE: the established
+401 at the recorded 8/8 unmoved; the golden six modern eras at
+0/0 on every family except the polyline pair; **the R13/R14 eras
+at the ~104-row shared boilerplate** (the §19.5 Tier-2 class,
+uniform across all 52 files) — the C4 work surface. The full
+record: NEXT_SESSION.md's golden-entities landing (the file
+bottom); TODO.md C4.
+
+**(3) The era-census continuation** (the "shrink TODO.md to
+minimum" directive; TWELVE packets across the day — the three
+morning record-identity packets first, then the nine-packet arc):
+the morning three — the **table-control entries capture** (the
+APPID authored table order + the VPORT null deleted-slot tails —
+gh209_1 1→0, THE 2010 ERA AT FULL RECORD IDENTITY 166/166), the
+**PLOTSETTINGS plotview ref code** (gold's spec declares 4, the
+wire carries 5 — the ref-code lesson; gh109_1 1→0, 664/664), the
+**entity-color ENC raw twin** (the true-color ACI slot is author
+data; HatchG 2→0, gh44-error 21→18). Then the nine: the **R13/R14
+golden boilerplate gates** (the normalizer's r13_14 predicate —
+isbylayerlt/DIMFIT-DIMUNIT-DIMBLK_T/the LAYER flag bits/the
+BLOCK_CONTROL case-fold/the DIMENSION emission gates; the ~104-row
+family GONE, Point/Line/Spline 104→0, Dimension 161→0); the
+**vertex chain retention** (the pre-2004 chain is per-record
+author data — Vertex2D wire_nolinks/wire_prev/wire_next + the
+pface _common_dwg walk; the golden polylines 0/0); the **TV
+plain-form capture** (the pre-2007 trailing-NUL convention is
+per-record author data — PolyLine2D 225→49); the **XRECORD wire
+codepage** (the per-string codepage byte — PolyLine2D 49→3); the
+**exact close-pad capture** (the arbitrary-leftover authors pad
+F1/E3/89 — entities-3d 31→7, entities-2d 32→8); the **dictionary
+wire-text** (the MTEXT d81f864 precedent — the Russian key's
+12-escape form; PolyLine2D 3→2); the **golden polyline
+projections** (the R2004a+ vertex vector + the VERTEX_2D id);
+the **isbylayerlt retention + the per-family R13 gates**
+(TEXT/ATTDEF decoder-default emission, VIEWPORT drops, LEADER
+dim-default synthesis, 3DFACE invis_flags/dxfname, INSERT scale
+array — the golden R13/R14 families ALL 0/0); the **SEQEND
+plotstyle handle** (the golden SEQENDs target the MATERIAL
+object — the target is per-record author data; the golden
+Polyline2D/3D quads at AC1021-AC1032 0/0). **THE CORPUS
+COLLAPSED 5825→122→24/24 FIDELITY** (648 files — the golden
+residue: Leader_AC1014 1 + Region/Solid3d_AC1012's ACIS pair; the
+established 8/8 + the brep 6/7 unmoved); the standing era
+censuses re-verified (750/750, 735/735, 536/536, 474/474,
+216/216, 160/160, 166/166, 664/664, 229/229); the suite 1,618/0;
+the genus PENDING-ZERO; the identity f2187565/25,728 unmoved.
+The packet-by-packet record with the per-record dissections:
+NEXT_SESSION.md's era-census continuation (the file bottom);
+TODO.md A9.
+
+**(4) The brep swap** (a parallel agent, mid-session — see the
+F2.3 Brep row above for the landed state): the from-scratch
+SOLIDHIST=1 mints replaced the initial ATMOS-carrier
+re-emissions; the committed contents re-verified per-file (the
+0/0 quartet — the fresh minimal census fully inside silver's
+typed model; AC1027 6/AC1032 7 — the R2013+ trailing region,
+the named raw-remainder packet with two clean per-version
+specimens). B4's item (TODO.md) carries the falsification record
+and the engine dialect map.
