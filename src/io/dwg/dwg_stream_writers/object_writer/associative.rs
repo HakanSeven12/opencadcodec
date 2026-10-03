@@ -650,6 +650,43 @@ impl<'a> DwgObjectWriter<'a> {
                             self.writer.write_3bit_double(*point);
                         }
                     }
+                    Some(AssocSubcurve::Composite(subcurve)) => {
+                        // TODO A8 (2026-10-03): the measured composite
+                        // (47) grammar (see `AssocCompositeSubcurve`):
+                        // BL num_segments, then per segment BS kind +
+                        // the kind's own form — 23: absolute start 3BD
+                        // + delta 3BD; 11: the arc form with the R2013+
+                        // constant two-bit trailing tail (the same
+                        // per-frame rule as the standalone ARC region;
+                        // the line segments close at their sixth BD on
+                        // every frame). The wire region is otherwise
+                        // era-stable, so the emission is ungated beyond
+                        // the arc tail.
+                        self.writer
+                            .write_bit_long(subcurve.segments.len() as i32);
+                        for segment in &subcurve.segments {
+                            match segment {
+                                AssocCompositeSegment::Line { start, delta } => {
+                                    self.writer.write_bit_short(23);
+                                    self.writer.write_3bit_double(*start);
+                                    self.writer.write_3bit_double(*delta);
+                                }
+                                AssocCompositeSegment::Arc(arc) => {
+                                    self.writer.write_bit_short(11);
+                                    self.writer.write_3bit_double(arc.center);
+                                    self.writer.write_3bit_double(arc.normal);
+                                    self.writer.write_3bit_double(arc.x_axis);
+                                    self.writer.write_bit_double(arc.radius);
+                                    self.writer
+                                        .write_bit_double(arc.start_angle);
+                                    self.writer.write_bit_double(arc.end_angle);
+                                    if r2013_plus {
+                                        self.writer.write_bit_double(0.0);
+                                    }
+                                }
+                            }
+                        }
+                    }
                     None => {
                         if let Some(bytes) = &value.subcurve_wire {
                             if value.subcurve_wire_dxf_version

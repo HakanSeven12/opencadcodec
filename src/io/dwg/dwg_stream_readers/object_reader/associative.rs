@@ -956,6 +956,32 @@ pub fn read_associative_data(
                                     subcurve_wire = Some(bytes);
                                     subcurve_wire_bit_len = count;
                                 }
+                            } else if action_type == 47 {
+                                // TODO A8 (2026-10-03): the composite
+                                // (47) region parses TYPED — the
+                                // segment-list grammar (see
+                                // `AssocCompositeSubcurve`): BL count +
+                                // per segment BS kind (23 line
+                                // start/delta, 11 the arc form with the
+                                // R2013+ trailing tail). Same gates: the
+                                // known kinds and exact closure, else
+                                // the verbatim net.
+                                let r2013_plus =
+                                    version.r2013_plus(dxf_version);
+                                if let Some(composite) =
+                                    parse_composite47_region(
+                                        &bytes,
+                                        count,
+                                        r2013_plus,
+                                    )
+                                {
+                                    subcurve = Some(
+                                        AssocSubcurve::Composite(composite),
+                                    );
+                                } else {
+                                    subcurve_wire = Some(bytes);
+                                    subcurve_wire_bit_len = count;
+                                }
                             } else {
                                 subcurve_wire = Some(bytes);
                                 subcurve_wire_bit_len = count;
@@ -1512,4 +1538,128 @@ fn parse_nurb3d_region(bytes: &[u8], bit_len: u32) -> Option<AssocNurb3dSubcurve
         gap_b,
         control_points,
     })
+}
+
+/// Parse the composite (47) subcurve region — TODO A8 (2026-10-03).
+///
+/// The grammar (measured on the ExtrudePline/Extrude3DPoly/
+/// RevolvePline/LoftMixed quads, all four eras; gold's spec has no
+/// case 47 — the corpus is the authority): `BL num_segments`, then
+/// per segment `BS kind` + the kind's own typed form. The measured
+/// kinds: 23 (LINESEG3D — six BDs: absolute start 3BD + delta 3BD)
+/// and 11 (ARC — the twelve-BD arc form, plus the constant two-bit
+/// `10` trailing form on the R2013+ frames, exactly like the
+/// standalone ARC region). Gates on the segment count, the known
+/// kinds, and exact closure; any deviation (a future kind, a variant
+/// form) returns None and the caller rides the verbatim
+/// capture+replay net.
+fn parse_composite47_region(
+    bytes: &[u8],
+    bit_len: u32,
+    r2013_plus: bool,
+) -> Option<AssocCompositeSubcurve> {
+    // a minimal MSB-first bit cursor over the captured window
+    struct Cursor<'a> {
+        bytes: &'a [u8],
+        pos: u32,
+        len: u32,
+    }
+
+    impl Cursor<'_> {
+        fn bit(&mut self) -> Option<bool> {
+            if self.pos >= self.len {
+                return None;
+            }
+            let byte = *self.bytes.get((self.pos / 8) as usize)?;
+            let value = (byte >> (7 - self.pos % 8)) & 1 == 1;
+            self.pos += 1;
+            Some(value)
+        }
+
+        fn raw(&mut self, count: u32) -> Option<u32> {
+            let mut value = 0u32;
+            for _ in 0..count {
+                value = (value << 1) | self.bit()? as u32;
+            }
+            Some(value)
+        }
+
+        fn bl(&mut self) -> Option<i32> {
+            match self.raw(2)? {
+                0 => Some(self.raw(32)? as i32),
+                1 => Some(self.raw(8)? as i32),
+                2 => Some(0),
+                _ => Some(256),
+            }
+        }
+
+        fn bs(&mut self) -> Option<i32> {
+            match self.raw(2)? {
+                0 => Some(self.raw(16)? as i32),
+                1 => Some(self.raw(8)? as i32),
+                2 => Some(0),
+                _ => Some(256),
+            }
+        }
+
+        fn bd(&mut self) -> Option<f64> {
+            match self.raw(2)? {
+                0 => {
+                    let mut array = [0u8; 8];
+                    for slot in array.iter_mut() {
+                        *slot = self.raw(8)? as u8;
+                    }
+                    Some(f64::from_le_bytes(array))
+                }
+                1 => Some(1.0),
+                2 => Some(0.0),
+                _ => None,
+            }
+        }
+    }
+
+    let mut bits = Cursor { bytes, pos: 0, len: bit_len };
+    let num_segments = bits.bl()?;
+    if num_segments <= 0 || num_segments > 1024 {
+        return None;
+    }
+    let mut segments = Vec::with_capacity(num_segments as usize);
+    for _ in 0..num_segments {
+        let kind = bits.bs()?;
+        match kind {
+            23 => {
+                let start = Vector3::new(bits.bd()?, bits.bd()?, bits.bd()?);
+                let delta = Vector3::new(bits.bd()?, bits.bd()?, bits.bd()?);
+                segments.push(AssocCompositeSegment::Line { start, delta });
+            }
+            11 => {
+                let center = Vector3::new(bits.bd()?, bits.bd()?, bits.bd()?);
+                let normal = Vector3::new(bits.bd()?, bits.bd()?, bits.bd()?);
+                let x_axis = Vector3::new(bits.bd()?, bits.bd()?, bits.bd()?);
+                let radius = bits.bd()?;
+                let start_angle = bits.bd()?;
+                let end_angle = bits.bd()?;
+                if r2013_plus && bits.raw(2)? != 0b10 {
+                    // the R2013+ arc tail is the constant `10` — any
+                    // other two bits mean a variant: fall to the net.
+                    return None;
+                }
+                segments.push(AssocCompositeSegment::Arc(AssocArcSubcurve {
+                    center,
+                    normal,
+                    x_axis,
+                    radius,
+                    start_angle,
+                    end_angle,
+                }));
+            }
+            // an unmeasured kind (17, 42, 19, 27, …) — the net.
+            _ => return None,
+        }
+    }
+    // the region must close exactly — the typed form's own gate.
+    if bits.pos != bit_len {
+        return None;
+    }
+    Some(AssocCompositeSubcurve { segments })
 }

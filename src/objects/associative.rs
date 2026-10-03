@@ -1098,6 +1098,54 @@ impl Default for AssocNurb3dSubcurve {
     }
 }
 
+/// One segment of the composite (47) subcurve — TODO A8 (2026-10-03).
+///
+/// The composite region is a SEGMENT LIST: `BL num_segments` then per
+/// segment `BS kind` + the kind's own typed form. The measured kinds
+/// (the ExtrudePline/Extrude3DPoly/RevolvePline/LoftMixed quads, all
+/// four eras, plus the 2004/Surface.dwg corpus records):
+///
+/// - kind 23 (LINESEG3D): six BDs — the segment's ABSOLUTE start point
+///   (3BD) and its displacement (3BD; start + delta = the segment's
+///   end). Every authored line segment carries both.
+/// - kind 11 (ARC): the full ARC subcurve form inline (twelve BDs —
+///   center, normal, x-axis, radius, start/end angles), with the same
+///   constant two-bit `10` trailing form on the R2013+ frames the
+///   standalone ARC region carries (RevolvePline_2018: 816 bits vs
+///   2007's 814 — the arc segment's tail is the delta).
+///
+/// Other kinds (17, 42, 19, 27, …) have no measured carrier inside a
+/// composite — a future specimen rides the verbatim capture+replay
+/// net (the parser gates on the known kinds and falls back whole).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AssocCompositeSegment {
+    /// kind 23: absolute start + displacement.
+    Line {
+        start: crate::types::Vector3,
+        delta: crate::types::Vector3,
+    },
+    /// kind 11: the ARC form inline.
+    Arc(AssocArcSubcurve),
+}
+
+/// The composite (47) subcurve — TODO A8 (2026-10-03): the polyline
+/// profile as a segment list. Gold's spec switch has no case 47 (its
+/// default arm errors "Unknown action_type") — the corpus measurement
+/// is the authority, exactly as for the NURB3D (42) form. The region:
+/// `BL num_segments`, then per segment `BS kind` + the kind's form.
+/// Verified bit-exact against every measured carrier: the rectangle
+/// profiles (ExtrudePline/LoftMixed — four line segments, each
+/// absolute start + delta), the 3D profiles (Extrude3DPoly — two
+/// segments with true 3D deltas), and the mixed profile (RevolvePline
+/// — line, ARC (the semicircle cap), line, line). Era-stable except
+/// the arc segments' R2013+ trailing form.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocCompositeSubcurve {
+    pub segments: Vec<AssocCompositeSegment>,
+}
+
 /// The typed subcurve geometries the DWG reader models; the ladder's
 /// remaining rungs (CURVE3D, Line) stay untyped — see
 /// `AssocEdgeActionParam::subcurve_wire`.
@@ -1108,6 +1156,7 @@ pub enum AssocSubcurve {
     Ellipse(AssocEllipseSubcurve),
     LineSegment3d(AssocLineSegment3dSubcurve),
     Nurb3d(AssocNurb3dSubcurve),
+    Composite(AssocCompositeSubcurve),
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

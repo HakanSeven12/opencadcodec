@@ -75,24 +75,23 @@ forms), and the four recorded anomalies are the new SweepHelix
 spline-surface SAB records the extractor's walker cannot fully
 parse — an extraction-surface limitation honestly pinned as the
 state, not a writer defect. The python gates stay pending-zero
-with the TOLERATED occurrences grown 22→24 on the population).
+with the TOLERATED occurrences grown 22→24 on the population);
+A8 (the composite (47) subcurve — closed 2026-10-03: the
+segment-list grammar named and typed. `BL num_segments`, then per
+segment `BS kind` — kind 23: the absolute start 3BD + the
+displacement 3BD; kind 11: the full arc form inline with the
+R2013+ two-bit trailing tail (the same per-frame rule as the
+standalone ARC region). The measured carriers all decode and close
+exactly: the rectangle profiles (ExtrudePline/LoftMixed,
+era-stable), the 3D profiles (Extrude3DPoly, true 3D deltas), the
+mixed profile (RevolvePline — line, arc semicircle cap, line,
+line). The reader's parser gates on the count, the known kinds,
+the tail constant and exact closure — any deviation rides the
+verbatim net; the writer emits typed; six carrier files
+record-identical; three bit-exact test pins. The capture+replay
+net's standing users are now the never-measured kinds only).
 
 ## A. Open tasks (agent code work)
-
-### A8. The composite (47) subcurve dissection
-
-The NURB3D (42) half is closed: the grammar is named and
-self-delimiting, the reader parses it typed (gated on the measured
-constants, falling back to the capture+replay net on any deviation),
-and the writer emits it without a version gate. What remains is the
-47 composite — a delta-encoded polyline form carried by the
-ExtrudePline, Extrude3DPoly, RevolvePline and LoftMixed quads plus the
-2004/Surface.dwg records — which still replays verbatim. Naming its
-fields is the remaining depth packet. Two optional enablers would
-stretch the measured field set: a rational spline (weights ≠ 1) and a
-CV-method spline. Both are safe to author — the parser's constant
-gates fall back to the net, and the specimen would name the new
-fields.
 
 ### A9. The era-census residue
 

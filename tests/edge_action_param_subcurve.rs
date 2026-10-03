@@ -14,9 +14,10 @@
 //! HANDLE_UNKNOWN_BITS, so none of this is gold-attested).
 
 use acadrust::objects::{
-    AssocActionParam, AssocArcSubcurve, AssocEdgeActionParam, AssocEllipseSubcurve,
-    AssocLineSegment3dSubcurve, AssocNurb3dSubcurve, AssocSingleDependencyActionParam,
-    AssocSubcurve, AssocSubcurveKind, AssociativeData, AssociativeObject, ObjectType,
+    AssocActionParam, AssocArcSubcurve, AssocCompositeSegment, AssocCompositeSubcurve,
+    AssocEdgeActionParam, AssocEllipseSubcurve, AssocLineSegment3dSubcurve,
+    AssocNurb3dSubcurve, AssocSingleDependencyActionParam, AssocSubcurve,
+    AssocSubcurveKind, AssociativeData, AssociativeObject, ObjectType,
 };
 use acadrust::types::{DxfVersion, Vector3};
 use acadrust::{CadDocument, DwgReader, DwgWriter};
@@ -288,14 +289,15 @@ fn dwg_subcurve_linesegment3d_typed_emission_r2013() {
 
 #[test]
 fn dwg_subcurve_untyped_kind_replays_captured_wire_same_version() {
-    // the gold-unknown composite (47) — the capture+replay net's
-    // remaining user since the NURB3D (42) moved to the typed ladder
-    // (TODO A8, 2026-10-02).
+    // the never-measured kind 19 (Line) — the capture+replay net's
+    // standing user: the composite (47) moved to the typed ladder
+    // (TODO A8, 2026-10-03), so the net's test rides an untyped kind
+    // with the pinned 610-bit region as its verbatim payload.
     let wire = unhex(PLINE47_REGION_HEX.replace('"', "").as_str());
     let wire_bits = PLINE47_REGION_BITS;
     let (document, _) = document_with_edge_param(
         DxfVersion::AC1032,
-        47,
+        19,
         None,
         Some((wire, wire_bits, Some(DxfVersion::AC1032))),
     );
@@ -307,9 +309,9 @@ fn dwg_subcurve_untyped_kind_replays_captured_wire_same_version() {
     assert_eq!(
         got[27..27 + wire_bits as usize],
         want[..wire_bits as usize],
-        "the kind-47 region replay diverged from the captured specimen"
+        "the kind-19 verbatim region replay diverged from the pinned payload"
     );
-    assert_eq!(record.subcurve_kind, AssocSubcurveKind::None);
+    assert_eq!(record.subcurve_kind, AssocSubcurveKind::Line);
     assert!(record.subcurve.is_none());
     assert_eq!(record.subcurve_wire_bit_len, wire_bits);
     assert!(record.subcurve_wire.is_some());
@@ -432,5 +434,163 @@ fn dwg_subcurve_nurb3d_emission_is_era_stable() {
         "the NURB3D region must be era-stable (the 2007/2018 specimens are bit-identical)"
     );
     assert!(matches!(record.subcurve, Some(AssocSubcurve::Nurb3d(_))));
+}
+
+// ─── TODO A8 (2026-10-03): the composite (47) segment-list form ─────────
+
+/// Her RevolvePline_2007 record's captured region (814 bits): the
+/// mixed profile — a line, the ARC semicircle cap (twelve BDs, NO
+/// trailing form at R2007), a line, a line.
+const COMPOSITE47_REVOLVE_R2007_BITS: u32 = 814;
+const COMPOSITE47_REVOLVE_R2007_HEX: &str = concat!(
+    "411170000000000000010280000000000000040A42C00000000000010406A5A4D221",
+    "337F7CD91240178E154A5E9A87D01170000000000000410000000000000000408000",
+    "00000000000C0A45C000000000000004000000000000000102800000000000000C08",
+);
+
+/// Her RevolvePline_2018 record's captured region (816 bits): the
+/// same profile with the ARC segment's R2013+ two-bit `10` trailing
+/// form (the +2 bits are the era delta).
+const COMPOSITE47_REVOLVE_R2018_BITS: u32 = 816;
+const COMPOSITE47_REVOLVE_R2018_HEX: &str = concat!(
+    "411170000000000000010280000000000000040A42C00000000000010406A5A4D221",
+    "337F7CD91240178E154A5E9A87D0245C000000000000104000000000000000102000",
+    "00000000000302917000000000000001000000000000000040A00000000000000302",
+);
+
+fn revolve_profile_composite() -> AssocCompositeSubcurve {
+    AssocCompositeSubcurve {
+        segments: vec![
+            AssocCompositeSegment::Line {
+                start: Vector3::new(2.0, 0.0, 0.0),
+                delta: Vector3::new(2.0, 0.0, 0.0),
+            },
+            AssocCompositeSegment::Arc(AssocArcSubcurve {
+                center: Vector3::new(4.0, 1.0, 0.0),
+                normal: Vector3::new(0.0, 0.0, 1.0),
+                x_axis: Vector3::new(1.0, 0.0, 0.0),
+                radius: 1.0,
+                start_angle: 4.71238898038469,
+                end_angle: 7.853981633974483,
+            }),
+            AssocCompositeSegment::Line {
+                start: Vector3::new(4.0, 2.0, 0.0),
+                delta: Vector3::new(-2.0, 0.0, 0.0),
+            },
+            AssocCompositeSegment::Line {
+                start: Vector3::new(2.0, 2.0, 0.0),
+                delta: Vector3::new(0.0, -2.0, 0.0),
+            },
+        ],
+    }
+}
+
+#[test]
+fn dwg_subcurve_composite47_line_segments_r2007() {
+    // The rectangle profile (her ExtrudePline quads, bit-identical
+    // across all four eras): four LINESEG3D segments, each absolute
+    // start + delta. The typed emission matches her 610-bit region
+    // bit-for-bit after the 17-bit pre-R2013 prefix.
+    let subcurve = AssocSubcurve::Composite(AssocCompositeSubcurve {
+        segments: vec![
+            AssocCompositeSegment::Line {
+                start: Vector3::new(0.0, 0.0, 0.0),
+                delta: Vector3::new(4.0, 0.0, 0.0),
+            },
+            AssocCompositeSegment::Line {
+                start: Vector3::new(4.0, 0.0, 0.0),
+                delta: Vector3::new(0.0, 3.0, 0.0),
+            },
+            AssocCompositeSegment::Line {
+                start: Vector3::new(4.0, 3.0, 0.0),
+                delta: Vector3::new(-4.0, 0.0, 0.0),
+            },
+            AssocCompositeSegment::Line {
+                start: Vector3::new(0.0, 3.0, 0.0),
+                delta: Vector3::new(0.0, -3.0, 0.0),
+            },
+        ],
+    });
+    let (document, _) =
+        document_with_edge_param(DxfVersion::AC1021, 47, Some(subcurve), None);
+    let (captured, record) = roundtrip(document);
+    let got = capture_bits(&captured, 17 + PLINE47_REGION_BITS);
+    let want = capture_bits(PLINE47_REGION_HEX, PLINE47_REGION_BITS);
+    assert_eq!(
+        got[17..17 + PLINE47_REGION_BITS as usize],
+        want[..],
+        "the composite line-segment region diverged from her ExtrudePline specimen"
+    );
+    assert_eq!(record.subcurve_kind, AssocSubcurveKind::None);
+    let composite = match &record.subcurve {
+        Some(AssocSubcurve::Composite(value)) => value,
+        other => panic!("expected the typed composite round-trip, got {other:?}"),
+    };
+    assert_eq!(composite.segments.len(), 4);
+    assert!(record.subcurve_wire.is_none());
+}
+
+#[test]
+fn dwg_subcurve_composite47_mixed_arc_r2013() {
+    // The mixed profile (her RevolvePline_2018): a line, the ARC
+    // semicircle cap, a line, a line — the arc segment carries the
+    // R2013+ two-bit `10` trailing form. The typed emission matches
+    // her 816-bit region after the 27-bit R2013+ prefix.
+    let (document, _) = document_with_edge_param(
+        DxfVersion::AC1032,
+        47,
+        Some(AssocSubcurve::Composite(revolve_profile_composite())),
+        None,
+    );
+    let (captured, record) = roundtrip(document);
+    let got = capture_bits(&captured, 27 + COMPOSITE47_REVOLVE_R2018_BITS);
+    let want = capture_bits(
+        COMPOSITE47_REVOLVE_R2018_HEX,
+        COMPOSITE47_REVOLVE_R2018_BITS,
+    );
+    assert_eq!(
+        got[27..27 + COMPOSITE47_REVOLVE_R2018_BITS as usize],
+        want[..],
+        "the mixed composite region (arc + the R2013+ tail) diverged from her RevolvePline_2018 specimen"
+    );
+    let composite = match &record.subcurve {
+        Some(AssocSubcurve::Composite(value)) => value,
+        other => panic!("expected the typed composite round-trip, got {other:?}"),
+    };
+    assert_eq!(composite.segments.len(), 4);
+    assert!(matches!(
+        composite.segments[1],
+        AssocCompositeSegment::Arc(_)
+    ));
+    assert!(record.subcurve_wire.is_none());
+}
+
+#[test]
+fn dwg_subcurve_composite47_mixed_arc_r2007_has_no_arc_tail() {
+    // The same mixed profile at R2007: the arc segment closes at its
+    // twelfth BD (no trailing form) — her 814-bit RevolvePline_2007
+    // region. The 2-bit delta against the 2018 form is exactly the
+    // arc tail.
+    let (document, _) = document_with_edge_param(
+        DxfVersion::AC1021,
+        47,
+        Some(AssocSubcurve::Composite(revolve_profile_composite())),
+        None,
+    );
+    let (captured, record) = roundtrip(document);
+    let got = capture_bits(&captured, 17 + COMPOSITE47_REVOLVE_R2007_BITS);
+    let want = capture_bits(
+        COMPOSITE47_REVOLVE_R2007_HEX,
+        COMPOSITE47_REVOLVE_R2007_BITS,
+    );
+    assert_eq!(
+        got[17..17 + COMPOSITE47_REVOLVE_R2007_BITS as usize],
+        want[..],
+        "the mixed composite region (arc, no tail) diverged from her RevolvePline_2007 specimen"
+    );
+    assert!(matches!(
+        record.subcurve,
+        Some(AssocSubcurve::Composite(_))
+    ));
 }
 

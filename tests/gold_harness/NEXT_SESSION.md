@@ -4340,8 +4340,8 @@ era-census continuation, then the golden-entities landing, then the
 b6 review, then the era-census addendum, then the 2026-10-02
 sections bottom-up.
 
-## THE 2026-10-03 A5/A6/A7 CLOSURES (the "eliminate open tasks
-## step-by-step" directive's first three packets — read this FIRST):
+## THE 2026-10-03 A5/A6/A7/A8 CLOSURES (the "eliminate open tasks
+## step-by-step" directive's first four packets — read this FIRST):
 
 **A5 CLOSED — the eight pre-existing corpus rows.** Two roots, both
 measured against gold's own behavior:
@@ -4411,6 +4411,37 @@ are — NOT a writer defect). The pin regenerated with the anomalies
 recorded in it; the python gates hold pending-zero (the TOLERATED
 occurrences grew 22→24 on the population); **the cargo mirror is
 GREEN**.
+
+**A8 CLOSED — the composite (47) subcurve named and typed.** The
+grammar (measured on the ExtrudePline/Extrude3DPoly/RevolvePline/
+LoftMixed quads, all four eras — gold's spec has no case 47, the
+corpus is the authority): `BL num_segments`, then per segment
+`BS kind` — **kind 23 (LINESEG3D): six BDs, the segment's ABSOLUTE
+start (3BD) + its displacement (3BD)**; **kind 11 (ARC): the full
+arc form inline (twelve BDs) + the R2013+ constant two-bit `10`
+trailing tail** (the same per-frame rule as the standalone ARC
+region — RevolvePline_2018's 816 bits vs 2007's 814 are exactly the
+arc tail). THE MEANING: the composite is a polyline profile as a
+segment list with mixed kinds — RevolvePline's profile is line, arc
+semicircle cap (center (4,1,0), radius 1, angles 3π/2..5π/2), line,
+line (the stadium shape); Extrude3DPoly carries true 3D deltas
+((2,1,3) and (2,1,-3)); the rectangle profiles are era-stable
+bit-identical. THE IMPLEMENTATION (the B2/A8 pattern): the
+AssocCompositeSegment/AssocCompositeSubcurve models, the reader's
+parse_composite47_region (gates: count ≤ 1024, kinds 23/11, the
+R2013+ tail constant, exact closure — any deviation rides the
+verbatim net whole), the writer's Composite arm (the arc tail at
+R2013+ only), and three bit-exact test pins (the rectangle at R2007
+against her 610-bit region; the mixed profile at R2013+ against her
+816; the same at R2007 against her 814 — the tail's absence is the
+pinned era delta). The capture+replay test moved to kind 19 (the
+never-measured Line kind — the net's standing user now that 47 is
+typed). ACCEPTANCE: all six carrier files RECORD-IDENTICAL
+(size+CRC) on the conventional rewrite (ExtrudePline 2007/2018
+214/149, RevolvePline 2007/2018 215/150, Extrude3DPoly_2007 218,
+LoftMixed_2018 155); the suite 1,621/0 (the subcurve file now 11
+tests); the corpus at the A5/A6/A7 verified state (694 files,
+119/119); the identity f2187565…/25,728 unmoved.
 
 **THE CORPUS AFTER A5: the established 401-file population measures
 ZERO fidelity rows** — the first time the whole established corpus
