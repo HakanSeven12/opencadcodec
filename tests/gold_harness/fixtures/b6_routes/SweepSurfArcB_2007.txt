@@ -1,0 +1,37 @@
+2026-10-03  TODO B6 follow-up (author ASSOCPATHACTIONPARAM + ASSOCGEOMDEPENDENCY from BricsCAD): SweepSurfArcB_2007. Status: PASS
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Attempt note: ASSOCGEOMDEPENDENCY is already authored by the landed BricsCAD constraint fixtures (GConstrNet/GConstrXline/ConstrSmooth/DimConstr); this attempt targets ASSOCPATHACTIONPARAM - whether BricsCAD's surface sweep writes the ASSOC modeling network AutoCAD's does (ASSOCACTION + ASSOCPATHACTIONPARAM + dependencies). Identical geometry to the AutoCAD-authored SweepSurfArc family - the direct engine A/B for the wire-level kind read. A network-less sweep is the negative datum (the class would be AutoCAD-modeler-specific).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine before every run).
+Operation (the BricsCAD-authored analog of SweepSurfArc (identical geometry - CIRCLE profile at origin via typed window, bounded ARC path center (50,0) r50 180->90 deg via _L) for the direct engine A/B of the wire-level kind read. THE ATTEMPT'S PURPOSE: does BricsCAD's surface sweep write the ASSOC modeling network - ASSOCACTION + ASSOCPATHACTIONPARAM (the sweep-path action param, the B6 subcurve-kind carrier) - and which dependency subclass (ASSOCGEOMDEPENDENCY vs AutoCAD's plain ASSOCDEPENDENCY)? A network-less sweep is the negative datum (the class would be AutoCAD-modeler-specific).; exact replication record = adjacent SweepSurfArcB_2007.scr):
+(entmake '((0 . "CIRCLE") (100 . "AcDbEntity") (100 . "AcDbCircle") (10 0.0 0.0 0.0) (40 . 5.0)))
+(entmake '((0 . "ARC") (100 . "AcDbEntity") (100 . "AcDbArc") (10 50.0 0.0 0.0) (40 . 50.0) (50 . 3.141592653589793) (51 . 1.5707963267948966)))
+(command "_.SWEEP" "_MO" "_SU" "_W" "-10,-10" "10,10" "" "_L")
+
+Save format: DWG 2007 (AC1021) via SAVEAS token "2007".
+Qualification: dwgread exit 0, 0 "Error" lines; in-app census: census: last=SWEPTSURFACE.
+File entity census: {'BLOCK': 3, 'ENDBLK': 3, 'ARC': 1, 'UNKNOWN_ENT': 1}.
+Assoc note: no ASSOC-family classes.
+
+ASSOC-class authoring attempt - the measured negative (2026-10-03):
+BricsCAD's surface sweep does NOT write the ASSOC modeling network:
+  - the saved file carries NO ASSOC-family classes (the census above);
+  - SURFACEASSOCIATIVITY (AutoCAD's associative-surface control sysvar)
+    is ABSENT in BricsCAD V26 (getvar -> nil; the probeD1 measurement);
+  - the NOD carries no ACAD_ASSOCNETWORK after the sweep (dictsearch
+    on the named object dictionary -> nil);
+  - and the sweep DELETED the profile circle (AutoCAD's associative
+    sweep keeps profile+path because the network references them;
+    BricsCAD's non-associative sweep consumes the profile - the
+    entity census shows the ARC path + the surface only).
+Verdict: ASSOCPATHACTIONPARAM is AutoCAD-modeler-specific on this
+toolchain - not authorable from BricsCAD (the surface sweep is the
+only measured carrier of the class). The landed file remains a
+valid engine-A/B specimen of the sweep-surface wire form
+(BricsCAD's SWEPTSURFACE vs AutoCAD's - the differ side's payload).
+ASSOCGEOMDEPENDENCY IS BricsCAD-authored - the constraint fixtures
+(GConstrNet/GConstrXline/ConstrSmooth/DimConstr) carry it, verified
+in the campaign's final qualification.
+
+FINAL QUALIFICATION (2026-10-03, the B6 campaign pass): OK. dwgread exit 0, 0 "Error" lines; magic AC1021; entity census {'BLOCK': 3, 'ENDBLK': 3, 'ARC': 1, 'UNKNOWN_ENT': 1}; ASSOC classes [].

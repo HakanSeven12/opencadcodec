@@ -1,0 +1,25 @@
+; SweepSurfRay_2018.scr - TODO B6 fixture, headless per fixtures/README_HEADLESS.md
+; engine : BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08)
+; seed   : staged acadiso.dwt | one op recipe | SAVEAS token "2018"
+_.LOGFILEON
+_.OPEN
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\b6_routes\seed\acadiso.dwt
+(setq _e (entmake '((0 . "CIRCLE") (100 . "AcDbEntity") (100 . "AcDbCircle") (10 0.0 0.0 0.0) (40 . 5.0))))
+(setq _x (entmake '((0 . "RAY") (100 . "AcDbEntity") (100 . "AcDbRay") (10 200.0 0.0 0.0) (11 0.0 0.0 1.0))))
+(princ (strcat "B6P: x=" (if _x "T" "NIL") " e=" (if _e "T" "NIL")))
+(command "_.SWEEP" "_MO" "_SU" "_W" "-10,-10" "10,10" "" "_L" "")
+_.SAVEAS
+2018
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\b6_routes\out\SweepSurfRay_2018.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\b6_routes\\out\\SweepSurfRay_2018_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: SweepSurfRay_2018"))
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+(setq _s (ssget "_X" (list (cons 0 "*SURFACE*"))))
+(LOGSEC (list (strcat "census: *SURFACE*=" (if _s (itoa (sslength _s)) "0"))))
+(LOGSEC (list (strcat "dbmod=" (itoa (getvar "DBMOD")))))
+(LOGSEC (list "probe-end"))
+_.LOGFILEOFF
+_.DELAY 1500
+_.QUIT
+_Y

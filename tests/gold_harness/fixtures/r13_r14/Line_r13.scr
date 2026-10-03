@@ -1,0 +1,20 @@
+; Line_r13.scr - TODO B3 fixture, headless per fixtures/README_HEADLESS.md
+; engine : BricsCAD V26 (hidden /Automation /b, bricscad.exe build 26.2.08)
+; seed   : staged acadiso.dwt | one op | SAVEAS token "R13"
+_.LOGFILEON
+_.OPEN
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\seed\acadiso.dwt
+(entmake '((0 . "LINE") (100 . "AcDbEntity") (100 . "AcDbLine") (10 0.0 0.0 0.0) (11 100.0 0.0 0.0)))
+_.SAVEAS
+R13
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\out\Line_r13.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\r13_r14\\out\\Line_r13_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: Line_r13"))
+(setq _s (ssget "_X" (list (cons 0 "LINE"))))
+(LOGSEC (list (strcat "census: LINE=" (if _s (itoa (sslength _s)) "0")) " last=" (cdr (assoc 0 (entget (entlast))))))
+(LOGSEC (list "probe-end"))
+_.LOGFILEOFF
+_.DELAY 1500
+_.QUIT
+_N

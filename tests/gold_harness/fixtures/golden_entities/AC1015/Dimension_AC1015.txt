@@ -1,0 +1,13 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Dimension_AC1015. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one linear DIMENSION (0,0)-(100,0), dim line at 50,50; replication = adjacent Dimension_AC1015.scr):
+_.DIMLINEAR
+0,0
+100,0
+50,50
+
+Save: DWG AC1015 via SAVEAS token "2000".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['DIMENSION_LINEAR', 'DIMENSION_ALIGNED'] present; in-app census: census: last=DIMENSION.
+Gold entity census: {'BLOCK': 4, 'ENDBLK': 4, 'DIMENSION_LINEAR': 1, 'LINE': 3, 'SOLID': 2, 'MTEXT': 1, 'POINT': 3}

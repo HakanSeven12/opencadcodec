@@ -1,0 +1,21 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Polyface_AC1012. Status: PASS
+
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one PFACE mesh (4 vertices, 1 quad face); replication = adjacent Polyface_AC1012.scr):
+_.PFACE
+0,0,0
+10,0,0
+0,10,0
+10,10,0
+
+1
+2
+3
+4
+
+
+
+Save: DWG AC1012 via SAVEAS token "R13".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['POLYLINE_PFACE', 'POLYLINE'] present; in-app census: census: last=POLYLINE.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'POLYLINE_PFACE': 1, 'VERTEX_PFACE': 4, 'VERTEX_PFACE_FACE': 1, 'SEQEND': 1}

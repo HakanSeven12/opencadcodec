@@ -1,0 +1,27 @@
+2026-10-03  TODO B6 (the unattested subcurve kinds 19 (Line) / 27 (Curve3d)) - the constraint recipes: DimConstr_2013. Status: PASS
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Engine note (the 2026-10-03 measured ladder): AutoCAD was preferred and exhausted first - the core console lacks the constraint command family entirely (Core Console carries only accore.dll commands; the constraint manager lives in acad.exe modules - the same boundary that keeps AutoCAD LT from creating constraints), and the GUI route cannot drive the constraint commands from a script in either dialect: (command)-wrapped enames are not consumed by the acquisition prompts (the next (command) reads 'LISP command is not available'), and plain typed points at 'Select first object:' read 'Invalid selection for Tangent...' even when the point is ON the entity - the constraint commands use the interactive acquisition pipeline (mouse), not classic script input. BricsCAD's constraint prompts are classic keyword prompts ('Select first constraint point or [Entity] <Entity>:') and its typed-point selection is the measured-working /b dialect - the fallback engine, as in the R13 wave. AutoCAD remains the author of the landed SweepSurfArc family (its SWEEP is console-clean via REGEN + ename selection).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine before every run).
+Operation (B6 recipe 2: DIMCONSTRAINT - DCLINEAR via the two constraint points (the LINE's endpoints 100,150 + 200,150, dim-line at 250,120) + DCRADIUS (pick on the CIRCLE top 150,200, position 250,80). The dimensional network.; exact replication record = adjacent DimConstr_2013.scr):
+(entmake '((0 . "LINE") (100 . "AcDbEntity") (100 . "AcDbLine") (10 100.0 150.0 0.0) (11 200.0 150.0 0.0)))
+(entmake '((0 . "CIRCLE") (100 . "AcDbEntity") (100 . "AcDbCircle") (10 150.0 175.0 0.0) (40 . 25.0)))
+_.DCLINEAR
+100,150
+200,150
+250,120
+
+_.DCRADIUS
+150,200
+250,80
+
+
+Save format: DWG 2013 (AC1027) via SAVEAS token "2013".
+Qualification: dwgread exit 0, 0 "Error" lines; in-app census: census: last=DIMENSION.
+File entity census: {'BLOCK': 6, 'ENDBLK': 6, 'LINE': 10, 'CIRCLE': 1, 'DIMENSION_LINEAR': 1, 'SOLID': 3, 'MTEXT': 2, 'POINT': 5, 'DIMENSION_RADIUS': 1}.
+Assoc note: ASSOC-family classes: ['ASSOC2DCONSTRAINTGROUP', 'ASSOCDEPENDENCY', 'ASSOCDIMDEPENDENCYBODY', 'ASSOCGEOMDEPENDENCY', 'ASSOCNETWORK', 'ASSOCVALUEDEPENDENCY', 'ASSOCVARIABLE'].
+
+
+
+FINAL QUALIFICATION (2026-10-03, the B6 campaign pass): OK. dwgread exit 0, 0 "Error" lines; magic AC1027; entity census {'BLOCK': 6, 'ENDBLK': 6, 'LINE': 10, 'CIRCLE': 1, 'DIMENSION_LINEAR': 1, 'SOLID': 3, 'MTEXT': 2, 'POINT': 5, 'DIMENSION_RADIUS': 1}; ASSOC classes ['ASSOC2DCONSTRAINTGROUP', 'ASSOCDEPENDENCY', 'ASSOCDIMDEPENDENCYBODY', 'ASSOCGEOMDEPENDENCY', 'ASSOCNETWORK', 'ASSOCVALUEDEPENDENCY', 'ASSOCVARIABLE'].

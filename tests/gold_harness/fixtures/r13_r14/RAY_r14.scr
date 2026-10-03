@@ -1,0 +1,15 @@
+; RAY_r14.scr - TODO B3 fixture, headless per fixtures/README_HEADLESS.md
+; engine : AutoCAD 2027 core console (accoreconsole.exe R26.0.118)
+; seed   : staged acadiso.dwt | one op | SAVEAS token "R14"
+(entmake '((0 . "RAY") (100 . "AcDbEntity") (100 . "AcDbRay") (10 0.0 0.0 0.0) (11 1.0 0.0 0.0)))
+_.SAVEAS
+R14
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\out\RAY_r14.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\r13_r14\\out\\RAY_r14_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: RAY_r14"))
+(setq _s (ssget "_X" (list (cons 0 "RAY"))))
+(LOGSEC (list (strcat "census: RAY=" (if _s (itoa (sslength _s)) "0")) " last=" (cdr (assoc 0 (entget (entlast))))))
+(LOGSEC (list "probe-end"))
+_.QUIT
+_Y

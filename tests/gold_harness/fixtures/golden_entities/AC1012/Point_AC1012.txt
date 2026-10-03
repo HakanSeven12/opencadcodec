@@ -1,0 +1,10 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Point_AC1012. Status: PASS
+
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one entmade POINT at 50,50; replication = adjacent Point_AC1012.scr):
+(entmake '((0 . "POINT") (100 . "AcDbEntity") (100 . "AcDbPoint") (10 50.0 50.0 0.0)))
+
+Save: DWG AC1012 via SAVEAS token "R13".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['POINT'] present; in-app census: census: last=POINT.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'POINT': 1}

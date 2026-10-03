@@ -1,0 +1,17 @@
+2026-10-02  TODO B3 (the R13/R14 specimen wave, the Tier 2 campaign
+enabler â€” see C2): PolyLine3D_r14, wave 1. Status: PASS
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us default ISO template,
+staged copy at C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\seed\acadiso.dwt; the era save downconverts the seed baseline).
+Operation (one 3D polyline, 2 vertices; exact replication record = adjacent PolyLine3D_r14.scr):
+(entmake '((0 . "POLYLINE") (100 . "AcDbEntity") (100 . "AcDb3dPolyline") (66 . 1) (70 . 8)))
+(entmake '((0 . "VERTEX") (100 . "AcDbEntity") (100 . "AcDbVertex") (100 . "AcDb3dVertex") (10 0.0 0.0 0.0) (70 . 32)))
+(entmake '((0 . "VERTEX") (100 . "AcDbEntity") (100 . "AcDbVertex") (100 . "AcDb3dVertex") (10 50.0 0.0 50.0) (70 . 32)))
+(entmake '((0 . "SEQEND") (100 . "AcDbEntity") (100 . "AcDbBlockEnd")))
+
+Save format: DWG R14 (AC1014) via SAVEAS token "R14".
+Qualification: dwgread -O JSON exit 0, 0 "Error" lines; class present: POLYLINE_3D (accept list: POLYLINE_3D); object census: 306 records; census line: census: POLYLINE=1; reached_end: True
+
+FINAL QUALIFICATION (2026-10-03, the full-campaign pass): OK. dwgread exit 0, 0 "Error" lines; magic AC1014; 306 OBJECTS; entity census {'BLOCK': 3, 'ENDBLK': 3, 'POLYLINE_3D': 1, 'VERTEX_3D': 2, 'SEQEND': 1}; target class ['POLYLINE_3D'].

@@ -1,0 +1,14 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Polyline2D_AC1021. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one heavy 2D polyline, 3 vertices; replication = adjacent Polyline2D_AC1021.scr):
+(entmake '((0 . "POLYLINE") (100 . "AcDbEntity") (100 . "AcDb2dPolyline") (66 . 1) (70 . 0)))
+(entmake '((0 . "VERTEX") (100 . "AcDbEntity") (100 . "AcDbVertex") (100 . "AcDb2dVertex") (10 0.0 0.0 0.0) (70 . 0)))
+(entmake '((0 . "VERTEX") (100 . "AcDbEntity") (100 . "AcDbVertex") (100 . "AcDb2dVertex") (10 50.0 0.0 0.0) (70 . 0)))
+(entmake '((0 . "VERTEX") (100 . "AcDbEntity") (100 . "AcDbVertex") (100 . "AcDb2dVertex") (10 50.0 50.0 0.0) (70 . 0)))
+(entmake '((0 . "SEQEND") (100 . "AcDbEntity") (100 . "AcDbBlockEnd")))
+
+Save: DWG AC1021 via SAVEAS token "2007".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['POLYLINE_2D'] present; in-app census: census: last=POLYLINE.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'POLYLINE_2D': 1, 'VERTEX_2D': 3, 'SEQEND': 1}

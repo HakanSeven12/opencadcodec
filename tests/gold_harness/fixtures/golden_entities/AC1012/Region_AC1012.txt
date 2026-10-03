@@ -1,0 +1,11 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Region_AC1012. Status: PASS
+
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one REGION from the entmade boundary circle; replication = adjacent Region_AC1012.scr):
+(entmake '((0 . "CIRCLE") (100 . "AcDbEntity") (100 . "AcDbCircle") (10 50.0 50.0 0.0) (40 . 25.0)))
+(command "_.REGION" "_W" "20,20" "80,80" "")
+
+Save: DWG AC1012 via SAVEAS token "R13".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['REGION'] present; in-app census: census: last=REGION.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'REGION': 1}

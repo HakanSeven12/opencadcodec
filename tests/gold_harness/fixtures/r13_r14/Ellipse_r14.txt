@@ -1,0 +1,17 @@
+2026-10-02  TODO B3 (the R13/R14 specimen wave, the Tier 2 campaign
+enabler â€” see C2): Ellipse_r14, wave 1. Status: PASS
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us default ISO template,
+staged copy at C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\seed\acadiso.dwt; the era save downconverts the seed baseline).
+Operation (one full ELLIPSE (R13-new), axis 0,0-100,0, half 50; exact replication record = adjacent Ellipse_r14.scr):
+_.ELLIPSE
+0,0
+100,0
+50
+
+Save format: DWG R14 (AC1014) via SAVEAS token "R14".
+Qualification: dwgread -O JSON exit 0, 0 "Error" lines; class present: ELLIPSE (accept list: ELLIPSE); object census: 303 records; census line: census: ELLIPSE=1; reached_end: True
+
+FINAL QUALIFICATION (2026-10-03, the full-campaign pass): OK. dwgread exit 0, 0 "Error" lines; magic AC1014; 303 OBJECTS; entity census {'BLOCK': 3, 'ENDBLK': 3, 'ELLIPSE': 1}; target class ['ELLIPSE'].

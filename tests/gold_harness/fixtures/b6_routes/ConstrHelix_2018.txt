@@ -1,0 +1,53 @@
+2026-10-03  TODO B6 (the unattested subcurve kinds 19 (Line) / 27 (Curve3d))
+- the kind-27 candidate probe: ConstrHelix_2018. Status: REFUSED (recorded
+as data per the B6 doctrine - the predicted refusal; no .dwg landed for
+this stem; the adjacent .scr reproduces the refused attempt).
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy;
+re-staged pristine before every run).
+Operation (exact script = adjacent ConstrHelix_2018.scr): a 3D SPLINE
+(0,0,20 -> 30,30,20 -> 60,0,20, default tangents) + a HELIX (base 0,0,
+radius 10, height 20, 3 turns), then DCLINEAR on the helix (Entity route:
+blank accepts <Entity>, pick at its base point 10,0,0) and GCSMOOTH
+(spline -> helix).
+
+Outcome (the refusal datum, verbatim from the 2026-10-03 session log):
+the 2D constraint manager REFUSES 3D curves. The DCLINEAR entity pick
+at the helix base point (10,0,0) found NOTHING - the input fell through
+to an implicit window (opposite corner 250,120) which selected nothing
+valid - and the prompt rejected every subsequent line:
+
+  Select an entity [selection options (?)]: 10,0,0
+  Opposite Corner: 250,120
+  Invalid input. Please select a line/straight polyline segment/arc/
+  curved polyline segment.
+
+The stuck prompt then consumed the script tail (the GCSMOOTH line read
+"A point is needed. Please try again." at the still-active DCLINEAR
+prompt - GCSMOOTH never started), the run stalled and was killed by the
+launcher's PID-scoped timeout; no SAVEAS ran, no .dwg exists.
+
+Interpretation: the 2D dimensional-constraint entity picker accepts
+line/straight polyline segment/arc/curved polyline segment (its own
+error text) - a HELIX (and by extension 3D curves generally) is outside
+the 2D constraint manager's pickable domain, so the kind-27
+(Curve3d generic) route via a constrained helix is CLOSED on this
+toolchain. The companion probe ConstrSmooth (GCSMOOTH between two 2D
+SPLINES - the constraint manager's own spline domain) PASSES and is
+landed: it carries the network whose edge params are the remaining
+kind-27 candidate surface.
+
+Engine note: AutoCAD was preferred and exhausted first for the whole
+constraint family - the core console lacks the constraint commands
+entirely (Core Console carries only accore.dll commands; the constraint
+manager lives in acad.exe modules - the same boundary that keeps
+AutoCAD LT from creating constraints), and the GUI route cannot drive
+the constraint commands from a script in either dialect: (command)-
+wrapped enames are not consumed by the acquisition prompts, and plain
+typed points at 'Select first object:' read 'Invalid selection for
+Tangent...' even when the point is ON the entity (the interactive
+acquisition pipeline). BricsCAD's classic keyword prompts + typed
+picks are the only scriptable constraint route - the fallback engine,
+as in the R13 wave.

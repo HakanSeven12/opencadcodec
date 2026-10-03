@@ -1,0 +1,14 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Viewport_AC1014. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one paper-space VIEWPORT via MVIEW on Layout1; replication = adjacent Viewport_AC1014.scr):
+(setvar "CTAB" "Layout1")
+_.MVIEW
+0,0
+100,100
+(setvar "CTAB" "Model")
+
+Save: DWG AC1014 via SAVEAS token "R14".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['VIEWPORT'] present; in-app census: census: last=VIEWPORT.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'VIEWPORT': 3}

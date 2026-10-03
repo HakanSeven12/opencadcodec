@@ -1,0 +1,33 @@
+2026-10-03  TODO B6 (the unattested subcurve kinds 19 (Line) / 27 (Curve3d)) - the constraint recipes: ConstrSmooth_2013. Status: PASS
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Engine note (the 2026-10-03 measured ladder): AutoCAD was preferred and exhausted first - the core console lacks the constraint command family entirely (Core Console carries only accore.dll commands; the constraint manager lives in acad.exe modules - the same boundary that keeps AutoCAD LT from creating constraints), and the GUI route cannot drive the constraint commands from a script in either dialect: (command)-wrapped enames are not consumed by the acquisition prompts (the next (command) reads 'LISP command is not available'), and plain typed points at 'Select first object:' read 'Invalid selection for Tangent...' even when the point is ON the entity - the constraint commands use the interactive acquisition pipeline (mouse), not classic script input. BricsCAD's constraint prompts are classic keyword prompts ('Select first constraint point or [Entity] <Entity>:') and its typed-point selection is the measured-working /b dialect - the fallback engine, as in the R13 wave. AutoCAD remains the author of the landed SweepSurfArc family (its SWEEP is console-clean via REGEN + ename selection).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine before every run).
+Operation (the strongest kind-27 (Curve3d generic) probe: GCSMOOTH between two 2D SPLINES (picks at their same-height fit points (30,30) + (130,30)). GCSMOOTH requires splines, so the created network must reference both curves - the hypothesis: the edge params type the splines generically (27/Curve3d) rather than 42/Nurb3d (the B2 census measured 42 only in SWEEP surface paths).; exact replication record = adjacent ConstrSmooth_2013.scr):
+_.SPLINE
+0,0
+30,30
+60,0
+
+
+
+_.SPLINE
+100,0
+130,30
+160,0
+
+
+
+_.GCSMOOTH
+30,30
+130,30
+
+Save format: DWG 2013 (AC1027) via SAVEAS token "2013".
+Qualification: dwgread exit 0, 0 "Error" lines; in-app census: census: last=SPLINE.
+File entity census: {'BLOCK': 3, 'ENDBLK': 3, 'SPLINE': 2}.
+Assoc note: ASSOC-family classes: ['ASSOC2DCONSTRAINTGROUP', 'ASSOCGEOMDEPENDENCY', 'ASSOCNETWORK'].
+
+
+
+FINAL QUALIFICATION (2026-10-03, the B6 campaign pass): OK. dwgread exit 0, 0 "Error" lines; magic AC1027; entity census {'BLOCK': 3, 'ENDBLK': 3, 'SPLINE': 2}; ASSOC classes ['ASSOC2DCONSTRAINTGROUP', 'ASSOCGEOMDEPENDENCY', 'ASSOCNETWORK'].

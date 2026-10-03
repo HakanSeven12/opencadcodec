@@ -1,0 +1,10 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Arc_AC1018. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one entmade ARC center 50,0 radius 50, 0..pi/2; replication = adjacent Arc_AC1018.scr):
+(entmake '((0 . "ARC") (100 . "AcDbEntity") (100 . "AcDbArc") (10 50.0 0.0 0.0) (40 . 50.0) (50 . 0.0) (51 . 1.5707963267948966)))
+
+Save: DWG AC1018 via SAVEAS token "2004".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['ARC'] present; in-app census: census: last=ARC.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'ARC': 1}

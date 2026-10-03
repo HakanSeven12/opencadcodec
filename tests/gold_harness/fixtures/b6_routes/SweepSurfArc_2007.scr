@@ -1,0 +1,22 @@
+; SweepSurfArc_2007.scr - TODO B6 fixture, headless per fixtures/README_HEADLESS.md
+; engine : AutoCAD 2027 core console (accoreconsole.exe R26.0.118)
+; seed   : /i staged acadiso.dwt | REGEN+ename selection dialect | SAVEAS token "2007"
+(entmake '((0 . "CIRCLE") (100 . "AcDbEntity") (100 . "AcDbCircle") (10 0.0 0.0 0.0) (40 . 5.0)))
+(setq _pe (entlast))
+(entmake '((0 . "ARC") (100 . "AcDbEntity") (100 . "AcDbArc") (10 50.0 0.0 0.0) (40 . 50.0) (50 . 3.141592653589793) (51 . 1.5707963267948966)))
+(setq _xe (entlast))
+_.REGEN
+(command "_.SWEEP" "_MO" "_SU" _pe "" _xe)
+_.SAVEAS
+2007
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\b6_routes\out\SweepSurfArc_2007.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\b6_routes\\out\\SweepSurfArc_2007_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: SweepSurfArc_2007"))
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+(setq _s (ssget "_X" (list (cons 0 "*SURFACE*"))))
+(LOGSEC (list (strcat "census: *SURFACE*=" (if _s (itoa (sslength _s)) "0"))))
+(LOGSEC (list (strcat "dbmod=" (itoa (getvar "DBMOD")))))
+(LOGSEC (list "probe-end"))
+_.QUIT
+_Y

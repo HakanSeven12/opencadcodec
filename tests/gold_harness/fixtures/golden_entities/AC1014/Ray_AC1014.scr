@@ -1,0 +1,17 @@
+; Ray_AC1014.scr - golden_entities fixture, headless per fixtures/README_HEADLESS.md
+; engine : AutoCAD 2027 core console
+; seed   : staged acadiso.dwt | one op | SAVEAS token "R14"
+(entmake '((0 . "RAY") (100 . "AcDbEntity") (100 . "AcDbRay") (10 0.0 0.0 0.0) (11 1.0 0.0 0.0)))
+_.SAVEAS
+R14
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\golden\out\Ray_AC1014.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\golden\\out\\Ray_AC1014_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: Ray_AC1014"))
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+(setq _s (ssget "_X" (list (cons 0 "RAY"))))
+(LOGSEC (list (strcat "census: RAY=" (if _s (itoa (sslength _s)) "0"))))
+(LOGSEC (list (strcat "dbmod=" (itoa (getvar "DBMOD")))))
+(LOGSEC (list "probe-end"))
+_.QUIT
+_Y

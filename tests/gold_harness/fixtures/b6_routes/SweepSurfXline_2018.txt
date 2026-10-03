@@ -1,0 +1,40 @@
+2026-10-02/03  TODO B6 (the unattested subcurve kinds 19 (Line) / 27
+(Curve3d)) - recipe 1, the original XLINE-path attempt:
+SweepSurfXline_2018. Status: REFUSED (recorded as data per the B6
+doctrine - the route is geometrically ill-posed; no .dwg landed for
+this stem; the adjacent .scr reproduces the refused attempt).
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08).
+Operation (exact script = adjacent SweepSurfXline_2018.scr): CIRCLE
+profile at origin r5 + an XLINE (base (200,0,0), direction +Z) as the
+sweep path; SWEEP MOde=Surface via typed window + _L picks.
+
+Outcome (the refusal datum, verbatim from the 2026-10-03 session log):
+the profile selection SUCCEEDED ("Entities in set: 1") but the engine
+REFUSED the infinite path:
+
+  Select sweep path or [Alignment/Base point/Twist/Profile
+  orientation/Create/Subtract/Unite/Interactive/selection options (?)]: _L
+  This entity cannot be a sweeping path.
+
+The RAY variant (SweepSurfRay_2018.scr, same geometry with a RAY)
+refused with the IDENTICAL text - the infinite-line class is dead as a
+sweep path. The maintainer's ruling (2026-10-02): sweeping an
+infinitely long line is not a good idea - a sweep along an unbounded
+path has no defined extent; the refusal is geometric truth, not a
+tooling gap.
+
+AutoCAD console cross-measurements for the same recipe (the 5-attempt
+dialect ladder, transcripts in the b6_routes scratch): the console's
+SWEEP selection prompts drop script-fed enames and picksets ("0 found" /
+silently ignored); the MOde keyword lives only at the first selection
+prompt; the path prompt is selection-typed (ename -> "*Invalid
+selection*"). The working console dialect (entmake -> REGEN -> ename
+picks) was discovered LATER and authors the sweep cleanly - it landed
+the well-posed bounded-path replacement, SweepSurfArc (4/4, 2007-2018).
+
+The kind-19 (Line) hypothesis instead rides the constraint-network
+route: GConstrXline (an XLINE in a GCPARALLEL + GCPERPENDICULAR
+network) landed 3/3 - the XLINE is constrainable even though it is not
+sweepable.

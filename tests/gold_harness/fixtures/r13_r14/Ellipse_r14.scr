@@ -1,0 +1,18 @@
+; Ellipse_r14.scr - TODO B3 fixture, headless per fixtures/README_HEADLESS.md
+; engine : AutoCAD 2027 core console (accoreconsole.exe R26.0.118)
+; seed   : staged acadiso.dwt | one op | SAVEAS token "R14"
+_.ELLIPSE
+0,0
+100,0
+50
+_.SAVEAS
+R14
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\out\Ellipse_r14.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\r13_r14\\out\\Ellipse_r14_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: Ellipse_r14"))
+(setq _s (ssget "_X" (list (cons 0 "ELLIPSE"))))
+(LOGSEC (list (strcat "census: ELLIPSE=" (if _s (itoa (sslength _s)) "0")) " last=" (cdr (assoc 0 (entget (entlast))))))
+(LOGSEC (list "probe-end"))
+_.QUIT
+_Y

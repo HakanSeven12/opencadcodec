@@ -1,0 +1,10 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Text_AC1024. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one entmade TEXT height 5 at 5,5; replication = adjacent Text_AC1024.scr):
+(entmake '((0 . "TEXT") (100 . "AcDbEntity") (100 . "AcDbText") (10 5.0 5.0 0.0) (40 . 5.0) (1 . "Fixture text") (50 . 0.0) (7 . "Standard")))
+
+Save: DWG AC1024 via SAVEAS token "2010".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['TEXT'] present; in-app census: census: last=TEXT.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'TEXT': 1}

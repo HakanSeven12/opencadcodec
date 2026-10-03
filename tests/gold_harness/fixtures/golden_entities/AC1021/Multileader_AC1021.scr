@@ -1,0 +1,23 @@
+; Multileader_AC1021.scr - golden_entities fixture, headless per fixtures/README_HEADLESS.md
+; engine : AutoCAD 2027 core console
+; seed   : staged acadiso.dwt | one op | SAVEAS token "2007"
+_.MLEADER
+_O
+_CO
+_N
+_X
+0,0
+50,50
+_.SAVEAS
+2007
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\golden\out\Multileader_AC1021.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\golden\\out\\Multileader_AC1021_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: Multileader_AC1021"))
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+(setq _s (ssget "_X" (list (cons 0 "MULTILEADER"))))
+(LOGSEC (list (strcat "census: MULTILEADER=" (if _s (itoa (sslength _s)) "0"))))
+(LOGSEC (list (strcat "dbmod=" (itoa (getvar "DBMOD")))))
+(LOGSEC (list "probe-end"))
+_.QUIT
+_Y

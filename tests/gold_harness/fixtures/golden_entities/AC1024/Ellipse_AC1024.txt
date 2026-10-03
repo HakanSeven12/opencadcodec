@@ -1,0 +1,10 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Ellipse_AC1024. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one entmade ELLIPSE, major axis 100, ratio 0.5; replication = adjacent Ellipse_AC1024.scr):
+(entmake '((0 . "ELLIPSE") (100 . "AcDbEntity") (100 . "AcDbEllipse") (10 0.0 0.0 0.0) (11 100.0 0.0 0.0) (210 0.0 0.0 1.0) (40 . 0.5) (41 . 0.0) (42 . 6.283185307179586)))
+
+Save: DWG AC1024 via SAVEAS token "2010".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['ELLIPSE'] present; in-app census: census: last=ELLIPSE.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'ELLIPSE': 1}

@@ -1,0 +1,30 @@
+; DimConstr_2010.scr - TODO B6 fixture, headless per fixtures/README_HEADLESS.md
+; engine : BricsCAD V26 (hidden /Automation /b, bricscad.exe 26.2.08)
+; seed   : staged acadiso.dwt | plain-line + typed-point-pick dialect | SAVEAS token "2010"
+_.LOGFILEON
+_.OPEN
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\b6_routes\seed\acadiso.dwt
+(entmake '((0 . "LINE") (100 . "AcDbEntity") (100 . "AcDbLine") (10 100.0 150.0 0.0) (11 200.0 150.0 0.0)))
+(entmake '((0 . "CIRCLE") (100 . "AcDbEntity") (100 . "AcDbCircle") (10 150.0 175.0 0.0) (40 . 25.0)))
+_.DCLINEAR
+100,150
+200,150
+250,120
+
+_.DCRADIUS
+150,200
+250,80
+
+_.SAVEAS
+2010
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\b6_routes\out\DimConstr_2010.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\b6_routes\\out\\DimConstr_2010_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: DimConstr_2010"))
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+(LOGSEC (list (strcat "dbmod=" (itoa (getvar "DBMOD")))))
+(LOGSEC (list "probe-end"))
+_.LOGFILEOFF
+_.DELAY 1500
+_.QUIT
+_Y

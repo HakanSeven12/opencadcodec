@@ -1,0 +1,21 @@
+; Viewport_AC1024.scr - golden_entities fixture, headless per fixtures/README_HEADLESS.md
+; engine : AutoCAD 2027 core console
+; seed   : staged acadiso.dwt | one op | SAVEAS token "2010"
+(setvar "CTAB" "Layout1")
+_.MVIEW
+0,0
+100,100
+(setvar "CTAB" "Model")
+_.SAVEAS
+2010
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\golden\out\Viewport_AC1024.dwg
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\golden\\out\\Viewport_AC1024_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list "probe: Viewport_AC1024"))
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+(setq _s (ssget "_X" (list (cons 0 "VIEWPORT"))))
+(LOGSEC (list (strcat "census: VIEWPORT=" (if _s (itoa (sslength _s)) "0"))))
+(LOGSEC (list (strcat "dbmod=" (itoa (getvar "DBMOD")))))
+(LOGSEC (list "probe-end"))
+_.QUIT
+_Y

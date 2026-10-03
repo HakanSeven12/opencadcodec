@@ -1,0 +1,14 @@
+2026-10-02  TODO B3 (the R13/R14 specimen wave, the Tier 2 campaign
+enabler â€” see C2): Point_r13, wave 1. Status: PASS
+
+Authoring: headless per fixtures/README_HEADLESS.md.
+Engine: BricsCAD V26 (hidden /Automation /b, bricscad.exe build 26.2.08).
+Seed template: acadiso.dwt (AutoCAD 2027 en-us default ISO template,
+staged copy at C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\r13_r14\seed\acadiso.dwt; the era save downconverts the seed baseline).
+Operation (one entmade POINT at 25,25; exact replication record = adjacent Point_r13.scr):
+(entmake '((0 . "POINT") (100 . "AcDbEntity") (100 . "AcDbPoint") (10 25.0 25.0 0.0)))
+
+Save format: DWG R13 (AC1012) via SAVEAS token "R13".
+Qualification: dwgread -O JSON exit 0, 0 "Error" lines; class present: POINT (accept list: POINT); object census: 245 records; census line: census: POINT=1; reached_end: True
+
+FINAL QUALIFICATION (2026-10-03, the full-campaign pass): OK. dwgread exit 0, 0 "Error" lines; magic AC1012; 245 OBJECTS; entity census {'BLOCK': 3, 'ENDBLK': 3, 'POINT': 1}; target class ['POINT'].

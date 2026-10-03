@@ -1,0 +1,10 @@
+2026-10-03  GOLDEN-ENTITY CAMPAIGN (TODO C4 reopened): Ray_AC1018. Status: PASS
+
+Engine: AutoCAD 2027 core console (accoreconsole.exe R26.0.118).
+Seed: acadiso.dwt (AutoCAD 2027 en-us ISO template, staged copy; re-staged pristine each run).
+Operation (one entmade RAY from 0,0 dir +X; replication = adjacent Ray_AC1018.scr):
+(entmake '((0 . "RAY") (100 . "AcDbEntity") (100 . "AcDbRay") (10 0.0 0.0 0.0) (11 1.0 0.0 0.0)))
+
+Save: DWG AC1018 via SAVEAS token "2004".
+Qualification: dwgread exit 0, 0 Error lines; gold class ['RAY'] present; in-app census: census: last=RAY.
+Gold entity census: {'BLOCK': 3, 'ENDBLK': 3, 'RAY': 1}
