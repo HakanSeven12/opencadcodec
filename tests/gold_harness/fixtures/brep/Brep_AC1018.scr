@@ -1,0 +1,28 @@
+; Brep_AC1018.scr - the B4 from-scratch ACSH_BREP_CLASS fixture
+; seed   : staged acadiso.dwt (NAKED - no legacy content)
+; recipe : SOLIDHIST=1 + UNION(parametric BOX, MESH->CONVTOSOLID
+;          solid) - the raw operand's history node IS the class
+; save   : SAVEAS token "2004"
+(setvar "SOLIDHIST" 1)
+_.BOX
+5,5,0
+15,15
+10
+_.REGEN
+(setq _b1 (entlast))
+_.MESH
+_BO
+0,0,0
+10,10
+10
+_.REGEN
+(setq _m (entlast))
+(command "_.CONVTOSOLID" _m "")
+_.REGEN
+(setq _cv (entlast))
+(command "_.UNION" _b1 _cv "")
+_.SAVEAS
+2004
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\brep3\out\Brep_AC1018.dwg
+_.QUIT
+_Y

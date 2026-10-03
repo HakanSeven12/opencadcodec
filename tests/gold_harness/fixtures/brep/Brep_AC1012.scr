@@ -1,0 +1,56 @@
+; Brep_AC1012.scr - the R13 extension: BCAD from-scratch BREP
+; seed: staged acadiso.dwt (NAKED); recipe: PFACE tetrahedron
+; -> CONVTOSOLID (BCAD accepts polyface) -> UNION with a BOX
+_.LOGFILEON
+_.OPEN
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\brep3\seed\acadiso.dwt
+(setq _sh (vl-catch-all-apply (function getvar) (list "SOLIDHIST")))
+(princ (strcat "B4P: solidhist=" (if (vl-catch-all-error-p _sh) "ABSENT" (itoa (vl-catch-all-result _sh)))))
+(if (not (vl-catch-all-error-p _sh)) (setvar "SOLIDHIST" 1))
+_.BOX
+5,5,0
+15,15
+10
+_.REGEN
+(setq _b1 (entlast))
+_.PFACE
+0,0,0
+10,0,0
+0,10,0
+0,0,10
+
+1
+2
+3
+
+1
+2
+4
+
+2
+3
+4
+
+1
+3
+4
+
+
+_.REGEN
+(setq _pf (entlast))
+(command "_.CONVTOSOLID" _pf "")
+_.REGEN
+(setq _cv (entlast))
+(setq RESULT "C:\\Users\\SebastianSchoeller\\AppData\\Local\\Temp\\kilo\\brep3\\out\\bcad_r13_result.txt")
+(defun LOGSEC (lines / f) (setq f (open RESULT "a")) (foreach l lines (write-line l f)) (close f))
+(LOGSEC (list (strcat "census: converted=" (cdr (assoc 0 (entget (entlast)))))))
+(command "_.UNION" _b1 _cv "")
+_.REGEN
+(LOGSEC (list (strcat "census: last=" (cdr (assoc 0 (entget (entlast)))))))
+_.SAVEAS
+2018
+C:\Users\SebastianSchoeller\AppData\Local\Temp\kilo\brep3\out\bcad_2018_diag.dwg
+_.LOGFILEOFF
+_.DELAY 1500
+_.QUIT
+_Y

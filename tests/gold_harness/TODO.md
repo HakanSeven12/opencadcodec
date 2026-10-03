@@ -182,21 +182,42 @@ early line+circle assoc demo, census-verified 2026-10-02), the whole
 unauthorable by both tools — that tier's specimens remain
 libredwg-sourced (see C3/A4).
 
-### B4. ACSH_BREP_CLASS specimen — external-only (blocked on discovery)
+### B4. ACSH_BREP_CLASS specimen — FALSIFIED 2026-10-03 (the from-scratch mint works; the dataset LANDED in `fixtures/brep/`)
 
-`ACSH_BREP_CLASS` is not reachable through any user-facing AutoCAD op —
-seven authored attempts (plain op, SLICE, single-op, foreign-body graft,
-SOLIDEDIT face edit, real-template source) all produced parametric chains
-or history-stripped plain solids. The class stays elided; silver tolerates
-the one known carrier (`ATMOS-DC22S.dwg` — a real-world working drawing,
-held as a probe specimen under `target/`, not a corpus fixture) at 0/0.
-**Re-opens only if an authentic specimen surfaces** — the noted path is
-legacy SAT-era import routes (an old SAT file imported and saved with
-history intact). Not authorable on demand; no action until a specimen
-exists.
+**The "external-only" verdict is falsified by measurement**: the class
+IS authorable from scratch, headless, in one script. The recipe (the
+2026-10-03 mint discovery): `(setvar "SOLIDHIST" 1)` — THE switch; the
+profile default 0 strips boolean history, and the D7 control proved
+that default was the confound behind the original seven failures (with
+0, even a plain two-box union saves as a bare `ACSH_HISTORY_CLASS`
+root) — then a boolean UNION of a parametric BOX with any
+raw-geometry solid (two doors measured: `MESH` → `CONVTOSOLID`, and
+`ACISIN` of a self-authored SAT). The framework records the chain and
+the raw operand's node IS `ACSH_BREP_CLASS`.
 
-- **Sources**: `IMPLEMENTATION.md` §F2.3 Brep row (line 3365),
-  §19.5 Tier 1 (line 7260).
+**The dataset** (`fixtures/brep/`, fully self-authored from a naked
+`acadiso.dwt` seed — no legacy content in any chain): 6 versions minted
+(R14/2000/2007/2010 at **0/0** silver pairs; 2013/2018 at 6/7 rows —
+one coherent family: the BREP record's R2013+ trailing region
+`materials`/`has_revision_guid`/`revision_*`/`end_marker`, the named
+next dissection packet, the B2/A8 pattern). Every file: one `3DSOLID`
++ the exact four-node chain `ACSH_BOX_CLASS`+`ACSH_BREP_CLASS`+
+`ACSH_BOOLEAN_CLASS`+`ACSH_HISTORY_CLASS`. The derailed `major` field
+is container-coded (64 at R14/2000, 3528495168 at 2007–2013,
+3545534528 at 2018 — double-sourced against the carrier re-emissions).
+
+**The measured refusals** (recorded per the doctrine): 2004 drops the
+whole SH object family on the downsave (a container property, same on
+fresh content as on the carrier); R13 is closed on BOTH engines
+(AutoCAD's save floor is R14; BricsCAD writes R13 and its
+CONVTOSOLID even accepts polyface meshes where AutoCAD refuses them,
+but its boolean modeler records NO operand history at all — a bare
+HISTORY root at R13 and 2018 alike, no retention switch exists).
+
+- **Sources**: the 2026-10-03 attempt + mint sessions (the recipe, the
+  D7 control, the door measurements); `fixtures/brep/README.md` (the
+  retention map + the recipe); `IMPLEMENTATION.md` §F2.3 Brep row
+  (line 3365), §19.5 Tier 1 (line 7260).
 
 ### B5. Dead rows — CLOSED 2026-10-02 (recorded-dead; all three lever
 routes measured)
