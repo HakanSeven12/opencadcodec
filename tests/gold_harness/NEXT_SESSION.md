@@ -93,9 +93,10 @@
 # maintainer's next fixture
 # drop — then the B5 closure, then the A8 closure, then the
 # SweepSurf landing), then TODO.md (REWRITTEN 2026-10-03 in plain
-# prose: the open items A4-A9, the maintainer decisions C1-C3, the
-# guardrails D; the finished items B3/B4/B5/B6/C4 removed to a
-# closed-list in its preface),
+# prose: the open items A5-A9, the fixture-needed verdict "none",
+# the guardrails; the finished items and the recorded maintainer
+# decisions live in its preface's closed-list and IMPLEMENTATION.md
+# §19.5 respectively),
 # then
 # the sixteenth addendum's record (and the
 # seventeenth continuation), then the
@@ -4294,8 +4295,10 @@ addendum, then the 2026-10-02 sections bottom-up.
 ## THE 2026-10-03 MAINTAINER DECISIONS (C1/C2/C3 recorded; the era
 ## campaign OPENED — read this FIRST):
 
-Three scope decisions landed 2026-10-03, all recorded in TODO.md's
-C section:
+Three scope decisions landed 2026-10-03, all recorded in
+`IMPLEMENTATION.md` §19.5 (the tier blocks — Tier 2's acceptance +
+the opening census, Tier 3's reject decision); TODO.md carries only
+the open work they spawned:
 
 - **C2 ACCEPTED — the R13/R14 parity campaign is OPEN.** The
   parked-era scope guard in `run_corpus.py::in_scope_files` is

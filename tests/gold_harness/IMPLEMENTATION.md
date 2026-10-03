@@ -7253,11 +7253,14 @@ four axes. Byte-level record identity: the AC1021 survey 58/58
 files / 0 divergent records; the era censuses (handle-keyed,
 size + CRC-16) all zero — R2000 235/235, R2004 227/227, R2010
 216/216, R2013 160/160. The in-scope residuals are the named
-optional rows: the unattested subcurve action types (17/19/23/
-42/27 — no corpus specimens), the MT crc_seed draws (§19.4.G —
+optional rows: the unattested subcurve action types (19/27 —
+attested nowhere; every authoring route measured dead 2026-10-02/
+03, the capture+replay net keeps any future specimen safe), the
+MT crc_seed draws (§19.4.G —
 the one open algorithmic unknown, the R2007_Header derive family
-only), the dead rows (LoftD; the SH revolve option shorts; BREP
-deferred pending an external authentic ACSH_BREP_CLASS specimen),
+only), the dead rows (LoftD; the SH revolve option shorts —
+recorded-dead 2026-10-02; the BREP row FALSIFIED 2026-10-03, the
+from-scratch mints landed in `fixtures/brep/`),
 and the era censuses' coverage (today the Constraints specimens,
 one file per era; the full era corpora are the honest next
 surface — the AC1021 survey covers its whole corpus, the era
@@ -7275,8 +7278,8 @@ censuses do not yet).
 > and three init variants eliminated — the variant space is narrowed
 > (tempering/twist/seed-split), not yet pinned.
 
-**TIER 2 — R13/R14 (AC1012/AC1014): IMPLEMENTED, NOT AT PARITY
-(the recorded scope exclusion).** Silver reads and writes them
+**TIER 2 — R13/R14 (AC1012/AC1014): THE PARITY CAMPAIGN IS OPEN
+(C2 ACCEPTED 2026-10-03).** Silver reads and writes them
 (gold re-reads our R14 output as valid AC1014, maint_rel_version
 decoded), but the three r14 specimens (`r14/Constraints.dwg`,
 `r14/Leader.dwg`, `r14/v.dwg`) measure **89/153/149
@@ -7285,15 +7288,20 @@ mismatches (DIMSTYLE 28 extra vs 10 missing, IMAGE 15 vs 5) and
 era-field divergence (the top diff fields `isbylayerlt` ×21,
 `linewt` ×21, `plotstyle_flags` ×21, `ltype_flags` ×21 — R2000-
 era fields silver's model carries where gold's R14 spec block
-lacks them). `run_corpus.py` excludes the era as a recorded
-scope guard ("the R13/R14 examples… a different, out-of-scope
-format"). THE PATH: an R13/R14 parity campaign mirrors the
-landed H8 arc — the fidelity harness already runs on the files
-(the 89–153 rows are the opening census); the record-count
-mismatches (the entities/tables desyncs from gold's R14 walk)
-come first, then the era-field projections, per the H8b/H8d
-tradition. The three-file specimen set is thin — more r14
-fixtures would qualify per the §F2.1 gates.
+lacks them). **THE MAINTAINER ACCEPTED THE CAMPAIGN 2026-10-03
+(C2)**: the recorded scope guard in `run_corpus.py` is RETIRED —
+the walk now covers gold's r13/r14 era dirs, the root
+example_r13/example_r14, and the 41-file authored wave under
+`fixtures/r13_r14/`. **THE OPENING CENSUS (the first 694-file
+run, 2026-10-03): the era population measures 103 rows** —
+example_r13 78, example_r14 20, the gold r14 Leader 4, the
+wave's Leader_r14 1 — **with the other forty wave files and the
+gold r14 Constraints/v at 0/0** (the 2026-10-03 era-census
+continuation's R13/R14 gates had already absorbed most of the
+recorded 89/153/149). The campaign's work surface is therefore
+example_r13/example_r14's real-world rows plus the four-file
+Leader residue — the per-record pair diff is the next packet's
+opening move, per the H8b/H8d tradition.
 
 **TIER 3 — Pre-R13 (AC1009 and older: R11/R10/R9/R2.6/R2.10/
 R1.4): UNSUPPORTED IN SILVER — AND GOLD DECODES NOTHING THERE
@@ -7309,8 +7317,14 @@ would mirror gold's observable behavior more literally (gold
 prints "This file's version code is: X"). THE PATH (a format-
 family addition, not a fidelity fix): a pre-R13 reader would be
 new format work with gold itself as an incomplete oracle
-(no decode to compare against) — a maintainer decision, not a
-campaign packet.
+(no decode to compare against). **THE MAINTAINER DECIDED
+2026-10-03 (C3): KEEP THE OUTRIGHT REJECT, until further
+notice.** The version-code-then-empty-decode mirroring task is
+dead; the tier is a recorded non-goal. One fixture-side fact
+stays on record: AutoCAD 2027 opens the r13/r14 corpus files
+but refuses r1.4 (ErrorStatus=53) and cannot author below R14,
+so pre-R13 specimens have no AutoCAD route at all — that tier's
+specimens stay libredwg-sourced should the decision ever reopen.
 
 **The audit's verdict**: silver fully matches gold within the
 declared scope (R2000–R2018) — semantic parity corpus-wide plus

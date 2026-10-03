@@ -1,9 +1,11 @@
 # TODO.md — gold_harness open work
 
 Revised 2026-10-03: finished items removed, the remainder written out
-in plain language. The full history of everything closed here lives in
-`NEXT_SESSION.md` (the session addenda) and `IMPLEMENTATION.md` (the
-chronological campaign record).
+in plain language, and the maintainer's recorded scope decisions
+(C1/C2/C3, all decided 2026-10-03) moved to their durable home in
+`IMPLEMENTATION.md` §19.5. The full history of everything closed here
+lives in `NEXT_SESSION.md` (the session addenda) and `IMPLEMENTATION.md`
+(the chronological campaign record).
 
 ## Where things stand
 
@@ -15,7 +17,8 @@ the §20 genus gates (pending-zero under `--strict`). The suite passes
 pre-existing (item A7).
 
 The corpus counts 694 files in five populations (the R13/R14 era
-admitted 2026-10-03 with C2). The established 401
+admitted 2026-10-03 when the parity campaign was accepted — the
+decision record is `IMPLEMENTATION.md` §19.5 Tier 2). The established 401
 libredwg-sourced files carry eight pre-existing fidelity rows — five
 LIGHT `light_color` rows on the example_2004…2018 files and three
 UNKNOWN_OBJ common-field rows on Wipeout_2004 and gh44 (item A5; both
@@ -35,9 +38,9 @@ carry the bulk). The genus cargo pin assertion is red pre-existing
 (item A7).
 
 Items closed since the last revision, removed from the list below:
-B3 (the R13/R14 specimen wave is fully authored — 41 files parked
-under `fixtures/r13_r14/`; admitting it is decision C2); B4 (the
-ACSH_BREP_CLASS "external-only" verdict was
+B3 (the R13/R14 specimen wave is fully authored — 41 files under
+`fixtures/r13_r14/`, admitted to the corpus 2026-10-03 when the
+parity campaign was accepted); B4 (the ACSH_BREP_CLASS "external-only" verdict was
 falsified on 2026-10-03 — the class mints from scratch with
 `SOLIDHIST=1`, and the dataset landed in `fixtures/brep/`); B5 (the
 dead rows were recorded terminal on 2026-10-02 after all three lever
@@ -47,10 +50,10 @@ remain attested nowhere, and any future specimen rides the
 capture+replay net automatically, so nothing is owed until one
 surfaces); C4 (the golden-entities campaign landed on 2026-10-03 and
 its original work surface was demolished by the era-census
-continuation — the one question it left open is C2); A4 (the pre-R13
-mirroring task — C3 was decided 2026-10-03 to keep the outright
-reject, so the task is dead until the maintainer reopens the
-decision).
+continuation — the parity-campaign question it left open was accepted
+the same day); A4 (the pre-R13
+mirroring task — the maintainer decided 2026-10-03 to keep the
+outright reject, so the task is dead until that decision reopens).
 
 ## A. Open tasks (agent code work)
 
@@ -109,9 +112,11 @@ fields.
 The record-identity censuses (`analysis/record_size_census.py` against
 a `DWG_NO_ECHO=1` rewrite) leave these surfaces, ranked by size:
 
-1. The era population's real-world rows (the C2 campaign's opening
-   surface): example_r13's 78 and example_r14's 20 read+write rows,
-   plus the gold r14 Leader's 4 and the wave's Leader_r14 1. The
+1. The era population's real-world rows (the R13/R14 parity
+   campaign's opening surface — accepted 2026-10-03, the decision
+   record in `IMPLEMENTATION.md` §19.5 Tier 2): example_r13's 78 and
+   example_r14's 20 read+write rows, plus the gold r14 Leader's 4 and
+   the wave's Leader_r14 1. The
    per-record pair diff names the classes; the era-census
    continuation's gates already absorbed most of the previously
    recorded 89/153/149, so what remains is the true post-gate
@@ -162,55 +167,7 @@ General fixture conventions, when new work does need one, are in
 SAVEAS per target version, gold qualification with zero error lines,
 and a `.txt` provenance companion.
 
-## C. Maintainer decisions (recorded)
-
-### C1. The §19.5 version-parity tier state — UPDATED 2026-10-03
-
-Tier 1 (R2000–R2018) is at parity — the declared campaign scope,
-complete, with record identity on every surveyed surface; the eight
-measured open rows on the grown corpus are pre-existing B1-era
-residue (A5), not regressions. Tier 2 (R13/R14) is now an ACCEPTED
-parity campaign (C2, 2026-10-03): silver already reads and writes
-both eras and gold re-reads silver's R14 output as valid AC1014; the
-three gold-tree specimens measure 89/153/149 diffs (the opening
-census), the parked-era scope guard in `run_corpus.py` is retired,
-and the corpus admits the era dirs, the root examples, and the
-41-file authored wave — the campaign's work surface is A9's queue
-plus the era-parity rows the opening census names. Tier 3 (pre-R13)
-stays UNSUPPORTED in silver, and gold decodes nothing there either
-beyond version identification — with C3 decided (2026-10-03) to
-keep silver's outright reject, the tier is closed as a recorded
-non-goal until the maintainer reopens it.
-
-### C2. The R13/R14 parity campaign — ACCEPTED 2026-10-03
-
-The campaign is open. The fidelity harness now runs on the era
-corpus (the scope guard retired 2026-10-03): the three gold-tree r14
-files (Constraints/Leader/v), example_r13/example_r14 at the gold
-root, and the 41-file authored wave under `fixtures/r13_r14/`. The
-work order mirrors the landed H8 arc: record-count mismatches first
-(the entities/tables desyncs from gold's R14 walk), then the
-era-field projections (`isbylayerlt`, `linewt`, `plotstyle_flags`,
-`ltype_flags` — R2000-era fields silver carries where gold's R13/R14
-spec blocks lack them). **The opening census (2026-10-03, the first
-694-file run): the era population measures 103 rows** — example_r13
-78, example_r14 20, the gold r14 Leader 4, the wave's Leader_r14 1 —
-**with the other forty wave files and the gold r14 Constraints/v at
-0/0** (the era-census continuation's R13/R14 gates had already
-absorbed most of the previously recorded 89/153/149). The campaign's
-work surface is therefore example_r13/example_r14's real-world rows
-plus the four-file residue — the A9 queue's era entries.
-
-### C3. The pre-R13 behavior — DECIDED 2026-10-03: keep the outright reject
-
-Silver's `UnsupportedVersion` reject stays. The version-code-then-
-empty-decode mirroring (the former A4) is dead until further notice.
-One fixture-side fact stays on record: AutoCAD 2027 opens the
-r13/r14 corpus files but refuses r1.4 and cannot author below R14,
-so pre-R13 specimens have no AutoCAD route at all — that tier's
-specimens stay libredwg-sourced should the decision ever reopen.
-
-## D. Standing guardrails (re-verified periodically; not tasks)
+## C. Standing guardrails (re-verified periodically; not tasks)
 
 1. Full loader probes after any constructed-content change — README
    step 7b (`loaders/strict_load_probe.py`); the AutoCAD census is the
