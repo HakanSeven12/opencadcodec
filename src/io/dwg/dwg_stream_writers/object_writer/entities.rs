@@ -5230,6 +5230,7 @@ impl<'a> DwgObjectWriter<'a> {
                 position: v.location,
                 flags: v.flags.bits() as i32,
                 reactor_handles: Vec::new(),
+                wire_isbylayerlt: None,
             });
         }
         self.write_polyline3d(&p3d);

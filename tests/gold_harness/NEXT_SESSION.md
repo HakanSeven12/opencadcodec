@@ -4175,40 +4175,62 @@ now mirrors it); the VERTEX_2D `id` (SINCE R_2010) emits even when
 0. ACCEPTANCE: the golden R2004+ polylines 7 → 1 (the SEQEND
 plotstyle row only), Polyline2D_AC1018 3 → 0.
 
-THE BATTERY at this halt: the suite 1,618/0 (the deep-R2000 test's
-allowance extended — the vertex wire captures are read-side
-legitimate: the constructed None vs the read-back Some — the
+(8) THE R13/R14 VERTEX/SEQEND ISBYLAYERLT + THE PER-FAMILY R13
+GATES (the golden R13 residue's largest share — the loop
+continued): the R13/R14 `isbylayerlt` wire bit (gold
+common_entity_data.spec 377, VERSIONS R_13b1-R_14) is PER-RECORD
+AUTHOR DATA the models didn't retain — Vertex2D/Vertex3DPolyline
+gain `wire_isbylayerlt` (derived at the attach: linetype_flags !=
+3, gated to the AC1012/AC1014 eras); the SEQEND's bit rides the
+seqend_flags tuple (now (plotstyle, shadow, isbylayerlt)) onto the
+five poly-family models' `seqend_isbylayerlt`; the pface kids
+derive from the retained _common_dwg `linetype_flags`; the
+normalizer projects all three. With it: the per-family R13 gates —
+the TEXT/ATTDEF decoder-default emission (every conditional field
+with its default — elevation 0.0, alignment_pt [0,0], width_factor
+1.0 — no dataflags byte at this era); the VIEWPORT drops
+(circle_zoom/dwg_status_flag/view_target are R2000b+); the LEADER
+dim-default synthesis (dimgap/dimasz resolved through the
+document's dimstyle entry — Standard 0.625/2.5 — plus
+arrowhead_type/unknowns/byblock_color 256, the endptproj drop);
+the 3DFACE unconditional invis_flags + dxfname; the INSERT scale
+3BD array (no scale_flag, no MINSERT spacings); the MINSERT
+col/row_spacing drop. ACCEPTANCE: the golden R13/R14 families
+Point/Text/Viewport/Leader/Face3d/Polyline2D/Polyline3D/Polyface/
+Insert/LWPolyline ALL 0/0 — the golden R13 residue is THE ACIS
+CLASS ONLY (Region/Solid3d's acis_data — the era-modeler SAT
+re-serialization, the Brep dataset's own recorded class).
+
+THE BATTERY at this halt (the eighth packet in): the suite 1,618/0
+(the three deep-roundtrip tests' allowances extended — the
+seqend_isbylayerlt/wire_* captures are read-side legitimate: the
+constructed defaults vs the read-back's derived values — the
 ignore_attachment precedent); gold_roundtrip ok; issue80 ok; the
 four smokes 0/0 (e2004 1/1 the recorded LIGHT row); the corpus
-642 files — **122/122 fidelity** (the golden population's
-remaining rows: 27 files, the R13/R14 vertex/seqend isbylayerlt
-family + the R2004+ SEQEND plotstyle 1-rows + Text/Viewport/
-Leader/Face3d's own R13 rows) + 2581 read key-gaps (the STRUCT
-axis — the R13/R14 golden key-shape class, UNTOUCHED by the
-fidelity fixes — the next packet's surface) + 0 write key-gaps;
-the established 8/8 UNMOVED (Wipeout ×3 + the five LIGHT rows);
-genus 3/1/0 PENDING-ZERO with --strict; the identity
-`f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED; the standing
-record-identity censuses re-verified — example_2004 735/735,
-example_2018 474/474, Constraints 216/216 + 160/160, example_2010
-536/536, HatchG 229/229, example_2000 750/750, gh209_1 166/166,
-gh109_1 664/664 — every era fact holds.
+**648 files** (the maintainer's brep drop landed mid-session —
+the B4 ACSH_BREP_CLASS dataset, 6 re-authored ATMOS twins + the
+2004 refusal record) — **32/32 fidelity** (the golden residue:
+the R2004+ polyline/seqend SEQEND-plotstyle 1-rows ×8,
+Leader_AC1014 1, Region/Solid3d_AC1012's ACIS 1-rows ×2; the brep
+files measured FAR BELOW their README-recorded residue —
+Brep_AC1014/AC1015 0/0, AC1027 6, AC1032 7: this session's
+TV-form/close-pad/dictionary packets absorbed the era-modeler
+text class) + 2631 struct read key-gaps + 0 write key-gaps; the
+established 401 at the recorded 8/8 UNMOVED; genus 3/1/0
+PENDING-ZERO with --strict; the identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED.
 
-THE REMAINING QUEUE (TODO.md's A9 refreshed): (a) the R13/R14
-vertex/seqend `isbylayerlt` retention — the wire bit is read
-(derivable: ltype_flags != 3) but not retained on the vertex/
-seqend models; the plumbing is the wire_nolinks precedent
-(Vertex2D.wire_isbylayerlt + the seqend_flags tuple extension) —
-it closes the golden R13 poly/insert/lwpolyline families' rows
-(the 27-file residue's largest share); (b) the SEQEND plotstyle
-HANDLE (1 row per R2010+ golden polyline — the R2013+ seqend's
-plotstyle handle needs the seqend_flags capture extension); (c)
-the STRUCT-axis key-gaps (2581 — the R13/R14 golden key-shape
-class); (d) the class? desync-mirror rows (entities-2d/3d — the
-B1-era mojibake family); (e) PolyLine2D's last 2 POLYLINE_2D crc
-rows; (f) Surface 6 + gh44-error 18 (the recorded queue); (g)
-the golden Text/Viewport/Leader/Face3d/Region/Solid3d R13 rows
-(their own per-family classes — the same dissection method).
+THE REMAINING QUEUE (TODO.md's A9 refreshed): (a) the R2010+
+SEQEND plotstyle HANDLE (1 row per R2004+ golden polyline — the
+seqend_flags capture extension); (b) the ACIS era-modeler text
+class (Region/Solid3d_AC1012/1014's acis_data + the brep
+residue's remaining rows — the Brep dataset is the per-version
+specimen set); (c) the STRUCT-axis key-gaps (2631 — the R13/R14
+golden key-shape class); (d) the class? desync-mirror rows
+(entities-2d 8 + entities-3d 7 — the B1-era mojibake family);
+(e) PolyLine2D's last 2 POLYLINE_2D crc rows; (f) Surface.dwg 6
++ gh44-error 18 (the recorded queue); (g) Leader_AC1014's last
+row.
 
 The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to

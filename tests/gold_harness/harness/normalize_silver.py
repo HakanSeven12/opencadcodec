@@ -1302,6 +1302,7 @@ def normalize_silver(
         # the poly-family SEQEND synthesis below emits them verbatim.
         _seq_pf_stash = payload.pop("seqend_plotstyle_flags", None)
         _seq_sf_stash = payload.pop("seqend_shadow_flags", None)
+        _seq_iblt_stash = payload.pop("seqend_isbylayerlt", None)
         if gold_type == "UNKNOWN_ENT" and "graphic_data" in fields:
             # Silver's raw passthrough entities keep their graphic-data bytes
             # in the serde-skipped EntityCommon map (_common_dwg), which
@@ -1658,7 +1659,16 @@ def normalize_silver(
             xs = payload.get("x_scale", 1.0)
             ys = payload.get("y_scale", 1.0)
             zs = payload.get("z_scale", 1.0)
-            if r2000_plus:
+            if r13_14:
+                # gold R13/R14 INSERT (dwg.spec 735): the scale 3BD
+                # array; scale_flag is R2000b+ and the col/row_spacing
+                # MINSERT fields are R2000b+ too.
+                fields["scale"] = [normalize_float(xs), normalize_float(ys),
+                                   normalize_float(zs)]
+                for kk in ("x_scale", "y_scale", "z_scale",
+                           "col_spacing", "row_spacing"):
+                    payload.pop(kk, None)
+            elif r2000_plus:
                 # scale_flag: 3=all 1.0, 1=x=1 y/z=DD, 2=all equal, 0=full
                 if xs == 1.0 and ys == 1.0 and zs == 1.0:
                     fields["scale_flag"] = 3
@@ -1879,8 +1889,9 @@ def normalize_silver(
             # per-SEQEND common flags were stashed by the early pop below.
             payload.pop("seqend_handle", None)
             # num_cols/num_rows/col_spacing/row_spacing: R11-only in gold
-            # (VERSIONS R_2_0b, R_11). Silver always emits them; drop on R13+.
-            if not r2000_plus:
+            # (VERSIONS R_2_0b, R_11). Silver always emits them; drop on
+            # R13+ (the R13/R14 records carry no MINSERT fields either).
+            if not r2000_plus and not r13_14:
                 for sk, gk in (("column_count", "num_cols"), ("row_count", "num_rows"),
                                ("column_spacing", "col_spacing"), ("row_spacing", "row_spacing")):
                     if sk in payload:
@@ -2123,9 +2134,15 @@ def normalize_silver(
             inv_bits = None
             if isinstance(inv, dict) and "bits" in inv:
                 inv_bits = inv["bits"]
+                if r13_14:
+                    # gold R13/R14 3DFACE: no has_no_flags bit on the wire —
+                    # the decoder emits invis_flags unconditionally (0 when
+                    # all corners visible) + the class meta dxfname.
+                    fields["invis_flags"] = inv_bits
+                    fields["dxfname"] = "3DFACE"
                 # gold omits invis_flags when has_no_flags (all corners visible);
                 # silver always emits it. Keep only when nonzero.
-                if inv_bits != 0:
+                elif inv_bits != 0:
                     fields["invis_flags"] = inv_bits
                 payload.pop("invisible_edges", None)
             # has_no_flags (R2000b+): 1 when the entity has NO invis_flags (all
@@ -2672,6 +2689,36 @@ def normalize_silver(
             # arrowhead_type (FIELD_BSx, R2000+)
             if r2000_plus and payload.get("arrowhead_type") is not None:
                 fields["arrowhead_type"] = payload["arrowhead_type"]
+            if r13_14:
+                # gold R13/R14 LEADER: the decoder synthesizes the
+                # dim-default family — dimgap/dimasz from the document's
+                # current dimstyle entry, the rest the wire defaults (the
+                # golden quads: Standard 0.625/2.5, arrowhead 0, the
+                # unknowns 0, byblock 256).
+                _ds_e = None
+                _ds_name = payload.get("dimension_style")
+                _dss = (data.get("dim_styles") or {}).get("entries") or {}
+                for _e2 in _dss.values():
+                    if isinstance(_e2, dict) and (
+                        (_ds_name and _e2.get("name") == _ds_name)
+                        or (not _ds_name and _e2.get("name") == "Standard")
+                    ):
+                        _ds_e = _e2
+                        break
+                fields["dimgap"] = normalize_float(
+                    _ds_e.get("dimgap", 0.625) if isinstance(_ds_e, dict) else 0.625)
+                fields["dimasz"] = normalize_float(
+                    _ds_e.get("dimasz", 2.5) if isinstance(_ds_e, dict) else 2.5)
+                fields["arrowhead_type"] = payload.get("arrowhead_type", 0) or 0
+                fields["unknown_bit_2"] = payload.get("dwg_unknown_bit2", 0) or 0
+                fields["unknown_bit_3"] = payload.get("dwg_unknown_bit3", 0) or 0
+                fields["unknown_short_1"] = payload.get("dwg_unknown_short1", 0) or 0
+                fields["byblock_color"] = payload.get("byblock_color", 256) or 256
+                # endptproj (the annotation_offset rename): the R2000+ wire
+                # slot is absent at this era — gold's R13 LEADERs carry no
+                # end-point projection.
+                payload.pop("annotation_offset", None)
+                fields.pop("endptproj", None)
             # drop all silver-only keys
             for sk in list(_LDR) + ["path_type", "creation_type", "arrow_enabled",
                                     "hookline_enabled", "hookline_direction",
@@ -2747,6 +2794,10 @@ def normalize_silver(
                 if ha in (None, 0, "Left"): df |= 0x40
                 if va in (None, 0, "Baseline"): df |= 0x80
             fields["dataflags"] = df
+            if r13_14:
+                # gold R13/R14 ATTDEF: no dataflags byte on the wire —
+                # the field is R2000+.
+                fields.pop("dataflags", None)
             # elevation read under bit 0x01 clear (separate RD).
             if not (df & 0x01):
                 fields["elevation"] = normalize_float(_attdef_z)
@@ -2818,6 +2869,24 @@ def normalize_silver(
                     elif gk == "vert_alignment":
                         v = _ATT_VA.get(str(v), v) if isinstance(v, str) else v
                     fields[gk] = normalize_value(v)
+            if r13_14:
+                # gold R13/R14 TEXT/ATTDEF: the wire carries no dataflags
+                # optionals at this era — the decoder emits every field
+                # with its default when absent (the golden Text quads:
+                # elevation 0.0, alignment_pt [0,0], oblique 0.0,
+                # rotation 0.0, width_factor 1.0, generation 0, the
+                # alignments 0).
+                fields["elevation"] = normalize_float(_attdef_z)
+                anv = normalize_value(ap)
+                if not isinstance(anv, list):
+                    anv = [0.0, 0.0]
+                fields["alignment_pt"] = anv[:2] if len(anv) > 2 else anv
+                fields["oblique_angle"] = normalize_float(obl if obl is not None else 0.0)
+                fields["rotation"] = normalize_float(rot if rot is not None else 0.0)
+                fields["width_factor"] = normalize_float(wf if wf is not None else 1.0)
+                fields["generation"] = 0 if gen in (None, 0, "Normal") else gen
+                fields["horiz_alignment"] = _ATT_HA.get(str(ha), ha if isinstance(ha, int) else 0) if ha is not None else 0
+                fields["vert_alignment"] = _ATT_VA.get(str(va), va if isinstance(va, int) else 0) if va is not None else 0
             # Drop silver-only text/mtext helper fields (the conditional ones
             # were either emitted above or are default -> dataflags bit set).
             for sk in ("width_factor", "oblique_angle", "text_generation_flags",
@@ -2885,6 +2954,10 @@ def normalize_silver(
                 if ha in (None, 0, "Left"): df |= 0x40
                 if va in (None, 0, "Baseline"): df |= 0x80
             fields["dataflags"] = df
+            if r13_14:
+                # gold R13/R14 TEXT: no dataflags byte on the wire — the
+                # field is R2000+ (the golden Text quads).
+                fields.pop("dataflags", None)
             # thickness (BD0)
             if th is not None:
                 fields["thickness"] = normalize_float(th)
@@ -2918,6 +2991,20 @@ def normalize_silver(
                 fields["vert_alignment"] = _TXT_VA.get(str(va), va) if isinstance(va, str) else va
             if not (df & 0x01) and el is not None:
                 fields["elevation"] = normalize_float(el)
+            if r13_14:
+                # gold R13/R14 TEXT: the wire carries no dataflags
+                # optionals at this era — the decoder emits every field
+                # with its default when absent (the golden Text quads).
+                fields["elevation"] = normalize_float(el or 0.0)
+                if apn is None:
+                    apn = [0.0, 0.0]
+                fields["alignment_pt"] = apn[:2] if isinstance(apn, list) and len(apn) > 2 else apn
+                fields["oblique_angle"] = normalize_float(obl if obl is not None else 0.0)
+                fields["rotation"] = normalize_float(rot if rot is not None else 0.0)
+                fields["width_factor"] = normalize_float(wf if wf is not None else 1.0)
+                fields["generation"] = 0 if gen in (None, 0, "Normal") else gen
+                fields["horiz_alignment"] = _TXT_HA.get(str(ha), ha) if ha is not None else 0
+                fields["vert_alignment"] = _TXT_VA.get(str(va), va) if va is not None else 0
             # normal -> extrusion
             nm = payload.get("normal")
             if nm is not None:
@@ -3119,6 +3206,12 @@ def normalize_silver(
             _VP_R2007 = {"grid_major", "use_default_lights", "default_lighting_type",
                          "brightness", "contrast", "ambient_color",
                          "background", "visualstyle", "shadeplot", "sun"}
+            if r13_14:
+                # gold R13/R14 VIEWPORT: no circle_zoom (R2000b+), no
+                # status flag, no view_target on the wire — silver's
+                # model defaults never compare.
+                for _sk in ("circle_sides", "dwg_status_flag", "view_target"):
+                    payload.pop(_sk, None)
             consumed = set()
             for k, v in payload.items():
                 gk = _VP_RENAME.get(k) or _VP_BOOL.get(k)
@@ -3968,6 +4061,18 @@ def normalize_silver(
                         # gold VERTEX_2D id (SINCE R_2010, the vertex_id BL):
                         # emitted even when 0.
                         rec["id"] = v.get("id", 0)
+                    if r13_14:
+                        # §19 H8h-ext-17: the retained R13/R14 isbylayerlt
+                        # wire bit (gold common_entity_data.spec 377).
+                        _iblt = v.get("wire_isbylayerlt")
+                        if _iblt is not None:
+                            rec["isbylayerlt"] = 1 if _iblt else 0
+                if _vt == "VERTEX_3D" and r13_14:
+                    # §19 H8h-ext-17: the 3D family's retained bit (the
+                    # Vertex3DPolyline model field).
+                    _iblt = v.get("wire_isbylayerlt")
+                    if _iblt is not None:
+                        rec["isbylayerlt"] = 1 if _iblt else 0
                 # Wire reactors of the kid record: associative networks
                 # register individual polyline vertices as reactors (gold
                 # prints the list only on the registered kid). Read the
@@ -3995,15 +4100,26 @@ def normalize_silver(
                     _wn = v.get("wire_nolinks")
                     _wp = v.get("wire_prev_entity")
                     _wnx = v.get("wire_next_entity")
-                    if _wn is None and _vt == "VERTEX_PFACE":
+                    _pface_iblt = None
+                    if (_wn is None or r13_14) and _vt == "VERTEX_PFACE":
                         # the pface family retains the full wire common
                         # (dwg2json's pface walk emits it to _common_dwg)
                         _cd = (data.get("_common_dwg") or {}).get(
                             "0x%X" % (_handles[j] or 0))
                         if isinstance(_cd, dict):
-                            _wn = _cd.get("nolinks")
-                            _wp = _cd.get("prev_entity_handle")
-                            _wnx = _cd.get("next_entity_handle")
+                            if _wn is None:
+                                _wn = _cd.get("nolinks")
+                                _wp = _cd.get("prev_entity_handle")
+                                _wnx = _cd.get("next_entity_handle")
+                            if r13_14:
+                                # §19 H8h-ext-17: the R13/R14 isbylayerlt
+                                # bit from the retained wire common
+                                # (derived: linetype_flags != 3).
+                                _lt = _cd.get("linetype_flags")
+                                if _lt is not None:
+                                    _pface_iblt = 1 if _lt != 3 else 0
+                    if _pface_iblt is not None:
+                        rec["isbylayerlt"] = _pface_iblt
                     if _wn is not None:
                         rec["nolinks"] = 1 if _wn else 0
                         if not _wn:
@@ -4087,6 +4203,12 @@ def normalize_silver(
                         _fcd = (data.get("_common_dwg") or {}).get(
                             "0x%X" % (_fh[j] or 0))
                         _fn = _fcd.get("nolinks") if isinstance(_fcd, dict) else None
+                        if r13_14 and isinstance(_fcd, dict):
+                            # §19 H8h-ext-17: the R13/R14 isbylayerlt bit
+                            # from the retained wire face common.
+                            _flt = _fcd.get("linetype_flags")
+                            if _flt is not None:
+                                rec["isbylayerlt"] = 1 if _flt != 3 else 0
                         if _fn is not None:
                             rec["nolinks"] = 1 if _fn else 0
                             if not _fn:
@@ -4153,7 +4275,9 @@ def normalize_silver(
             # records; LibreDWG-authored example files carry
             # flags-3-with-null, DWG-native chains 0). Emit the retained
             # values verbatim; gold's flags==3 pulls a [5,0,0,0] null ref.
-            if isinstance(_seq_pf_stash, int):
+            if isinstance(_seq_pf_stash, int) and not r13_14:
+                # (R13/R14: the plotstyle_flags BB is R2000b+ — gold's
+                # R13 SEQENDs carry no plotstyle field.)
                 _sf["plotstyle_flags"] = _seq_pf_stash
                 if _seq_pf_stash == 3:
                     _sf["plotstyle"] = normalize_handle_value(0)
@@ -4161,6 +4285,12 @@ def normalize_silver(
                 _sf["shadow_flags"] = _seq_sf_stash
                 if _seq_sf_stash == 3:
                     _sf["shadow"] = normalize_handle_value(0)
+            if r13_14:
+                # §19 H8h-ext-17: the R13/R14 isbylayerlt bit — retained
+                # from the wire SEQEND's own common (gold
+                # common_entity_data.spec 377); the False default is the
+                # constructed/DXF fallback (gold's R13 SEQENDs read 1).
+                _sf["isbylayerlt"] = 1 if _seq_iblt_stash else 0
             if not r2004_plus:
                 # R13-era SEQEND chains: null prev/next pair
                 _sf["prev_entity"] = normalize_handle_value(0)
