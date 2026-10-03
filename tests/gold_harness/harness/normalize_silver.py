@@ -3084,9 +3084,27 @@ def normalize_silver(
             _lcr = payload.pop("light_color_raw", None)
             if isinstance(_lcr, dict):
                 _rgb = _lcr.get("rgb", 0) & 0xFFFFFFFF
+                # Project the raw twin with gold's own normalize_value CMC
+                # collapse (normalize_gold.py): the rgb word's high byte is
+                # the color METHOD — c3 = truecolor-indexed (the real ACI in
+                # the low byte), c0 = ByLayer, c1 = ByBlock, c8 = none. The
+                # wire's BS index slot is gold's own writer's 0 override
+                # (bits.c bit_write_CMC), and gold's reader re-derives the
+                # index via palette lookup — the semantic value is the
+                # method word, and gold's normalize collapses c3 to the
+                # low byte (the five LIGHT rows: rgb 0xc3000005 -> 5).
+                _method = (_rgb >> 24) & 0xFF
                 if _rgb in (None, 0):
                     # No true-color payload: gold prints the bare index.
                     fields["light_color"] = _lcr.get("index", 0)
+                elif _method == 0xC3:
+                    fields["light_color"] = _rgb & 0xFF
+                elif _method == 0xC0:
+                    fields["light_color"] = 256
+                elif _method == 0xC1:
+                    fields["light_color"] = 0
+                elif _method == 0xC8:
+                    fields["light_color"] = 257
                 else:
                     _cmc = {"index": _lcr.get("index", 0),
                             "rgb": "%08x" % _rgb}
@@ -5022,6 +5040,22 @@ def normalize_silver(
             # +4/−4/... offsets) — a fabricated constant code 4 mismatches
             # those rows while the differ TOLERATES a missing code on every
             # record (2026-09-20: unstamping killed the 37 ownerhandle rows).
+            _oh = fields.get("ownerhandle")
+            if gold_type == "UNKNOWN_OBJ" and isinstance(_oh, dict) \
+                    and not _oh.get("value"):
+                # The common-object-handle-data decode ABORTED on this
+                # record (gold's num_reactors availability check,
+                # common_object_handle_data.spec 23-33: the malformed
+                # WIPEOUT_2004 record's invalid BL '11' code reads the
+                # error value 256 against a 33-bit handle stream →
+                # DWG_ERR_VALUEOUTOFBOUNDS): gold's JSON emits the ZEROED
+                # struct — the null ownerhandle [0,0], is_xdic_missing 0,
+                # no reactors. Silver's reader mirrors the abort (the
+                # parse_failed early return zeroes the model's owner); a
+                # healthy unknown never carries owner 0.
+                fields["ownerhandle"] = [0, 0]
+                fields["is_xdic_missing"] = 0
+                fields.pop("reactors", None)
         _ASSOC_TYPES = ("ASSOCDEPENDENCY", "ASSOCGEOMDEPENDENCY",
                         "ASSOCVALUEDEPENDENCY", "ASSOCVARIABLE",
                         "ASSOCNETWORK", "ASSOC2DCONSTRAINTGROUP",

@@ -301,6 +301,19 @@ impl DwgMergedReader {
         self.main.data_len() as i64 * 8
     }
 
+    /// The handle stream's remaining bits from its start — gold's
+    /// AVAIL_BITS(hdl_dat) at the num_reactors check point
+    /// (common_object_handle_data.spec 24, taken before any handle
+    /// reads). `handle_start_bit` is the handle stream's absolute start
+    /// in the record-window coordinate base in every framing: R2007 =
+    /// the RL total_size_bits; R2010+ = total_data_bits − handle_bits
+    /// (so this equals `handle_bits` there); pre-2007 = the
+    /// constructor's handle_start_bits. The window's end is
+    /// `record_end_bits()` (main shares the full record window).
+    pub fn handle_stream_avail_bits(&self) -> i64 {
+        self.record_end_bits() - self.handle_start_bit
+    }
+
     /// The handle reader's current bit position in the record-window
     /// coordinate base (the same base as `record_end_bits`). Authors
     /// interleave undocumented handle reads inside opaque regions; the

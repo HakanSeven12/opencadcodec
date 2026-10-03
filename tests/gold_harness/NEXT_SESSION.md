@@ -4339,3 +4339,81 @@ bottom, STARTING at THIS section (the file bottom), then the
 era-census continuation, then the golden-entities landing, then the
 b6 review, then the era-census addendum, then the 2026-10-02
 sections bottom-up.
+
+## THE 2026-10-03 A5/A6 CLOSURES (the "eliminate open tasks
+## step-by-step" directive's first two packets — read this FIRST):
+
+**A5 CLOSED — the eight pre-existing corpus rows.** Two roots, both
+measured against gold's own behavior:
+
+(1) THE LIGHT ROWS (×5, example_2004–2018): gold's raw record
+carries `light_color {index 256, rgb c3000005}` — the rgb word's
+method byte 0xC3 means TRUECOLOR-INDEXED, the real ACI in the low
+byte, and gold's own normalize_value collapses it to 5. Silver's
+raw twin (index 0, rgb 0xC3000005) is wire-correct: the index slot
+is gold's writer's 0 override (bits.c bit_write_CMC) and gold's
+reader re-derives via palette lookup. The normalizer's Light block
+now projects the raw twin with gold's own collapse semantics (c3 →
+the low byte; c0 → 256 ByLayer; c1 → 0 ByBlock; c8 → 257 none).
+
+(2) THE UNKNOWN_OBJ ROWS (×3, Wipeout_2004): the record's wire is
+MALFORMED — gold's own trace shows the num_reactors BL hitting the
+invalid '11' 2-bit code (the error value 256) against a 33-bit
+handle stream, and gold's common_object_handle_data.spec 23-33
+availability check (num_reactors × BITS_HANDLE(8) >
+AVAIL_BITS(hdl_dat)) ABORTS the whole common-object-handle-data
+decode, zeroes the struct, and emits the zeroed defaults (the null
+ownerhandle [0,0], is_xdic_missing 0, no reactors). Silver walked
+past the invalid BL and desynced (owner 16, ~300 phantom reactors).
+THE FIX: the reader mirrors the check — num_reactors (main-stream)
+now read before the ownerhandle (handle-stream; cursor-neutral
+reorder), the availability gate `handle_stream_avail_bits()` =
+`record_end_bits() − handle_start_bit` (the unified formula: R2007
+= the RL total_size_bits, R2010+ = total − handle_bits, pre-2007 =
+the constructor's handle_start_bits) aborts to a zeroed
+NonEntityCommonData (parse_failed), and the normalizer mirrors the
+zeroed JSON form for UNKNOWN_OBJ records with owner 0 (a healthy
+unknown never carries owner 0). The write axis was already
+byte-identical (the raw passthrough — the record census at 33/33
+proved it); the other five wipeout eras cross-checked 0/0.
+
+**A6 CLOSED — the `--no-lz77` DataStore blocker.** The diagnostic
+arm routes every version through write_ac21_impl, and
+`hash_code("AcDb:AcDsPrototype_1b")` returned None — the arm died
+on every 2013+ authored file at the DataStore section. THE FIX: the
+ACDS_PROTOTYPE registration in ac21_section_info — hash 0 (no
+authored R2007 precedent exists — the section never rides an
+authored AC21 file, no ODA §5.2 value is published, and the hash is
+inert: every reader resolves sections from the map by NAME, gold
+via dwg_section_wtype, silver via section_descriptors); page size
+0x7400 and encoding 4 (gold's own decode comment "compressed,
+pagesize 0x7400"); encryption 0. The map serializer already
+tolerates order-unknown names. ACCEPTANCE: the arm completes on
+example_2018 and example_2010 (rc=0, the DataStore pages written);
+the R2007 regression (circle) unchanged.
+
+**THE CORPUS AFTER A5: the established 401-file population measures
+ZERO fidelity rows** — the first time the whole established corpus
+is clean. The 694-file totals: 119/119 fidelity (the golden 3 +
+the era 103 + the brep 13 — every remaining row belongs to a named
+A9 queue item) + 5,510 struct read key-gaps + 0 write key-gaps.
+The battery: the suite 1,618/0; gold_roundtrip ok; issue80 ok; the
+smokes 0/0; genus 3/1/0 PENDING-ZERO with `--strict` PASSING; the
+identity `f2187565…`/25,728 UNMOVED.
+
+**THE OPERATIONAL LESSON (recorded after biting twice in one day)**:
+never edit source while a battery runs — the corpus's per-file
+pairs invoke cargo-built binaries, and a mid-run rebuild both mixes
+binary states and can fail pairs outright (a transient syntax error
+in an edit window becomes rc=101 inside the battery's genus/identity
+stages, and failed pairs leave stale workdir rows that misreport
+the totals). Run batteries to completion with zero concurrent
+source edits; verify anything surprising against a direct
+`run_roundtrip.py` pair before believing it.
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
++ §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
+bottom, STARTING at THIS section (the file bottom), then the
+maintainer decisions, then the era-census continuation, then the
+golden-entities landing, then the b6 review, then the era-census
+addendum, then the 2026-10-02 sections bottom-up.

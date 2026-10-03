@@ -18,16 +18,17 @@ pre-existing (item A7).
 
 The corpus counts 694 files in five populations (the R13/R14 era
 admitted 2026-10-03 when the parity campaign was accepted — the
-decision record is `IMPLEMENTATION.md` §19.5 Tier 2). The established 401
-libredwg-sourced files carry eight pre-existing fidelity rows — five
-LIGHT `light_color` rows on the example_2004…2018 files and three
-UNKNOWN_OBJ common-field rows on Wipeout_2004 and gh44 (item A5; both
-verified pre-existing by bisection). The twenty b6_routes fixtures
+decision record is `IMPLEMENTATION.md` §19.5 Tier 2). **The
+established 401 libredwg-sourced population now measures ZERO fidelity
+rows** (the eight pre-existing B1-era rows — five LIGHT and three
+UNKNOWN_OBJ — fell 2026-10-03 with A5: the LIGHT CMC method
+projection and gold's num_reactors availability check; see
+NEXT_SESSION.md's session record). The twenty b6_routes fixtures
 read 0/0. The 221 golden_entities fixtures carry three rows:
 Leader_AC1014's single row plus the Region_AC1012 and Solid3d_AC1012
-ACIS rows (item A9). The six brep mints carry thirteen rows in one
-family — the BREP record's R2013+ trailing region (also item A9).
-The era population (the gold r14 dir, the two root examples, and the
+ACIS rows (item A9 below). The six brep mints carry thirteen rows in
+one family — the BREP record's R2013+ trailing region (also A9). The
+era population (the gold r14 dir, the two root examples, and the
 41-file authored wave) measured its opening census at 103 rows:
 example_r13 78, example_r14 20, the gold r14 Leader 4, and the
 wave's Leader_r14 1 — while the other forty wave files and the gold
@@ -53,33 +54,18 @@ its original work surface was demolished by the era-census
 continuation — the parity-campaign question it left open was accepted
 the same day); A4 (the pre-R13
 mirroring task — the maintainer decided 2026-10-03 to keep the
-outright reject, so the task is dead until that decision reopens).
+outright reject, so the task is dead until that decision reopens);
+A5 (the eight pre-existing LIGHT/UNKNOWN_OBJ rows — closed 2026-10-03:
+the LIGHT CMC method projection, gold's own normalize_value collapse
+of the c3 method word, and gold's num_reactors availability check
+mirrored in the reader with the zeroed-JSON form in the normalizer;
+the established 401 population now measures zero fidelity rows);
+A6 (the `--no-lz77` DataStore blocker — closed 2026-10-03: the
+AcDs section registered in the AC21 writer's tables, hash 0 with the
+name-keyed-map rationale, page size 0x7400 and encoding 4 from gold's
+own decode comment; the arm completes on 2013+ authored files).
 
 ## A. Open tasks (agent code work)
-
-### A5. The eight pre-existing corpus rows
-
-Five LIGHT rows: gold reads `light_color` 5 on
-example_2004/2007/2010/2013/2018 where silver reads null — the
-leftover of the B1 raw-CMC twin family. Three UNKNOWN_OBJ rows on
-Wipeout_2004 and gh44: the common-data conventions B1 left recorded
-(`is_xdic_missing`, `ownerhandle`, `reactors`). The packet is a
-read-side projection for the LIGHT twin's `light_color`, plus a
-convention look at the two UNKNOWN_OBJ rows. Sources: the
-H8h-ext-16 validation record and the B1 session records.
-
-### A6. The `--no-lz77` DataStore re-emission blocker
-
-The no-lz77 write arm dies on every 2013+ authored file at the
-`AcDb:AcDsPrototype_1b` section with
-`InvalidFormat("Unknown AC21 section: AcDb:AcDsPrototype_1b")`. The
-failure is pre-existing (reproduced on the pre-B2 tree). Until it is
-fixed, the layer-4 conventional-arm validation can only ride the
-2007/2010 frames; the 2013/2018 typed emissions are covered by
-unit-level bit arithmetic instead
-(`tests/edge_action_param_subcurve.rs` is the working example). The
-packet: skip or echo the DataStore section the way the default write
-path does.
 
 ### A7. The genus cargo pin regeneration
 

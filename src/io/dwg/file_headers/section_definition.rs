@@ -164,6 +164,15 @@ pub mod ac21_section_info {
             names::FILE_DEP_LIST => Some(0x6C4205CA),
             names::SECURITY => Some(0x4A0204EA),
             names::VBA_PROJECT => Some(0x586E0544),
+            // The DataStore section (R2013+). No authored R2007 precedent
+            // exists — the section never rides an authored AC21 (R2007)
+            // file, so no ODA §5.2 hash value is published for it — and
+            // the hash is inert anyway: every reader resolves sections
+            // from the map by NAME (gold: dwg_section_wtype(name); this
+            // reader: section_descriptors by name). The 0 is the
+            // diagnostic registration for the `--no-lz77` conventional
+            // arm on 2013+ documents (TODO A6).
+            names::ACDS_PROTOTYPE => Some(0),
             _ => None,
         }
     }
@@ -187,6 +196,9 @@ pub mod ac21_section_info {
             names::APP_INFO => Some(0x300),
             names::FILE_DEP_LIST => Some(0x100),
             names::SECURITY => Some(0xF800),
+            // The DataStore section's authored page size (gold
+            // decode_r2007.c: "compressed, pagesize 0x7400").
+            names::ACDS_PROTOTYPE => Some(0x7400),
             // VBAProject has variable page size — caller must supply it
             names::VBA_PROJECT => None,
             _ => None,
@@ -219,6 +231,13 @@ pub mod ac21_section_info {
             | names::FILE_DEP_LIST
             | names::SECURITY
             | names::VBA_PROJECT => Some(1),
+
+            // The DataStore section is compressed in its authored
+            // (R2013+) form — gold's own decode comment. Under the
+            // `--no-lz77` diagnostic arm the per-page compression is
+            // driven by `skip_lz77`, the same mechanism as every other
+            // encoding=4 section.
+            names::ACDS_PROTOTYPE => Some(4),
 
             _ => None,
         }

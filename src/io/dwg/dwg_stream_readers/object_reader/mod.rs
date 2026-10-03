@@ -158,6 +158,17 @@ pub struct NonEntityCommonData {
     /// XDictionary handle (if present)
     pub xdictionary_handle: Option<u64>,
     pub has_ds_data: bool,
+    /// The common-object-handle-data decode ABORTED (gold's num_reactors
+    /// availability check, common_object_handle_data.spec 23-33: the count
+    /// × the 8-bit HANDLE max-size exceeds the handle stream's remaining
+    /// bits → DWG_ERR_VALUEOUTOFBOUNDS): every field above carries the
+    /// failed-decode ZEROED defaults, and the record's common data is
+    /// dead — gold falls the whole record to the unknown handler and the
+    /// JSON emits the zeroed struct (is_xdic_missing 0, the null
+    /// ownerhandle [0,0], no reactors). The malformed WIPEOUT_2004 record
+    /// (the invalid BL '11' code → the error value 256 against a 33-bit
+    /// handle stream) is the measured carrier.
+    pub parse_failed: bool,
 }
 
 /// DWG Object Reader — iterates the object section by handle map.
@@ -775,12 +786,34 @@ impl DwgObjectReader {
             reader.reposition_handle_reader(main_size_bits);
         }
 
+        // Reactor count — gold reads it BEFORE the ownerhandle
+        // (common_object_handle_data.spec 21) and gates the whole
+        // common-object-handle-data decode on its availability (the
+        // DECODER check, spec 23-33): num_reactors ×
+        // dwg_bits_size[BITS_HANDLE] (8) > AVAIL_BITS(hdl_dat) →
+        // num_reactors = 0, return DWG_ERR_VALUEOUTOFBOUNDS — the
+        // record's common data is dead, the caller falls it to the
+        // unknown handler, and the JSON emits the zeroed struct. The
+        // entity side carries the same class of check with a coarser
+        // bound (common_entity_handle_data.spec 42-50:
+        // num_reactors > 100000); no entity carrier is measured.
+        let reactor_count = safe_count(reader.read_bit_long());
+        if reactor_count as i64 * 8 > reader.handle_stream_avail_bits() {
+            return NonEntityCommonData {
+                common,
+                owner_handle: 0,
+                owner_handle_form: None,
+                reactors: Vec::new(),
+                xdictionary_handle: None,
+                has_ds_data: false,
+                parse_failed: true,
+            };
+        }
+
         // Owner handle (soft pointer) — captured with its authored wire
         // form (TODO A1, 2026-10-01)
         let (owner_handle, owner_handle_form) = reader.read_handle_with_form();
 
-        // Reactor count + handles
-        let reactor_count = safe_count(reader.read_bit_long());
         let mut reactors = Vec::new();
         for _ in 0..reactor_count {
             reactors.push(reader.read_handle());
@@ -815,6 +848,7 @@ impl DwgObjectReader {
             reactors,
             xdictionary_handle,
             has_ds_data,
+            parse_failed: false,
         }
     }
 
