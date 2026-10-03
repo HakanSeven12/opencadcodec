@@ -154,6 +154,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let silver = SilverEntityCommon::from_common(entity.common(), doc.version);
         common_dwg.insert(format!("{}", silver.handle), silver);
     }
+    // Polyface-mesh sub-entity records: the models retain the full wire
+    // `EntityCommon` (the pre-R2004 entity chain — nolinks/prev/next — is
+    // author data, not a convention: the golden authored files chain only
+    // some records where the libredwg corpus files chain per-family
+    // patterns), so their storage-only fields join the `_common_dwg` map
+    // keyed by the sub-entity's own handle.
+    for entity in doc.entities() {
+        if let acadrust::entities::EntityType::PolyfaceMesh(pm) = entity {
+            for v in &pm.vertices {
+                let silver = SilverEntityCommon::from_common(&v.common, doc.version);
+                common_dwg.insert(format!("{}", silver.handle), silver);
+            }
+            for f in &pm.faces {
+                let silver = SilverEntityCommon::from_common(&f.common, doc.version);
+                common_dwg.insert(format!("{}", silver.handle), silver);
+            }
+        }
+    }
 
     let dump = SilverDump {
         document: doc,

@@ -842,6 +842,11 @@ pub struct DictionaryWithDefault {
     pub owner: Handle,
     /// Dictionary entries (key -> handle)
     pub entries: Vec<(String, Handle)>,
+    /// The verbatim pre-2007 wire forms of the entry keys, index-aligned
+    /// with `entries` (§19 H8h-ext-17, the MTEXT wire-text precedent).
+    /// Wire plumbing, not model data; not serialized.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_texts: Vec<Option<String>>,
     /// Default entry handle (code 340)
     pub default_handle: Handle,
     /// Duplicate record cloning flag (code 281)
@@ -857,6 +862,7 @@ impl DictionaryWithDefault {
             handle: Handle::NULL,
             owner: Handle::NULL,
             entries: Vec::new(),
+            wire_texts: Vec::new(),
             default_handle: Handle::NULL,
             duplicate_cloning: 1,
             hard_owner: false,

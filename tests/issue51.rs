@@ -75,6 +75,7 @@ fn sample_document(version: DxfVersion) -> CadDocument {
     x1.entries.push(XRecordEntry {
         code: 1,
         value: XRecordValue::String("first".to_string()),
+        wire_code_page: None,
     });
     doc.objects.insert(x1_handle, ObjectType::XRecord(x1));
 
@@ -84,6 +85,7 @@ fn sample_document(version: DxfVersion) -> CadDocument {
     x2.entries.push(XRecordEntry {
         code: 1,
         value: XRecordValue::String("second".to_string()),
+        wire_code_page: None,
     });
     doc.objects.insert(x2_handle, ObjectType::XRecord(x2));
 

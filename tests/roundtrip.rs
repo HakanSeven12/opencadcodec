@@ -1530,6 +1530,13 @@ fn dwg_roundtrip_deep_r2000() {
                     // an AC1015 write drops it and the read-back
                     // legitimately reports the reader default.
                     && !difference.contains("ignore_attachment")
+                    // The pre-R2004 vertex chain state (§19 H8h-ext-17)
+                    // is read-captured wire data: a constructed document
+                    // carries None and the read-back legitimately reports
+                    // the wire's own chain values.
+                    && !difference.contains("wire_nolinks")
+                    && !difference.contains("wire_prev_entity")
+                    && !difference.contains("wire_next_entity")
             })
             .cloned()
             .collect(),

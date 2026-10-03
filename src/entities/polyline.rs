@@ -152,6 +152,21 @@ pub struct Vertex2D {
     /// and on the DXF path.
     #[cfg_attr(feature = "serde", serde(default))]
     pub wire_handle: Option<u64>,
+    /// The wire `nolinks` bit of the VERTEX_2D sub-entity record (the
+    /// pre-R2004 entity chain), retained verbatim at DWG read: the
+    /// authored corpus splits between full-chain files (libredwg's
+    /// 2000/PolyLine2D.dwg chains every vertex) and head-only files
+    /// (the golden Polyline2D_AC1015 chains only the first vertex; the
+    /// rest carry nolinks=1) — the chain is author data, not a
+    /// convention. Absent on constructed documents and the DXF path.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_nolinks: Option<bool>,
+    /// The wire prev/next entity-chain handles, present when
+    /// `wire_nolinks` is `Some(false)`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_prev_entity: Option<u64>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_next_entity: Option<u64>,
 }
 
 impl Vertex2D {
@@ -165,6 +180,9 @@ impl Vertex2D {
             curve_tangent: 0.0,
             id: 0,
             wire_handle: None,
+            wire_nolinks: None,
+            wire_prev_entity: None,
+            wire_next_entity: None,
         }
     }
 

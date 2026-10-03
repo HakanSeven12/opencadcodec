@@ -40,6 +40,14 @@ pub struct DwgBitWriter {
     saved_position_in_bits: i64,
     /// Text encoding for non-Unicode strings
     encoding: &'static encoding_rs::Encoding,
+    /// The current record's pre-R2007 TV wire form (§19 H8h-ext-17):
+    /// `true` = the plain genus (the length counts the string exactly,
+    /// no trailing NUL — the PolyLine2D author), `false` = the AutoCAD
+    /// genus (the length counts the terminator, H8h-ext-15). The object
+    /// writer sets this per record from
+    /// `CadDocument::tv_plain_form_by_handle`; the default is the
+    /// AutoCAD genus (the constructed/deserialized convention).
+    tv_plain_form: bool,
 }
 
 impl DwgBitWriter {
@@ -54,7 +62,16 @@ impl DwgBitWriter {
             dxf_version,
             saved_position_in_bits: -1,
             encoding: encoding_rs::WINDOWS_1252,
+            tv_plain_form: false,
         }
+    }
+
+    /// Set the current record's pre-R2007 TV wire form (§19 H8h-ext-17):
+    /// the captured per-record convention replayed from
+    /// `CadDocument::tv_plain_form_by_handle` — `true` = the plain
+    /// genus (no trailing NUL), `false` = the AutoCAD genus.
+    pub fn set_tv_plain_form(&mut self, plain: bool) {
+        self.tv_plain_form = plain;
     }
 
     /// Create a new bit writer with a specific encoding.
@@ -644,25 +661,32 @@ impl DwgBitWriter {
                 self.write_bytes(&code_unit.to_le_bytes());
             }
         } else {
-            // Pre-R2007: BS byte count INCLUDING the terminating NUL,
-            // then the encoded bytes, then the NUL byte.
-            // §19 H8h-ext-15: the authored pre-2007 wire counts the
-            // terminator — her R2000 LAYER name "0" spans 26 bits
-            // (BS 2 + '0' + NUL) where the old form emitted 18
-            // (BS 1 + '0'); the H8h-ext-8 R2000 dissection found the
-            // same convention on the constraint class names (BS 20
-            // for the 19-char "AcConstrainedCircle"), and the
-            // READER's own correctness proves it (it reads `count`
-            // bytes and strips embedded NULs — a count-excluding wire
-            // would misalign every following field on HER files, and
-            // read-fidelity is 0). The semantic gates never saw the
-            // loss: our count-excluded wires re-read to the same
-            // strings. Empty strings stay BS 0 (the shared empty
-            // early-return).
+            // Pre-R2007: BS byte count + the encoded bytes.
+            // §19 H8h-ext-15: the AutoCAD genus counts the terminator —
+            // her R2000 LAYER name "0" spans 26 bits (BS 2 + '0' + NUL)
+            // where the old form emitted 18 (BS 1 + '0'); the
+            // H8h-ext-8 R2000 dissection found the same convention on
+            // the constraint class names (BS 20 for the 19-char
+            // "AcConstrainedCircle"), and the READER's own correctness
+            // proves it (it reads `count` bytes and strips embedded
+            // NULs — a count-excluding wire would misalign every
+            // following field on HER files, and read-fidelity is 0).
+            // §19 H8h-ext-17: the OTHER genus exists — the PolyLine2D
+            // author's records count the string exactly (her DICTIONARY
+            // text "Standard" spans 74 bits = BS 8 + 8 bytes, no NUL) —
+            // the convention is PER-RECORD author data, captured at
+            // read into `tv_plain_form_by_handle` and replayed here
+            // (the object writer sets the form per record; the default
+            // is the AutoCAD genus).
             let encoded = crate::io::dxf::code_page::encode_legacy_string(text, self.encoding);
-            self.write_bit_short(encoded.len() as i16 + 1);
-            self.write_bytes(&encoded);
-            self.write_bytes(&[0]);
+            if self.tv_plain_form {
+                self.write_bit_short(encoded.len() as i16);
+                self.write_bytes(&encoded);
+            } else {
+                self.write_bit_short(encoded.len() as i16 + 1);
+                self.write_bytes(&encoded);
+                self.write_bytes(&[0]);
+            }
         }
     }
 
@@ -989,6 +1013,26 @@ impl DwgBitWriter {
         while self.bit_shift > 0 {
             self.write_bit(true);
         }
+    }
+
+    /// Pad the remaining bits of the current byte with an EXACT authored
+    /// pattern (§19 H8h-ext-17): the per-record close-pad capture — some
+    /// authors leave arbitrary leftover bits (entities-3d's records pad
+    /// F1/E3/89), no zeros/ones genus at all. `len` is the captured pad
+    /// length (must equal the current `bit_shift` — the content-identical
+    /// rewrite guarantees it; a mismatch falls back to the caller), and
+    /// `bits` the pattern packed MSB-first (the reader's peek order).
+    pub fn write_spear_shift_pattern(&mut self, len: u8, bits: u8) -> bool {
+        // The pad length is the REMAINING bits of the partial byte
+        // (`bit_shift` counts the used bits), 0 when byte-aligned.
+        let remaining = if self.bit_shift == 0 { 0 } else { 8 - self.bit_shift };
+        if len != remaining {
+            return false;
+        }
+        for i in 0..len {
+            self.write_bit((bits >> (len - 1 - i)) & 1 == 1);
+        }
+        true
     }
 
     /// Save the current bit position and write 4 zero bytes as a size placeholder.

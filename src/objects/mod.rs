@@ -136,6 +136,13 @@ pub struct Dictionary {
     pub owner: Handle,
     /// Dictionary entries (key -> handle)
     pub entries: Vec<(String, Handle)>,
+    /// The verbatim pre-2007 wire forms of the entry keys, index-aligned
+    /// with `entries` (§19 H8h-ext-17, the MTEXT wire-text precedent): the
+    /// authored escape form of a non-ASCII key is author data — the writer
+    /// replays it verbatim on same-version writes. Wire plumbing, not
+    /// model data; not serialized.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_texts: Vec<Option<String>>,
     /// Entry keys that were encoded as hard-owner references (DXF code 360)
     /// even when `hard_owner` is false.
     #[cfg_attr(feature = "serde", serde(default))]
@@ -157,6 +164,7 @@ impl Dictionary {
             handle: Handle::NULL,
             owner: Handle::NULL,
             entries: Vec::new(),
+            wire_texts: Vec::new(),
             hard_owner_entries: Vec::new(),
             duplicate_cloning: 1,
             hard_owner: false,

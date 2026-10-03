@@ -515,6 +515,15 @@ pub fn read_table_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Ta
 pub struct DictionaryEntry {
     pub name: String,
     pub handle: u64,
+    /// The verbatim pre-2007 wire form of the name (§19 H8h-ext-17, the
+    /// MTEXT wire-text precedent at the dictionary scale): the authored
+    /// escape form of a non-ASCII key is author data (PolyLine2D's
+    /// "Аннотативный" carries the 12-escape `\U+0410…` form where a
+    /// re-encode writes raw CP1251 bytes — 96 vs 12 wire chars). The
+    /// writer replays it verbatim on same-version writes. Serde-default
+    /// plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -803,9 +812,17 @@ pub fn read_dictionary(reader: &mut DwgMergedReader, version: DwgVersion) -> Dic
 
     let mut entries = Vec::with_capacity(num_entries as usize);
     for _ in 0..num_entries {
-        let name = dict_key(version, reader.read_variable_text());
+        // §19 H8h-ext-17 (the MTEXT wire-text precedent): retain the
+        // verbatim wire form of the key — the authored escape form of a
+        // non-ASCII name is author data.
+        let (raw_name, wire_name) = reader.read_variable_text_with_wire();
+        let name = dict_key(version, raw_name);
         let handle = reader.read_handle();
-        entries.push(DictionaryEntry { name, handle });
+        entries.push(DictionaryEntry {
+            name,
+            handle,
+            wire_name,
+        });
     }
 
     DictionaryData {
@@ -825,9 +842,14 @@ pub fn read_dictionary_with_default(
 
     let mut entries = Vec::with_capacity(num_entries as usize);
     for _ in 0..num_entries {
-        let name = dict_key(version, reader.read_variable_text());
+        let (raw_name, wire_name) = reader.read_variable_text_with_wire();
+        let name = dict_key(version, raw_name);
         let handle = reader.read_handle();
-        entries.push(DictionaryEntry { name, handle });
+        entries.push(DictionaryEntry {
+            name,
+            handle,
+            wire_name,
+        });
     }
 
     let default_handle = reader.read_handle();
@@ -1435,6 +1457,10 @@ fn decode_xrecord_entries(raw: &[u8], unicode: bool) -> (Vec<XRecordEntry>, bool
         }
         let code = read_u16(position) as i16 as i32;
         position += 2;
+        // §19 H8h-ext-17: a pre-R2007 string item's authored wire code
+        // page, set by the string arm below (the blob's codepage byte is
+        // author data).
+        let mut wire_code_page = None;
         let value = match code {
             code if code < 0
                 || code == 5
@@ -1473,6 +1499,10 @@ fn decode_xrecord_entries(raw: &[u8], unicode: bool) -> (Vec<XRecordEntry>, bool
                     require!(1usize.saturating_add(length));
                     let code_page = raw[position] as u16;
                     position += 1;
+                    // §19 H8h-ext-17: retain the authored per-string wire
+                    // code page — the blob's codepage byte is author data
+                    // (the document header's codepage may differ).
+                    wire_code_page = Some(code_page);
                     let value = crate::io::dxf::code_page::encoding_from_dwg_code_page(code_page)
                         .decode(&raw[position..position + length])
                         .0
@@ -1541,7 +1571,11 @@ fn decode_xrecord_entries(raw: &[u8], unicode: bool) -> (Vec<XRecordEntry>, bool
                 break;
             }
         };
-        entries.push(XRecordEntry { code, value });
+        entries.push(XRecordEntry {
+            code,
+            value,
+            wire_code_page,
+        });
     }
     if position != raw.len() {
         complete = false;

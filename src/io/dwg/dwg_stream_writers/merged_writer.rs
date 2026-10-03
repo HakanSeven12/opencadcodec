@@ -81,6 +81,13 @@ pub struct DwgMergedWriter {
     /// carries the majority; the writer replays it. Constructed
     /// documents default to the AutoCAD genus (`false`).
     close_pad_zeros: bool,
+    /// The current record's EXACT authored close-pad pattern (§19
+    /// H8h-ext-17): `(len, bits)` captured per record — some authors
+    /// leave arbitrary leftover bits (entities-3d pads F1/E3/89), no
+    /// zeros/ones genus. The object writer sets it per record from
+    /// `CadDocument::close_pad_bits_by_handle`; `None` (or a length
+    /// mismatch at the close) falls back to the document vote above.
+    close_pad_bits: Option<(u8, u8)>,
 }
 
 impl DwgMergedWriter {
@@ -102,6 +109,7 @@ impl DwgMergedWriter {
             handle_start_bits: -1,
             underlap_bits: None,
             close_pad_zeros: false,
+            close_pad_bits: None,
         }
     }
 
@@ -127,6 +135,7 @@ impl DwgMergedWriter {
             handle_start_bits: -1,
             underlap_bits: None,
             close_pad_zeros: false,
+            close_pad_bits: None,
         }
     }
 
@@ -237,6 +246,16 @@ impl DwgMergedWriter {
     /// writer-lifetime policy, not per-record state.
     pub fn set_close_pad_zeros(&mut self, zeros: bool) {
         self.close_pad_zeros = zeros;
+    }
+
+    /// Set the current record's EXACT authored close-pad pattern (§19
+    /// H8h-ext-17): `(len, bits)` replayed verbatim from
+    /// `CadDocument::close_pad_bits_by_handle` — some authors leave
+    /// arbitrary leftover pad bits (entities-3d pads F1/E3/89), no
+    /// zeros/ones genus. `None` (or a length mismatch at the close)
+    /// falls back to the document-level vote.
+    pub fn set_close_pad_bits(&mut self, pad: Option<(u8, u8)>) {
+        self.close_pad_bits = pad;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -426,6 +445,15 @@ impl DwgMergedWriter {
         }
     }
 
+    /// Set the current record's pre-R2007 TV wire form (§19 H8h-ext-17):
+    /// the captured per-record trailing-NUL convention replayed from
+    /// `CadDocument::tv_plain_form_by_handle`. Only the main writer
+    /// serves pre-R2007 TVs (TwoStream); the R2007+ text writer's
+    /// UTF-16 path has no NUL convention.
+    pub fn set_tv_plain_form(&mut self, plain: bool) {
+        self.main.set_tv_plain_form(plain);
+    }
+
     /// Write one preserved opaque bit to the text stream.
     pub fn write_text_bit(&mut self, value: bool) {
         match self.mode {
@@ -535,7 +563,9 @@ impl DwgMergedWriter {
             self.main.set_position_in_bits(main_size_bits);
         }
 
-        // Append handle stream
+        // Append handle stream. The handle buffer's own tail shift is an
+        // INTERMEDIATE pad (always zeros — verified identical; the
+        // buffer's bytes then merge bit-continuously into main).
         self.handle.write_spear_shift();
         self.handle_start_bits = self.main.position_in_bits();
         self.handle.flush();
@@ -554,12 +584,20 @@ impl DwgMergedWriter {
         // close pad (the intermediate pads stay zero — verified
         // identical; the pad VALUE follows the document's captured
         // convention — 1s for the AutoCAD genus, 0s for the ODA
-        // FileConverter genus, TODO A1 2026-10-01).
-        if self.close_pad_zeros {
-            self.main.write_spear_shift();
-        } else {
-            self.main.write_spear_shift_ones();
+        // FileConverter genus, TODO A1 2026-10-01). §19 H8h-ext-17:
+        // the per-record EXACT pattern takes precedence — the
+        // arbitrary-leftover authors have no genus at all.
+        if !self
+            .close_pad_bits
+            .is_some_and(|(len, bits)| self.main.write_spear_shift_pattern(len, bits))
+        {
+            if self.close_pad_zeros {
+                self.main.write_spear_shift();
+            } else {
+                self.main.write_spear_shift_ones();
+            }
         }
+        self.close_pad_bits = None;
 
         self.main.take_bytes()
     }

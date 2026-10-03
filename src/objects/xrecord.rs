@@ -206,12 +206,25 @@ pub struct XRecordEntry {
     pub code: i32,
     /// The stored value
     pub value: XRecordValue,
+    /// The authored wire code page of a pre-R2007 string item (§19
+    /// H8h-ext-17): the XRECORD blob's per-string codepage byte is
+    /// author data — the document header's codepage may differ from
+    /// the string item's own (the PolyLine2D XRECORDs carry 30 where
+    /// the header's ANSI_1251 maps 29; re-deriving from the header
+    /// rewrote her byte). Retained at DWG read; the writer replays it
+    /// verbatim. Serde-skipped — wire plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_code_page: Option<u16>,
 }
 
 impl XRecordEntry {
     /// Create a new entry
     pub fn new(code: i32, value: XRecordValue) -> Self {
-        Self { code, value }
+        Self {
+            code,
+            value,
+            wire_code_page: None,
+        }
     }
 
     /// Create a string entry

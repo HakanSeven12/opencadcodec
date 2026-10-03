@@ -2801,6 +2801,25 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) entity_color_raw_by_handle: HashMap<Handle, DwgRawEnc>,
 
+    /// Per-record TV wire forms (§19 H8h-ext-17, the A1 capture pattern at
+    /// the TV scale): `true` when the record's authored pre-R2007 TVs
+    /// count the string exactly (no trailing NUL — the PolyLine2D
+    /// author's genus), `false`/absent when they count the terminator
+    /// (the AutoCAD genus, §19 H8h-ext-15 — the constructed/deserialized
+    /// default). Populated from the reader's per-record vote majority at
+    /// commit; the writer replays the form per record.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) tv_plain_form_by_handle: HashMap<Handle, bool>,
+
+    /// The EXACT authored close-pad bits `(len, pattern)` per record (§19
+    /// H8h-ext-17): some authors leave arbitrary leftover pad bits
+    /// (entities-3d's records pad F1/E3/89) — no zeros/ones genus at
+    /// all. Captured per record at DWG read; the writer replays the
+    /// pattern verbatim at the record close, the A1 document-level
+    /// `close_pad_zeros` vote stays the fallback for uncaptured records.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) close_pad_bits_by_handle: HashMap<Handle, (u8, u8)>,
+
     /// The record-close pad genus captured at read (the majority sample of
     /// the authored records' close pads, TODO A1 2026-10-01): `true` pads
     /// the merged stream's final partial byte with 0s (measured on the
@@ -3242,6 +3261,8 @@ impl CadDocument {
             reactors_by_handle: HashMap::new(),
             owner_handle_form_by_handle: HashMap::new(),
             entity_color_raw_by_handle: HashMap::new(),
+            tv_plain_form_by_handle: HashMap::new(),
+            close_pad_bits_by_handle: HashMap::new(),
             close_pad_zeros: false,
             unknown_bits_by_handle: HashMap::new(),
             block_entity_handles: HashMap::new(),

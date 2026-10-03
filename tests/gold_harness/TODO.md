@@ -108,28 +108,30 @@ fixtures/sh_history's ten B2 quads + the SweepSurf quads.
 ### A9. The era-census residue (the older eras' record-identity rows)
 
 The conventional-arm record-identity censuses (`analysis/record_size_census.py`,
-`DWG_NO_ECHO=1 target/debug/dwgrewrite` staging) — refreshed 2026-10-03 after
-three packets closed (the table-control entries, the PLOTSETTINGS plotview
-code, the entity-color ENC raw twin: gh209_1 1→0, gh109_1 1→0, HatchG 2→0,
-gh44-error 21→18, entities-2d/3d 50→49 each). **THE 2010 ERA IS AT FULL
-RECORD IDENTITY (gh209_1 166/166); 2013 = the pathological gh44-error file
-only (gh109_1 664/664); 2004 = Surface.dwg only (HatchG 229/229; the
-recorded "15" was stale — the B2 subcurve landing had already repaired 7 of
-Surface's rows).** The remaining rows, ranked: (a) **the 2000-era boilerplate
-family — 323 rows** (PolyLine2D 225 + entities-2d/3d 49 each; the
-pre-existing her-only/our-only 6/4 on PolyLine2D stand): a repeated
-cross-file family (DICTIONARY 56, XRECORD 46, class? 39, VISUALSTYLE 26,
-SCALE 17, DICTIONARYVAR 11, BLOCK 11, LAYOUT 8 …) of mostly +1-2-byte size
-drifts — the largest packet, opens with the per-record dissection method;
-(b) **gh44-error 18** (the pathological issue-44 file): LEADER 6 (her
-records declare a 2-bit slack between main end and handle-stream start, all
-nibble-aligned bitsizes — the measured lead), HATCH 5 (crc-only), type-57 5,
-DIMASSOC 2; (c) **Surface 6** (the §18 surface family — EXTRUDEDSURFACE
-+12KB, the known large modeled-emission packet). Every era's example file
-and both Constraints specimens stand at full identity (750/750, 735/735,
-536/536, 474/474, 216/216, 160/160). **Sources**: the 2026-10-03
-era-census addendum (NEXT_SESSION.md, the file bottom); the sixteenth
-addendum's era table.
+`DWG_NO_ECHO=1 target/debug/dwgrewrite` staging) — refreshed 2026-10-03 through
+the "shrink TODO.md" seven-packet session: **the 2000-era boilerplate family
+COLLAPSED (PolyLine2D 225→2, entities-2d 49→8, entities-3d 49→7 — the TV
+plain-form, the XRECORD wire codepage, the exact close-pad, and the dictionary
+wire-text packets; the remaining rows are ALL the class? desync-mirror family
+plus PolyLine2D's last 2 POLYLINE_2D crc rows)**; the golden corpus collapsed
+5825→122 fidelity rows (the R13/R14 gates + the vertex chain + the polyline
+projections). THE STANDING ERA FACTS ALL HOLD (re-verified): gh209_1 166/166,
+gh109_1 664/664, HatchG 229/229, example_2000 750/750, example_2004 735/735,
+example_2010 536/536, example_2018 474/474, Constraints_2010 216/216,
+Constraints_2013 160/160. THE REMAINING ROWS, ranked: (a) **the golden
+R13/R14 vertex/seqend `isbylayerlt` family** — the wire bit is read but not
+retained on the vertex/seqend models (the wire_nolinks precedent applies:
+Vertex2D.wire_isbylayerlt + the seqend_flags tuple extension) — the 27-file
+golden residue's largest share (Polyline2D/3D/Polyface/Insert/LWPolyline/
+Face3d + Text/Viewport/Leader's own R13 rows); (b) the SEQEND plotstyle
+HANDLE (1 row per R2010+ golden polyline); (c) the STRUCT-axis key-gaps
+(2581 — the R13/R14 golden key-shape class, untouched by the fidelity
+fixes); (d) the class? desync-mirror rows (entities-2d 8 + entities-3d 7 —
+the B1-era mojibake family); (e) PolyLine2D's last 2; (f) **Surface.dwg 6**
+(the §18 surface family) and **gh44-error 18** (the pathological file:
+LEADER 6 — the 2-bit handle-stream slack; HATCH 5; type-57 5; DIMASSOC 2).
+**Sources**: the 2026-10-03 era-census continuation (NEXT_SESSION.md, the
+file bottom); the corpus report.json (the per-file rows).
 
 ---
 

@@ -19607,6 +19607,7 @@ impl<'a> SectionReader<'a> {
                     xr.entries.push(XRecordEntry {
                         code: pair.code,
                         value,
+                        wire_code_page: None,
                     });
                 }
             }

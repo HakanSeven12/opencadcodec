@@ -236,6 +236,8 @@ impl<'a> SemanticInventoryV1<'a> {
             dwg_ac21_shape: _,
             owner_handle_form_by_handle: _,
             entity_color_raw_by_handle: _,
+            tv_plain_form_by_handle: _,
+            close_pad_bits_by_handle: _,
             close_pad_zeros: _,
         } = self.document;
 

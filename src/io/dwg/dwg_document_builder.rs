@@ -147,7 +147,7 @@ fn read_hatch_scale_context_data(
 
 /// Pending vertex data collected during Pass 2, keyed by owner (parent polyline) handle.
 enum PendingVertex {
-    V2D(entities::Vertex2DData),
+    V2D(entities::Vertex2DData, EntityCommon),
     V3D(entities::Vertex3DData, EntityCommon),
     PfaceFace(entities::PfaceFaceData, EntityCommon),
 }
@@ -189,6 +189,12 @@ struct Pass2Output {
     /// handle (§19 H8h-ext-17) — drained into
     /// `CadDocument::entity_color_raw_by_handle` at commit.
     entity_color_raw: HashMap<Handle, crate::document::DwgRawEnc>,
+    /// The EXACT authored close-pad bits `(len, bits)` keyed by the
+    /// record's own handle (§19 H8h-ext-17) — some authors leave
+    /// arbitrary leftover pad bits (entities-3d pads F1/E3/89), no
+    /// zeros/ones genus; drained into
+    /// `CadDocument::close_pad_bits_by_handle` at commit.
+    close_pad_bits_by_handle: HashMap<Handle, (u8, u8)>,
     /// Close-pad genus votes (TODO A1, 2026-10-01): records whose authored
     /// close pad is all zeros / all ones. The majority decides
     /// `CadDocument::close_pad_zeros` at commit.
@@ -227,6 +233,7 @@ impl Pass2Output {
             reactors_by_handle: HashMap::new(),
             owner_forms: HashMap::new(),
             entity_color_raw: HashMap::new(),
+            close_pad_bits_by_handle: HashMap::new(),
             pad_zero_votes: 0,
             pad_one_votes: 0,
             unknown_bits_by_handle: HashMap::new(),
@@ -2042,12 +2049,20 @@ impl DwgDocumentBuilder {
                     // before the typed parse (TODO A1, 2026-10-01): the
                     // walk needs only the record frame, never the parsed
                     // fields, so a corrupt record votes nothing.
-                    if let Some(zeros) = reader.sample_close_pad_zeros() {
-                        if zeros {
+                    if let Some((pad_len, pad_bits)) = reader.sample_close_pad_bits() {
+                        if pad_bits == 0 {
                             chunk.output.pad_zero_votes += 1;
-                        } else {
+                        } else if pad_len < 8 && pad_bits == (1u8 << pad_len) - 1 {
                             chunk.output.pad_one_votes += 1;
                         }
+                        // §19 H8h-ext-17: retain the EXACT authored close-pad
+                        // bits per record — some authors leave arbitrary
+                        // leftover bits (entities-3d's records pad F1/E3/89),
+                        // no zeros/ones genus; the writer replays them
+                        // verbatim, the A1 document vote stays the fallback.
+                        chunk.output
+                            .close_pad_bits_by_handle
+                            .insert(Handle::from(handle), (pad_len, pad_bits));
                     }
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         self.process_pass2_record(
@@ -2101,6 +2116,14 @@ impl DwgDocumentBuilder {
                 document
                     .entity_color_raw_by_handle
                     .extend(chunk.output.entity_color_raw.drain());
+                // §19 H8h-ext-17: the exact per-record close-pad bits (the
+                // arbitrary-leftover authors — entities-3d pads F1/E3/89 —
+                // have no zeros/ones genus; the writer replays the captured
+                // pattern verbatim, the A1 document vote stays the
+                // fallback).
+                document
+                    .close_pad_bits_by_handle
+                    .extend(chunk.output.close_pad_bits_by_handle.drain());
                 pad_zero_votes += chunk.output.pad_zero_votes;
                 pad_one_votes += chunk.output.pad_one_votes;
                 document
@@ -2185,6 +2208,18 @@ impl DwgDocumentBuilder {
         // specimens; ties and empty samples keep the AutoCAD genus (1s,
         // §19 H8d), which is also the constructed-document default.
         document.close_pad_zeros = pad_zero_votes > pad_one_votes;
+        // §19 H8h-ext-17: fold the per-record TV-form votes into the
+        // document map (the A1 capture pattern at the TV scale) — the
+        // writer replays the per-record trailing-NUL convention. The
+        // majority decides; ties and vote-less records keep the AutoCAD
+        // NUL genus (the constructed/deserialized default).
+        for (handle, (plain, nul)) in self.obj_reader.take_tv_form_votes() {
+            if plain + nul > 0 {
+                document
+                    .tv_plain_form_by_handle
+                    .insert(Handle::from(handle), plain > nul);
+            }
+        }
         if perf {
             eprintln!(
                 "[perf] dwg-build pass2={:.1}ms decode={:.1}ms commit={:.1}ms records={} threads={} pad-zeros={} pad-ones={}",
@@ -2208,7 +2243,7 @@ impl DwgDocumentBuilder {
                         e.vertices = verts
                             .into_iter()
                             .filter_map(|v| {
-                                if let PendingVertex::V2D(d) = v {
+                                if let PendingVertex::V2D(d, ec) = v {
                                     Some(crate::entities::polyline::Vertex2D {
                                         location: crate::types::Vector3::new(d.x, d.y, d.z),
                                         flags: crate::entities::polyline::VertexFlags::from_bits(
@@ -2220,6 +2255,17 @@ impl DwgDocumentBuilder {
                                         curve_tangent: d.tangent_dir,
                                         id: d.vertex_id,
                                         wire_handle: Some(d.handle.value()),
+                                        // The pre-R2004 entity chain is
+                                        // author data (the golden authored
+                                        // files chain only some vertices) —
+                                        // retain the wire state verbatim.
+                                        wire_nolinks: ec.nolinks,
+                                        wire_prev_entity: ec
+                                            .prev_entity_handle
+                                            .map(|h| h.value()),
+                                        wire_next_entity: ec
+                                            .next_entity_handle
+                                            .map(|h| h.value()),
                                     })
                                 } else {
                                     None
@@ -4989,7 +5035,7 @@ impl DwgDocumentBuilder {
                         .vertices
                         .entry(entity_data.owner_handle)
                         .or_default()
-                        .push(PendingVertex::V2D(data));
+                        .push(PendingVertex::V2D(data, entity_common));
                 }
                 OBJ_VERTEX_3D | OBJ_VERTEX_MESH => {
                     let mut data = entities::read_vertex3d(&mut reader);
@@ -5804,6 +5850,9 @@ impl DwgDocumentBuilder {
                         .collect();
                     for entry in data.entries {
                         obj.add_entry(entry.name, Handle::from(entry.handle));
+                        // §19 H8h-ext-17: retain the verbatim wire form
+                        // of the key (the MTEXT wire-text precedent).
+                        obj.wire_texts.push(entry.wire_name);
                     }
                     document.objects.insert(
                         Handle::from(handle),
@@ -5823,6 +5872,9 @@ impl DwgDocumentBuilder {
                     obj.default_handle = Handle::from(data.default_handle);
                     for entry in data.entries {
                         obj.entries.push((entry.name, Handle::from(entry.handle)));
+                        // §19 H8h-ext-17: retain the verbatim wire form
+                        // of the key (the MTEXT wire-text precedent).
+                        obj.wire_texts.push(entry.wire_name);
                     }
                     document.objects.insert(
                         Handle::from(handle),

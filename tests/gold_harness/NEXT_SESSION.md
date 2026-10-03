@@ -66,12 +66,13 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read THE 2026-10-03 GOLDEN-ENTITIES LANDING at this
-# file's BOTTOM first (the C4 reopen — the maintainer's call, the 221-
-# fixture campaign, the 642-file corpus baseline: the established 401
-# at 8/8 unmoved, the b6 twenty at 0/0, the golden six eras at 0/0,
-# the R13/R14 ~104-row boilerplate family the C4 work surface), then
-# the b6 review section, then the era-census addendum (the three
+# section below), read THE 2026-10-03 ERA-CENSUS CONTINUATION at this
+# file's BOTTOM first (the "shrink TODO.md" directive's seven packets —
+# the golden corpus collapsed 5825→122 fidelity rows: the R13/R14
+# gates, the vertex chain retention, the TV plain-form, the XRECORD
+# codepage, the exact close-pad, the dictionary wire-text, the golden
+# polyline projections), then the golden-entities landing, then the
+# b6 review section, then the era-census addendum (the three
 # record-identity packets), then this file's
 # 2026-10-02 addenda bottom-up (the authoring-wave handover — the
 # maintainer's next fixture
@@ -4059,3 +4060,158 @@ The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 bottom, STARTING at THIS addendum (the file bottom), then the
 b6 and era-census sections above it, then the 2026-10-02
 sections bottom-up.
+
+## THE 2026-10-03 ERA-CENSUS CONTINUATION (the "shrink TODO.md to
+## minimum" directive — SEVEN PACKETS, the golden corpus collapsed
+## 5825→122 fidelity rows; read this FIRST):
+
+The maintainer's loop directive ("continue, then review, update,
+commit and re-continue until TODO.md has shrunk to minimum")
+drove seven dissection packets through the C4 work surface. **THE
+642-FILE CORPUS NOW READS 122/122 FIDELITY (from 5825/5825 at the
+golden landing) — the golden population's six modern eras at 0/0,
+the established 401 at the recorded 8/8 UNMOVED, the identity
+`f2187565…`/25,728 UNMOVED, genus PENDING-ZERO, the suite
+1,618/0.**
+
+(1) THE R13/R14 GOLDEN BOILERPLATE GATES (the ~104-row uniform
+family across all 52 AC1012/AC1014 files — every family a
+VERSION-GATED PROJECTION GAP, gold's spec blocks swap era-specific
+field sets at the R2000 boundary): the silver normalizer gained the
+`r13_14` predicate and the per-family gates — the common entity's
+`isbylayerlt` (derived: ltype_flags != 3; gold
+common_entity_data.spec 377, VERSIONS R_13b1-R_14) with
+linewt/plotstyle_flags/ltype_flags suppressed; the LAYER flag BITS
+(frozen/off/frozen_in_new/locked from the flags struct; the packed
+flag0/plotstyle are R2000b+); the DIMSTYLE R13 block (DIMFIT ←
+dimfit, DIMUNIT ← dimunit, DIMBLK_T/DIMBLK1_T/DIMBLK2_T ← the
+dimblk*_name TVs; the fourteen R2000b+ names suppressed); the
+BLOCK_HEADER xref_loaded/layout/description drops; STYLE
+is_vertical at every era (the R2000+ gate was wrong); the
+BLOCK_CONTROL MS/PS case-fold (BricsCAD-downsaved R13 names them
+*MODEL_SPACE/*PAPER_SPACE — the case-sensitive compare missed
+both); the DIMENSION emission gates (attachment/lspace_style/
+lspace_factor/act_measurement are R2000+ — the pop AND the
+emission sites both gated). ACCEPTANCE: Point/Line/Spline_AC1012/
+AC1014 104→0, Dimension 161→0, the golden R13/R14 boilerplate
+family GONE.
+
+(2) THE VERTEX CHAIN RETENTION (the golden polylines exposed the
+blanket chain rules as author-data violations): the pre-2004
+vertex/face chain (nolinks/prev/next) is PER-RECORD AUTHOR DATA —
+the golden Polyline2D_AC1015 chains only the FIRST vertex (the
+rest nolinks=1) where the libredwg corpus files chain every
+vertex; the golden Polyface chains its FIRST face where ex2000
+chains the last. THE FIX (the wire_handle precedent): Vertex2D
+gains wire_nolinks/wire_prev_entity/wire_next_entity (serde,
+populated in the attach from the retained EntityCommon — the
+PendingVertex::V2D variant now carries it); dwg2json's _common_dwg
+walk extended to the pface sub-entities (the models retain the
+full common); the normalizer projects the retained state verbatim
+with the blanket rules as the DXF/constructed fallback. ACCEPTANCE:
+Polyline2D_AC1015 and Polyface_AC1015 0/0.
+
+(3) THE TV PLAIN-FORM CAPTURE/REPLAY (PolyLine2D's 225-row census
+class): the pre-2007 TV trailing-NUL convention is PER-RECORD
+AUTHOR DATA — gold's own writer comment says pre-R2004 lengths
+equal strlen exactly, but example_2000 (AutoCAD) counts the
+terminator while PolyLine2D's author counts the string (her
+DICTIONARY text "Standard" spans 74 bits = BS 8 + 8 bytes, no NUL;
+the LAYER names in the SAME file carry the NUL — per-site within
+one file). THE FIX (the A1 map pattern at the TV scale): the bit
+reader's `last_tv_plain_form` side channel (the last-byte test —
+a real string never ends in NUL), the merged reader's per-record
+vote tally (threaded through every record reader via the obj
+reader's shared map), `CadDocument::tv_plain_form_by_handle` (the
+per-record majority; the AutoCAD NUL genus the tie/default), the
+writer's per-record `set_tv_plain_form` at both common writes +
+the merged writer's `write_variable_text` branch. ACCEPTANCE:
+PolyLine2D 225 → 49 (176 rows fell), example_2000 750/750
+UNMOVED.
+
+(4) THE XRECORD WIRE CODEPAGE (PolyLine2D's 46-row crc-only
+class): the blob's per-string codepage byte is AUTHOR DATA — the
+PolyLine2D XRECORDs carry 30 where the document header's ANSI_1251
+maps 29 (the model path re-derived from the header and rewrote her
+byte). THE FIX: XRecordEntry gains `wire_code_page` (serde-SKIP —
+the JSON untouched), captured at the blob decode, replayed by
+`encode_xrecord_entries` (the header index the fallback).
+ACCEPTANCE: PolyLine2D 49 → 3.
+
+(5) THE EXACT CLOSE-PAD CAPTURE (entities-3d's 31-row crc-only
+class): the authored close pad is not always a zeros/ones genus —
+entities-3d's records pad F1/E3/89 (arbitrary leftover bits; the
+A1 document vote captured nothing for them). THE FIX: the merged
+reader's `sample_close_pad_bits` (the exact (len, bits) — the same
+handle-unit walk), the per-record map
+`close_pad_bits_by_handle` (the pass-2 sampling site now captures
+every record's exact pad + derives the A1 vote from it), the
+merged writer's per-record `set_close_pad_bits` + the
+`write_spear_shift_pattern` replay at the record close (the pad
+length is the REMAINING bits of the partial byte — 8 − bit_shift —
+the first attempt compared against bit_shift and never fired; the
+handle buffer's own tail shift stays the INTERMEDIATE zero pad —
+the record's final partial byte lives at the main close).
+ACCEPTANCE: entities-3d 31 → 7, entities-2d 32 → 8 (the
+remaining rows are ALL the class? desync-mirror family), the A1
+vote semantics unchanged for the genus files.
+
+(6) THE DICTIONARY WIRE-TEXT (the MTEXT d81f864 precedent at the
+dictionary scale — PolyLine2D's DICTIONARY 119→47 content loss):
+her ACAD_MLINESTYLE dictionary carries the Russian key
+"Аннотативный" as the 12-escape `\U+0410…` wire form (96 chars)
+where the re-encode wrote raw CP1251 bytes (12) — the authored
+escape form is AUTHOR DATA. THE FIX: DictionaryEntry gains
+`wire_name` (read via read_variable_text_with_wire), the model
+Dictionary/DictionaryWithDefault gain `wire_texts` (serde-SKIP,
+index-aligned), the writer's entry loops replay verbatim (the
+filtered entries carry their original index). ACCEPTANCE:
+PolyLine2D 3 → 2 (the DICTIONARY row fell), example_2000 750/750.
+
+(7) THE GOLDEN POLYLINE PROJECTIONS (the R2004+ golden polyline
+7-row class): the POLYLINE_2D kid link set is the R2004a+ `vertex`
+handle VECTOR (the 3D block already had the gate — the 2D block
+now mirrors it); the VERTEX_2D `id` (SINCE R_2010) emits even when
+0. ACCEPTANCE: the golden R2004+ polylines 7 → 1 (the SEQEND
+plotstyle row only), Polyline2D_AC1018 3 → 0.
+
+THE BATTERY at this halt: the suite 1,618/0 (the deep-R2000 test's
+allowance extended — the vertex wire captures are read-side
+legitimate: the constructed None vs the read-back Some — the
+ignore_attachment precedent); gold_roundtrip ok; issue80 ok; the
+four smokes 0/0 (e2004 1/1 the recorded LIGHT row); the corpus
+642 files — **122/122 fidelity** (the golden population's
+remaining rows: 27 files, the R13/R14 vertex/seqend isbylayerlt
+family + the R2004+ SEQEND plotstyle 1-rows + Text/Viewport/
+Leader/Face3d's own R13 rows) + 2581 read key-gaps (the STRUCT
+axis — the R13/R14 golden key-shape class, UNTOUCHED by the
+fidelity fixes — the next packet's surface) + 0 write key-gaps;
+the established 8/8 UNMOVED (Wipeout ×3 + the five LIGHT rows);
+genus 3/1/0 PENDING-ZERO with --strict; the identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED; the standing
+record-identity censuses re-verified — example_2004 735/735,
+example_2018 474/474, Constraints 216/216 + 160/160, example_2010
+536/536, HatchG 229/229, example_2000 750/750, gh209_1 166/166,
+gh109_1 664/664 — every era fact holds.
+
+THE REMAINING QUEUE (TODO.md's A9 refreshed): (a) the R13/R14
+vertex/seqend `isbylayerlt` retention — the wire bit is read
+(derivable: ltype_flags != 3) but not retained on the vertex/
+seqend models; the plumbing is the wire_nolinks precedent
+(Vertex2D.wire_isbylayerlt + the seqend_flags tuple extension) —
+it closes the golden R13 poly/insert/lwpolyline families' rows
+(the 27-file residue's largest share); (b) the SEQEND plotstyle
+HANDLE (1 row per R2010+ golden polyline — the R2013+ seqend's
+plotstyle handle needs the seqend_flags capture extension); (c)
+the STRUCT-axis key-gaps (2581 — the R13/R14 golden key-shape
+class); (d) the class? desync-mirror rows (entities-2d/3d — the
+B1-era mojibake family); (e) PolyLine2D's last 2 POLYLINE_2D crc
+rows; (f) Surface 6 + gh44-error 18 (the recorded queue); (g)
+the golden Text/Viewport/Leader/Face3d/Region/Solid3d R13 rows
+(their own per-family classes — the same dissection method).
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
++ §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
+bottom, STARTING at THIS addendum (the file bottom), then the
+golden-entities landing, then the b6 review, then the era-census
+addendum, then the 2026-10-02 sections bottom-up.

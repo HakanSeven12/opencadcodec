@@ -461,6 +461,19 @@ impl<'a> DwgObjectWriter<'a> {
         entity_next_entity_handle: &Option<Handle>,
         entity_nolinks: Option<bool>,
     ) {
+        // §19 H8h-ext-17: replay the record's captured TV wire form (the
+        // trailing-NUL convention is per-record author data) for every
+        // TV this record's body emits, and the record's exact close-pad
+        // pattern (the arbitrary-leftover authors have no genus).
+        self.writer.set_tv_plain_form(
+            self.document
+                .tv_plain_form_by_handle
+                .get(&handle)
+                .copied()
+                .unwrap_or(false),
+        );
+        self.writer
+            .set_close_pad_bits(self.document.close_pad_bits_by_handle.get(&handle).copied());
         // ── MAIN + HANDLE: shared preamble (type + handle + xdata) ──
         self.write_common_data(type_code, handle, xdata);
 
@@ -929,6 +942,19 @@ impl<'a> DwgObjectWriter<'a> {
         // ── writeCommonData portion ──
 
         self.pending_type_code = Some(type_code);
+        // §19 H8h-ext-17: replay the record's captured TV wire form (the
+        // trailing-NUL convention is per-record author data) for every
+        // TV this record's body emits, and the record's exact close-pad
+        // pattern (the arbitrary-leftover authors have no genus).
+        self.writer.set_tv_plain_form(
+            self.document
+                .tv_plain_form_by_handle
+                .get(&handle)
+                .copied()
+                .unwrap_or(false),
+        );
+        self.writer
+            .set_close_pad_bits(self.document.close_pad_bits_by_handle.get(&handle).copied());
         // Object type
         self.writer.write_object_type(type_code);
 

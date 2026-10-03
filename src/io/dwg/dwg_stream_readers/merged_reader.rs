@@ -65,6 +65,15 @@ pub struct DwgMergedReader {
     handle_start_bit: i64,
     /// Bit position where the text stream starts; main data ends here.
     text_start_bit: i64,
+    /// The document-wide per-record TV-form vote map (§19 H8h-ext-17,
+    /// the A1 capture pattern at the TV scale): every pre-R2007
+    /// `read_variable_text` tallies whether the wire length counted the
+    /// string exactly (the plain genus) or the terminator (the AutoCAD
+    /// genus) into `votes[ref_handle]`. The builder drains it into
+    /// `CadDocument::tv_plain_form_by_handle` at commit; the writer
+    /// replays the per-record form. `None` when the reader was built
+    /// without the tally (tests, non-document reads).
+    tv_form_votes: Option<std::sync::Arc<std::sync::Mutex<std::collections::HashMap<u64, (u32, u32)>>>>,
 }
 
 impl DwgMergedReader {
@@ -130,6 +139,7 @@ impl DwgMergedReader {
                     ref_handle: 0,
                     handle_start_bit: handle_start_bits,
                     text_start_bit: handle_start_bits,
+                    tv_form_votes: None,
                 }
             }
             MergeMode::ThreeStream => {
@@ -153,6 +163,7 @@ impl DwgMergedReader {
                     ref_handle: 0,
                     handle_start_bit: 0, // set later when RL is known
                     text_start_bit: 0,
+                    tv_form_votes: None,
                 }
             }
         }
@@ -185,6 +196,7 @@ impl DwgMergedReader {
             ref_handle: 0,
             handle_start_bit: 0,
             text_start_bit: 0,
+            tv_form_votes: None,
         }
     }
 
@@ -468,10 +480,17 @@ impl DwgMergedReader {
     /// For R2007+, this reads from the separate text stream (UTF-16LE).
     /// For pre-R2007, this reads from the main stream.
     pub fn read_variable_text(&mut self) -> String {
-        match &mut self.text {
-            Some(text_reader) => text_reader.read_variable_text(),
+        let result = match &mut self.text {
+            Some(text_reader) => {
+                // R2007+: the UTF-16 path carries no NUL-convention
+                // evidence — clear the main reader's stale channel.
+                self.main.last_tv_plain_form = None;
+                text_reader.read_variable_text()
+            }
             None => self.main.read_variable_text(),
-        }
+        };
+        self.tally_tv_form();
+        result
     }
 
     /// [`read_variable_text`](Self::read_variable_text) plus the verbatim
@@ -480,10 +499,48 @@ impl DwgMergedReader {
     /// DWG-read record rewrites with her text bytes). R2007+ reads
     /// return `None` — the UTF-16 decode is lossless.
     pub fn read_variable_text_with_wire(&mut self) -> (String, Option<String>) {
-        match &mut self.text {
-            Some(text_reader) => text_reader.read_variable_text_with_wire(),
+        let result = match &mut self.text {
+            Some(text_reader) => {
+                self.main.last_tv_plain_form = None;
+                text_reader.read_variable_text_with_wire()
+            }
             None => self.main.read_variable_text_with_wire(),
+        };
+        self.tally_tv_form();
+        result
+    }
+
+    /// Tally the last pre-R2007 TV's wire form into the document-wide
+    /// per-record vote map (§19 H8h-ext-17): the trailing-NUL convention
+    /// is per-record author data (the AutoCAD genus counts the
+    /// terminator, §19 H8h-ext-15; the PolyLine2D author counts the
+    /// string exactly) — the builder drains the votes into
+    /// `CadDocument::tv_plain_form_by_handle` and the writer replays the
+    /// per-record form.
+    fn tally_tv_form(&mut self) {
+        if let Some(plain) = self.main.last_tv_plain_form.take() {
+            if let Some(votes) = &self.tv_form_votes {
+                if let Ok(mut map) = votes.lock() {
+                    let entry = map.entry(self.ref_handle).or_insert((0, 0));
+                    if plain {
+                        entry.0 += 1;
+                    } else {
+                        entry.1 += 1;
+                    }
+                }
+            }
         }
+    }
+
+    /// Thread the document-wide TV-form vote map (the object reader's
+    /// shared tally) into this record reader.
+    pub fn set_tv_form_votes(
+        &mut self,
+        votes: std::sync::Arc<
+            std::sync::Mutex<std::collections::HashMap<u64, (u32, u32)>>,
+        >,
+    ) {
+        self.tv_form_votes = Some(votes);
     }
 
     /// Bits remaining after the currently decoded fields in the separate
@@ -629,6 +686,40 @@ impl DwgMergedReader {
         } else {
             None
         }
+    }
+
+    /// The EXACT close-pad bits of this record — `(len, bits)` (§19
+    /// H8h-ext-17): the authored pad is not always a zeros/ones genus;
+    /// some authors leave arbitrary leftover bits (entities-3d's
+    /// records pad F1/E3/89). The per-record capture replays verbatim;
+    /// the A1 document-level zeros/ones vote stays the fallback for
+    /// records without a clean handle-stream tail.
+    pub fn sample_close_pad_bits(&self) -> Option<(u8, u8)> {
+        self.handle.as_ref()?;
+        let end = self.record_end_bits();
+        let mut pos = if self.mode == MergeMode::ThreeStream {
+            self.handle_position_in_bits()
+        } else {
+            self.handle_start_bit
+        };
+        if pos < 0 || pos >= end {
+            return None;
+        }
+        while pos + 8 <= end {
+            let header = self.peek_window_bits(pos, 8)? as u8;
+            let len = 8 + (header & 0x0F) as i64 * 8;
+            if pos + len > end {
+                // A handle unit that does not fit — not a clean tail.
+                return None;
+            }
+            pos += len;
+        }
+        let pad_count = end - pos;
+        if pad_count == 0 || pad_count > 7 {
+            return None;
+        }
+        let bits = self.peek_window_bits(pos, pad_count as u8)? as u8;
+        Some((pad_count as u8, bits))
     }
 
     /// Raw twin of [`read_main_handle`](Self::read_main_handle): the handle

@@ -44,6 +44,14 @@ pub struct DwgBitReader {
     text_stream_pos: i64,
     /// One-past-the-end bit position of the R2007+ text stream.
     text_stream_end_pos: i64,
+    /// Side channel: the form of the LAST pre-R2007 TV read —
+    /// `Some(true)` when the wire length counts the string exactly
+    /// (no trailing NUL, the PolyLine2D author's genus), `Some(false)`
+    /// when it counts the terminator too (the AutoCAD genus, §19
+    /// H8h-ext-15), `None` when no evidence (empty string / R2007+).
+    /// The merged reader's TV-form tally reads this after each
+    /// `read_variable_text` (the per-record form is author data).
+    pub(crate) last_tv_plain_form: Option<bool>,
 }
 
 impl DwgBitReader {
@@ -67,6 +75,7 @@ impl DwgBitReader {
             is_empty: false,
             text_stream_pos: -1,
             text_stream_end_pos: -1,
+            last_tv_plain_form: None,
         }
     }
 
@@ -770,6 +779,9 @@ impl DwgBitReader {
     /// UTF-16 decode is lossless, the wire form IS the model text.
     pub fn read_variable_text_with_wire(&mut self) -> (String, Option<String>) {
         if self.dxf_version >= DxfVersion::AC1021 {
+            // R2007+: the UTF-16 decode is lossless and the wire form IS
+            // the model text — no NUL-convention evidence.
+            self.last_tv_plain_form = None;
             // R2007+: If we have a separate text stream, read from it.
             // The ENTIRE variable text (BS char_count + UTF-16LE) is in the text stream.
             if self.text_stream_pos >= 0 {
@@ -816,9 +828,17 @@ impl DwgBitReader {
             // Pre-R2007: BS length + encoded bytes
             let length = self.read_bit_short();
             if length <= 0 {
+                self.last_tv_plain_form = None;
                 return (String::new(), Some(String::new()));
             }
             let bytes = self.read_bytes(length as usize);
+            // The trailing-NUL convention is per-record author data (§19
+            // H8h-ext-15's AutoCAD genus counts the terminator; the
+            // PolyLine2D author's genus counts the string exactly) —
+            // record the evidence for the merged reader's tally. A real
+            // string never ends in a NUL byte, so the last-byte test is
+            // unambiguous.
+            self.last_tv_plain_form = Some(bytes[length as usize - 1] != 0);
             let (decoded, _, _) = self.encoding.decode(&bytes);
             let wire = decoded.replace('\0', "");
             // Legacy strings may embed MIF \U+XXXX escapes for characters

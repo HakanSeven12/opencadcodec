@@ -172,6 +172,13 @@ pub struct DwgObjectReader {
     handle_map: HashMap<u64, i64>,
     /// Document code page used by pre-R2007 object strings.
     encoding: &'static encoding_rs::Encoding,
+    /// The document-wide per-record TV-form vote map (§19 H8h-ext-17,
+    /// the A1 capture pattern at the TV scale): every record reader
+    /// threads this Arc and tallies each pre-R2007 TV's wire form
+    /// (does the length count the string exactly, or the terminator?).
+    /// The builder drains it at commit into
+    /// `CadDocument::tv_plain_form_by_handle`.
+    tv_form_votes: Arc<std::sync::Mutex<HashMap<u64, (u32, u32)>>>,
 }
 
 impl DwgObjectReader {
@@ -202,6 +209,7 @@ impl DwgObjectReader {
             dxf_version,
             handle_map,
             encoding,
+            tv_form_votes: Arc::new(std::sync::Mutex::new(HashMap::new())),
         })
     }
 
@@ -360,6 +368,7 @@ impl DwgObjectReader {
             reader.set_handle_bits(handle_bits);
             reader.set_handle_start(handle_start);
             reader.set_main_data_end(main_data_end);
+            reader.set_tv_form_votes(Arc::clone(&self.tv_form_votes));
             return Ok((type_code, reader));
         }
 
@@ -420,11 +429,24 @@ impl DwgObjectReader {
         );
         reader.set_handle_start(handle_start_bits);
         reader.set_main_data_end(handle_start_bits);
+        reader.set_tv_form_votes(Arc::clone(&self.tv_form_votes));
 
         // 6. Read the type code from the reader
         let type_code = reader.read_object_type();
 
         Ok((type_code, reader))
+    }
+
+    /// Drain the document-wide TV-form votes (§19 H8h-ext-17): the
+    /// per-record `(plain, nul)` tallies collected by every record
+    /// reader's pre-R2007 `read_variable_text`. The builder folds them
+    /// into `CadDocument::tv_plain_form_by_handle` (the per-record
+    /// majority; the AutoCAD NUL genus is the tie and the default).
+    pub fn take_tv_form_votes(&self) -> HashMap<u64, (u32, u32)> {
+        self.tv_form_votes
+            .lock()
+            .map(|mut map| std::mem::take(&mut *map))
+            .unwrap_or_default()
     }
 
     /// Read common data shared by all objects (entities and non-entities).

@@ -381,6 +381,7 @@ def merge_common(
     common: Dict[str, Any],
     common_dwg_entry: Optional[Dict[str, Any]],
     layer_map: Dict[str, int],
+    r13_14: bool = False,
 ) -> Dict[str, Any]:
     fields: Dict[str, Any] = {}
 
@@ -403,7 +404,11 @@ def merge_common(
         elif k == "color":
             fields["color"] = normalize_color(v)
         elif k == "line_weight":
-            fields["linewt"] = _lineweight_to_gold(v)
+            # R13/R14 (gold common_entity_data.spec 377+): no linewt on the
+            # wire — gold's JSON has no linewt field there; silver's model
+            # carries the constructed default. Emit only R2000+.
+            if not r13_14:
+                fields["linewt"] = _lineweight_to_gold(v)
         elif k == "linetype":
             # Silver stores the resolved linetype NAME; gold has no name field
             # (only the `ltype` handle when ltype_flags == 3). Drop it.
@@ -462,7 +467,15 @@ def merge_common(
                 fields["entmode"] = v
                 continue
             if k == "linetype_flags":
-                fields["ltype_flags"] = v
+                # R13/R14 (gold common_entity_data.spec 377-380, VERSIONS
+                # R_13b1-R_14): the wire carries the single isbylayerlt bit;
+                # gold's JSON emits the named bit and the DECODER derives
+                # ltype_flags from it (isbylayerlt -> 0 else 3). Project the
+                # named bit; the R2000+ 2-bit flags emit unchanged.
+                if r13_14:
+                    fields["isbylayerlt"] = 0 if v == 3 else 1
+                else:
+                    fields["ltype_flags"] = v
                 continue
             if k == "prev_entity_handle" and v is not None:
                 fields["prev_entity"] = normalize_handle_value(v)
@@ -475,6 +488,11 @@ def merge_common(
                 continue
             if k == "z_are_zero" and v is not None:
                 fields["z_is_zero"] = 1 if v else 0
+                continue
+            if k == "plotstyle_flags" and r13_14:
+                # R13/R14 (gold common_entity_data.spec: the plotstyle_flags
+                # BB is SINCE R_2000b): not on the wire; silver's reader
+                # default (0) never compares.
                 continue
             fields[k] = normalize_value(v)
     return fields
@@ -1087,6 +1105,11 @@ def normalize_silver(
     r2010_plus = isinstance(version, str) and version >= "AC1024"
     r2013_plus = isinstance(version, str) and version >= "AC1027"
     r2018_plus = isinstance(version, str) and version >= "AC1032"
+    # R13/R14 (AC1012/AC1014) — the golden-entities era gates
+    # (gold's spec blocks swap era-specific field sets at this boundary:
+    # the common entity's isbylayerlt bit, the LAYER flag bits, the
+    # DIMSTYLE R13 block, BLOCK_HEADER's layout/description/xref_loaded).
+    r13_14 = isinstance(version, str) and version in ("AC1012", "AC1014")
 
     out: List[Dict[str, Any]] = []
 
@@ -1272,7 +1295,7 @@ def normalize_silver(
             # handle field.
             _seq_h_parent = payload.pop("seqend_handle", None)
 
-        fields = merge_common(common, common_dwg_entry, layer_map)
+        fields = merge_common(common, common_dwg_entry, layer_map, r13_14)
         # Retained per-SEQEND common flag pairs (the wire SEQEND's own
         # data; populated on the INSERT and polyline-family structs by
         # the builder). Stash them here so no generic loop leaks them;
@@ -2269,6 +2292,15 @@ def normalize_silver(
             # dim-common block, then the per-kind points.
             kind = payload.get("_dimension_kind", "")
             dim = payload
+            if r13_14:
+                # R13/R14 (gold DIMENSION_COMMON): attachment/lspace_style/
+                # lspace_factor/act_measurement are not on the wire —
+                # silver's model defaults never compare. The common flow
+                # already copied them into `fields`, so pop both.
+                for sk in ("attachment", "lspace_style", "lspace_factor",
+                           "act_measurement"):
+                    payload.pop(sk, None)
+                    fields.pop(sk, None)
             _vec = normalize_value
             def_pt_src = dim.get("definition_point")
             def_pt = _vec(def_pt_src) if def_pt_src is not None else None
@@ -2328,14 +2360,17 @@ def normalize_silver(
             fields["horiz_dir"] = _vec(dim.get("horizontal_direction"))
             fields["ins_scale"] = _vec(dim.get("insertion_scale"))
             fields["ins_rotation"] = _vec(dim.get("insertion_rotation"))
-            fields["attachment"] = {
-                "TopLeft": 1, "TopCenter": 2, "TopRight": 3,
-                "MiddleLeft": 4, "MiddleCenter": 5, "MiddleRight": 6,
-                "BottomLeft": 7, "BottomCenter": 8, "BottomRight": 9,
-            }.get(dim.get("attachment_point"), 5)
-            fields["lspace_style"] = dim.get("line_spacing_style", 0)
-            fields["lspace_factor"] = _vec(dim.get("line_spacing_factor"))
-            fields["act_measurement"] = _vec(dim.get("actual_measurement"))
+            # R13/R14 (gold DIMENSION_COMMON): these four are not on the
+            # wire — the emissions are R2000+.
+            if not r13_14:
+                fields["attachment"] = {
+                    "TopLeft": 1, "TopCenter": 2, "TopRight": 3,
+                    "MiddleLeft": 4, "MiddleCenter": 5, "MiddleRight": 6,
+                    "BottomLeft": 7, "BottomCenter": 8, "BottomRight": 9,
+                }.get(dim.get("attachment_point"), 5)
+                fields["lspace_style"] = dim.get("line_spacing_style", 0)
+                fields["lspace_factor"] = _vec(dim.get("line_spacing_factor"))
+                fields["act_measurement"] = _vec(dim.get("actual_measurement"))
             cip = _vec(dim.get("insertion_point"))
             fields["clone_ins_pt"] = cip[:2] if isinstance(cip, list) else cip
             fields["extrusion"] = _vec(dim.get("normal"))
@@ -3929,6 +3964,10 @@ def normalize_silver(
                 if _vt == "VERTEX_2D":
                     rec["bulge"] = normalize_float(v.get("bulge", 0.0))
                     rec["tangent_dir"] = normalize_float(v.get("curve_tangent", 0.0))
+                    if r2010_plus:
+                        # gold VERTEX_2D id (SINCE R_2010, the vertex_id BL):
+                        # emitted even when 0.
+                        rec["id"] = v.get("id", 0)
                 # Wire reactors of the kid record: associative networks
                 # register individual polyline vertices as reactors (gold
                 # prints the list only on the registered kid). Read the
@@ -3944,14 +3983,33 @@ def normalize_silver(
                     if _rhs:
                         rec["reactors"] = [normalize_handle_value(r) for r in _rhs]
                 if _pre2004:
-                    # R13-era chains (empirically verified): the 2D family
-                    # chains every vertex (prev null at the head, next
-                    # forward); the MESH family chains only the FIRST and
-                    # the LAST vertex (the rest carry bare nolinks=1); the
-                    # 3D family carries none. Codes on gold's null/ref
-                    # handles differ (4/6/8) — the differ tolerates our
-                    # code=None forms.
-                    if _vt == "VERTEX_2D":
+                    # R13-era chains: the RETAINED WIRE STATE projects
+                    # verbatim — the golden authored files chain only SOME
+                    # records (Polyline2D_AC1015 chains the first vertex
+                    # only; the rest carry nolinks=1), so the chain is
+                    # author data, not a convention. The per-family rules
+                    # below are the DXF/constructed fallback (empirically
+                    # verified on the libredwg corpus). Codes on gold's
+                    # null/ref handles differ (4/6/8) — the differ
+                    # tolerates our code=None forms.
+                    _wn = v.get("wire_nolinks")
+                    _wp = v.get("wire_prev_entity")
+                    _wnx = v.get("wire_next_entity")
+                    if _wn is None and _vt == "VERTEX_PFACE":
+                        # the pface family retains the full wire common
+                        # (dwg2json's pface walk emits it to _common_dwg)
+                        _cd = (data.get("_common_dwg") or {}).get(
+                            "0x%X" % (_handles[j] or 0))
+                        if isinstance(_cd, dict):
+                            _wn = _cd.get("nolinks")
+                            _wp = _cd.get("prev_entity_handle")
+                            _wnx = _cd.get("next_entity_handle")
+                    if _wn is not None:
+                        rec["nolinks"] = 1 if _wn else 0
+                        if not _wn:
+                            rec["prev_entity"] = normalize_handle_value(_wp or 0)
+                            rec["next_entity"] = normalize_handle_value(_wnx or 0)
+                    elif _vt == "VERTEX_2D":
                         rec["prev_entity"] = normalize_handle_value(
                             _handles[j - 1] if j else 0)
                         rec["next_entity"] = normalize_handle_value(
@@ -4020,16 +4078,32 @@ def normalize_silver(
                     # 128 (census: 111/111 records across versions; silver's
                     # parsed face bits are 0 on R2010+ and diverge on R2000).
                     rec["flag"] = 128
-                    if not r2004_plus and len(_fh) > 1:
-                        # gold (2000-era, verified ex2000): first+middle
-                        # faces carry bare nolinks=1; ONLY the LAST face
-                        # chains back (prev=previous face, code 8).
-                        if j == len(_fh) - 1:
-                            rec["prev_entity"] = normalize_handle_value(_fh[j - 1])
-                            rec["next_entity"] = normalize_handle_value(0)
-                            rec["nolinks"] = 0
-                        else:
-                            rec["nolinks"] = 1
+                    if not r2004_plus:
+                        # The retained wire chain (dwg2json's pface walk →
+                        # _common_dwg) projects verbatim — the golden
+                        # authored files chain only SOME face records (the
+                        # chain is author data); the ex2000 rule below is
+                        # the DXF/constructed fallback.
+                        _fcd = (data.get("_common_dwg") or {}).get(
+                            "0x%X" % (_fh[j] or 0))
+                        _fn = _fcd.get("nolinks") if isinstance(_fcd, dict) else None
+                        if _fn is not None:
+                            rec["nolinks"] = 1 if _fn else 0
+                            if not _fn:
+                                rec["prev_entity"] = normalize_handle_value(
+                                    _fcd.get("prev_entity_handle") or 0)
+                                rec["next_entity"] = normalize_handle_value(
+                                    _fcd.get("next_entity_handle") or 0)
+                        elif len(_fh) > 1:
+                            # gold (2000-era, verified ex2000): first+middle
+                            # faces carry bare nolinks=1; ONLY the LAST face
+                            # chains back (prev=previous face, code 8).
+                            if j == len(_fh) - 1:
+                                rec["prev_entity"] = normalize_handle_value(_fh[j - 1])
+                                rec["next_entity"] = normalize_handle_value(0)
+                                rec["nolinks"] = 0
+                            else:
+                                rec["nolinks"] = 1
                     # gold's vertind takes the four face indices through
                     # normalize_gold's raw 4-tuple->handle interpretation:
                     # {'code': i1, 'size': i2, 'value': i3, 'absref': i4}
@@ -4107,8 +4181,16 @@ def normalize_silver(
                                         .get(_p2d_smooth, 0)
                                         if isinstance(_p2d_smooth, str) else 0)
                 if _handles:
-                    fields["first_vertex"] = normalize_handle_value(_handles[0])
-                    fields["last_vertex"] = normalize_handle_value(_handles[-1])
+                    # gold dwg.spec POLYLINE_2D: the kid link set is the
+                    # R2004a+ `vertex` handle vector (code 3) — the same
+                    # gate as the 3D block below; pre-2004 first_vertex/
+                    # last_vertex (code 4).
+                    if r2004_plus:
+                        fields["vertex"] = [normalize_handle_value(h)
+                                            for h in _handles]
+                    else:
+                        fields["first_vertex"] = normalize_handle_value(_handles[0])
+                        fields["last_vertex"] = normalize_handle_value(_handles[-1])
                 if _seqend_h is not None:
                     fields["seqend"] = normalize_handle_value(_seqend_h)
         if gold_type == "POLYLINE_3D":
@@ -6268,13 +6350,16 @@ def normalize_silver(
                 _ctrl["has_ds_data"] = 0
             if control_type == "BLOCK_CONTROL":
                 # dwg.spec (BLOCK_CONTROL): model_space/paper_space point at
-                # the *Model_Space / *Paper_Space block headers.
+                # the *Model_Space / *Paper_Space block headers. Case-fold:
+                # BricsCAD-downsaved R13 fixtures name them
+                # *MODEL_SPACE/*PAPER_SPACE (the golden_entities AC1012 set)
+                # — a case-sensitive compare missed both fields.
                 for _e in entries.values():
                     if isinstance(_e, dict):
-                        _n = _e.get("name")
-                        if _n == "*Model_Space":
+                        _n = str(_e.get("name") or "").upper()
+                        if _n == "*MODEL_SPACE":
                             _ctrl["model_space"] = normalize_handle_value(_e.get("handle"))
-                        elif _n == "*Paper_Space":
+                        elif _n == "*PAPER_SPACE":
                             _ctrl["paper_space"] = normalize_handle_value(_e.get("handle"))
             if control_type == "LTYPE_CONTROL":
                 # dwg.spec (LTYPE_CONTROL): byblock/bylayer handle the
@@ -6326,7 +6411,15 @@ def normalize_silver(
                 fields["hasattrs"] = 1 if _fl.get("has_attributes") else 0
                 fields["blkisxref"] = 1 if _fl.get("is_xref") else 0
                 fields["xrefoverlaid"] = 1 if _fl.get("is_xref_overlay") else 0
-                fields["xref_loaded"] = 1 if _fl.get("is_external") else 0
+                if not r13_14:
+                    # R13/R14 (gold BLOCK_HEADER): no xref_loaded bit on the
+                    # wire — the field is R2000b+.
+                    fields["xref_loaded"] = 1 if _fl.get("is_external") else 0
+                else:
+                    # R13/R14: layout (SINCE R_2000b) and description are not
+                    # on the wire — silver's model defaults never compare.
+                    rec.pop("layout", None)
+                    rec.pop("description", None)
                 # TODO B1 (2026-10-01): the table-entry xref resolved
                 # value, RAW (gold prints the bitshort verbatim — the
                 # authored xref blocks carry 1); the generic hard-coded 0
@@ -6647,8 +6740,11 @@ def normalize_silver(
                     fields["is_shape"] = 1 if rec["is_shape_file"] else 0
                 if "height" in rec:
                     fields["text_size"] = normalize_value(rec["height"])
-                # is_vertical: silver stores it; gold emits it (R2000+).
-                if r2000_plus and "is_vertical" in rec:
+                # is_vertical: silver stores it; gold emits it at every era
+                # (the golden R13 specimens carry is_vertical in gold's JSON
+                # — the old R2000+ gate was written before R13 fixtures
+                # existed).
+                if "is_vertical" in rec:
                     fields["is_vertical"] = 1 if rec["is_vertical"] else 0
                 # generation: silver stores flags dict; gold emits a plain RC.
                 # bigfont_file: silver stores big_font_file; gold bigfont_file.
@@ -6670,7 +6766,19 @@ def normalize_silver(
                 # LAYER (dwg.spec 3298): silver stores flag0 (raw bitmask) and
                 # linetype_handle on the struct; project them. color {Index:n}
                 # -> int. plotstyle_handle -> plotstyle (handle-wrap).
-                if "flag0" in rec:
+                if r13_14:
+                    # R13/R14 (dwg.spec LAYER 3307-3312): the wire carries the
+                    # four flag BITS and gold's JSON emits the named booleans —
+                    # not the packed flag0 (R2000b+) / plotstyle (R2000b+).
+                    _fl = rec.get("flags")
+                    if isinstance(_fl, dict):
+                        fields["frozen"] = 1 if _fl.get("frozen") else 0
+                        fields["off"] = 1 if _fl.get("off") else 0
+                        fields["frozen_in_new"] = 1 if _fl.get("frozen_in_new_viewport") else 0
+                        fields["locked"] = 1 if _fl.get("locked") else 0
+                    rec.pop("flag0", None)
+                    rec.pop("plotstyle_handle", None)
+                elif "flag0" in rec:
                     fields["flag0"] = rec["flag0"]
                     rec.pop("flag0", None)
                 col = rec.get("color")
@@ -6824,6 +6932,15 @@ def normalize_silver(
                                   "dimltex2_handle": "DIMLTEX2"}[k]
                             fields[gk] = normalize_handle_value(v)
                         continue
+                    if r13_14 and k in ("dimblk_name", "dimblk1_name", "dimblk2_name"):
+                        # R13/R14 (gold dwg.spec DIMSTYLE, VERSIONS R_13b1-
+                        # R_14): the block-arrow fields are TVs, not
+                        # handles — gold's JSON emits DIMBLK_T/DIMBLK1_T/
+                        # DIMBLK2_T from them.
+                        fields[{"dimblk_name": "DIMBLK_T",
+                                "dimblk1_name": "DIMBLK1_T",
+                                "dimblk2_name": "DIMBLK2_T"}[k]] = normalize_value(v)
+                        continue
                     if k.endswith(("_true_color", "_name", "_handle")):
                         continue
                     ku = k.upper()
@@ -6832,19 +6949,29 @@ def normalize_silver(
                         continue
                     if ku in ("DIMTXTDIRECTION", "DIMALTMZF", "DIMALTMZS", "DIMMZF", "DIMMZS") and not r2010_plus:
                         continue
-                    # DIMFIT/DIMUNIT are R13-R14 only. DIMCLRD/E/RT and
-                    # DIMTFILLCLR are FIELD_CMC (color) — silver reads them via
-                    # read_cm_color into a clean ACI index (0=ByBlock, 256=
-                    # ByLayer) and stores it on the i16 field; gold emits the
-                    # same index. Always project it (the earlier `v==0 skip`
-                    # wrongly dropped ByBlock, producing missing_in_silver).
-                    if ku in ("DIMFIT", "DIMUNIT"):
+                    if r13_14:
+                        # R13/R14 (gold dwg.spec DIMSTYLE): DIMFIT/DIMUNIT
+                        # are ON the wire (the R13-R14 block) — emit them;
+                        # the R2000b+ set is not (silver's model defaults) —
+                        # suppress.
+                        if ku in ("DIMFIT", "DIMUNIT"):
+                            fields[ku] = normalize_value(v)
+                            continue
+                        if ku in ("DIMLWD", "DIMLWE", "DIMTMOVE", "DIMLUNIT",
+                                  "DIMDSEP", "DIMADEC", "DIMAZIN", "DIMALTRND",
+                                  "DIMATFIT", "DIMFRAC"):
+                            continue
+                    elif ku in ("DIMFIT", "DIMUNIT"):
+                        # R2000+: superseded fields gold never serializes.
                         continue
                     # DIMLDRBLK/DIMBLK/DIMBLK1/DIMBLK2: gold emits these
                     # handles SINCE R_2000b (code 5, dwg.spec); silver stores
                     # raw Handle ints. Wrap for the differ's handle resolution.
+                    # R13/R14: the arrow blocks are TVs (emitted above);
+                    # the handle slots are silver defaults — never compare.
                     if ku in ("DIMLDRBLK", "DIMBLK", "DIMBLK1", "DIMBLK2"):
-                        fields[ku] = normalize_handle_value(v)
+                        if not r13_14:
+                            fields[ku] = normalize_handle_value(v)
                         continue
                     fields[ku] = normalize_value(v)
                     continue

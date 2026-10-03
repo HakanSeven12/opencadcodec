@@ -230,7 +230,12 @@ fn encode_xrecord_entries(
                     output.extend_from_slice(
                         &(bytes.len().min(u16::MAX as usize) as u16).to_le_bytes(),
                     );
-                    output.push(code_page);
+                    // §19 H8h-ext-17: replay the authored per-string wire
+                    // code page when captured (the blob's codepage byte is
+                    // author data — the document header's codepage may
+                    // differ); the header's index is the fallback for
+                    // constructed content.
+                    output.push(entry.wire_code_page.unwrap_or(code_page as u16) as u8);
                     output.extend_from_slice(&bytes[..bytes.len().min(u16::MAX as usize)]);
                 }
             }
@@ -1604,7 +1609,8 @@ impl<'a> DwgObjectWriter<'a> {
         // only strip the newer roots during an actual down-conversion.
         let preserve_source_schema = self.version.r13_14_only()
             && self.document.dwg_source_version == Some(self.dxf_version);
-        let entries: Vec<&(String, Handle)> = if self.version.r2000_plus() || preserve_source_schema
+        let entries: Vec<(usize, &(String, Handle))> = if self.version.r2000_plus()
+            || preserve_source_schema
         {
             // §19 H8h-ext class (c): keep null-target items — authored
             // placeholder state (e.g. the fixtures' ACAD_PARALLEL_BACKGROUND
@@ -1612,12 +1618,14 @@ impl<'a> DwgObjectWriter<'a> {
             // a dangling reference; it emits the [2,0] soft-owner wire form.
             dict.entries
                 .iter()
-                .filter(|(_, h)| h.is_null() || self.is_writable_object(h))
+                .enumerate()
+                .filter(|(_, (_, h))| h.is_null() || self.is_writable_object(h))
                 .collect()
         } else {
             dict.entries
                 .iter()
-                .filter(|(name, h)| {
+                .enumerate()
+                .filter(|(_, (name, h))| {
                     !matches!(
                         name.as_str(),
                         "ACAD_PLOTSTYLENAME"
@@ -1655,8 +1663,16 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         // Entry names + handles
-        for (name, handle) in &entries {
-            self.writer.write_variable_text(name);
+        for (entry_index, (name, handle)) in &entries {
+            // §19 H8h-ext-17 (the MTEXT wire-text precedent): replay the
+            // verbatim wire form of the key when captured — the authored
+            // escape form of a non-ASCII name is author data.
+            let text: &str = dict
+                .wire_texts
+                .get(*entry_index)
+                .and_then(|w| w.as_deref())
+                .unwrap_or(name);
+            self.writer.write_variable_text(text);
             // Dictionary item handles ALWAYS use reference code 2 (soft owner),
             // regardless of the hard-owner flag. The hard/soft distinction is
             // carried only by the is_hardowner byte (and the DXF 350/360 group),
@@ -1685,10 +1701,11 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_common_non_entity_data(type_code, dict.handle, dict.owner, &[], &None);
 
         // Filter out entries referencing un-writable objects
-        let entries: Vec<&(String, Handle)> = dict
+        let entries: Vec<(usize, &(String, Handle))> = dict
             .entries
             .iter()
-            .filter(|(_, h)| h.is_null() || self.is_writable_object(h))
+            .enumerate()
+            .filter(|(_, (_, h))| h.is_null() || self.is_writable_object(h))
             .collect();
 
         // Same as dictionary
@@ -1698,8 +1715,15 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_short(dict.duplicate_cloning as i16);
         self.writer.write_byte(if dict.hard_owner { 1 } else { 0 });
 
-        for (name, handle) in &entries {
-            self.writer.write_variable_text(name);
+        for (entry_index, (name, handle)) in &entries {
+            // §19 H8h-ext-17 (the MTEXT wire-text precedent): replay the
+            // verbatim wire form of the key when captured.
+            let text: &str = dict
+                .wire_texts
+                .get(*entry_index)
+                .and_then(|w| w.as_deref())
+                .unwrap_or(name);
+            self.writer.write_variable_text(text);
             // Dictionary item handles always use reference code 2 (see
             // write_dictionary) — never code 3, which AutoCAD rejects.
             self.writer
