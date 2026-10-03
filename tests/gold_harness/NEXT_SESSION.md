@@ -4207,30 +4207,47 @@ seqend_isbylayerlt/wire_* captures are read-side legitimate: the
 constructed defaults vs the read-back's derived values — the
 ignore_attachment precedent); gold_roundtrip ok; issue80 ok; the
 four smokes 0/0 (e2004 1/1 the recorded LIGHT row); the corpus
-**648 files** (the maintainer's brep drop landed mid-session —
-the B4 ACSH_BREP_CLASS dataset, 6 re-authored ATMOS twins + the
-2004 refusal record) — **32/32 fidelity** (the golden residue:
-the R2004+ polyline/seqend SEQEND-plotstyle 1-rows ×8,
-Leader_AC1014 1, Region/Solid3d_AC1012's ACIS 1-rows ×2; the brep
-files measured FAR BELOW their README-recorded residue —
-Brep_AC1014/AC1015 0/0, AC1027 6, AC1032 7: this session's
-TV-form/close-pad/dictionary packets absorbed the era-modeler
-text class) + 2631 struct read key-gaps + 0 write key-gaps; the
-established 401 at the recorded 8/8 UNMOVED; genus 3/1/0
-PENDING-ZERO with --strict; the identity
+**648 files** — **32/32 fidelity** (the golden residue: the
+R2004+ polyline/seqend SEQEND-plotstyle 1-rows ×8,
+Leader_AC1014 1, Region/Solid3d_AC1012's ACIS 1-rows ×2, plus
+the brep dataset's rows) + 2631 struct read key-gaps + 0 write
+key-gaps; the established 401 at the recorded 8/8 UNMOVED; genus
+3/1/0 PENDING-ZERO with --strict; the identity
 `f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED.
+
+**THE BREP DATASET SWAP (the parallel agent, post-battery — the
+correction to this addendum's earlier reading)**: the
+ATMOS-carrier re-emissions the corpus first saw were REPLACED by
+a from-scratch dataset (the SOLIDHIST=1 mint discovery — B4's
+"external-only" verdict FALSIFIED; the recipe + the retention
+map in `fixtures/brep/README.md`; TODO.md's B4 carries the full
+record). The committed contents re-verified per-file after the
+swap: the **0/0 quartet** (AC1014/AC1015/AC1021/AC1024 — the
+fresh minimal census, one 3DSOLID + the four-node SH chain,
+fully inside silver's typed model; NOT an effect of this
+session's text-class packets — the earlier "absorbed the
+era-modeler text class" reading was the carrier files', now
+superseded) + **AC1027 6 / AC1032 7** — the BREP record's
+R2013+ TRAILING REGION (`materials`/`has_revision_guid`/
+`revision_*`/`end_marker`), the named raw-remainder packet with
+two clean per-version specimens (the B2/A8 pattern: dissection →
+typed model → bit-exact pin); the derailed `major` field
+container-coded and double-sourced (64 at R14/2000,
+3528495168 at 2007–2013, 3545534528 at 2018); the R13 + 2004
+refusals recorded (both engines closed at R13; the downsave's
+wholesale SH strip at 2004).
 
 THE REMAINING QUEUE (TODO.md's A9 refreshed): (a) the R2010+
 SEQEND plotstyle HANDLE (1 row per R2004+ golden polyline — the
-seqend_flags capture extension); (b) the ACIS era-modeler text
-class (Region/Solid3d_AC1012/1014's acis_data + the brep
-residue's remaining rows — the Brep dataset is the per-version
-specimen set); (c) the STRUCT-axis key-gaps (2631 — the R13/R14
-golden key-shape class); (d) the class? desync-mirror rows
-(entities-2d 8 + entities-3d 7 — the B1-era mojibake family);
-(e) PolyLine2D's last 2 POLYLINE_2D crc rows; (f) Surface.dwg 6
-+ gh44-error 18 (the recorded queue); (g) Leader_AC1014's last
-row.
+seqend_flags capture extension); (b) the golden R13 ACIS class
+(Region/Solid3d_AC1012/1014's acis_data — the era-modeler SAT
+re-serialization); (c) the BREP R2013+ trailing region (the brep
+dataset's 6/7 rows — the named raw-remainder packet); (d) the
+STRUCT-axis key-gaps (2631 — the R13/R14 golden key-shape
+class); (e) the class? desync-mirror rows (entities-2d 8 +
+entities-3d 7 — the B1-era mojibake family); (f) PolyLine2D's
+last 2 POLYLINE_2D crc rows; (g) Surface.dwg 6 + gh44-error 18
+(the recorded queue); (h) Leader_AC1014's last row.
 
 The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
