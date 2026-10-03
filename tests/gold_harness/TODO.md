@@ -35,8 +35,9 @@ wave's Leader_r14 1 — while the other forty wave files and the gold
 r14 Constraints/v read 0/0 (the era-census continuation's R13/R14
 gates had already absorbed most of the previously recorded
 89/153/149). The struct read key-gaps stand at 5,510 (the era files
-carry the bulk). The genus cargo pin assertion is red pre-existing
-(item A7).
+carry the bulk). Both genus surfaces are green (the python
+`--strict` gates pending-zero; the cargo mirror's pin regenerated
+and reviewed 2026-10-03).
 
 Items closed since the last revision, removed from the list below:
 B3 (the R13/R14 specimen wave is fully authored — 41 files under
@@ -63,20 +64,20 @@ the established 401 population now measures zero fidelity rows);
 A6 (the `--no-lz77` DataStore blocker — closed 2026-10-03: the
 AcDs section registered in the AC21 writer's tables, hash 0 with the
 name-keyed-map rationale, page size 0x7400 and encoding 4 from gold's
-own decode comment; the arm completes on 2013+ authored files).
+own decode comment; the arm completes on 2013+ authored files);
+A7 (the genus cargo pin regeneration — closed 2026-10-03: the pin
+regenerated and reviewed, the mirror green. The drift was the
+fixture family's growth, not the 2026-09-30 writer session:
+136→148 SAB carriers, 136→152 SH roots, 78→110 AcDs containers —
+the 2026-10-02/03 drops joined the specimen lists with UNCHANGED
+class widths (the elliptical quads measure the same cone/ellipse
+forms), and the four recorded anomalies are the new SweepHelix
+spline-surface SAB records the extractor's walker cannot fully
+parse — an extraction-surface limitation honestly pinned as the
+state, not a writer defect. The python gates stay pending-zero
+with the TOLERATED occurrences grown 22→24 on the population).
 
 ## A. Open tasks (agent code work)
-
-### A7. The genus cargo pin regeneration
-
-The `genus_gates` cargo mirror asserts that a fresh extraction equals
-the pinned expectations, and it is red pre-existing
-(bisection-verified; the python `--strict` gates stay pending-zero
-and the TOLERATED rows are unchanged). Per §20.3, regenerate
-`config/genus_expectations.json` with `genus/genus_extract.py` and
-review the drift — the seven-packet session of 2026-09-30 that last
-moved the generation identity is the likely cause. The regeneration is
-mechanical; the drift review is the maintainer's recorded verdict.
 
 ### A8. The composite (47) subcurve dissection
 

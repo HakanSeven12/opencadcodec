@@ -4340,8 +4340,8 @@ era-census continuation, then the golden-entities landing, then the
 b6 review, then the era-census addendum, then the 2026-10-02
 sections bottom-up.
 
-## THE 2026-10-03 A5/A6 CLOSURES (the "eliminate open tasks
-## step-by-step" directive's first two packets — read this FIRST):
+## THE 2026-10-03 A5/A6/A7 CLOSURES (the "eliminate open tasks
+## step-by-step" directive's first three packets — read this FIRST):
 
 **A5 CLOSED — the eight pre-existing corpus rows.** Two roots, both
 measured against gold's own behavior:
@@ -4391,6 +4391,26 @@ pagesize 0x7400"); encryption 0. The map serializer already
 tolerates order-unknown names. ACCEPTANCE: the arm completes on
 example_2018 and example_2010 (rc=0, the DataStore pages written);
 the R2007 regression (circle) unchanged.
+
+**A7 CLOSED — the genus cargo pin.** The pre-existing red mirror
+(fresh extraction ≠ pin) resolved: **the drift was the fixture
+family's GROWTH, not the 2026-09-30 writer session** (A7's own
+"likely cause" was wrong): 136→148 SAB carriers, 136→152 SH roots,
+78→110 AcDs containers — the 2026-10-02/03 drops (the author quads,
+SweepHelix, SweepSurf, the B2 quads, the constraint files) joined
+the specimen lists. THE REVIEW: the elliptical quads
+(ConeElliptical) joined the EXISTING cone-surface/ellipse-curve
+classes with UNCHANGED widths (the genus held — the elliptical
+cross-sections measure the same forms); the acds tail patterns grew
+on the population; and the FOUR RECORDED ANOMALIES are the new
+SweepHelix spline-surface SAB records — the extractor's walker hits
+an unexpected 0x0D tag inside the spline-surface record body at
+offset 535 (an extraction-surface limitation: the record class's
+interior grammar is un-walked; the authored bytes are what they
+are — NOT a writer defect). The pin regenerated with the anomalies
+recorded in it; the python gates hold pending-zero (the TOLERATED
+occurrences grew 22→24 on the population); **the cargo mirror is
+GREEN**.
 
 **THE CORPUS AFTER A5: the established 401-file population measures
 ZERO fidelity rows** — the first time the whole established corpus
