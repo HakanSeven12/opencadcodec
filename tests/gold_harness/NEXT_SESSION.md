@@ -4290,3 +4290,49 @@ The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
 bottom, STARTING at THIS addendum (the file bottom), then the
 golden-entities landing, then the b6 review, then the era-census
 addendum, then the 2026-10-02 sections bottom-up.
+
+## THE 2026-10-03 MAINTAINER DECISIONS (C1/C2/C3 recorded; the era
+## campaign OPENED — read this FIRST):
+
+Three scope decisions landed 2026-10-03, all recorded in TODO.md's
+C section:
+
+- **C2 ACCEPTED — the R13/R14 parity campaign is OPEN.** The
+  parked-era scope guard in `run_corpus.py::in_scope_files` is
+  RETIRED: the walk now covers gold's r13/r14 era dirs, the root
+  example_r13/example_r14, and the 41-file authored wave under
+  `fixtures/r13_r14/`. THE OPENING CENSUS (the first 694-file run):
+  the era population measures **103 rows** — example_r13 78,
+  example_r14 20, the gold r14 Leader 4, the wave's Leader_r14 1 —
+  **with the other forty wave files and the gold r14 Constraints/v
+  at 0/0** (the era-census continuation's R13/R14 gates had already
+  absorbed most of the previously recorded 89/153/149). The corpus
+  baseline: **694 files, 127/127 fidelity + 5,510 struct read
+  key-gaps + 0 write key-gaps**; every gate holds (the suite
+  1,618/0, gold_roundtrip ok, issue80 ok, the smokes at their
+  recorded state, genus PENDING-ZERO with --strict, the identity
+  f2187565…/25,728 unmoved). The campaign's work surface is A9's
+  era entries — the per-record pair diff on example_r13/
+  example_r14's real-world rows is the next packet's opening move.
+
+- **C3 DECIDED — keep the outright pre-R13 reject** (until further
+  notice). The former A4 mirroring task is dead; Tier 3 stays closed
+  as a recorded non-goal. Pre-R13 specimens have no AutoCAD route
+  (the r1.4 refusal, the R14 save floor) — that tier stays
+  libredwg-sourced should the decision ever reopen.
+
+- **C1 updated to match**: Tier 1 at parity (the eight open rows the
+  pre-existing A5 residue); Tier 2 now an accepted campaign (the
+  opening census above); Tier 3 closed with C3.
+
+TODO.md was rewritten the same day (finished items removed, the
+remainder in plain prose; B compressed to "none" — no fixture can
+produce subcurve kinds 19/27 on this toolchain, so nothing is owed
+until a real-world specimen surfaces).
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
++ §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
+bottom, STARTING at THIS section (the file bottom), then the
+era-census continuation, then the golden-entities landing, then the
+b6 review, then the era-census addendum, then the 2026-10-02
+sections bottom-up.

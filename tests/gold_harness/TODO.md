@@ -14,22 +14,30 @@ the §20 genus gates (pending-zero under `--strict`). The suite passes
 `f2187565…` over 25,728 bytes. The genus cargo pin assertion is red
 pre-existing (item A7).
 
-The corpus counts 648 files in four populations. The established 401
+The corpus counts 694 files in five populations (the R13/R14 era
+admitted 2026-10-03 with C2). The established 401
 libredwg-sourced files carry eight pre-existing fidelity rows — five
 LIGHT `light_color` rows on the example_2004…2018 files and three
 UNKNOWN_OBJ common-field rows on Wipeout_2004 and gh44 (item A5; both
 verified pre-existing by bisection). The twenty b6_routes fixtures
-read 0/0. The 221 golden_entities fixtures (thirty families across
-eight versions) carry three rows: Leader_AC1014's single row plus the
-Region_AC1012 and Solid3d_AC1012 ACIS rows (item A9). The six brep
-mints carry thirteen rows that all belong to one family — the BREP
-record's R2013+ trailing region, six rows on the 2013 mint and seven
-on the 2018 mint (also item A9).
+read 0/0. The 221 golden_entities fixtures carry three rows:
+Leader_AC1014's single row plus the Region_AC1012 and Solid3d_AC1012
+ACIS rows (item A9). The six brep mints carry thirteen rows in one
+family — the BREP record's R2013+ trailing region (also item A9).
+The era population (the gold r14 dir, the two root examples, and the
+41-file authored wave) measured its opening census at 103 rows:
+example_r13 78, example_r14 20, the gold r14 Leader 4, and the
+wave's Leader_r14 1 — while the other forty wave files and the gold
+r14 Constraints/v read 0/0 (the era-census continuation's R13/R14
+gates had already absorbed most of the previously recorded
+89/153/149). The struct read key-gaps stand at 5,510 (the era files
+carry the bulk). The genus cargo pin assertion is red pre-existing
+(item A7).
 
 Items closed since the last revision, removed from the list below:
 B3 (the R13/R14 specimen wave is fully authored — 41 files parked
-under `fixtures/r13_r14/` behind the corpus guard; admitting it is
-decision C2); B4 (the ACSH_BREP_CLASS "external-only" verdict was
+under `fixtures/r13_r14/`; admitting it is decision C2); B4 (the
+ACSH_BREP_CLASS "external-only" verdict was
 falsified on 2026-10-03 — the class mints from scratch with
 `SOLIDHIST=1`, and the dataset landed in `fixtures/brep/`); B5 (the
 dead rows were recorded terminal on 2026-10-02 after all three lever
@@ -39,19 +47,12 @@ remain attested nowhere, and any future specimen rides the
 capture+replay net automatically, so nothing is owed until one
 surfaces); C4 (the golden-entities campaign landed on 2026-10-03 and
 its original work surface was demolished by the era-census
-continuation — the one question it left open is C2).
+continuation — the one question it left open is C2); A4 (the pre-R13
+mirroring task — C3 was decided 2026-10-03 to keep the outright
+reject, so the task is dead until the maintainer reopens the
+decision).
 
 ## A. Open tasks (agent code work)
-
-### A4. Mirror gold's pre-R13 behavior — blocked on C3
-
-Silver rejects pre-R13 DWG versions at the version-map stage
-(`src/io/dwg/dwg_version.rs:49` returns `UnsupportedVersion` for
-AC1009 and older). Gold instead identifies the version code and
-decodes an empty document, reporting success with no content. If the
-maintainer accepts the mirroring surface (decision C3), the work is
-small: report the version code and return an empty document instead
-of the error.
 
 ### A5. The eight pre-existing corpus rows
 
@@ -108,26 +109,33 @@ fields.
 The record-identity censuses (`analysis/record_size_census.py` against
 a `DWG_NO_ECHO=1` rewrite) leave these surfaces, ranked by size:
 
-1. The golden R13 ACIS class — Region_AC1012 and Solid3d_AC1012 carry
+1. The era population's real-world rows (the C2 campaign's opening
+   surface): example_r13's 78 and example_r14's 20 read+write rows,
+   plus the gold r14 Leader's 4 and the wave's Leader_r14 1. The
+   per-record pair diff names the classes; the era-census
+   continuation's gates already absorbed most of the previously
+   recorded 89/153/149, so what remains is the true post-gate
+   residue.
+2. The golden R13 ACIS class — Region_AC1012 and Solid3d_AC1012 carry
    `acis_data` that gold re-serializes differently (the era-modeler SAT
    text). Two rows.
-2. The BREP R2013+ trailing region — the brep dataset's thirteen rows:
+3. The BREP R2013+ trailing region — the brep dataset's thirteen rows:
    the `materials`, `has_revision_guid`, `revision_*` and `end_marker`
    fields that silver's typed ACSH_BREP_CLASS model does not emit yet.
    The two brep specimens are the clean per-version pair for a
    raw-remainder packet (the B2/A8 pattern: dissect, model typed, pin
    bit-exact).
-3. The struct-axis key gaps — 2,631 read key-gaps concentrated in the
-   R13/R14 golden files (the key-shape class; untouched by the fidelity
-   fixes).
-4. The `class?` desync-mirror rows — eight on entities-2d and seven on
+4. The struct-axis key gaps — 5,510 read key-gaps, the bulk on the
+   era files and the R13/R14 golden files (the key-shape class;
+   untouched by the fidelity fixes).
+5. The `class?` desync-mirror rows — eight on entities-2d and seven on
    entities-3d (the B1-era mojibake family).
-5. PolyLine2D's last two POLYLINE_2D crc rows.
-6. Surface.dwg's six rows (the §18 surface family) and gh44-error's
+6. PolyLine2D's last two POLYLINE_2D crc rows.
+7. Surface.dwg's six rows (the §18 surface family) and gh44-error's
    eighteen (the pathological file: six LEADER records with a 2-bit
    slack between main data and handle stream, five crc-only HATCH
    rows, five type-57 rows, two DIMASSOC rows).
-7. Leader_AC1014's single remaining row.
+8. Leader_AC1014's single remaining row.
 
 The standing era facts all hold and were re-verified on 2026-10-03:
 gh209_1 166/166, gh109_1 664/664, HatchG 229/229, example_2000
@@ -136,58 +144,71 @@ gh209_1 166/166, gh109_1 664/664, HatchG 229/229, example_2000
 
 ## B. Fixture-needed tasks
 
-There are no open fixture-needed tasks. Two standing notes:
+None. The one question of this class — subcurve kinds 19 and 27 —
+needs no fixture: every authoring route on this toolchain was
+measured dead (the solid sweep and POLYSOLID emit no EdgeActionParam
+records at all; the surface-mode sweep's path kind mirrors the path
+entity's own curve kind; the sweep refuses infinite-line paths; the
+constraint networks emit no edge params and refuse 3D curves), so no
+AutoCAD or BricsCAD fixture can produce either kind. Both kinds stay
+attested nowhere. If a real-world file carrying them ever surfaces
+(from any source, any era), drop it into the fixtures tree with a
+`.txt` provenance companion — the capture+replay net keeps it safe
+from day one, and the typed-modeling packet opens then (the B2/A8
+pattern). Until such a specimen appears, nothing is owed.
 
-- The r13_r14 specimen wave is fully authored (41 files under
-  `fixtures/r13_r14/`) and parked behind the corpus guard; admitting
-  it is decision C2.
-- Subcurve kinds 19 and 27 stay unattested everywhere measured. Any
-  specimen that ever surfaces — from any source — rides the
-  capture+replay net automatically, so no fixture work is owed until
-  one appears.
-
-Fixture conventions, when new work does need one, are in
+General fixture conventions, when new work does need one, are in
 `fixtures/README.md`: fresh drawing, default template, one operation,
 SAVEAS per target version, gold qualification with zero error lines,
 and a `.txt` provenance companion.
 
-## C. Maintainer decisions (scope calls, not packets)
+## C. Maintainer decisions (recorded)
 
-### C1. Accept the §19.5 version-parity tier state?
+### C1. The §19.5 version-parity tier state — UPDATED 2026-10-03
 
 Tier 1 (R2000–R2018) is at parity — the declared campaign scope,
 complete, with record identity on every surveyed surface; the eight
 measured open rows on the grown corpus are pre-existing B1-era
-residue (A5), not regressions. Tier 2 (R13/R14) is implemented but
-not at parity — silver reads and writes both eras and gold re-reads
-silver's R14 output as valid AC1014, but the three gold-tree
-specimens measure 89/153/149 diffs, and the eras sit behind the
-recorded scope guard in `run_corpus.py::in_scope_files`. Tier 3
-(pre-R13) is unsupported in silver, and gold decodes nothing there
-either beyond version identification.
+residue (A5), not regressions. Tier 2 (R13/R14) is now an ACCEPTED
+parity campaign (C2, 2026-10-03): silver already reads and writes
+both eras and gold re-reads silver's R14 output as valid AC1014; the
+three gold-tree specimens measure 89/153/149 diffs (the opening
+census), the parked-era scope guard in `run_corpus.py` is retired,
+and the corpus admits the era dirs, the root examples, and the
+41-file authored wave — the campaign's work surface is A9's queue
+plus the era-parity rows the opening census names. Tier 3 (pre-R13)
+stays UNSUPPORTED in silver, and gold decodes nothing there either
+beyond version identification — with C3 decided (2026-10-03) to
+keep silver's outright reject, the tier is closed as a recorded
+non-goal until the maintainer reopens it.
 
-### C2. Accept an R13/R14 parity campaign?
+### C2. The R13/R14 parity campaign — ACCEPTED 2026-10-03
 
-The fidelity harness already runs on the three gold-tree r14 files;
-the 89–153 rows are the opening census, with the record-count
-mismatches first (the entities/tables desyncs from gold's R14 walk)
-and the era-field projections after. The fixture enabler is complete
-— both eras are authorable (BricsCAD writes R13, AutoCAD writes
-R14+), and the specimen wave is authored and parked under
-`fixtures/r13_r14/`. The corpus already carries the golden_entities
-R13/R14 files in-scope, so the question reduces to whether the parked
-wave adds coverage beyond the golden set. Flipping this decision also
-retires the parked-campaign guard.
+The campaign is open. The fidelity harness now runs on the era
+corpus (the scope guard retired 2026-10-03): the three gold-tree r14
+files (Constraints/Leader/v), example_r13/example_r14 at the gold
+root, and the 41-file authored wave under `fixtures/r13_r14/`. The
+work order mirrors the landed H8 arc: record-count mismatches first
+(the entities/tables desyncs from gold's R14 walk), then the
+era-field projections (`isbylayerlt`, `linewt`, `plotstyle_flags`,
+`ltype_flags` — R2000-era fields silver carries where gold's R13/R14
+spec blocks lack them). **The opening census (2026-10-03, the first
+694-file run): the era population measures 103 rows** — example_r13
+78, example_r14 20, the gold r14 Leader 4, the wave's Leader_r14 1 —
+**with the other forty wave files and the gold r14 Constraints/v at
+0/0** (the era-census continuation's R13/R14 gates had already
+absorbed most of the previously recorded 89/153/149). The campaign's
+work surface is therefore example_r13/example_r14's real-world rows
+plus the four-file residue — the A9 queue's era entries.
 
-### C3. Accept the pre-R13 mirror (A4) or keep the outright reject?
+### C3. The pre-R13 behavior — DECIDED 2026-10-03: keep the outright reject
 
-Silver's `UnsupportedVersion` reject is a defensible equivalent of
-gold's identify-only behavior. The version-code-then-empty-decode
-surface mirrors gold more literally, but it is a format-family
-addition rather than a fidelity fix. One fixture-side measurement
-bears on this: AutoCAD 2027 opens the r13/r14 corpus files but
-refuses r1.4 and cannot author below R14, so pre-R13 specimens have
-no AutoCAD route at all and stay libredwg-sourced.
+Silver's `UnsupportedVersion` reject stays. The version-code-then-
+empty-decode mirroring (the former A4) is dead until further notice.
+One fixture-side fact stays on record: AutoCAD 2027 opens the
+r13/r14 corpus files but refuses r1.4 and cannot author below R14,
+so pre-R13 specimens have no AutoCAD route at all — that tier's
+specimens stay libredwg-sourced should the decision ever reopen.
 
 ## D. Standing guardrails (re-verified periodically; not tasks)
 

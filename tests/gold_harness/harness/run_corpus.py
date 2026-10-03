@@ -20,7 +20,10 @@ GOLD_TESTDATA = os.environ.get("GOLD_TESTDATA", str(Path.home() / "work/libredwg
 
 def in_scope_files(testdata: Path) -> List[Path]:
     files: List[Path] = []
-    for version in ["2000", "2004", "2007", "2010", "2013", "2018"]:
+    # C2 ACCEPTED 2026-10-03 (the R13/R14 parity campaign): the r13/r14
+    # era dirs join the walk (gold's r13/ holds only a .dxf; r14/ holds
+    # Constraints/Leader/v — the campaign's opening-census specimens).
+    for version in ["r13", "r14", "2000", "2004", "2007", "2010", "2013", "2018"]:
         d = testdata / version
         if d.exists():
             files.extend(
@@ -42,27 +45,21 @@ def in_scope_files(testdata: Path) -> List[Path]:
     for prefix in ["example_", "sample_"]:
         for p in testdata.iterdir():
             if p.name.startswith(prefix) and p.suffix.lower() == ".dwg":
-                # Scope guard: only R2000-R2018 (AC1015..AC1032). Exclude the
-                # R13/R14 examples, which use a different, out-of-scope format.
-                lower = p.name.lower()
-                if "r13" in lower or "r14" in lower:
-                    continue
+                # C2 ACCEPTED 2026-10-03: example_r13.dwg/example_r14.dwg
+                # (gold's tree root) are era-legitimate corpus members now
+                # — the parked-era substring guard is retired with the
+                # decision.
                 files.append(p)
     # In-repo authored fixtures (IMPLEMENTATION.md §F2.1): one operation
     # per file, version-suffixed stems, qualified per the §F2.1 gates
     # before landing. Collected after the gold tree so a fixture stem
     # colliding with a gold stem stays visible in the report (stems
     # are required globally unique; a collision is a fixture bug).
-    # Parked campaigns (TODO B3/C2): R13/R14-era fixtures land under
-    # fixtures/r13_r14/ as `Stem_r13.dwg`/`Stem_r14.dwg` — the same
-    # substring guard the gold-tree walk carries keeps them OUT of the
-    # R2000-R2018 corpus (Tier 2 is implemented-not-at-parity; the
-    # 89/153/149 rows on gold's r14 files are the recorded state)
-    # until C2 accepts the era extension and this guard is retired.
+    # C2 ACCEPTED 2026-10-03: the parked-era substring guard is retired —
+    # the fixtures/r13_r14 wave (41 files) joins the corpus as the
+    # campaign's authored specimen set.
     files.extend(
-        p
-        for p in sorted((SCRIPT_DIR.parent / "fixtures").rglob("*.dwg"))
-        if "r13" not in p.name.lower() and "r14" not in p.name.lower()
+        p for p in sorted((SCRIPT_DIR.parent / "fixtures").rglob("*.dwg"))
     )
     return sorted(set(files))
 
