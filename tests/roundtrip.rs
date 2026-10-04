@@ -2907,6 +2907,7 @@ fn dxf_roundtrip_complex_linetype_shape() {
         absolute_rotation: false,
         offset: [1.0, 0.5],
         dwg_shape_flag: None,
+        dwg_shape_number: None,
     });
     let mut space = LineTypeElement::space(2.0);
     space.complex = Some(LineTypeComplexData::default());
@@ -2945,6 +2946,7 @@ fn dxf_roundtrip_complex_linetype_text() {
         absolute_rotation: true,
         offset: [0.0, 0.25],
         dwg_shape_flag: None,
+        dwg_shape_number: None,
     });
     lt.elements.push(dash);
     lt.pattern_length = 3.0;
@@ -2979,6 +2981,7 @@ fn dwg_roundtrip_complex_linetype_shape() {
         absolute_rotation: false,
         offset: [0.0, 0.0],
         dwg_shape_flag: None,
+        dwg_shape_number: None,
     });
     lt.elements.push(dash);
     lt.pattern_length = 4.0;

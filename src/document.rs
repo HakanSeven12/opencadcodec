@@ -2852,6 +2852,22 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) close_pad_bits_by_handle: HashMap<Handle, (u8, u8)>,
 
+    /// The EXACT handle-stream slack `(walk_end, len, pattern)` per
+    /// record (the gh44-error LEADER census, 2026-10-04): the unparsed
+    /// bit-group an author parks between the walked main tail and the
+    /// frame's flag position — her LEADER records pad 2 bits (10 on
+    /// 8774) before the flag, nibble-aligning the RL, where the packed
+    /// emission wrote the flag immediately after the main bits and
+    /// slipped every handle position and the CRC. The bits are
+    /// per-record author data (five records pad `00`, 8774 parks
+    /// `0000100000` — not a zeros/ones genus); the writer replays the
+    /// pattern verbatim between the main
+    /// bits and the text/flag region, and ONLY when its own main end
+    /// matches the captured walk end (an under-reading walk must not
+    /// have its un-walked field bits double-emitted as slack).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub handle_slack_by_handle: HashMap<Handle, (i64, u8, u16)>,
+
     /// The record-close pad genus captured at read (the majority sample of
     /// the authored records' close pads, TODO A1 2026-10-01): `true` pads
     /// the merged stream's final partial byte with 0s (measured on the
@@ -3295,6 +3311,7 @@ impl CadDocument {
             entity_color_raw_by_handle: HashMap::new(),
             tv_plain_form_by_handle: HashMap::new(),
             close_pad_bits_by_handle: HashMap::new(),
+            handle_slack_by_handle: HashMap::new(),
             close_pad_zeros: false,
             unknown_bits_by_handle: HashMap::new(),
             block_entity_handles: HashMap::new(),

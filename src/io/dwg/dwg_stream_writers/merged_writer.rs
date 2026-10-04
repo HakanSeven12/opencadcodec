@@ -88,6 +88,19 @@ pub struct DwgMergedWriter {
     /// `CadDocument::close_pad_bits_by_handle`; `None` (or a length
     /// mismatch at the close) falls back to the document vote above.
     close_pad_bits: Option<(u8, u8)>,
+    /// The current record's EXACT handle-stream slack (the gh44-error
+    /// LEADER census, 2026-10-04): `(walk_end, len, bits)` captured per
+    /// record — the unparsed bit-group an author parks between the
+    /// walked main tail and the frame's flag position (2 bits on five
+    /// LEADERs, 10 on 8774; arbitrary patterns). The object writer sets
+    /// it per record from `CadDocument::handle_slack_by_handle`; the
+    /// merge replays it ONLY when the writer's own main end equals the
+    /// captured `walk_end` — a reader that under-reads a record (its
+    /// walk ending before the writer's emission end) would otherwise
+    /// double-emit the un-walked field bits as slack. `None` keeps the
+    /// packed layout (the flag immediately after the main bits).
+    /// Three-stream only.
+    handle_slack: Option<(i64, u8, u16)>,
 }
 
 impl DwgMergedWriter {
@@ -110,6 +123,7 @@ impl DwgMergedWriter {
             underlap_bits: None,
             close_pad_zeros: false,
             close_pad_bits: None,
+            handle_slack: None,
         }
     }
 
@@ -136,6 +150,7 @@ impl DwgMergedWriter {
             underlap_bits: None,
             close_pad_zeros: false,
             close_pad_bits: None,
+            handle_slack: None,
         }
     }
 
@@ -256,6 +271,21 @@ impl DwgMergedWriter {
     /// falls back to the document-level vote.
     pub fn set_close_pad_bits(&mut self, pad: Option<(u8, u8)>) {
         self.close_pad_bits = pad;
+    }
+
+    /// Set the current record's EXACT handle-stream slack (the
+    /// gh44-error LEADER census, 2026-10-04): `(walk_end, len, bits)`
+    /// replayed verbatim from `CadDocument::handle_slack_by_handle`
+    /// between the main bits and the text/flag region — the author's
+    /// unparsed bit-group before the flag bit. `None` keeps the packed
+    /// layout. A captured slack disables the LEADER underlap for the
+    /// record (the two frame quirks are mutually exclusive: the underlap
+    /// parks the region INSIDE the main tail, the slack AFTER it).
+    pub fn set_handle_slack(&mut self, slack: Option<(i64, u8, u16)>) {
+        if slack.is_some() {
+            self.underlap_bits = None;
+        }
+        self.handle_slack = slack;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -652,6 +682,24 @@ impl DwgMergedWriter {
             }
         }
 
+        // The handle-stream slack (the gh44-error LEADER census,
+        // 2026-10-04): the author's unparsed bit-group between the
+        // walked main tail and the text/flag region — replayed verbatim
+        // (the captured pattern, MSB-first: the first wire bit first),
+        // and ONLY when the writer's own main end matches the captured
+        // walk end — an under-reading walk (the reader stopping before a
+        // field the writer re-emits, e.g. the INSERT num_owned BL, the
+        // 184D/EAE8 regression class) must not have its un-walked field
+        // bits double-emitted as slack.
+        let mut slack_bits = 0i64;
+        let mut slack_pattern = None;
+        if let Some((walk_end, len, bits)) = self.handle_slack {
+            if main_size_bits == walk_end {
+                slack_bits = len as i64;
+                slack_pattern = Some((len, bits));
+            }
+        }
+
         // Pad main to byte boundary so text and flag writes don't
         // corrupt the last partial byte of entity data
         self.main.write_spear_shift();
@@ -659,8 +707,10 @@ impl DwgMergedWriter {
         if self.saved_position {
             let saved_pos = self.position_in_bits;
 
-            // RL = mainSizeBits + textSizeBits + 1 (flag bit) + flag_words.
-            let mut total_bits = main_size_bits + text_size_bits + 1;
+            // RL = mainSizeBits + slackBits + textSizeBits + 1 (flag bit)
+            // + flag_words. The slack is the author's unparsed bit-group
+            // before the text/flag region (the gh44-error LEADER census).
+            let mut total_bits = main_size_bits + slack_bits + text_size_bits + 1;
             if text_size_bits > 0 {
                 total_bits += 16;
                 if text_size_bits >= 0x8000 {
@@ -681,6 +731,15 @@ impl DwgMergedWriter {
         // text data is placed immediately after the meaningful main bits.
         self.main.set_position_in_bits(main_size_bits);
 
+        // The handle-stream slack replay (guarded above — the pattern
+        // is Some only when the writer's main end matches the captured
+        // walk end).
+        if let Some((len, bits)) = slack_pattern {
+            for i in (0..len).rev() {
+                self.main.write_bit((bits >> i) & 1 != 0);
+            }
+        }
+
         if text_size_bits > 0 {
             // Append text stream bytes (byte-aligned) after main data
             self.text.write_spear_shift();
@@ -691,12 +750,13 @@ impl DwgMergedWriter {
             // enough before we seek back to write flag words.
             self.main.write_spear_shift();
 
-            // The text data occupies bits [main_size_bits .. main_size_bits + text_size_bits).
-            // At the text boundary we write the text-size flag and the
+            // The text data occupies bits [main_size_bits + slack ..
+            // main_size_bits + slack + text_size_bits).  At the text
+            // boundary we write the text-size flag and the
             // text-present bit.  This overwrites the zero-padding bits
             // that resulted from flushing the text stream.
             self.main
-                .set_position_in_bits(main_size_bits + text_size_bits);
+                .set_position_in_bits(main_size_bits + slack_bits + text_size_bits);
             self.main.set_position_by_flag(text_size_bits);
             self.main.write_bit(true); // text present
         } else {
@@ -733,6 +793,7 @@ impl DwgMergedWriter {
             self.main.write_spear_shift_ones();
         }
 
+        self.handle_slack = None;
         self.main.take_bytes()
     }
 

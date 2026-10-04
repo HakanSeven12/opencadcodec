@@ -195,6 +195,16 @@ struct Pass2Output {
     /// zeros/ones genus; drained into
     /// `CadDocument::close_pad_bits_by_handle` at commit.
     close_pad_bits_by_handle: HashMap<Handle, (u8, u8)>,
+    /// The EXACT handle-stream slack `(walk_end, len, bits)` keyed by the
+    /// record's own handle (the gh44-error LEADER census, 2026-10-04) —
+    /// the unparsed bit-group an author parks between the walked main
+    /// tail and the frame's flag position (2 bits on five LEADERs, 10 on
+    /// 8774; arbitrary patterns, not a derivable pad); the merge replays
+    /// it only when the writer's main end matches the captured walk end
+    /// (an under-reading walk would otherwise double-emit the un-walked
+    /// field bits). Drained into `CadDocument::handle_slack_by_handle`
+    /// at commit.
+    handle_slack_by_handle: HashMap<Handle, (i64, u8, u16)>,
     /// Close-pad genus votes (TODO A1, 2026-10-01): records whose authored
     /// close pad is all zeros / all ones. The majority decides
     /// `CadDocument::close_pad_zeros` at commit.
@@ -234,6 +244,7 @@ impl Pass2Output {
             owner_forms: HashMap::new(),
             entity_color_raw: HashMap::new(),
             close_pad_bits_by_handle: HashMap::new(),
+            handle_slack_by_handle: HashMap::new(),
             pad_zero_votes: 0,
             pad_one_votes: 0,
             unknown_bits_by_handle: HashMap::new(),
@@ -1545,6 +1556,11 @@ impl DwgDocumentBuilder {
                     lt.description = data.description.clone();
                     lt.pattern_length = data.pattern_length;
                     lt.xref_dependent = data.xref_dependent;
+                    // The COMMON_TABLE_FLAGS xref binding survives the
+                    // conversion (the gh44-error LTYPE census): the
+                    // pipe-named xref-dependent linetypes carry a real
+                    // (5.2.x) target that the rewrite must replay.
+                    lt.xref_handle = Handle::from(data.xref_handle);
                     lt.elements = data
                         .segments
                         .iter()
@@ -1584,6 +1600,14 @@ impl DwgDocumentBuilder {
                                     // (a plain dash carries 0 while its
                                     // scale stores the author's 0.0).
                                     dwg_shape_flag: Some(s.dwg_flags),
+                                    // The wire complex_shapecode replays
+                                    // verbatim too (the gh44-error 16A5
+                                    // census): gold reads text-dash strings
+                                    // SEQUENTIALLY from the area — the
+                                    // shapecode is the author's own value
+                                    // (4 where the sequential position is
+                                    // 8 on the pathological specimen).
+                                    dwg_shape_number: Some(s.shape_number),
                                 })
                             } else {
                                 None
@@ -2124,6 +2148,13 @@ impl DwgDocumentBuilder {
                 document
                     .close_pad_bits_by_handle
                     .extend(chunk.output.close_pad_bits_by_handle.drain());
+                // The handle-stream slack (the gh44-error LEADER census):
+                // the per-record bit-group between the walked main tail
+                // and the frame's flag position — replayed verbatim at
+                // the record close.
+                document
+                    .handle_slack_by_handle
+                    .extend(chunk.output.handle_slack_by_handle.drain());
                 pad_zero_votes += chunk.output.pad_zero_votes;
                 pad_one_votes += chunk.output.pad_one_votes;
                 document
@@ -8114,6 +8145,16 @@ impl DwgDocumentBuilder {
                     }
                 }
             }
+        }
+        // The handle-stream slack capture (the gh44-error LEADER census,
+        // 2026-10-04): the unparsed bit-group an author parks between the
+        // walked main tail and the frame's flag position — captured per
+        // record for verbatim replay (None on the common packed layout,
+        // so nothing moves for ordinary records).
+        if let Some(slack) = reader.sample_handle_slack_bits() {
+            document
+                .handle_slack_by_handle
+                .insert(Handle::from(handle), slack);
         }
         // Table types already processed in Pass 1
     }

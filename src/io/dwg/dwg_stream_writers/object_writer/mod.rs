@@ -1081,8 +1081,12 @@ impl<'a> DwgObjectWriter<'a> {
 
         // Entry name
         self.writer.write_variable_text(&ltype.name);
-        // Xref
-        self.write_xref_dependant_bit();
+        // Xref — the COMMON_TABLE_FLAGS block: the model's binding drives
+        // the resolved BS (256 on xref-dependent records) instead of the
+        // hardcoded unresolved 0 (the gh44-error LTYPE census: her
+        // pipe-named linetypes carry is_xref_resolved 256 + a real xref
+        // handle where the old emission wrote 0 + NULL on every rewrite).
+        self.write_xref_table_flags(true, ltype.xref_dependent, ltype.xref_dependent);
         // Description
         self.writer.write_variable_text(&ltype.description);
         // Pattern length
@@ -1160,6 +1164,16 @@ impl<'a> DwgObjectWriter<'a> {
                     }
                 }
             }
+            // The wire complex_shapecode replays verbatim when captured
+            // (the gh44-error 16A5 census, 2026-10-04): gold reads
+            // text-dash strings SEQUENTIALLY from the area — the
+            // shapecode is the author's own value, not the placement
+            // offset (well-formed files keep them equal; the
+            // pathological specimen carries 4 where the sequential
+            // position is 8).
+            if let Some(wire) = c.and_then(|cx| cx.dwg_shape_number) {
+                shape_number = wire;
+            }
             shape_numbers.push(shape_number);
         }
 
@@ -1187,8 +1201,11 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // External reference block handle
-        self.writer.write_handle(DwgReferenceType::HardPointer, 0);
+        // External reference block handle — the retained binding (NULL on
+        // ordinary records, the authored (5.2.x) target on xref-dependent
+        // ones; gold's COMMON_TABLE_FLAGS declares the slot code 5).
+        self.writer
+            .write_handle(DwgReferenceType::HardPointer, ltype.xref_handle.value());
 
         // Shape file handles for each segment
         for seg in &ltype.elements {

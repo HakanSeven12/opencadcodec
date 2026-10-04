@@ -474,6 +474,8 @@ impl<'a> DwgObjectWriter<'a> {
         );
         self.writer
             .set_close_pad_bits(self.document.close_pad_bits_by_handle.get(&handle).copied());
+        self.writer
+            .set_handle_slack(self.document.handle_slack_by_handle.get(&handle).copied());
         // ── MAIN + HANDLE: shared preamble (type + handle + xdata) ──
         self.write_common_data(type_code, handle, xdata);
 
@@ -955,6 +957,8 @@ impl<'a> DwgObjectWriter<'a> {
         );
         self.writer
             .set_close_pad_bits(self.document.close_pad_bits_by_handle.get(&handle).copied());
+        self.writer
+            .set_handle_slack(self.document.handle_slack_by_handle.get(&handle).copied());
         // Object type
         self.writer.write_object_type(type_code);
 

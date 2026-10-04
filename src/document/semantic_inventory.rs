@@ -238,6 +238,7 @@ impl<'a> SemanticInventoryV1<'a> {
             entity_color_raw_by_handle: _,
             tv_plain_form_by_handle: _,
             close_pad_bits_by_handle: _,
+            handle_slack_by_handle: _,
             close_pad_zeros: _,
         } = self.document;
 

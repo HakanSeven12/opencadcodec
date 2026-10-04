@@ -72,6 +72,13 @@ pub struct LineType {
     pub alignment: char,
     /// Whether this linetype is externally dependent on an xref
     pub xref_dependent: bool,
+    /// The xref binding's target handle (the COMMON_TABLE_FLAGS xref
+    /// slot; NULL on ordinary records). Retained from the wire so a
+    /// same-version rewrite replays the authored binding (the
+    /// gh44-error LTYPE census, 2026-10-04: the pipe-named
+    /// xref-dependent linetypes carry is_xref_resolved 256 + a real
+    /// (5.2.x) handle).
+    pub xref_handle: Handle,
 }
 
 impl LineType {
@@ -85,6 +92,7 @@ impl LineType {
             pattern_length: 0.0,
             alignment: 'A',
             xref_dependent: false,
+            xref_handle: Handle::NULL,
         }
     }
 
@@ -98,6 +106,7 @@ impl LineType {
             pattern_length: 0.0,
             alignment: 'A',
             xref_dependent: false,
+            xref_handle: Handle::NULL,
         }
     }
 
@@ -111,6 +120,7 @@ impl LineType {
             pattern_length: 0.0,
             alignment: 'A',
             xref_dependent: false,
+            xref_handle: Handle::NULL,
         }
     }
 
@@ -124,6 +134,7 @@ impl LineType {
             pattern_length: 0.0,
             alignment: 'A',
             xref_dependent: false,
+            xref_handle: Handle::NULL,
         }
     }
 
@@ -234,6 +245,16 @@ pub struct LineTypeComplexData {
     /// the model: absolute_rotation→0x01, text→0x02, shape→0x04.
     #[cfg_attr(feature = "serde", serde(default))]
     pub dwg_shape_flag: Option<i16>,
+    /// The wire `complex_shapecode` BS retained verbatim (the gh44-error
+    /// 16A5 census, 2026-10-04): gold assigns text-dash strings
+    /// SEQUENTIALLY from the strings area — the shapecode is the
+    /// author's own value, not the offset gold reads at (well-formed
+    /// files keep them equal; the pathological records carry 4 where
+    /// the sequential position is 8). `None` (constructed/deserialized)
+    /// keeps the derived value: the area cursor for text dashes, the
+    /// shape number for shape dashes.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_shape_number: Option<i16>,
 }
 
 impl Default for LineTypeComplexData {
@@ -246,6 +267,7 @@ impl Default for LineTypeComplexData {
             absolute_rotation: false,
             offset: [0.0, 0.0],
             dwg_shape_flag: None,
+            dwg_shape_number: None,
         }
     }
 }
@@ -377,6 +399,7 @@ mod tests {
             absolute_rotation: false,
             offset: [1.0, 2.0],
             dwg_shape_flag: None,
+            dwg_shape_number: None,
         };
         assert!(c.is_shape());
         assert!(!c.is_text());
@@ -397,6 +420,7 @@ mod tests {
             absolute_rotation: false,
             offset: [0.0, 0.5],
             dwg_shape_flag: None,
+            dwg_shape_number: None,
         };
         assert!(!c.is_shape());
         assert!(c.is_text());
@@ -415,6 +439,7 @@ mod tests {
             absolute_rotation: true,
             offset: [0.0, 0.0],
             dwg_shape_flag: None,
+            dwg_shape_number: None,
         };
         assert!(c.is_shape());
         assert!(c.is_absolute_rotation());

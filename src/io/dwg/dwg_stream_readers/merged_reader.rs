@@ -735,6 +735,37 @@ impl DwgMergedReader {
         Some((pad_count as u8, bits))
     }
 
+    /// Capture the handle-stream SLACK: the unparsed bit-group an author
+    /// may park between the walked main tail and the frame's main-data
+    /// anchor (the text start / the flag position). Measured on
+    /// gh44-error's LEADER records (2026-10-04): her records pad 2 bits
+    /// (10 on 8774) before the flag bit — nibble-aligning the RL — where
+    /// the packed emission wrote the flag immediately after the main
+    /// bits, slipping every handle position and the CRC (the bitsize −2 /
+    /// hdlsize +2 census family). The bits are arbitrary author data
+    /// (five records pad `00`, 8774 parks `0000100000` — not a
+    /// zeros/ones genus), so the
+    /// exact `(walk_end, len, bits)` triple is captured for verbatim
+    /// replay; the merge replays it ONLY when the writer's own main end
+    /// equals the captured `walk_end` — a reader that under-reads a
+    /// record (its walk ending before the writer's emission end, e.g.
+    /// the INSERT `num_owned` BL) would otherwise double-emit the
+    /// un-walked field bits as slack. `None` (the common case — the walk
+    /// ends at the anchor) leaves the packed layout untouched.
+    pub fn sample_handle_slack_bits(&self) -> Option<(i64, u8, u16)> {
+        if self.mode != MergeMode::ThreeStream {
+            return None;
+        }
+        let frame_end = self.main_data_end();
+        let walk_end = self.main.position_in_bits();
+        let len = frame_end - walk_end;
+        if len <= 0 || len > 16 {
+            return None;
+        }
+        let bits = self.peek_window_bits(walk_end, len as u8)? as u16;
+        Some((walk_end, len as u8, bits))
+    }
+
     /// Raw twin of [`read_main_handle`](Self::read_main_handle): the handle
     /// form read from the MAIN (data) stream even when a handle stream
     /// exists (e.g. HANDSEED in the header section).

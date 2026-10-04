@@ -640,13 +640,19 @@ pub fn read_text_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Tex
 }
 
 /// Extract text from a linetype text area buffer into segments.
-/// For text-type elements (DWG 0x02 bit), shape_number is a byte offset into
-/// the text area pointing at a null-terminated string.
+/// For text-type elements (DWG 0x02 bit) the string is taken from the
+/// area SEQUENTIALLY — gold's decoder (dwg.spec's LTYPE DECODER block)
+/// walks `dash_i` forward per text dash: each dash's text is the
+/// string at the running offset, then the cursor advances past its
+/// terminator. The wire `complex_shapecode` is NOT the offset gold
+/// uses — on well-formed files the author keeps them equal, but the
+/// pathological records (gh44-error's 16A5: shapecode 4 where the
+/// sequential position is 8) carry the author's own value, which the
+/// model retains for verbatim replay.
 ///
 /// R2004 and earlier: 256-byte area of null-terminated ASCII strings.
 /// R2007+: 512-byte area of null-terminated UTF-16LE strings (2 bytes/char,
-/// terminated by a 0x0000 word). shape_number is still a BYTE offset.
-/// The 512-byte size = 256 chars × 2 bytes matches the R2004 256 ASCII chars.
+/// terminated by a 0x0000 word).
 /// Per OpenDesign spec §20.4.58.
 fn extract_text_strings(
     segments: &mut [LinetypeSegment],
@@ -655,10 +661,11 @@ fn extract_text_strings(
     decode_legacy: impl Fn(&[u8]) -> String,
 ) {
     let cap = area.len();
+    let mut dash_i = 0usize;
     for seg in segments.iter_mut() {
         // DWG convention: bit 0x02 = text element (0x04 = shape)
         if seg.dwg_flags & 0x02 != 0 {
-            let start = (seg.shape_number as usize).min(cap.saturating_sub(1));
+            let start = dash_i.min(cap.saturating_sub(1));
             if unicode {
                 // UTF-16LE: read 2-byte code units until the [0x00, 0x00] null.
                 let mut code_units: Vec<u16> = Vec::new();
@@ -673,6 +680,8 @@ fn extract_text_strings(
                     i += 2;
                 }
                 seg.text = String::from_utf16_lossy(&code_units);
+                // Gold's advance: 2 bytes/char + the 0x0000 terminator.
+                dash_i = start + code_units.len() * 2 + 2;
             } else {
                 let end = area[start..]
                     .iter()
@@ -680,6 +689,7 @@ fn extract_text_strings(
                     .map(|i| start + i)
                     .unwrap_or(cap);
                 seg.text = decode_legacy(&area[start..end]);
+                dash_i = end + 1;
             }
         }
     }

@@ -368,8 +368,15 @@ impl<'a> DwgObjectWriter<'a> {
                 if reference.osnap_type == 6 || reference.osnap_type == 11 {
                     self.writer
                         .write_bit_long(reference.intersection_objects.len() as i32);
+                    // The ref-code lesson (§19; the pab/child_param
+                    // precedent): gold's dwg2.spec declares the DIMASSOC
+                    // intsectobj vector code 5, but the authored wire
+                    // carries code 4 (soft) — measured on gh44-error's
+                    // C12E/C471 records (the fifth handle 4.2.BA93/BA3F
+                    // where our code-5 emission flipped one bit per
+                    // record). The authored corpus is the oracle.
                     self.write_assoc_handles(
-                        DwgReferenceType::HardPointer,
+                        DwgReferenceType::SoftPointer,
                         &reference.intersection_objects,
                     );
                     self.writer

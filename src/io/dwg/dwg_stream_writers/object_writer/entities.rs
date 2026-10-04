@@ -1864,10 +1864,67 @@ impl<'a> DwgObjectWriter<'a> {
         let mut common = e.common.clone();
         if e.stored_pattern_origin().is_some() {
             if let Some(app) = self.document.app_ids.get("ACAD") {
-                common
+                let app_handle = app.handle.value();
+                if let Some(pos) = common
                     .extended_data
                     .raw_dwg_eed
-                    .retain(|(handle, _)| *handle != app.handle.value());
+                    .iter()
+                    .position(|(handle, _)| *handle == app_handle)
+                {
+                    // §19 H8h-ext-15 keep-position (the gh44-error HATCH
+                    // census, 2026-10-04): her wire carries the ACAD block
+                    // FIRST ([ACAD, 16CA] on the divergent records) and the
+                    // remove-and-append reordered every conventional
+                    // rewrite to [16CA, ACAD] — the five crc-only HATCH
+                    // rows. The retained block keeps its POSITION: the
+                    // bytes stay VERBATIM when they already encode the
+                    // model's current origin (the unedited authored case
+                    // — byte identity); a MOVED origin (a transform)
+                    // re-encodes in place at the same slot.
+                    let wide = self.version.r2007_plus();
+                    let retained_origin = crate::io::dwg::eed_codec::decode_values(
+                        &common.extended_data.raw_dwg_eed[pos].1,
+                        wide,
+                        |h| {
+                            self.document
+                                .layers
+                                .iter()
+                                .find(|l| l.handle.value() == h)
+                                .map(|l| l.name.clone())
+                        },
+                    )
+                    .and_then(|values| crate::hatch_origin::origin_from_values(&values));
+                    if retained_origin != e.stored_pattern_origin() {
+                        if let Some(record) = common.extended_data.get_record("ACAD").cloned() {
+                            let code_page = crate::io::dxf::code_page::dwg_code_page_index(
+                                &self.document.header.code_page,
+                            );
+                            let encoding = crate::io::dxf::code_page::encoding_from_code_page(
+                                &self.document.header.code_page,
+                            )
+                            .unwrap_or(encoding_rs::WINDOWS_1252);
+                            let bytes = crate::io::dwg::eed_codec::encode_values_with_encoding(
+                                wide,
+                                &record.values,
+                                encoding,
+                                code_page,
+                                |name| {
+                                    self.document
+                                        .layers
+                                        .get(name)
+                                        .map(|l| l.handle.value())
+                                        .unwrap_or(0)
+                                },
+                            );
+                            common.extended_data.raw_dwg_eed[pos].1 = bytes;
+                        }
+                    }
+                    // Either way the structured record must not append
+                    // after the raw blocks (the reorder mechanism).
+                    common.extended_data.remove_record("ACAD");
+                }
+                // No retained ACAD block (constructed/DXF content): the
+                // structured record appends — the previous behavior.
             }
         }
         common
