@@ -19,7 +19,7 @@ is the practical entry point: install, run, interpret.
 
 | # | Oracle | What it catches | Needs the gold oracle? |
 |---|---|---|---|
-| 1 | Deep unit gates — `cargo test --features serde` (47 ok segments; roundtrip asserts `diffs <= max_known`) | model/retention regressions; a new raw-retention field without a `normalize_entity_for_comparison` arm trips the budget and the failing test names it | **no** — fully hermetic |
+| 1 | Deep unit gates — `cargo test --features serde` (all test-target segments green; roundtrip asserts `diffs <= max_known`) | model/retention regressions; a new raw-retention field without a `normalize_entity_for_comparison` arm trips the budget and the failing test names it | **no** — fully hermetic |
 | 2 | Harness integration test — `cargo test --features gold-harness --test gold_roundtrip` | harness self-check + prohibited storage-only `EntityCommon` fields | **optional** — skips (with a notice written to `target/gold_harness_oracle_skipped.txt`) when `GOLD_DWGREAD`/`GOLD_TESTDATA` are absent; set `GOLD_HARNESS_REQUIRE=1` to make absence a hard failure (CI) |
 | 3 | Full corpus — `run_corpus.py` → `report.json` + the residue dump (`pk18a_all_rows.py`) | non-header field divergences; read/write 0/0 is the OBJECTS-axis campaign target (`per_file` is truth; the by-type tables truncate); the planned structure axis (§19) adds separate counters | yes |
 | 4 | Authored-wire byte-fidelity — byte-compare silver's *rewrite* of an authored file against the authored original, record by record | writer **form** defects both decoders tolerate (legal-but-different bitcode choices — a BS short form where the authored wire used the raw-16 form, BD shortforms vs raw doubles, alpha-method nibbles) that strict CAD consumers (BricsCAD, AutoCAD) reject | yes |
@@ -221,8 +221,12 @@ and a human-readable `*_report.md`.
 python3 tests/gold_harness/harness/run_corpus.py
 ```
 
-Iterates the in-scope corpus (`test/test-data/{2000,2004,2007,2010,2013,2018}/*.dwg`
-plus top-level `example_*`/`sample_*`) and writes an aggregated
+Iterates the in-scope corpus (`test/test-data/{2000,2004,2007,2010,2013,2018}/*.dwg`,
+the r13/r14 era dirs and root `example_r13`/`example_r14`, top-level
+`example_*`/`sample_*`, and the harness `fixtures/` tree — the
+§18.7 sh_history set, the golden-entities population, b6_routes,
+the brep mints, the parked r13_r14 wave; **694 files** at this
+halt) and writes an aggregated
 `target/gold_harness_corpus/report.json` + `report.md` ranking divergent
 `(entity_type, field)` pairs by frequency.
 
@@ -252,7 +256,11 @@ GOLD_HARNESS_STRICT=1 cargo test --features gold-harness --test gold_roundtrip
 ## The zero-keeping workflow — the regression gate for upstream changes
 
 Both campaigns are closed at zero: gold-vs-silver **parser parity**
-(read 0 / write 0 across all 280 corpus files) and the **strict-load
+(read 0 / write 0 across all 694 corpus files — the 2026-10-04 BREP
+raw-remainder packet closed the last rows, the first fully-clean
+corpus; the structure key-gap axis sits at its recorded standing
+total, 5,510 read / 0 write, the §19.5-era key-shape queue tracked
+in `TODO.md` A9) and the **strict-load
 zero** (the generated 30-entity file opens in BricsCAD via plain
 `_open` with no modal error and no warnings). Every upstream change
 must keep both at zero. Run this gate, in order, before committing
@@ -323,12 +331,19 @@ python3 tests/gold_harness/harness/run_corpus.py
 by-type tables):
 
 ```
-Files: 124
+Files: 694
 Read-fidelity diffs: 0
 Write-fidelity diffs: 0
+Structure read key-gaps: 5510
+Structure write key-gaps: 0
 ```
 
-Also inspect one diff JSON for residues: any leftover row class the
+The fidelity zeros are strict (the 2026-10-04 BREP raw-remainder
+packet closed the last 13 rows — the first fully-clean corpus); the
+structure totals are the recorded standing state (the R13/R14
+golden key-shape class, tracked in `TODO.md` A9) — they must not
+move either. Also inspect one diff JSON for residues: any leftover
+row class the
 normalizers don't host (gold-only `unknown_bits` kept residuals are
 the sanctioned exception class — see the comments in
 `normalize_silver.py`).
@@ -346,7 +361,8 @@ md5sum gen_all_entities_all_versions.dwg
 `f21875659e7501b099f91f88b37d20c3`, 25728 bytes — the MLine-verts
 packet's intended content change (the canonical's MLine records carry
 the computed cache); identical without `--features serde`; verified
-unmoved through the 2026-10-01 A1/A2/A5 packets (stash-A/B on A1;
+unmoved through the 2026-10-01 A1/A2/A5 and the 2026-10-04 BREP
+raw-remainder packets (stash-A/B on A1;
 every capture twin defaults for constructed content). The history:
 `0217fbac…`/24986 → `40ab5d35…`/25344 at the H5–H7 landing →
 `36279922…` at the MText repair → `f2187565…` here. LEADER 0x41 /

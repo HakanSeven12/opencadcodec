@@ -1,7 +1,12 @@
 # Gold-vs-Silver Roundtrip Harness — Unified Implementation Plan
 
-Status: **the corpus is at ZERO on every axis — 280 files, read/write
-fidelity 0/0, structure key-gaps 0/0 (§19); the §20 genus-gate queue is
+Status: **the corpus-fidelity axis is at ZERO across all 694 files —
+THE FIRST FULLY-CLEAN CORPUS (the 2026-10-04 BREP raw-remainder
+packet closed the last 13 rows on the mints' ACSH_BREP_CLASS
+records; the conventional rewrites record-identical on all four
+R2007+ mints) — with the structure key-gap axis at 5,510 read /
+0 write (the R13/R14 golden key-shape class, the §19.5 Tier-2
+campaign's continuing surface, TODO.md A9); the §20 genus-gate queue is
 PENDING-ZERO with `--strict`; and the strict-loader campaign it drove is
 CLOSED ON BOTH LOADERS (2026-09-30): every constructed fixture reads
 MODELED with real extents and clean audits under BricsCAD V26 AND
@@ -17,11 +22,17 @@ the
 record-identity censuses all-zero on every measured era specimen, and
 the rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
-remaining queue: the Multiline-specimen conventional-arm residue
-(the newly-visible pre-existing 142/143 record divergence — a
-§19-era record-identity question), and the
-maintainer-decision tier (§19.5 version parity,
-the era censuses across the full corpora). The XLine/Ray
+remaining queue: TODO.md A9 — the struct key-gaps 5,510 (the
+R13/R14 golden key-shape class), the `class?` desync rows,
+PolyLine2D's last 2, Surface 6, gh44-error 18, and the era
+campaign's Tier-2 record-identity surface (the SAT-era mints'
+SH-BREP conventional-arm delta the 2026-10-04 packet surfaced;
+§19.5 version parity; pre-R13 stays the recorded C3 reject). The
+Multiline-specimen conventional-arm residue (the twelfth
+addendum's 142/143 — the specimen does not ECHO) is RECONCILED BY
+MEASUREMENT (the 2026-10-04 review pass): the A1 genus packets
+absorbed it — the 2018 specimen's conventional rewrite is
+record-identical 143/143, the 2007 one 211/211. The XLine/Ray
 ACAD-coverage question is RESOLVED AS A NON-DEFECT (ACAD's
 filtered ssget never returns construction lines — her own
 authored pair absent the same way; the writer exonerated).

@@ -2559,13 +2559,18 @@ era specimens (the era censuses all-zero).
 
 ## The standing facts
 
-- The corpus workdirs are STEM-KEYED (280 files → 196 unique stems);
-  report.json totals are authoritative: all four axes 0, WITH the
-  genus sections (`sab_form_diffs` 4 rows — 0 pending / 4
+- The corpus workdirs are STEM-KEYED (694 files — the counts are
+  stem-collision inflated; `per_file` in report.json is the
+  authoritative split); report.json totals are authoritative:
+  **read/write fidelity 0/0 (the 2026-10-04 BREP raw-remainder
+  packet closed the last 13 rows — the first fully-clean corpus);
+  structure key-gaps 5,510 read / 0 write (the R13/R14 golden
+  key-shape class — TODO.md A9's continuing queue)**, WITH the
+  genus sections (`sab_form_diffs` 3 rows — 0 pending / 3
   adjudicated-TOLERATED; `sh_genus_diffs` 1 row — 0 pending / 1
   TOLERATED, the elide marker; `acds_genus_diffs` 0 — CLOSED) as
   additional output. **The queue's PENDING axis is ZERO; the counts
-  that remain are the five adjudicated rows' recorded state
+  that remain are the adjudicated rows' recorded state
   (§20.4).**
 - The generation identity is `f21875659e7501b099f91f88b37d20c3`,
   25,728 bytes (moved at the 2026-09-30 seven-packet session chain —
@@ -4675,3 +4680,24 @@ era-packet closure, then the A5/A6/A7/A8 closures, then the
 maintainer decisions, then the era-census continuation, then the
 golden-entities landing, then the b6 review, then the era-census
 addendum, then the 2026-10-02 sections bottom-up.
+
+### THE SAME-DAY REVIEW PASS (the "review, update, commit, push"
+### directive, run after the packet landed):
+
+The docs reconciliation — every stale count in the living
+surfaces refreshed to the measured state (694 files; fidelity
+0/0; struct 5,510/0; the identity history extended through the
+BREP packet), across README.md (the layer-1 segment phrase, the
+zero-keeping workflow intro, the corpus-iteration description,
+step 4's expected block, step 5's identity history),
+IMPLEMENTATION.md (the Status header's opening claim + the
+remaining-queue sentence), and this file's standing-facts block.
+**THE REVIEW'S MEASURED YIELD — THE MULTILINE-SPECIMEN RESIDUE
+RECONCILED: the twelfth addendum's 142/143 conventional-arm
+divergence (the specimen does not ECHO) is GONE — the record
+census (2026-10-04, DWG_NO_ECHO=1 rewrite) reads the 2018
+specimen RECORD-IDENTICAL 143/143 and the 2007 one 211/211.
+The A1 genus packets (the close-pad/ownerhandle capture and
+replay, landed after that residue was recorded) absorbed it
+without ever being credited.** The status header now records it
+as resolved-by-measurement; no code changed in this pass.

@@ -11,10 +11,12 @@ lives in `NEXT_SESSION.md` (the session addenda) and `IMPLEMENTATION.md`
 
 The large measured campaigns are closed and hold their zeros: parser
 parity, the strict loader probes, the ACS/SH solid-history work, and
-the §20 genus gates (pending-zero under `--strict`). The suite passes
-1,618 tests with none failing, and the generation identity is stable at
-`f2187565…` over 25,728 bytes. The genus cargo pin assertion is red
-pre-existing (item A7).
+the §20 genus gates (pending-zero under `--strict`; the cargo mirror
+green — A7 closed, the pin regenerated to the grown specimen family).
+The suite passes 1,624 tests with none failing (the three
+`sh_brep_raw_tail` pins of the 2026-10-04 BREP packet included), and
+the generation identity is stable at
+`f2187565…` over 25,728 bytes.
 
 The corpus counts 694 files in five populations (the R13/R14 era
 admitted 2026-10-03 when the parity campaign was accepted — the
