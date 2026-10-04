@@ -58,7 +58,14 @@ Layer 4's wire facts for record walking: the R2000+ object frame is
 `[MS size][R2010+ UMC hdlsize][BOT type][window]` where the window starts at
 the BOT byte; `bitsize = Size*8 − Hdlsize` is the handle-stream start, and
 gold's `-v9` trace prints per-field `@byte.bit` positions in window
-coordinates to walk against. Two harness instruments implement it:
+coordinates to walk against. Authors may also park an unparsed bit-group
+BETWEEN the walked main tail and the frame's flag position (gold's trace
+prints `handle stream: +N` — the gh44-error LEADER genus, 2026-10-04: five
+records pad 2 zero bits, one parks `0000100000`; the reader captures
+`(walk_end, len, bits)` per record and the writer replays it verbatim with a
+merge-time guard — the writer's own main end must equal the captured walk
+end, or the capture is inert) — and the trace's `+N` skip lines on MISSING
+handle streams are gold's own decode-trace noise, not record content. Two harness instruments implement it:
 
 - `dump_section_bytes` — record-framed raw byte dumps for the pair compare.
 - `dump_proxy_graphics [--verify] FILE [HANDLE]` — derives + dumps the

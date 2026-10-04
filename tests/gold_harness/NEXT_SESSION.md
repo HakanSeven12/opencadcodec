@@ -5007,3 +5007,52 @@ closure, then the A5/A6/A7/A8 closures, then the maintainer
 decisions, then the era-census continuation, then the
 golden-entities landing, then the b6 review, then the
 era-census addendum, then the 2026-10-02 sections bottom-up.
+
+### THE SAME-DAY REVIEW PASS (the "review, update, commit, push"
+### directive, run after the gh44 packet landed):
+
+The three named living surfaces were checked against the
+measured state, doc-only, no code changed:
+
+- **NEXT_SESSION.md**: the header's campaign-state bullet and
+  the FIRST ACTION pointer carry both of 2026-10-04's closures
+  (the header raw-mirror and the gh44 record-identity packets);
+  the four remaining "gh44-error 18" mentions (the era-census
+  continuation's measured-leads list, the golden-entities
+  residue, the BREP packet's re-ranked list, the header
+  raw-mirror packet's residue) are all DATED PACKET RECORDS of
+  the residue as it stood when those packets landed — history,
+  left as recorded. The standing facts block (the corpus 0/0 +
+  6/0, the identity f2187565…/25,728, the suite green) matches
+  the halt battery.
+- **IMPLEMENTATION.md**: the Status header's queue sentence
+  carries the gh44 closure (11,073/11,073); no other living
+  surface references the record-census residue (§8.1.6's
+  queue-head is the dated 2026-09-28 "queue empty"
+  declaration; §19.4/§19.5 are advisory records).
+- **README.md**: the layer-4 wire-facts paragraph gained the
+  gh44 datum — the handle-stream slack genus (the author's
+  unparsed bit-group between the walked main tail and the flag
+  position; gold's trace prints `handle stream: +N`; the five
+  2-zero-bit LEADERs + 8774's `0000100000`; the
+  `(walk_end, len, bits)` capture with the merge-time
+  walk-end-guard) and the note that the trace's `+N` skip
+  lines on MISSING handle streams are gold's decode-trace
+  noise, not record content — the two facts the next
+  record-walking session needs. The step-4 expected block and
+  the zero-keeping intro were already current from the
+  morning's header-raw-mirror review.
+
+The battery state is unchanged from the halt (everything
+green; the corpus 694 at 0/0 + 6/0; the identity unmoved).
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md
+§7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+file top to bottom, STARTING at THIS section (the file bottom),
+then the gh44 record-identity packet, then the header
+raw-mirror packet, then the same-day review pass, then the BREP
+raw-remainder packet, then the era-packet closure, then the
+A5/A6/A7/A8 closures, then the maintainer decisions, then the
+era-census continuation, then the golden-entities landing, then
+the b6 review, then the era-census addendum, then the 2026-10-02
+sections bottom-up.

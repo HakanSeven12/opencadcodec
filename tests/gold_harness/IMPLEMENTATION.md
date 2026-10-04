@@ -23,8 +23,10 @@ MLine segment-parameter cache; the canonical's audit reads TOTAL
 ERRORS 0 with dbmod 0 pre+post on BOTH loaders, gold reads the
 canonical CLEAN, and every constructed kind reads real extents),
 the
-record-identity censuses all-zero on every measured era specimen, and
-the rewrite-rejection closed (the edited R2018 document opens in
+record-identity censuses all-zero on every measured era specimen —
+gh44-error, the pathological recovery-written file included
+(11,073/11,073, closed 2026-10-04 evening) — and the
+rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
 remaining queue: TODO.md A9 — the struct key-gaps 6 (the `class?`
 desync-mirror family, all that is left of the 5,510 axis),
