@@ -187,6 +187,41 @@ impl<'a> DwgObjectWriter<'a> {
         true
     }
 
+    /// The SH-BREP raw-remainder re-emission (the 2026-10-04 BREP packet).
+    ///
+    /// For records read in the raw-remainder form (the wire version
+    /// outside {1, 2} — gold's unstable-class walk reads no body and
+    /// walks the COMMON_3DSOLID tail from the modeler blob's first
+    /// bits), the captured tail is the write authority: re-emit the
+    /// wire head (acis_empty B, unknown B, version BS) verbatim, then
+    /// the captured tail bits bit-exact. The materials' retained handle
+    /// references follow into the object handle stream — gold's
+    /// overflow semantics read un-retained handles as NULL consuming
+    /// nothing, so only the retained (Some) handles have wire bits to
+    /// reproduce. Returns false (before writing anything) when the
+    /// model carries no captured tail — the modeled arm runs instead
+    /// (DXF-read records).
+    fn write_brep_raw_tail(&mut self, acis: &crate::entities::AcisData) -> bool {
+        let Some(wire_version) = acis.raw_wire_version else {
+            return false;
+        };
+        let bits = (acis.raw_tail_bit_len as usize).min(acis.raw_tail.len() * 8);
+        if bits == 0 {
+            return false;
+        }
+        self.writer.write_bit(acis.raw_wire_acis_empty);
+        self.writer.write_bit(acis.raw_wire_unknown);
+        self.writer.write_bit_short(wire_version);
+        self.write_undocumented_tail(&acis.raw_tail, acis.raw_tail_bit_len);
+        for material in &acis.materials {
+            if let Some(handle) = material.material_handle {
+                self.writer
+                    .write_handle(DwgReferenceType::HardPointer, handle.value());
+            }
+        }
+        true
+    }
+
     fn write_solid_history_sweep(&mut self, value: &SolidHistorySweep) {
         self.write_solid_history_base(&value.base);
         self.writer.write_bit_long(value.operation_major);
@@ -308,7 +343,14 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_solid_history_base(&value.base);
                 self.writer.write_bit_long(value.operation_major);
                 self.writer.write_bit_long(value.operation_minor);
-                self.write_acis_data(crate::types::Vector3::ZERO, &value.acis_data, &[], &[]);
+                if !self.write_brep_raw_tail(&value.acis_data) {
+                    self.write_acis_data(
+                        crate::types::Vector3::ZERO,
+                        &value.acis_data,
+                        &[],
+                        &[],
+                    );
+                }
             }
             SolidHistoryOperation::Fillet(value) => {
                 self.write_solid_history_base(&value.base);

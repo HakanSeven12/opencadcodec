@@ -5445,13 +5445,37 @@ def normalize_silver(
                     fields["radius"] = normalize_float(_vv.get("radius", 0.0))
                     fields["topradius"] = normalize_float(_vv.get("top_radius", 0.0))
                 elif gold_type == "ACSH_BREP_CLASS":
-                    # Gold's own BREP decode derails (garbage major, empty
-                    # acis_data [""] — the 3DSOLID prologue family) and
-                    # silver's reader stores the same derailed bits under
-                    # operation_major/minor (values differ); the divergent
-                    # fields are dropped symmetrically in normalize_gold.
-                    # Project only the matching node fields (handled above).
-                    pass
+                    # Gold's own BREP decode derails on the head fields
+                    # (garbage major, empty acis_data [""] — the 3DSOLID
+                    # prologue family, dropped symmetrically in
+                    # normalize_gold), but its COMMON_3DSOLID tail walk is
+                    # the oracle for the compared trailing region: the
+                    # materials array (read when the wire version > 1)
+                    # and the R2013b revision block. The 2026-10-04
+                    # raw-remainder packet mirrors that walk in silver's
+                    # reader (the wire version outside {1,2} — gold reads
+                    # no body and walks the tail from the modeler blob's
+                    # first bits); project the typed model fields here.
+                    # The BS wire values are UNSIGNED bitcodes — mask the
+                    # model's signed ints back to gold's prints.
+                    _acis = _vv.get("acis_data") or {}
+                    _mats = _acis.get("materials") or []
+                    if isinstance(_mats, list) and _mats:
+                        # normalize_gold collapses every REPEAT entry dict
+                        # to 0 (its no-index/no-rgb CMC rule), so the
+                        # compared form is the degenerate [0]*count — the
+                        # wires/silhouettes precedent on the entity arm.
+                        fields["materials"] = [0] * len(_mats)
+                    if r2013_plus:
+                        _rev = _acis.get("revision") or {}
+                        _rb = _rev.get("bytes") or [0] * 8
+                        fields["has_revision_guid"] = 1 if _rev.get("has_guid") else 0
+                        fields["revision_major"] = int(_rev.get("major", 0)) & 0xFFFFFFFF
+                        fields["revision_minor1"] = int(_rev.get("minor1", 0)) & 0xFFFF
+                        fields["revision_minor2"] = int(_rev.get("minor2", 0)) & 0xFFFF
+                        fields["revision_bytes"] = bytes(
+                            int(x) & 0xFF for x in _rb).hex().upper()
+                        fields["end_marker"] = int(_rev.get("end_marker", 0)) & 0xFFFFFFFF
             for kk in ("data", "dxf_name", "cpp_class_name", "source_version"):
                 payload.pop(kk, None)
         if silver_type == "BlockVisibilityParameter":

@@ -225,7 +225,11 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
 /// pre-R2010 raw-long can lie), so the end is clamped to the physical
 /// record window — gold clamps only at the physical record end too. See
 /// `SolidHistorySweep::shsw_raw_tail` for the Phase A rationale.
-fn capture_undocumented_tail(reader: &mut DwgMergedReader) -> (Vec<u8>, u32) {
+/// Capture the record's remaining main-stream bits (from the current
+/// position to min(main_end, record_end)) MSB-packed, for verbatim
+/// re-emission. Shared with the entities reader (the SH-BREP raw-remainder
+/// tail, 2026-10-04).
+pub(crate) fn capture_undocumented_tail(reader: &mut DwgMergedReader) -> (Vec<u8>, u32) {
     let tail_start = reader.position_in_bits();
     let tail_end = reader.main_end_bits().min(reader.record_end_bits());
     let tail_bit_len = (tail_end - tail_start).max(0) as usize;
@@ -465,6 +469,17 @@ pub fn read_solid_history_data(
             acis_data.acis_empty_bit = data.acis_empty_bit;
             acis_data.extra_acis_data = data.extra_acis_data.map(Box::new);
             acis_data.wireframe_isolines = data.isolines;
+            // The SAT-v1 SH records (the R13/R2000 mints) keep their raw
+            // wire blocks — the writer's verbatim block echo (the
+            // reader-capture packet's entity precedent) needs them for a
+            // record-identical conventional rewrite; the lossy 159-cipher
+            // re-encode from sat_data drifts the block framing.
+            acis_data.encr_sat_data = data.encr_sat_data;
+            acis_data.raw_tail = data.raw_tail;
+            acis_data.raw_tail_bit_len = data.raw_tail_bit_len;
+            acis_data.raw_wire_version = data.raw_wire_version;
+            acis_data.raw_wire_unknown = data.raw_wire_unknown;
+            acis_data.raw_wire_acis_empty = data.raw_wire_acis_empty;
             SolidHistoryOperation::Brep(SolidHistoryBrep {
                 base,
                 operation_major,

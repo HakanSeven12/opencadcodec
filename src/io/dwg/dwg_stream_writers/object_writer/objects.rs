@@ -304,9 +304,10 @@ fn matrix_to_row_major(m: &crate::types::Matrix4) -> [f64; 12] {
 /// traces verified each layout: sphere = BD radius; box = length /
 /// width / height BDs (the first non-identity base matrix written);
 /// boolean = RC operation + BL operand1/operand2). The remaining
-/// node classes (Wedge, Cylinder, Cone, Torus, Pyramid, and BREP)
-/// stay elided until a fixture lands for each — unverified elide
-/// removals are strict-reader risk.
+/// node classes (Wedge, Cylinder, Cone, Torus, Pyramid) stay elided
+/// until a fixture lands for each — unverified elide removals are
+/// strict-reader risk. BREP joined the calibrated set 2026-10-04 (the
+/// mint fixtures + the raw-remainder verbatim re-emission).
 pub(crate) fn elided_solid_history_class(dxf_name: &str, captured: bool) -> bool {
     if !dxf_name.starts_with("ACSH_") {
         return false;
@@ -329,6 +330,12 @@ pub(crate) fn elided_solid_history_class(dxf_name: &str, captured: bool) -> bool
     }
     // Captured records of the calibrated classes pass through
     // byte-faithfully; the still-uncalibrated classes stay elided.
+    // ACSH_BREP_CLASS joined the calibrated set 2026-10-04 (the BREP
+    // raw-remainder packet): the AutoCAD mint fixtures landed, and the
+    // record's modeler region is re-emitted verbatim (the captured tail
+    // is the write authority — write_brep_raw_tail), so a conventional
+    // rewrite reproduces the authored record bit-exact — the same
+    // strict-reader safety the raw passthrough classes rest on.
     dxf_name != "ACSH_HISTORY_CLASS"
         && dxf_name != "ACSH_SWEEP_CLASS"
         && dxf_name != "ACSH_EXTRUSION_CLASS"
@@ -337,6 +344,7 @@ pub(crate) fn elided_solid_history_class(dxf_name: &str, captured: bool) -> bool
         && dxf_name != "ACSH_SPHERE_CLASS"
         && dxf_name != "ACSH_BOX_CLASS"
         && dxf_name != "ACSH_BOOLEAN_CLASS"
+        && dxf_name != "ACSH_BREP_CLASS"
 }
 
 impl<'a> DwgObjectWriter<'a> {

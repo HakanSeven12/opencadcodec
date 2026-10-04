@@ -5133,6 +5133,17 @@ pub struct AcisEntityData {
     /// Raw pre-2004 SAT wire blocks (one entry per block; gold emits them
     /// verbatim as encr_sat_data hex strings — the decode is lossy).
     pub encr_sat_data: Vec<Vec<u8>>,
+    /// The SH-BREP raw-remainder form (2026-10-04): the captured tail from
+    /// just after the wire version BS to the record's main end — the write
+    /// authority for records whose wire version sits outside {1, 2}.
+    pub raw_tail: Vec<u8>,
+    pub raw_tail_bit_len: u32,
+    /// Some(wire version) exactly when the raw-remainder form was read.
+    pub raw_wire_version: Option<i16>,
+    /// The wire head's `unknown` bit (raw-remainder form only).
+    pub raw_wire_unknown: bool,
+    /// The wire head's `acis_empty` bit (raw-remainder form only).
+    pub raw_wire_acis_empty: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -5234,6 +5245,7 @@ pub fn read_acis_entity(
         false,
         false,
         None,
+        false,
     )
     .expect("database ACIS decoding retains unrecognized legacy payloads")
 }
@@ -5245,7 +5257,7 @@ pub(super) fn read_history_acis_entity(
     version: DwgVersion,
     dxf_version: DxfVersion,
 ) -> AcisEntityData {
-    read_acis_entity_impl(reader, version, dxf_version, false, false, true, None)
+    read_acis_entity_impl(reader, version, dxf_version, false, false, true, None, true)
         .expect("history ACIS decoding retains unrecognized modeler payloads")
 }
 
@@ -5262,7 +5274,16 @@ pub(crate) fn read_inline_acis_entity(
     if end > reader.main_mut().data_len() as i64 * 8 {
         return None;
     }
-    let data = read_acis_entity_impl(reader, version, dxf_version, false, true, true, Some(end))?;
+    let data = read_acis_entity_impl(
+        reader,
+        version,
+        dxf_version,
+        false,
+        true,
+        true,
+        Some(end),
+        false,
+    )?;
     let remaining = end - reader.position_in_bits();
     // Byte-sized enclosing records may carry up to seven zero padding bits.
     // Never normalize an unrecognized modeler tail into a partial REGION.
@@ -5280,6 +5301,7 @@ fn read_acis_entity_impl(
     allow_extra: bool,
     inline_layout: bool,
     inline_end: Option<i64>,
+    history_sh: bool,
 ) -> Option<AcisEntityData> {
     // R2013+ moved modeler data into AcDs and removed the leading
     // `acis_empty` bit from the entity record.  The first bit after common
@@ -5305,10 +5327,13 @@ fn read_acis_entity_impl(
         acis_version = 2;
     }
 
+    let mut wire_unknown = false;
+    let mut raw_tail_form = false;
+    let mut raw_tail_start = 0i64;
     if !acis_empty && !has_ds_data {
         // Unknown bit — per ODA spec / LibreDWG this B
         // is always present between acis_empty and the version BS.
-        let _unknown = reader.read_bit();
+        wire_unknown = reader.read_bit();
 
         acis_version = reader.read_bit_short();
         if inline_end.is_some() && !matches!(acis_version, 1 | 2) {
@@ -5392,6 +5417,21 @@ fn read_acis_entity_impl(
                 }
                 Err(_) => sab_data = probe,
             }
+        } else if history_sh && acis_version != 2 {
+            // The SH-BREP raw-remainder form (the 2026-10-04 BREP packet):
+            // the wire version sits outside {1, 2} (0 on the 2007–2013
+            // AutoCAD mints, garbage like 38438 on 2018). Gold's own
+            // unstable-class decode (dwg2.spec 3054, ACTION_3DSOLID ->
+            // DECODE_3DSOLID) reads NO body here and walks the
+            // COMMON_3DSOLID tail straight from the modeler blob's first
+            // bits, leaving the record's ~45 KB body un-walked between
+            // the tail and the handle stream. Mirror the walk (the tail
+            // reads below consume the blob's head exactly as gold does)
+            // and capture the whole region verbatim for the re-emission:
+            // the typed tail fields are projection-only, the captured
+            // bits are the write authority (the shsw_raw_tail precedent).
+            raw_tail_form = true;
+            raw_tail_start = reader.position_in_bits();
         } else {
             // Inline SAB is self-delimited. Measure only its binary records;
             // shared ACIS and surface subtype fields follow in the main stream.
@@ -5426,6 +5466,11 @@ fn read_acis_entity_impl(
                     revision: AcisRevision::default(),
                     materials: Vec::new(),
                     encr_sat_data: Vec::new(),
+                    raw_tail: Vec::new(),
+                    raw_tail_bit_len: 0,
+                    raw_wire_version: None,
+                    raw_wire_unknown: false,
+                    raw_wire_acis_empty: false,
                 });
             }
         }
@@ -5466,41 +5511,30 @@ fn read_acis_entity_impl(
             for _ in 0..num_wires {
                 wires.push(read_wire(reader));
             }
+            if raw_tail_form {
+                // Gold's COMMON_3DSOLID nests the silhouette count inside
+                // the isoline gate (dwg_spec_shared.h 492-516); the raw
+                // walk mirrors the nesting bit-for-bit.
+                read_silhouettes_into(reader, &mut silhouettes);
+            }
         }
 
-        // Silhouettes belong to the wireframe body, but are independent of
-        // the isoline-data gate above.
-        let num_silhouettes = safe_count(reader.read_bit_long());
-        for _ in 0..num_silhouettes {
-            let viewport_id = reader.read_bit_long_long();
-            let target = reader.read_3bit_double();
-            let view_direction = reader.read_3bit_double();
-            let up_vector = reader.read_3bit_double();
-            let is_perspective = reader.read_bit();
-            let mut sil_wires = Vec::new();
-            let has_sil_wires = reader.read_bit();
-            if has_sil_wires {
-                let num_sw = safe_count(reader.read_bit_long());
-                sil_wires.reserve(num_sw as usize);
-                for _ in 0..num_sw {
-                    sil_wires.push(read_wire(reader));
-                }
-            }
-            silhouettes.push(Silhouette {
-                viewport_id,
-                view_direction,
-                up_vector,
-                target,
-                is_perspective,
-                has_wires: has_sil_wires,
-                wires: sil_wires,
-            });
+        if !raw_tail_form {
+            // Silhouettes belong to the wireframe body, but are independent of
+            // the isoline-data gate above.
+            read_silhouettes_into(reader, &mut silhouettes);
         }
     }
 
     // The legacy inline layout always carries this bit. AcDs-backed R2013+
-    // records carry it only inside a present wireframe cache.
-    if inline_end.is_some() || wireframe_present || !version.r2013_plus(dxf_version) {
+    // records carry it only inside a present wireframe cache. The raw
+    // remainder form always carries it (gold's COMMON_3DSOLID reads the
+    // bit unconditionally).
+    if raw_tail_form
+        || inline_end.is_some()
+        || wireframe_present
+        || !version.r2013_plus(dxf_version)
+    {
         acis_empty_bit = reader.read_bit();
     }
     let extra_acis_data = if allow_extra && !acis_empty_bit {
@@ -5511,13 +5545,27 @@ fn read_acis_entity_impl(
 
     let mut materials = Vec::new();
     if version.r2007_plus() {
-        if acis_version > 1 && !has_ds_data {
+        // The wire version is an UNSIGNED bitcode (gold's BITCODE_BS):
+        // the raw-remainder form's garbage head (38438 on the 2018 mint)
+        // wraps negative in i16 — compare as u16 so the materials gate
+        // mirrors gold's `version > 1` exactly.
+        if (acis_version as u16) > 1 && !has_ds_data {
             let count = safe_count(reader.read_bit_long());
             materials.reserve(count as usize);
             for _ in 0..count {
                 let array_index = reader.read_bit_long();
                 let absolute_reference = reader.read_bit_long();
-                let material_handle = if inline_end.is_some() {
+                let material_handle = if raw_tail_form
+                    && reader.record_end_bits() - reader.handle_position_in_bits() < 8
+                {
+                    // Gold's overflow semantics (bit_read_RC "buffer
+                    // overflow" at the handle-stream end): a handle that
+                    // cannot supply even its code byte reads as NULL and
+                    // consumes nothing — every later entry reads the same
+                    // exhausted stream (the 2018 mint's 177-entry walk,
+                    // every material_handle [0,0]).
+                    0
+                } else if inline_end.is_some() {
                     reader.read_main_handle()
                 } else {
                     reader.read_handle()
@@ -5528,9 +5576,11 @@ fn read_acis_entity_impl(
                     material_handle: (material_handle != 0).then(|| Handle::from(material_handle)),
                 });
             }
-        } else {
+        } else if !raw_tail_form {
             // AcDs-backed R2013+ entities and version-1 bodies carry the
-            // legacy R2007 unknown BL here, not a materials array.
+            // legacy R2007 unknown BL here, not a materials array. The
+            // raw-remainder form reads nothing — gold's gate is
+            // `version > 1` with no else branch.
             let _unknown_2007 = reader.read_bit_long();
         }
     }
@@ -5562,6 +5612,16 @@ fn read_acis_entity_impl(
     if inline_end.is_some_and(|end| reader.position_in_bits() > end) {
         return None;
     }
+    let (raw_tail, raw_tail_bit_len) = if raw_tail_form {
+        // Rewind to the tail's start and capture the whole region verbatim
+        // (the typed walk above was projection-only; the captured bits are
+        // the write authority, so the re-emission is bit-exact even where
+        // the tail's interior grammar is unmodeled).
+        reader.set_position_in_bits(raw_tail_start);
+        super::dynamic_block::capture_undocumented_tail(reader)
+    } else {
+        (Vec::new(), 0)
+    };
     Some(AcisEntityData {
         acis_empty,
         sat_data,
@@ -5581,7 +5641,44 @@ fn read_acis_entity_impl(
         revision,
         materials,
         encr_sat_data,
+        raw_tail,
+        raw_tail_bit_len,
+        raw_wire_version: raw_tail_form.then_some(acis_version),
+        raw_wire_unknown: raw_tail_form && wire_unknown,
+        raw_wire_acis_empty: raw_tail_form && acis_empty,
     })
+}
+
+/// Read the COMMON_3DSOLID silhouette array (BL count + per-entry
+/// vp_id/3BD triple/perspective/has_wires/[wires]) — shared by the entity
+/// wireframe walk and the raw-remainder tail walk.
+fn read_silhouettes_into(reader: &mut DwgMergedReader, silhouettes: &mut Vec<Silhouette>) {
+    let num_silhouettes = safe_count(reader.read_bit_long());
+    for _ in 0..num_silhouettes {
+        let viewport_id = reader.read_bit_long_long();
+        let target = reader.read_3bit_double();
+        let view_direction = reader.read_3bit_double();
+        let up_vector = reader.read_3bit_double();
+        let is_perspective = reader.read_bit();
+        let mut sil_wires = Vec::new();
+        let has_sil_wires = reader.read_bit();
+        if has_sil_wires {
+            let num_sw = safe_count(reader.read_bit_long());
+            sil_wires.reserve(num_sw as usize);
+            for _ in 0..num_sw {
+                sil_wires.push(read_wire(reader));
+            }
+        }
+        silhouettes.push(Silhouette {
+            viewport_id,
+            view_direction,
+            up_vector,
+            target,
+            is_perspective,
+            has_wires: has_sil_wires,
+            wires: sil_wires,
+        });
+    }
 }
 
 fn read_surface_matrix(reader: &mut DwgMergedReader) -> [f64; 16] {
@@ -5654,8 +5751,9 @@ pub fn read_surface(
     has_ds_data: bool,
     kind: SurfaceKind,
 ) -> SurfaceEntityData {
-    let acis = read_acis_entity_impl(reader, version, dxf_version, has_ds_data, true, false, None)
-        .expect("database surface decoding retains unrecognized legacy payloads");
+    let acis =
+        read_acis_entity_impl(reader, version, dxf_version, has_ds_data, true, false, None, false)
+            .expect("database surface decoding retains unrecognized legacy payloads");
     // Surface records do not have the 3DSOLID history-id handle slot.
     let history_handle = 0;
     // gold dwg2.spec PLANESURFACE (and the sibling SURFACE blocks):
