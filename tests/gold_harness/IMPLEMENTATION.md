@@ -7309,7 +7309,15 @@ spec/decoder. The corpus-fidelity axis now reads 13/13 across
 694 files — every remaining row the BREP R2013+ trailing
 region; the campaign's continuing surface is the record-census
 queue (the struct key-gaps, the class? desync rows, the named
-per-file residues) in TODO.md's A9.
+per-file residues) in TODO.md's A9. **THE 13/13 FELL THE NEXT
+DAY (the 2026-10-04 BREP raw-remainder packet —
+NEXT_SESSION.md's bottom addendum): the ACSH_BREP_CLASS
+raw-remainder form (the wire version outside {1,2} — gold's
+unstable-class walk reads no body and walks the COMMON_3DSOLID
+tail from the modeler blob's first bits) mirrored in silver's
+reader, the tail captured verbatim as the write authority, the
+BREP class un-elided — THE 694-FILE CORPUS READS 0/0
+FIDELITY, the first fully-clean corpus.**
 
 **TIER 3 — Pre-R13 (AC1009 and older: R11/R10/R9/R2.6/R2.10/
 R1.4): UNSUPPORTED IN SILVER — AND GOLD DECODES NOTHING THERE

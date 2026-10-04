@@ -13,16 +13,22 @@
 # FALSIFIED (the from-scratch mints); B6 the pure watch; the
 # R13/R14 parity campaign OPEN (C2) with its opening surface
 # CLOSED (example_r13 78→0, example_r14 20→0, the Leaders 0/0,
-# the golden ACIS quads 0/0) — **THE 694-FILE CORPUS READS 13/13
-# FIDELITY: every remaining row is the BREP R2013+ trailing
-# region (Brep_AC1027 6 + Brep_AC1032 7), the named
-# raw-remainder packet**; the 2018 era at full record identity
-# (0/50,773), the 2010 era too (gh209_1 166/166), 2013's gh109_1
-# (664/664) and 2004's HatchG (229/229) closed; the established
-# 401-file population at ZERO fidelity rows (the A5 closure);
-# the record-census axis's residue: the struct key-gaps 5,510,
-# the class? desync rows, PolyLine2D's last 2, Surface 6,
-# gh44-error 18**:
+# the golden ACIS quads 0/0) — **THE 694-FILE CORPUS READS 0/0
+# FIDELITY: THE BREP R2013+ TRAILING REGION FELL AT THE
+# 2026-10-04 RAW-REMAINDER PACKET (Brep_AC1027 6+6→0,
+# Brep_AC1032 7+7→0 — the ACSH_BREP_CLASS raw-remainder form
+# mirrored, the tail captured verbatim as the write authority,
+# the BREP class un-elided, the conventional rewrites
+# record-identical 153/153 + 141/141 + 206/206 + 203/203) —
+# THE FIRST FULLY-CLEAN CORPUS**; the 2018 era at full record
+# identity (0/50,773), the 2010 era too (gh209_1 166/166),
+# 2013's gh109_1 (664/664) and 2004's HatchG (229/229) closed;
+# the established 401-file population at ZERO fidelity rows (the
+# A5 closure); the record-census axis's residue: the struct
+# key-gaps 5,510, the class? desync rows, PolyLine2D's last 2,
+# Surface 6, gh44-error 18, the SAT-era mints' SH-BREP
+# conventional-arm delta (the era campaign's Tier-2
+# record-identity surface)**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -78,13 +84,19 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read THE 2026-10-03 ERA-PACKET CLOSURE at this
-# file's BOTTOM first (the R13/R14 parity campaign's opening
-# surface closed: example_r13 78→0, example_r14 20→0, the Leaders
-# 0/0, the golden ACIS quads 0/0 — the 694-file corpus now reads
-# 13/13 fidelity, every remaining row the BREP R2013+ trailing
-# region; the regression-repair pass and the version-shadowing
-# lesson recorded), then the A5/A6/A7/A8 CLOSURES (the "eliminate
+# section below), read THE 2026-10-04 BREP RAW-REMAINDER PACKET at
+# this file's BOTTOM first (the A9 head closed: the ACSH_BREP_CLASS
+# raw-remainder form mirrored — the wire version outside {1,2},
+# gold's unstable-class walk reads no body and walks the
+# COMMON_3DSOLID tail from the modeler blob's first bits — the
+# tail captured verbatim as the write authority, the BREP class
+# un-elided, the conventional rewrites record-identical; THE
+# 694-FILE CORPUS NOW READS 0/0 FIDELITY, THE FIRST FULLY-CLEAN
+# CORPUS), then THE 2026-10-03 ERA-PACKET CLOSURE (the R13/R14
+# parity campaign's opening surface closed: example_r13 78→0,
+# example_r14 20→0, the Leaders 0/0, the golden ACIS quads 0/0;
+# the regression-repair pass and the version-shadowing lesson
+# recorded), then the A5/A6/A7/A8 CLOSURES (the "eliminate
 # open tasks" directive: the LIGHT/UNKNOWN_OBJ rows, the no-lz77
 # DataStore registration, the genus pin regeneration, the composite
 # 47 typed), then the maintainer decisions (C1/C2/C3 — the era
@@ -2668,19 +2680,14 @@ python3 tests/gold_harness/run_roundtrip.py \
 # AC18: $GOLD_TESTDATA/example_2004.dwg
 # R2018: $GOLD_TESTDATA/2018/Dynblocks.dwg
 
-# 3. Full corpus (280 files; ALL FOUR AXES 0 — the genus sections
-#    are ADDITIONAL output; these totals must not move)
-python3 tests/gold_harness/run_corpus.py
-#    ... genus gates (the §20 queue): sab_form 3 rows (1 row / 2
-#        occurrences PENDING — the region's 9-token face vs the
-#        family genus, riding pending for the strict-loader
-#        verdict per §20.4; 2 rows / 22 occurrences adjudicated
-#        TOLERATED), sh_genus 1 row (TOLERATED, the elide marker),
-#        acds_genus 0 (G-C CLOSED; the vertex, asmheader, and
-#        tolerance rows closed at packets two through four; the
-#        ACIS-700 family, the G-B elide marker, and the persubent
-#        class adjudicated at packets five and six; the 60-row
-#        ordering family fell at packet seven)
+# 3. Full corpus (694 files; ALL FOUR AXES: fidelity 0/0 + struct
+#    5510/0 — the 2026-10-04 BREP raw-remainder packet closed the
+#    last 13 fidelity rows; the genus sections are ADDITIONAL output;
+#    these totals must not move)
+python3 tests/gold_harness/harness/run_corpus.py
+#    ... genus gates (the §20 queue): sab_form 3 rows (0 pending /
+#        3 TOLERATED), sh_genus 1 (0/1 TOLERATED), acds_genus 0 —
+#        `--strict` asserts the pending-zero state
 
 # 4. Generation identity (re-run if the writer changes)
 cargo run --example gen_all_entities_all_versions_dwg --features serde
@@ -4550,3 +4557,121 @@ A5/A6/A7/A8 closures, then the maintainer decisions, then the
 era-census continuation, then the golden-entities landing, then
 the b6 review, then the era-census addendum, then the 2026-10-02
 sections bottom-up.
+
+## THE 2026-10-04 BREP RAW-REMAINDER PACKET (the A9 head closed —
+## THE 694-FILE CORPUS AT ZERO FIDELITY ROWS; read this FIRST, then
+## the era-packet closure above it):
+
+The session opened at the recorded halt state — the battery
+re-verified it live (the suite 1,621/0; gold_roundtrip ok; the
+genus cargo mirror ok; issue80 ok; the identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 unmoved; genus
+`--strict` PENDING-ZERO at 3/1/0 TOLERATED; the four family
+smokes 0/0/0/0; the corpus 694 files at 13/13 fidelity + 5,510/0
+struct) — and took TODO.md A9's head: **the BREP R2013+ trailing
+region, the last thirteen corpus rows. THE PACKET CLOSED THEM:
+THE 694-FILE CORPUS NOW READS 0/0 FIDELITY — THE FIRST
+FULLY-CLEAN CORPUS (every era, every population).**
+
+(1) THE DISSECTION (gold `-v9`, the B2/A8 per-record method; the
+authority on file: dwg2.spec 3054 `ACSH_BREP_CLASS` →
+ACTION_3DSOLID → DECODE_3DSOLID + the COMMON_3DSOLID macro in
+dwg_spec_shared.h 471): the thirteen rows live on the
+ACSH_BREP_CLASS records of the two R2013+ mints. The records'
+modeler-geometry head carries a wire version OUTSIDE {1,2} (0 on
+the 2007–2013 mints; 38438 on the 2018 one) — gold's own
+unstable-class decode reads NO body there and walks the
+COMMON_3DSOLID tail (the wireframe block → acis_empty_bit →
+materials when version>1 → the R2013b revision block) straight
+from the modeler blob's FIRST BITS, leaving the record's ~45 KB
+body un-walked between the tail and the handle stream (the 2018
+walk even desyncs into a 177-entry garbage materials array,
+every material_handle overflowing the exhausted handle stream to
+gold's [0,0] NULLs). Silver's reader instead treated the
+remainder as a FAILING inline-SAB probe (early return, default
+tails) — its JSON lacked materials/has_revision_guid/revision_*/
+end_marker: the 6+6 rows on Brep_AC1027, the 7+7 on Brep_AC1032.
+The write axis carried the SAME rows because the corpus rewrite
+is the byte-identical ECHO (gold_rt == gold_orig; the write rows
+were SILVER's decode of its own echoed bytes) — the defect was
+READ-SIDE ONLY, and the fix had to make the conventional
+(edited-document) arm record-identical too.
+
+(2) THE FIX — the raw-remainder form, five surfaces (the
+shsw_raw_tail precedent: the CAPTURED BITS ARE THE WRITE
+AUTHORITY, the typed tail is projection-only):
+- READER (`read_acis_entity_impl`): a new `history_sh`-gated
+  branch for wire versions outside {1,2} — no body read; the
+  COMMON tail walked with gold's EXACT gates (the silhouette
+  count INSIDE the isoline gate — gold's COMMON_3DSOLID nesting,
+  unlike the entity path; acis_empty_bit UNCONDITIONAL; the
+  materials gate on the UNSIGNED wire version — 38438 wraps
+  negative in i16 and silently skipped the 177-entry walk until
+  compared `as u16`; the material-handle reads mirroring gold's
+  overflow: < 8 handle-stream bits left → NULL, no advance);
+  then a rewind and the WHOLE tail captured verbatim
+  (`raw_tail` + `raw_tail_bit_len`, from just after the version
+  BS to the main end — 361,604 bits on AC1027, 361,588 on
+  AC1032).
+- MODEL: `AcisData` gains `raw_tail`/`raw_tail_bit_len`/
+  `raw_wire_version`/`raw_wire_unknown`/`raw_wire_acis_empty`
+  (serde-SKIP — the dump and the fingerprint never see them, the
+  `raw_dwg_data` precedent); the SH-BREP arm maps them (plus
+  `encr_sat_data`, retained for the SAT-era mints' verbatim
+  block echo).
+- WRITER (`write_brep_raw_tail` in the SH writer's Brep arm):
+  the wire head echoed verbatim (acis_empty B, unknown B,
+  version BS — the same 16 bits), then the captured tail bits
+  bit-exact, then the materials' RETAINED handles into the
+  object handle stream (gold's overflow semantics: un-retained
+  handles wrote nothing). AND THE ELIDE REMOVAL:
+  `ACSH_BREP_CLASS` joins `elided_solid_history_class`'s
+  calibrated set — the fixtures landed and the record re-emits
+  byte-faithful, the same strict-reader safety the raw
+  passthrough classes rest on (the record was DROPPED from
+  conventional rewrites before this packet).
+- NORMALIZER (the ACSH_BREP_CLASS arm): materials projected as
+  the degenerate `[0]*count` (gold's normalizer collapses every
+  REPEAT entry dict to 0 — the wires/silhouettes precedent) +
+  the six revision keys at r2013+ (has_guid 0/1, major/minor1/
+  minor2/end_marker with the UNSIGNED masks — the model's i16/i32
+  wrap gold's u16/u32 prints — and revision_bytes as the
+  uppercase hex string).
+- TESTS: `tests/sh_brep_raw_tail.rs` — three bit-exact pins
+  (the gold-measured values per mint: the 1027 revision block
+  4F28CD2D8CA50AA0/3269251716/256; the 1032's 177-entry
+  materials walk + the 101187584/40962/00000002A0000000/32778
+  revision; and the conventional-rewrite survival — head, tail
+  blob, and typed values all round-trip through DWG_NO_ECHO).
+
+(3) THE ACCEPTANCE: the six mints ALL 0/0/0/0 (Brep_AC1027
+6/6→0, Brep_AC1032 7/7→0; the quartet and ATMOS-DC22S — the
+other ACSH_BREP carrier — unchanged clean); THE RECORD-IDENTITY
+CENSUS on the conventional rewrites (DWG_NO_ECHO=1):
+Brep_AC1027 **153/153**, Brep_AC1032 **141/141**, Brep_AC1021
+**206/206**, Brep_AC1024 **203/203** — zero divergent, zero
+her-only (the BREP record now WRITES, bit-exact); THE CORPUS:
+**694 files at 0/0 fidelity + 5,510/0 struct** (the struct
+total unchanged); the suite green with the three new pins; the
+identity `f2187565…`/25,728 UNMOVED; genus `--strict`
+PENDING-ZERO (the specimen family untouched — the mints are not
+genus specimens); the four smokes 0/0/0/0.
+
+(4) THE RESIDUE (A9 re-ranked in TODO.md): (a) the struct
+key-gaps 5,510 (the R13/R14 golden key-shape class); (b) the
+SAT-era mints' SH-BREP records on the CONVENTIONAL arm —
+Brep_AC1015's +4-bit modeled-field delta (the record was elided
+before; the R2013+ mints are record-identical, the SAT-era ones
+still drift in the typed base/BD forms) and Brep_AC1014's 65
+divergent rows — the era campaign's Tier-2 record-identity
+surface, the same class as (f); (c) the class? desync-mirror
+rows; (d) PolyLine2D's last 2; (e) Surface 6 + gh44-error 18;
+(f) the R13/R14 era record-identity surface at large.
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
++ §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
+bottom, STARTING at THIS section (the file bottom), then the
+era-packet closure, then the A5/A6/A7/A8 closures, then the
+maintainer decisions, then the era-census continuation, then the
+golden-entities landing, then the b6 review, then the era-census
+addendum, then the 2026-10-02 sections bottom-up.

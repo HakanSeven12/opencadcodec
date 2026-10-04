@@ -53,12 +53,24 @@ Notes:
   than the carrier re-emissions (which carried 21/22/43-row era
   residues). The fresh content is minimal and fully inside silver's
   typed model.
-- **The R2013+ trailing region** (6–7 rows, `missing_in_silver`): the
-  BREP record's `materials` + `has_revision_guid` + `revision_*` +
+- **The R2013+ trailing region** (6–7 rows, `missing_in_silver`):
+  the BREP record's `materials` + `has_revision_guid` + `revision_*` +
   `end_marker` fields — the R2013+ trailing form silver's typed
   `ACSH_BREP_CLASS` model does not emit yet. A named raw-remainder
   packet with two clean per-version specimens (the B2/A8 pattern
   applies: dissection → typed model → bit-exact pin).
+  **CLOSED 2026-10-04 (the raw-remainder packet)**: the records'
+  wire version sits OUTSIDE {1,2} (0 at 2007–2013, 38438 at 2018) —
+  gold's unstable-class walk reads no body and walks the
+  COMMON_3DSOLID tail from the modeler blob's first bits. Silver
+  mirrors that walk (typed, projection-only) and captures the whole
+  tail verbatim as the write authority (`raw_tail` on `AcisData`,
+  serde-skipped); the BREP class joined the elide allowlist; the
+  normalizer projects the materials `[0]*count` + the six revision
+  keys. The six files read 0/0/0/0 and the conventional rewrites
+  are record-identical (153/153, 141/141, 206/206, 203/203 — the
+  R13/R2000 SAT-era mints carry a +4-bit typed-field delta on the
+  conventional arm, the era campaign's Tier-2 surface).
 - **The 2004 drop** is a container property (the same wholesale SH
   strip the carrier re-emission showed) — recorded as the refusal, not
   a writer question.

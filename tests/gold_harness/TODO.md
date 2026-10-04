@@ -95,25 +95,32 @@ net's standing users are now the never-measured kinds only).
 
 ### A9. The era-census residue
 
-**The corpus-fidelity axis is nearly closed**: after the 2026-10-03
+**The corpus-fidelity axis is CLOSED**: after the 2026-10-03
 era packet (the R13/R14 parity campaign's opening surface —
 example_r13 78→0, example_r14 20→0, the gold r14 Leader and the
-wave's Leader_r14 0/0, the golden ACIS quads 0/0), the 694-file
-corpus reads **13/13 fidelity rows — every remaining row is the BREP
-R2013+ trailing region** (Brep_AC1027 6 + Brep_AC1032 7). The
-record-identity censuses (`analysis/record_size_census.py` against a
+wave's Leader_r14 0/0, the golden ACIS quads 0/0) and the
+2026-10-04 BREP raw-remainder packet (the thirteen rows fell —
+the ACSH_BREP_CLASS raw-remainder form mirrored, the tail
+captured verbatim as the write authority, the BREP class
+un-elided; the record-identity censuses on the conventional
+rewrites: Brep_AC1027 153/153, Brep_AC1032 141/141, Brep_AC1021
+206/206, Brep_AC1024 203/203), the 694-file
+corpus reads **0/0 fidelity rows — the first fully-clean
+corpus**. The record-identity censuses
+(`analysis/record_size_census.py` against a
 `DWG_NO_ECHO=1` rewrite — a separate axis) leave these surfaces,
 ranked by size:
 
-1. The BREP R2013+ trailing region — the brep dataset's thirteen
-   corpus rows: the `materials`, `has_revision_guid`, `revision_*`
-   and `end_marker` fields that silver's typed ACSH_BREP_CLASS model
-   does not emit yet. The two brep specimens are the clean
-   per-version pair for a raw-remainder packet (the B2/A8 pattern:
-   dissect, model typed, pin bit-exact).
-2. The struct-axis key gaps — 5,510 read key-gaps, the bulk on the
+1. The struct-axis key gaps — 5,510 read key-gaps, the bulk on the
    era files and the R13/R14 golden files (the key-shape class;
    untouched by the fidelity fixes).
+2. The SAT-era mints' SH-BREP records — Brep_AC1015's record
+   carries a +4-bit modeled-field delta on the conventional
+   rewrite (the record was ELIDED before the 2026-10-04 packet;
+   the R2013+ mints are record-identical, the SAT-era ones still
+   drift in the typed base/BD forms) and Brep_AC1014's 65
+   divergent rows are the R13-era Tier-2 surface — both the
+   era campaign's record-identity work, the same class as item 6.
 3. The `class?` desync-mirror rows — eight on entities-2d and seven
    on entities-3d (the B1-era mojibake family).
 4. PolyLine2D's last two POLYLINE_2D crc rows.
