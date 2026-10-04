@@ -259,8 +259,9 @@ Both campaigns are closed at zero: gold-vs-silver **parser parity**
 (read 0 / write 0 across all 694 corpus files — the 2026-10-04 BREP
 raw-remainder packet closed the last rows, the first fully-clean
 corpus; the structure key-gap axis sits at its recorded standing
-total, 5,510 read / 0 write, the §19.5-era key-shape queue tracked
-in `TODO.md` A9) and the **strict-load
+total, 6 read / 0 write — the 2026-10-04 R13/R14 header raw-mirror
+packet collapsed it from 5,510, leaving only the `class?`
+desync-mirror family tracked in `TODO.md` A9) and the **strict-load
 zero** (the generated 30-entity file opens in BricsCAD via plain
 `_open` with no modal error and no warnings). Every upstream change
 must keep both at zero. Run this gate, in order, before committing
@@ -334,14 +335,16 @@ by-type tables):
 Files: 694
 Read-fidelity diffs: 0
 Write-fidelity diffs: 0
-Structure read key-gaps: 5510
+Structure read key-gaps: 6
 Structure write key-gaps: 0
 ```
 
 The fidelity zeros are strict (the 2026-10-04 BREP raw-remainder
-packet closed the last 13 rows — the first fully-clean corpus); the
-structure totals are the recorded standing state (the R13/R14
-golden key-shape class, tracked in `TODO.md` A9) — they must not
+packet closed the last 13 rows — the first fully-clean corpus);
+the structure totals are the recorded standing state (the
+R13/R14 header raw-mirror packet collapsed the axis from 5,510 to
+6 the same day; the residue is the `class?` desync-mirror family
+tracked in `TODO.md` A9) — they must not
 move either. Also inspect one diff JSON for residues: any leftover
 row class the
 normalizers don't host (gold-only `unknown_bits` kept residuals are

@@ -4,9 +4,13 @@ Status: **the corpus-fidelity axis is at ZERO across all 694 files —
 THE FIRST FULLY-CLEAN CORPUS (the 2026-10-04 BREP raw-remainder
 packet closed the last 13 rows on the mints' ACSH_BREP_CLASS
 records; the conventional rewrites record-identical on all four
-R2007+ mints) — with the structure key-gap axis at 5,510 read /
-0 write (the R13/R14 golden key-shape class, the §19.5 Tier-2
-campaign's continuing surface, TODO.md A9); the §20 genus-gate queue is
+R2007+ mints) — with the structure key-gap axis at 6 read /
+0 write (the 2026-10-04 R13/R14 header raw-mirror packet collapsed
+the axis from 5,510: the R13/R14 era files' 49/50-per-file HEADER
+key-shape class — the missing raw-mirror population for the era's
+header variables — and the SecondHeader junk_r14 alignment family
+both fell; the remaining six rows are the `class?` desync-mirror
+family, TODO.md A9); the §20 genus-gate queue is
 PENDING-ZERO with `--strict`; and the strict-loader campaign it drove is
 CLOSED ON BOTH LOADERS (2026-09-30): every constructed fixture reads
 MODELED with real extents and clean audits under BricsCAD V26 AND
@@ -22,8 +26,8 @@ the
 record-identity censuses all-zero on every measured era specimen, and
 the rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
-remaining queue: TODO.md A9 — the struct key-gaps 5,510 (the
-R13/R14 golden key-shape class), the `class?` desync rows,
+remaining queue: TODO.md A9 — the struct key-gaps 6 (the `class?`
+desync-mirror family, all that is left of the 5,510 axis),
 PolyLine2D's last 2, Surface 6, gh44-error 18, and the era
 campaign's Tier-2 record-identity surface (the SAT-era mints'
 SH-BREP conventional-arm delta the 2026-10-04 packet surfaced;

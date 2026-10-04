@@ -13,8 +13,10 @@ The large measured campaigns are closed and hold their zeros: parser
 parity, the strict loader probes, the ACS/SH solid-history work, and
 the §20 genus gates (pending-zero under `--strict`; the cargo mirror
 green — A7 closed, the pin regenerated to the grown specimen family).
-The suite passes 1,624 tests with none failing (the three
-`sh_brep_raw_tail` pins of the 2026-10-04 BREP packet included), and
+The suite passes 1,627 tests with none failing (the three
+`sh_brep_raw_tail` pins of the 2026-10-04 BREP packet and the three
+`r13_14_header_raw_mirror` pins of the same day's header raw-mirror
+packet included), and
 the generation identity is stable at
 `f2187565…` over 25,728 bytes.
 
@@ -36,8 +38,9 @@ example_r13 78, example_r14 20, the gold r14 Leader 4, and the
 wave's Leader_r14 1 — while the other forty wave files and the gold
 r14 Constraints/v read 0/0 (the era-census continuation's R13/R14
 gates had already absorbed most of the previously recorded
-89/153/149). The struct read key-gaps stand at 5,510 (the era files
-carry the bulk). Both genus surfaces are green (the python
+89/153/149). The struct read key-gaps stand at 6 (the `class?`
+desync-mirror family only — the 2026-10-04 R13/R14 header
+raw-mirror packet collapsed the axis from 5,510). Both genus surfaces are green (the python
 `--strict` gates pending-zero; the cargo mirror's pin regenerated
 and reviewed 2026-10-03).
 
@@ -113,18 +116,35 @@ corpus**. The record-identity censuses
 `DWG_NO_ECHO=1` rewrite — a separate axis) leave these surfaces,
 ranked by size:
 
-1. The struct-axis key gaps — 5,510 read key-gaps, the bulk on the
-   era files and the R13/R14 golden files (the key-shape class;
-   untouched by the fidelity fixes).
+1. CLOSED 2026-10-04 — the struct-axis key gaps collapsed 5,510 → 6
+   by the R13/R14 header raw-mirror packet: the era files'
+   49/50-per-file HEADER key-shape class (the reader walked every
+   R13/R14 wire slot but never populated the gold-JSON raw mirror
+   for the era's variables — unknown_10, DIMSAV, BLIPMODE,
+   ATTREQ/ATTDIA, WIREFRAME, DELOBJ, DRAGMODE, OSMODE, COORDS,
+   PICKSTYLE, the R13/R14 DIM block, the DIMTXSTY handle, the
+   DIMPOST/DIMAPOST/DIMBLK*_T quintet) and the SecondHeader
+   junk_r14 family (gold's bit_check_CRC aligns to the byte
+   boundary before the CRC read; silver read at the bit position,
+   so the trailing junk word read shifted bytes on every mid-byte
+   walk). The writer's four no-model slots (unknown_10, DIMSAV,
+   WIREFRAME, DIMUNIT) now replay the captured wire value per the
+   §19 H7 rule. The six remaining rows ARE item 3.
 2. The SAT-era mints' SH-BREP records — Brep_AC1015's record
    carries a +4-bit modeled-field delta on the conventional
    rewrite (the record was ELIDED before the 2026-10-04 packet;
    the R2013+ mints are record-identical, the SAT-era ones still
    drift in the typed base/BD forms) and Brep_AC1014's 65
    divergent rows are the R13-era Tier-2 surface — both the
-   era campaign's record-identity work, the same class as item 6.
+   era campaign's record-identity work, the same class as the
+   example_r13/r14 conventional-rewrite census rows (all
+   pre-existing, proven by the file-swap A/B at this packet's
+   halt).
 3. The `class?` desync-mirror rows — eight on entities-2d and seven
-   on entities-3d (the B1-era mojibake family).
+   on entities-3d (the B1-era mojibake family) — now the whole
+   remaining struct axis (six rows at the report-total level); the
+   2004-era tables' FileDepList-features rows share the same
+   gold-side-walk-quirk class.
 4. PolyLine2D's last two POLYLINE_2D crc rows.
 5. Surface.dwg's six rows (the §18 surface family) and gh44-error's
    eighteen (the pathological file: six LEADER records with a 2-bit

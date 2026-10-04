@@ -25,7 +25,9 @@
 # 2013's gh109_1 (664/664) and 2004's HatchG (229/229) closed;
 # the established 401-file population at ZERO fidelity rows (the
 # A5 closure); the record-census axis's residue: the struct
-# key-gaps 5,510, the class? desync rows, PolyLine2D's last 2,
+# key-gaps 6 (the class? desync-mirror family only — the R13/R14
+# HEADER RAW-MIRROR PACKET, 2026-10-04 afternoon, collapsed the
+# axis from 5,510), PolyLine2D's last 2,
 # Surface 6, gh44-error 18, the SAT-era mints' SH-BREP
 # conventional-arm delta (the era campaign's Tier-2
 # record-identity surface)**:
@@ -84,14 +86,27 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read THE 2026-10-04 BREP RAW-REMAINDER PACKET at
-# this file's BOTTOM first (the A9 head closed: the ACSH_BREP_CLASS
-# raw-remainder form mirrored — the wire version outside {1,2},
-# gold's unstable-class walk reads no body and walks the
-# COMMON_3DSOLID tail from the modeler blob's first bits — the
+# section below), read THE 2026-10-04 R13/R14 HEADER RAW-MIRROR
+# PACKET at this file's BOTTOM first (the A9 struct-axis head
+# closed: the AXIS COLLAPSED 5,510 → 6 — the R13/R14 era files'
+# 49/50-per-file HEADER key-shape class fell with the raw-mirror
+# population of the era's header variables [unknown_10, DIMSAV,
+# BLIPMODE, ATTREQ/ATTDIA, WIREFRAME, DELOBJ, DRAGMODE, OSMODE,
+# COORDS, PICKSTYLE, the R13/R14 DIM block, the DIMTXSTY handle,
+# the DIMPOST/DIMAPOST/DIMBLK*_T quintet — the reader walked every
+# slot typed but never populated the gold-JSON mirror], and the
+# SecondHeader junk_r14 family fell with the byte-boundary align
+# mirror [gold's bit_check_CRC aligns before the CRC read; the
+# writer's four no-model slots replay the captured wire values
+# per §19 H7]; the six remaining rows are the class? desync-mirror
+# family, all pre-existing), then THE 2026-10-04 BREP
+# RAW-REMAINDER PACKET (the A9 record-axis head closed: the
+# ACSH_BREP_CLASS raw-remainder form mirrored — the wire version
+# outside {1,2}, gold's unstable-class walk reads no body and walks
+# the COMMON_3DSOLID tail from the modeler blob's first bits — the
 # tail captured verbatim as the write authority, the BREP class
 # un-elided, the conventional rewrites record-identical; THE
-# 694-FILE CORPUS NOW READS 0/0 FIDELITY, THE FIRST FULLY-CLEAN
+# 694-FILE CORPUS READS 0/0 FIDELITY, THE FIRST FULLY-CLEAN
 # CORPUS), then THE 2026-10-03 ERA-PACKET CLOSURE (the R13/R14
 # parity campaign's opening surface closed: example_r13 78→0,
 # example_r14 20→0, the Leaders 0/0, the golden ACIS quads 0/0;
@@ -2564,8 +2579,10 @@ era specimens (the era censuses all-zero).
   authoritative split); report.json totals are authoritative:
   **read/write fidelity 0/0 (the 2026-10-04 BREP raw-remainder
   packet closed the last 13 rows — the first fully-clean corpus);
-  structure key-gaps 5,510 read / 0 write (the R13/R14 golden
-  key-shape class — TODO.md A9's continuing queue)**, WITH the
+  structure key-gaps 6 read / 0 write (the class? desync-mirror
+  family — the 2026-10-04 R13/R14 header raw-mirror packet
+  collapsed the axis from 5,510; TODO.md A9's continuing
+  queue)**, WITH the
   genus sections (`sab_form_diffs` 3 rows — 0 pending / 3
   adjudicated-TOLERATED; `sh_genus_diffs` 1 row — 0 pending / 1
   TOLERATED, the elide marker; `acds_genus_diffs` 0 — CLOSED) as
@@ -4701,3 +4718,129 @@ The A1 genus packets (the close-pad/ownerhandle capture and
 replay, landed after that residue was recorded) absorbed it
 without ever being credited.** The status header now records it
 as resolved-by-measurement; no code changed in this pass.
+
+## THE 2026-10-04 R13/R14 HEADER RAW-MIRROR PACKET (the A9
+## struct-axis head closed — the axis collapsed 5,510 → 6; read
+## this FIRST, then the BREP raw-remainder packet above it):
+
+The afternoon session opened at the recorded halt state — the
+battery re-verified it live (the suite 1,621/0; gold_roundtrip
+ok; the genus cargo mirror ok; issue80 ok; the identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 unmoved; genus
+`--strict` PENDING-ZERO at 3/1/0 TOLERATED; the four family
+smokes 0/0/0/0; the corpus 694 files at 0/0 fidelity +
+5,510/0 struct) — and took TODO.md A9's struct-axis head: the
+R13/R14 golden key-shape class. **THE PACKET COLLAPSED THE
+STRUCT AXIS FROM 5,510 TO 6 — the residue is the `class?`
+desync-mirror family only.**
+
+(1) THE DISSECTION (report.json's `struct_census_per_key` named
+the class in one query: HEADER `read_missing_other` 5,439 of the
+5,510 total; the per-file split showed ONE UNIFORM CLASS —
+exactly 49 missing HEADER leaves on every R13 file, exactly 50
+on every R14 file, across the whole era population [the golden
+AC1012/AC1014 quads, the r13_r14 wave, example_r13/r14, the gold
+r14 dir]; the small-class rows [the 2004-dir CLASSES pairs, the
+2004/Leader FileDepList trio, the OLE2/Xref singles] were the
+known mojibake families). The census's own leaf listing (the
+struct_axis flatten + the CMC projection) named the 49 keys:
+the R13/R14-era header variables gold prints that silver's
+`DwgHeaderRaw` mirror (§19 H3) never carried.
+
+(2) THE ROOTS — two, both read-side:
+- **THE RAW-MIRROR POPULATION GAP** (the 49 keys): silver's
+  header reader WALKS every R13/R14 wire slot (the typed
+  `HeaderVariables` stayed positioned — the common fields all
+  matched, so the reads were never wrong) but the
+  `r13_14_only` arms either read into `h` only (BLIPMODE,
+  ATTREQ/ATTDIA, DELOBJ, DRAGMODE, OSMODE, COORDS, PICKSTYLE,
+  the whole R13/R14 DIM block, the DIMPOST/DIMAPOST/DIMBLK*_T
+  quintet) or discarded the slot entirely (`let _` for
+  unknown_10, DIMSAV, WIREFRAME, DIMUNIT). THE FIX: 16 new
+  `DwgHeaderRaw` fields (unknown_10, DIMSAV, BLIPMODE, ATTREQ,
+  ATTDIA, WIREFRAME, DELOBJ, DRAGMODE, OSMODE, COORDS,
+  PICKSTYLE, DIMFIT, DIMUNIT, DIMBLK_T, DIMBLK1_T, DIMBLK2_T —
+  the DIM block's other 27 siblings plus DIMPOST/DIMAPOST and
+  the DIMTXSTY handle already existed, populated only at
+  R2000+), the reader populates `raw` alongside `h` in every
+  `r13_14_only` arm (era-gated by construction — the fields
+  stay `None` on every other era, so no extra keys appear
+  anywhere else), and THE WRITER: the four no-model slots
+  (unknown_10, DIMSAV, WIREFRAME, DIMUNIT — previously
+  hardcoded 0/false) now splice the captured wire value per
+  the §19 H7 capture-replay rule (constructed documents keep
+  the identical defaults; the now-dead `read_handle` wrapper
+  removed). The DIMTXSTY switch from `read_handle` to
+  `read_handle_raw` is cursor-neutral (the same bytes).
+- **THE SECONDHEADER junk_r14 ALIGN** (the R14 files' 50th row
+  and the corpus's SecondHeader value-diff family): gold's
+  `bit_check_CRC` (bits.c:1548) aligns to the next byte
+  boundary before reading the CRC (`if (dat->bit > 0) {
+  dat->byte++; dat->bit = 0; }`) — the SecondHeader walk ends
+  mid-byte (the BS num_handlers leaves the cursor between
+  boundaries and the raw tail reads preserve the shift), so
+  gold's CRC starts at the boundary while silver's
+  `read_raw_short` read at the bit position — and the trailing
+  `junk_r14` RLL read different bytes on every mid-byte walk
+  (the 2004-dir stem workdirs showed the same class). THE
+  FIX: byte-align before the CRC read — with silver's
+  position model, `set_position(position())` is exactly
+  gold's `byte++; bit=0`. The writer never consumes the
+  second header (verified by grep) — read-side only.
+
+(3) THE ACCEPTANCE: the spot pairs first (Line_AC1014 50→0,
+example_r13 49→0, example_r14→0, example_2000 held 0/0), then
+THE FULL BATTERY: the suite **1,627/0** with three new
+bit-exact pins (tests/r13_14_header_raw_mirror.rs — the
+Line_AC1014 measured values [unknown_10=256, the '11' BS
+code; OSMODE 37 vs the R13 genus 4149; the whole DIM family;
+DIMTXSTY (5,1,17,17)], the Line_AC1012 pins, and the
+DWG_NO_ECHO conventional-rewrite survival through the writer's
+new splices); gold_roundtrip ok; the genus cargo mirror ok;
+issue80 ok; the four family smokes 0/0/0/0; THE CORPUS:
+**694 files, fidelity 0/0, struct read key-gaps 5,510 → 6**
+(the six = the `class?` desync-mirror rows at the
+report-total level; the per-file residual rows [the 2004-dir
+CLASSES pairs, the FileDepList trio, the OLE2/Xref singles]
+are the same gold-side desync class at the stem-collision
+scale); genus 3/1/0 PENDING-ZERO with `--strict`; the identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED (the
+splices default identically on constructed content; the
+reader changes never touch the generation path; the
+fingerprint excludes `dwg_header_raw` — the echo untouched).
+
+(4) THE A/B (the zero-keeping rule — the era record census
+[DWG_NO_ECHO=1, analysis/record_size_census.py] on
+example_r13/example_r14 showed large divergent counts: 2073
+paired/328 identical/1745 divergent and 832/740/92): the
+file-swap A/B against the HEAD sources measured IDENTICAL
+numbers pre-packet — THE ROWS ARE THE PRE-EXISTING R13/R14
+CONVENTIONAL-ARM TIER-2 RECORD-IDENTITY SURFACE (TODO A9 item
+2), untouched by this packet; the attribution recorded (the
+header reader/writer changes cannot move OBJECTS records, and
+the splices only alter the header section's own bits — on
+authored R14 256-class files the conventional rewrite now
+replays the author's bytes where it previously wrote 0).
+
+(5) THE RESIDUE (A9 re-ranked): the struct axis's six rows
+(the `class?` desync-mirror family — gold's own desynced walk
+reads a 149-char entry-9 appname TV where the mirror reads a
+0-length at the same cursor arithmetic; closing them means
+mirroring gold's own desync, the seventeenth continuation's
+instrument trail); the record-census queue unchanged
+(PolyLine2D's last 2, Surface 6, gh44-error 18, the SAT-era
+SH-BREP conventional-arm delta, the era Tier-2 surface at
+large). The docs reconciled: README (the zero-keeping intro
++ step 4's expected block), IMPLEMENTATION (the Status header
++ the remaining-queue sentence), TODO (the A9 items 1/3 +
+the preface count), and this file's header/standing-facts.
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md
+§7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+file top to bottom, STARTING at THIS section (the file bottom),
+then the same-day review pass, then the BREP raw-remainder
+packet, then the era-packet closure, then the A5/A6/A7/A8
+closures, then the maintainer decisions, then the era-census
+continuation, then the golden-entities landing, then the b6
+review, then the era-census addendum, then the 2026-10-02
+sections bottom-up.
