@@ -1,26 +1,28 @@
-# THE 2026-10-03 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
+# THE 2026-10-04 SESSION-HALT HANDOVER (the ZERO-CONTEXT entry
 # point — START HERE, then read AGENTS.md, then IMPLEMENTATION.md
 # §7/§8.1+§20 (all of it), §19.4/§19.5, §18.6+§F2, then this file
 # bottom-up per the FIRST ACTION pointer below): THE CAMPAIGN
-# STATE — **A1, A2, A3, A5, B1, B2 AND B5 ARE CLOSED, A8's 42
-# HALF IS CLOSED (TYPED), B4 IS FALSIFIED (THE FROM-SCRATCH MINTS),
-# B6 IS THE PURE WATCH (every authoring route measured dead) —
-# THE 2018 ERA IS AT
-# FULL RECORD IDENTITY (0/50,773), AND THE 2010 ERA TOO (gh209_1
-# 166/166), WITH 2013's gh109_1 (664/664) AND 2004's HatchG
-# (229/229) CLOSED AT THE MORNING PACKETS; **C4 REOPENED** (THE
-# GOLDEN-ENTITIES CAMPAIGN — 221 FIXTURES ACROSS 8 VERSIONS; THE
-# 648-FILE CORPUS AT 24/24 FIDELITY, THE GOLDEN RESIDUE = THE
-# R13/R14 ACIS CLASS + LEADER_AC1014's ROW); THE COVERAGE-GAP
-# ENTITY FAMILY
-# READS TYPED (THE FIXTURE CORPUS AT 61/65 FULLY CLEAN), THE
-# SUBCURVE ACTION-TYPE LADDER IS MODELED (FOUR KINDS TYPED
-# BIT-EXACT — ARC 11, ELLIPSE 17, LINESEG3D 23, NURB3D 42 (the
-# 2026-10-02 A8 closure: the grammar named, era-stable, the helix
-# Rosetta verification); 47 NETTED BY CAPTURE+REPLAY; 19/27
-# ATTESTED NOWHERE — the b6_routes drop measured every route
-# dead, the capture+replay net keeps any future specimen
-# safe)**:
+# STATE — **EVERY TODO ITEM IS CLOSED OR SHRUNK TO ITS NAMED
+# RESIDUE: A1, A2, A3, A5, B1, B2 AND B5 CLOSED; A4 DEAD (C3 —
+# the pre-R13 reject stays); A6 CLOSED (the no-lz77 arm completes
+# on 2013+); A7 CLOSED (the genus pin regenerated, the mirror
+# green); A8 CLOSED (the composite 47 typed — the subcurve ladder
+# now FIVE kinds bit-exact: ARC 11, ELLIPSE 17, LINESEG3D 23,
+# NURB3D 42, COMPOSITE 47; 19/27 attested nowhere, every route
+# measured dead, the net keeps any future specimen safe); B4
+# FALSIFIED (the from-scratch mints); B6 the pure watch; the
+# R13/R14 parity campaign OPEN (C2) with its opening surface
+# CLOSED (example_r13 78→0, example_r14 20→0, the Leaders 0/0,
+# the golden ACIS quads 0/0) — **THE 694-FILE CORPUS READS 13/13
+# FIDELITY: every remaining row is the BREP R2013+ trailing
+# region (Brep_AC1027 6 + Brep_AC1032 7), the named
+# raw-remainder packet**; the 2018 era at full record identity
+# (0/50,773), the 2010 era too (gh209_1 166/166), 2013's gh109_1
+# (664/664) and 2004's HatchG (229/229) closed; the established
+# 401-file population at ZERO fidelity rows (the A5 closure);
+# the record-census axis's residue: the struct key-gaps 5,510,
+# the class? desync rows, PolyLine2D's last 2, Surface 6,
+# gh44-error 18**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -76,8 +78,18 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read THE 2026-10-03 ERA-CENSUS CONTINUATION at this
-# file's BOTTOM first (the "shrink TODO.md" directive's twelve-packet
+# section below), read THE 2026-10-03 ERA-PACKET CLOSURE at this
+# file's BOTTOM first (the R13/R14 parity campaign's opening
+# surface closed: example_r13 78→0, example_r14 20→0, the Leaders
+# 0/0, the golden ACIS quads 0/0 — the 694-file corpus now reads
+# 13/13 fidelity, every remaining row the BREP R2013+ trailing
+# region; the regression-repair pass and the version-shadowing
+# lesson recorded), then the A5/A6/A7/A8 CLOSURES (the "eliminate
+# open tasks" directive: the LIGHT/UNKNOWN_OBJ rows, the no-lz77
+# DataStore registration, the genus pin regeneration, the composite
+# 47 typed), then the maintainer decisions (C1/C2/C3 — the era
+# campaign OPEN), then THE 2026-10-03 ERA-CENSUS CONTINUATION
+# (the "shrink TODO.md" directive's twelve-packet
 # day — the golden corpus collapsed 5825→24/24 fidelity rows and the
 # b6 review's two normalizer projections landed: the R13/R14
 # gates, the vertex chain retention, the TV plain-form, the XRECORD
@@ -93,7 +105,7 @@
 # maintainer's next fixture
 # drop — then the B5 closure, then the A8 closure, then the
 # SweepSurf landing), then TODO.md (REWRITTEN 2026-10-03 in plain
-# prose: the open items A5-A9, the fixture-needed verdict "none",
+# prose: the open item A9 only, the fixture-needed verdict "none",
 # the guardrails; the finished items and the recorded maintainer
 # decisions live in its preface's closed-list and IMPLEMENTATION.md
 # §19.5 respectively),

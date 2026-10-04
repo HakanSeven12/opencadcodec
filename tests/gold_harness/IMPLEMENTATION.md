@@ -7298,10 +7298,18 @@ example_r13 78, example_r14 20, the gold r14 Leader 4, the
 wave's Leader_r14 1 — **with the other forty wave files and the
 gold r14 Constraints/v at 0/0** (the 2026-10-03 era-census
 continuation's R13/R14 gates had already absorbed most of the
-recorded 89/153/149). The campaign's work surface is therefore
-example_r13/example_r14's real-world rows plus the four-file
-Leader residue — the per-record pair diff is the next packet's
-opening move, per the H8b/H8d tradition.
+recorded 89/153/149). **THE OPENING SURFACE IS CLOSED (the same
+day's era packet — see the session chain's arc (6) below)**:
+example_r13 78→0, example_r14 20→0, the Leaders 0/0, the golden
+ACIS quads 0/0 — the five projection classes (the
+ATTRIB/SEQEND/WIPEOUT gates, the PROXY_OBJECT version split,
+the TABLEGEOMETRY cells gate, the LEADER wire fields, the v1 SAT
+list from the wire) each measured against gold's own
+spec/decoder. The corpus-fidelity axis now reads 13/13 across
+694 files — every remaining row the BREP R2013+ trailing
+region; the campaign's continuing surface is the record-census
+queue (the struct key-gaps, the class? desync rows, the named
+per-file residues) in TODO.md's A9.
 
 **TIER 3 — Pre-R13 (AC1009 and older: R11/R10/R9/R2.6/R2.10/
 R1.4): UNSUPPORTED IN SILVER — AND GOLD DECODES NOTHING THERE
@@ -9184,3 +9192,73 @@ typed model; AC1027 6/AC1032 7 — the R2013+ trailing region,
 the named raw-remainder packet with two clean per-version
 specimens). B4's item (TODO.md) carries the falsification record
 and the engine dialect map.
+
+**(5) The open-task eliminations** (the "eliminate open tasks in
+TODO.md step-by-step" directive, four packets landed and
+committed): **A5** — the eight pre-existing corpus rows: the
+LIGHT rows' CMC method projection (gold's raw record carries the
+rgb word's method byte 0xC3 = truecolor-indexed, the real ACI in
+the low byte; the normalizer projects gold's own collapse
+semantics) and the UNKNOWN_OBJ rows' root (the Wipeout_2004
+record's wire is malformed — the num_reactors BL hits the invalid
+'11' code → 256 against a 33-bit handle stream; the reader now
+mirrors gold's common_object_handle_data.spec 23-33 availability
+check, aborting to the zeroed struct, and the normalizer emits
+gold's zeroed JSON form) — **the established 401-file population
+now measures zero fidelity rows**. **A6** — the `--no-lz77`
+DataStore blocker: the AcDs section registered in the AC21
+writer's tables (hash 0 — the hash is inert, every reader
+resolves sections from the map by name; page size 0x7400 and
+encoding 4 from gold's own decode comment); the arm completes on
+2013+ authored files. **A7** — the genus cargo pin: the drift was
+the fixture family's growth (136→148 SAB carriers — the
+2026-10-02/03 drops), not the 2026-09-30 writer session as the
+item suspected; the elliptical quads joined the existing classes
+with unchanged widths, the four recorded anomalies are the new
+SweepHelix spline-surface records (an extraction-surface
+limitation honestly pinned); the pin regenerated, the cargo
+mirror GREEN. **A8** — the composite (47) subcurve named and
+typed: the segment-list grammar (`BL num_segments`, per segment
+`BS kind` — 23: absolute start 3BD + displacement 3BD; 11: the
+full arc form inline with the R2013+ two-bit trailing tail),
+verified bit-exact on all carriers (the rectangle profiles
+era-stable, the 3D profiles, RevolvePline's mixed stadium
+profile); the reader gates on count/kinds/tail/closure with the
+verbatim net as fallback; six carrier files record-identical;
+three bit-exact test pins — **the subcurve ladder now five kinds
+bit-exact**.
+
+**(6) The era-packet closure** (the R13/R14 parity campaign's
+opening surface — C2's first work): the opening census's 103
+rows closed in five projection classes + one wire-decode
+projection, each measured against gold's own spec/decoder —
+the ATTRIB/SEQEND/WIPEOUT R13/R14 gates (the kids' decoder-default
+emission, the insert-chained SEQEND's isbylayerlt, WIPEOUT's
+class_version at every era); the PROXY_OBJECT R13/R14 split
+(dwg.spec 5752: the wire field is `version`, the split pair
+derived, from_dxf R2000b+, an empty objids array prints nowhere);
+the TABLEGEOMETRY cells era gate (R13 prints none, R14+ prints
+it); the LEADER R13/R14 wire fields (dimgap/dimasz are authored
+wire fields — the style-table synthesis was the golden quads'
+coincidence; endptproj's slot spans AC1014..AC1021; hookline_on
+is gold's decoder COMPUTATION, dwg.c 3756, at every era); and the
+v1 SAT list from the wire (gold's json_3dsolid splits the decoded
+wire stream — the terminator record is IN the R13/AC1012 streams
+and ABSENT from the R14/R2000 streams; the projection decodes the
+retained raw blocks with the 159-cipher). The first battery
+caught four regressions (the terminator append, the endptproj
+ZERO default at R13, the cells gate's era span, and the 3DSOLID
+branch's `version` shadowing — the era gates must use the
+top-level predicates), all repaired. ACCEPTANCE: example_r13
+78→0, example_r14 20→0, the gold r14 Leader and the wave's
+Leader_r14 0/0, the golden ACIS quads 0/0 — **the 694-file
+corpus reads 13/13 fidelity: every remaining row is the BREP
+R2013+ trailing region** (Brep_AC1027 6 + Brep_AC1032 7, the
+named raw-remainder packet's two clean specimens). The battery:
+the suite 1,621/0 (the subcurve file 11 tests); genus
+PENDING-ZERO with `--strict`; the identity f2187565/25,728
+unmoved. The full packet records: NEXT_SESSION.md's era-packet
+closure + the A5/A6/A7/A8 closures (the file bottom); TODO.md's
+A9 carries the remaining record-census queue (the struct
+key-gaps 5,510, the class? desync rows, PolyLine2D's last 2,
+Surface 6, gh44-error 18).
