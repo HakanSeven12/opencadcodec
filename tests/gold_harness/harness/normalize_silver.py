@@ -1110,6 +1110,10 @@ def normalize_silver(
     # the common entity's isbylayerlt bit, the LAYER flag bits, the
     # DIMSTYLE R13 block, BLOCK_HEADER's layout/description/xref_loaded).
     r13_14 = isinstance(version, str) and version in ("AC1012", "AC1014")
+    # AC1014+ (the endptproj wire slot's floor; the 3DSOLID branch below
+    # rebinds `version` to the ACIS version int, so era gates inside the
+    # loops must use these predicates, never the shadowed variable).
+    r14_plus = isinstance(version, str) and version >= "AC1014"
 
     out: List[Dict[str, Any]] = []
 
@@ -1788,50 +1792,71 @@ def normalize_silver(
                     # default) — a real all-zero [0,0] alignment is
                     # PRESENT on the wire (entities-2d).
                     _raw_df = a.pop("raw_dataflags", None)
-                    if isinstance(_raw_df, int):
-                        df = int(_raw_df) & 0xFF
-                    else:
-                        df = 0x01 if _iz(_ipz) else 0
-                        _ains = _nv if (_nv is not None and isinstance(_nv, list)) else None
-                        if apn is None or (
-                            isinstance(apn, list) and _ains is not None
-                            and all(abs(float(ac) - float(ic)) < 1e-9
-                                    for ac, ic in zip(apn[:2], _ains[:2]))):
-                            df |= 0x02
-                        if _iz(obl):
-                            df |= 0x04
-                        if _iz(rot):
-                            df |= 0x08
-                        if wf is None or (isinstance(wf, (int, float)) and abs(float(wf) - 1.0) < 1e-9):
-                            df |= 0x10
-                        if gen in (None, 0, "Normal"):
-                            df |= 0x20
-                        if ha in (None, 0, "Left"):
-                            df |= 0x40
-                        if va in (None, 0, "Baseline"):
-                            df |= 0x80
-                    rec["dataflags"] = df
-                    if not (df & 0x01):
-                        rec["elevation"] = normalize_float(_ipz)
-                    if not (df & 0x02) and apn is not None:
-                        if isinstance(apn, list) and len(apn) > 2:
-                            apn = apn[:2]
-                        rec["alignment_pt"] = apn
                     _AH = {"Left": 0, "Center": 1, "Right": 2, "Aligned": 3,
                            "Middle": 4, "Fit": 5}
                     _VA = {"Baseline": 0, "Bottom": 1, "Middle": 2, "Top": 3}
-                    if not (df & 0x08) and rot is not None:
-                        rec["rotation"] = normalize_float(rot)
-                    if not (df & 0x04) and obl is not None:
-                        rec["oblique_angle"] = normalize_float(obl)
-                    if not (df & 0x10) and wf is not None:
-                        rec["width_factor"] = normalize_float(wf)
-                    if not (df & 0x20) and gen is not None:
-                        rec["generation"] = gen
-                    if not (df & 0x40) and ha is not None:
-                        rec["horiz_alignment"] = _AH.get(str(ha), ha) if isinstance(ha, str) else ha
-                    if not (df & 0x80) and va is not None:
-                        rec["vert_alignment"] = _VA.get(str(va), va) if isinstance(va, str) else va
+                    if r13_14:
+                        # gold R13/R14 ATTRIB: no dataflags byte on the
+                        # wire — the decoder emits every conditional field
+                        # with its default (the TEXT/ATTDEF R13/R14 rule;
+                        # example_r14's ATTRIB kids: elevation 0.0,
+                        # oblique 0.0, rotation 0.0, width_factor 1.0,
+                        # generation 0, the alignments 0) plus the era's
+                        # isbylayerlt (the by-layer ltype default reads 1).
+                        rec["isbylayerlt"] = 1
+                        rec["elevation"] = normalize_float(_ipz)
+                        if apn is not None:
+                            if isinstance(apn, list) and len(apn) > 2:
+                                apn = apn[:2]
+                            rec["alignment_pt"] = apn
+                        rec["oblique_angle"] = normalize_float(obl if obl is not None else 0.0)
+                        rec["rotation"] = normalize_float(rot if rot is not None else 0.0)
+                        rec["width_factor"] = normalize_float(wf if wf is not None else 1.0)
+                        rec["generation"] = 0 if gen in (None, 0, "Normal") else gen
+                        rec["horiz_alignment"] = _AH.get(str(ha), ha) if isinstance(ha, str) else (ha if ha is not None else 0)
+                        rec["vert_alignment"] = _VA.get(str(va), va) if isinstance(va, str) else (va if va is not None else 0)
+                    else:
+                        if isinstance(_raw_df, int):
+                            df = int(_raw_df) & 0xFF
+                        else:
+                            df = 0x01 if _iz(_ipz) else 0
+                            _ains = _nv if (_nv is not None and isinstance(_nv, list)) else None
+                            if apn is None or (
+                                isinstance(apn, list) and _ains is not None
+                                and all(abs(float(ac) - float(ic)) < 1e-9
+                                        for ac, ic in zip(apn[:2], _ains[:2]))):
+                                df |= 0x02
+                            if _iz(obl):
+                                df |= 0x04
+                            if _iz(rot):
+                                df |= 0x08
+                            if wf is None or (isinstance(wf, (int, float)) and abs(float(wf) - 1.0) < 1e-9):
+                                df |= 0x10
+                            if gen in (None, 0, "Normal"):
+                                df |= 0x20
+                            if ha in (None, 0, "Left"):
+                                df |= 0x40
+                            if va in (None, 0, "Baseline"):
+                                df |= 0x80
+                        rec["dataflags"] = df
+                        if not (df & 0x01):
+                            rec["elevation"] = normalize_float(_ipz)
+                        if not (df & 0x02) and apn is not None:
+                            if isinstance(apn, list) and len(apn) > 2:
+                                apn = apn[:2]
+                            rec["alignment_pt"] = apn
+                        if not (df & 0x08) and rot is not None:
+                            rec["rotation"] = normalize_float(rot)
+                        if not (df & 0x04) and obl is not None:
+                            rec["oblique_angle"] = normalize_float(obl)
+                        if not (df & 0x10) and wf is not None:
+                            rec["width_factor"] = normalize_float(wf)
+                        if not (df & 0x20) and gen is not None:
+                            rec["generation"] = gen
+                        if not (df & 0x40) and ha is not None:
+                            rec["horiz_alignment"] = _AH.get(str(ha), ha) if isinstance(ha, str) else ha
+                        if not (df & 0x80) and va is not None:
+                            rec["vert_alignment"] = _VA.get(str(va), va) if isinstance(va, str) else va
                     # flags (70): silver flags dict -> bits (ATTDEF precedent)
                     _flk = a.get("flags")
                     _fvk = 0
@@ -1875,6 +1900,11 @@ def normalize_silver(
                         _sq["prev_entity"] = normalize_handle_value(0)
                         _sq["next_entity"] = normalize_handle_value(0)
                         _sq["nolinks"] = 0
+                        if r13_14:
+                            # §19 H8h-ext-17: the R13/R14 isbylayerlt bit
+                            # — the retained wire bit (example_r14's
+                            # insert-chained SEQENDs read 1).
+                            _sq["isbylayerlt"] = 1 if _seq_iblt_stash else 0
                     _ins_kids.append({"type": "SEQEND", "fields": _sq})
             # block_header (handle 0 / 330): silver stores the block NAME
             # (`block_name`); gold wants the BLOCK_RECORD handle. Resolve via
@@ -2595,9 +2625,11 @@ def normalize_silver(
                 fields["imagedefreactor"] = normalize_handle_value(payload["definition_reactor_handle"])
             else:
                 fields["imagedefreactor"] = normalize_handle_value(0)
-            # class_version (FIELD_BL 90, R2000+): gold emits it; silver stores it.
-            if r2000_plus:
-                fields["class_version"] = payload.get("class_version", 0)
+            # class_version (FIELD_BL 90): gold emits it — including the
+            # R13/R14 records (example_r14's WIPEOUTs carry class_version
+            # 0; the entity post-dates the era's spec blocks but gold's
+            # decoder still prints it); silver stores it.
+            fields["class_version"] = payload.get("class_version", 0)
             fl = payload.get("flags")
             _WF = {"SHOW_IMAGE": 1, "SHOW_NOT_ALIGNED": 2, "USE_CLIPPING_BOUNDARY": 4,
                    "HAS_TRANSPARENT": 8, "USE_TRANSPARENT": 8, "USE_TRANSPARENT_COLOR": 8}
@@ -2646,11 +2678,14 @@ def normalize_silver(
             for sk, gk in _LDR.items():
                 v = payload.get(sk)
                 if gk is not None and v is not None:
-                    # endptproj is VERSIONS (R_13c3, R_2007) — INCLUDES
-                    # R2007 (AC1021); absent from R2010+ wires only.
-                    if gk == "endptproj" and not r2010_plus:
-                        fields[gk] = normalize_value(v)
-                    elif gk != "endptproj":
+                    # endptproj is VERSIONS (R_13c3, R_2007) — the wire
+                    # slot spans AC1014..AC1021 (silver's reader gate; the
+                    # corpus's AC1012 files are pre-R13c3 and carry no
+                    # field — the model's ZERO default must not print).
+                    if gk == "endptproj":
+                        if r14_plus and not r2010_plus:
+                            fields[gk] = normalize_value(v)
+                    else:
                         fields[gk] = normalize_value(v)
             # dimstyle: resolve silver's dimension_style NAME through the
             # dim-styles table (the DIMENSION branch precedent; gold emits
@@ -2677,8 +2712,32 @@ def normalize_silver(
             # arrowhead_on / hookline_on / hookline_dir booleans
             if payload.get("arrow_enabled") is not None:
                 fields["arrowhead_on"] = 1 if payload["arrow_enabled"] else 0
-            if payload.get("hookline_enabled") is not None:
-                fields["hookline_on"] = 1 if payload["hookline_enabled"] else 0
+            # hookline_on: gold's decoder COMPUTES it (dwg.c 3756
+            # dwg_calc_hookline_on — the wire never carries the bit; the
+            # JSON block prints the computed value at every era): 0 when
+            # annot_type&3 or path_type&1 or the last leg's angle is
+            # within π/12 of horizontal, else 1. The angle: atan2 of the
+            # last two points; π/2 (vertical) when fewer than 3 points.
+            _ann = fields.get("annot_type", 3)
+            _pt = fields.get("path_type", 0)
+            _vts = payload.get("vertices") or []
+            _angle = 1.5707963267948966
+            if len(_vts) > 2:
+                _p1 = _vts[-2]
+                _p2 = _vts[-1]
+                if isinstance(_p1, dict) and isinstance(_p2, dict):
+                    import math as _math
+                    _angle = _math.atan2(
+                        float(_p1.get("y", 0.0)) - float(_p2.get("y", 0.0)),
+                        float(_p1.get("x", 0.0)) - float(_p2.get("x", 0.0)))
+            _ho = 0.2617993877991494  # π/12
+            _hook = 0 if (
+                (_ann & 3) or (_pt & 1)
+                or abs(_angle) <= _ho
+                or abs(_angle - 3.141592653589793) <= _ho
+            ) else 1
+            fields["hookline_on"] = _hook
+            payload.pop("hookline_enabled", None)
             hd = payload.get("hookline_direction")
             if isinstance(hd, str):
                 fields["hookline_dir"] = 1 if hd == "Same" else 0
@@ -2691,11 +2750,12 @@ def normalize_silver(
             if r2000_plus and payload.get("arrowhead_type") is not None:
                 fields["arrowhead_type"] = payload["arrowhead_type"]
             if r13_14:
-                # gold R13/R14 LEADER: the decoder synthesizes the
-                # dim-default family — dimgap/dimasz from the document's
-                # current dimstyle entry, the rest the wire defaults (the
-                # golden quads: Standard 0.625/2.5, arrowhead 0, the
-                # unknowns 0, byblock 256).
+                # gold R13/R14 LEADER (dwg.spec 3010-3053): dimgap/dimasz
+                # are AUTHORED WIRE FIELDS (VERSIONS R_13b1-R_14) — silver's
+                # reader reads them (the model's dimension_gap/arrow_size);
+                # the style-table synthesis was the golden quads' coincidence
+                # (their authored values equal the Standard style's). The
+                # style entry stays the fallback for constructed/DXF models.
                 _ds_e = None
                 _ds_name = payload.get("dimension_style")
                 _dss = (data.get("dim_styles") or {}).get("entries") or {}
@@ -2706,20 +2766,19 @@ def normalize_silver(
                     ):
                         _ds_e = _e2
                         break
+                _dg = payload.get("dimension_gap")
                 fields["dimgap"] = normalize_float(
-                    _ds_e.get("dimgap", 0.625) if isinstance(_ds_e, dict) else 0.625)
+                    _dg if _dg is not None else
+                    (_ds_e.get("dimgap", 0.625) if isinstance(_ds_e, dict) else 0.625))
+                _da = payload.get("arrow_size")
                 fields["dimasz"] = normalize_float(
-                    _ds_e.get("dimasz", 2.5) if isinstance(_ds_e, dict) else 2.5)
+                    _da if _da is not None else
+                    (_ds_e.get("dimasz", 2.5) if isinstance(_ds_e, dict) else 2.5))
                 fields["arrowhead_type"] = payload.get("arrowhead_type", 0) or 0
                 fields["unknown_bit_2"] = payload.get("dwg_unknown_bit2", 0) or 0
                 fields["unknown_bit_3"] = payload.get("dwg_unknown_bit3", 0) or 0
                 fields["unknown_short_1"] = payload.get("dwg_unknown_short1", 0) or 0
                 fields["byblock_color"] = payload.get("byblock_color", 256) or 256
-                # endptproj (the annotation_offset rename): the R2000+ wire
-                # slot is absent at this era — gold's R13 LEADERs carry no
-                # end-point projection.
-                payload.pop("annotation_offset", None)
-                fields.pop("endptproj", None)
             # drop all silver-only keys
             for sk in list(_LDR) + ["path_type", "creation_type", "arrow_enabled",
                                     "hookline_enabled", "hookline_direction",
@@ -3864,11 +3923,37 @@ def normalize_silver(
                         "".join(f"{b:02X}" for b in sab[15:]),
                     ]
                 elif version == 1 and isinstance(sat, str) and sat:
-                    # json_3dsolid v1/SAT: split at \r/\r\n/\n cut points
-                    # (json_cquote escapes vanish after the JSON parse), keep
-                    # interior empty segments, drop a single trailing one.
-                    segs = re.split(r"\r\n|\r|\n", sat)
-                    if segs and segs[-1] == "" and (sat.endswith("\n") or sat.endswith("\r")):
+                    # json_3dsolid v1/SAT: gold splits the DECODED WIRE
+                    # STREAM (out_json.c 1572 — the whole acis_data) at
+                    # \r/\r\n/\n cut points. The terminator record is IN
+                    # the wire stream for some carriers (the R13/AC1012
+                    # wires: example_r13's REGION ends 'End-of-ACIS-data ')
+                    # and ABSENT from others (R14/R2000: example_r14,
+                    # example_2000, the brep mints — the block stream ends
+                    # without it) — so the list comes from the RETAINED
+                    # RAW BLOCKS (the 159-cipher decode, exactly gold's
+                    # acis_data), not the model's stripped sat_data.
+                    # The model's sat (the strip_sat_terminator output)
+                    # stays the fallback for constructed/DXF models.
+                    _v1_dec = None
+                    _eb = acis.get("encr_sat_data") or []
+                    if isinstance(_eb, list) and _eb:
+                        try:
+                            _raw = bytes(
+                                int(x) & 0xFF
+                                for blk in _eb if isinstance(blk, list)
+                                for x in blk
+                            )
+                            _v1_dec = bytes(
+                                b if b <= 32 else (159 - b) & 0xFF
+                                for b in _raw
+                            ).decode("latin-1")
+                        except (TypeError, ValueError):
+                            _v1_dec = None
+                    _src = _v1_dec if _v1_dec is not None else sat
+                    segs = re.split(r"\r\n|\r|\n", _src)
+                    if segs and segs[-1] == "" and (
+                            _src.endswith("\n") or _src.endswith("\r")):
                         segs = segs[:-1]
                     fields["acis_data"] = segs
                 # encr_sat_data (v1): gold re-emits the raw obfuscated wire
@@ -5556,13 +5641,19 @@ def normalize_silver(
             # dwg2.spec (DataObject data.TableGeometry): gold flattens the
             # parsed rows/columns and collapses the REPEAT cells to a bare
             # 0 per cell ([]-packing per entry never emitted). unknown_bits
-            # rides the reader side channel.
+            # rides the reader side channel. R13/R14 (example_r13): gold
+            # prints no cells array at all — the REPEAT region is absent
+            # from its era print.
             _tg = payload.get("data") if isinstance(payload.get("data"), dict) else {}
             _tgi = _tg.get("TableGeometry") if isinstance(_tg.get("TableGeometry"), dict) else {}
             fields["numrows"] = _tgi.get("rows", 0)
             fields["numcols"] = _tgi.get("columns", 0)
             _tcells = _tgi.get("cells")
-            if isinstance(_tcells, list) and _tcells:
+            # R13 (AC1012): gold prints no cells array (example_r13) —
+            # the REPEAT region is absent from its era print; R14+
+            # (example_r14) prints it. r14_plus/r13_14 (the top-level
+            # predicates — `version` is shadowed by the 3DSOLID branch).
+            if (not r13_14 or r14_plus) and isinstance(_tcells, list) and _tcells:
                 fields["cells"] = [0] * len(_tcells)
             for kk in ("data", "dxf_name", "cpp_class_name", "source_version"):
                 payload.pop(kk, None)
@@ -5822,11 +5913,26 @@ def normalize_silver(
             # verbatim (after-prologue .. hdlpos, wire order incl. the
             # string area) as `raw_window`; emit it as gold's uppercase
             # hex + bit count.
+            # R13/R14 (example_r13's 13 proxies): the wire field is
+            # `version` (FIELD_BLx, PRE R_2018) — the split pair is
+            # derived and NOT printed, from_dxf is R2000b+, and an empty
+            # objids array prints nowhere (gold omits it).
             fields["dxfname"] = "ACAD_PROXY_OBJECT"
             fields["proxy_id"] = payload.get("class_id", 0)
-            fields["dwg_version"] = payload.get("dwg_version", 0)
-            fields["maint_version"] = payload.get("maintenance_version", 0)
-            fields["from_dxf"] = 1 if payload.get("from_dxf") else 0
+            if r13_14:
+                fields["version"] = payload.get("version",
+                                                payload.get("dwg_version", 0))
+            else:
+                fields["dwg_version"] = payload.get("dwg_version", 0)
+                fields["maint_version"] = payload.get("maintenance_version", 0)
+                if not r2018_plus:
+                    # R2000-R2013 gold also derives the pair from the wire's
+                    # version field; the JSON prints all three (the split
+                    # pair from the derived values). Silver's model already
+                    # carries the split; version joins them for parity.
+                    fields["version"] = payload.get("version",
+                                                    payload.get("dwg_version", 0))
+                fields["from_dxf"] = 1 if payload.get("from_dxf") else 0
             _rw = payload.get("raw_window")
             if isinstance(_rw, dict) and isinstance(_rw.get("bit_count"), int):
                 fields["data_numbits"] = int(_rw["bit_count"])
@@ -5835,7 +5941,7 @@ def normalize_silver(
                     fields["data"] = "".join(
                         "%02X" % (int(b) & 0xFF) for b in _rw_bytes)
             _oids = payload.get("object_ids")
-            if isinstance(_oids, list):
+            if isinstance(_oids, list) and _oids:
                 fields["objids"] = [normalize_handle_value(o.get("handle"))
                                     for o in _oids if isinstance(o, dict)]
             for sk in ("class_id", "dwg_version", "maintenance_version",

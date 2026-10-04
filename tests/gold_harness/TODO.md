@@ -95,38 +95,32 @@ net's standing users are now the never-measured kinds only).
 
 ### A9. The era-census residue
 
-The record-identity censuses (`analysis/record_size_census.py` against
-a `DWG_NO_ECHO=1` rewrite) leave these surfaces, ranked by size:
+**The corpus-fidelity axis is nearly closed**: after the 2026-10-03
+era packet (the R13/R14 parity campaign's opening surface —
+example_r13 78→0, example_r14 20→0, the gold r14 Leader and the
+wave's Leader_r14 0/0, the golden ACIS quads 0/0), the 694-file
+corpus reads **13/13 fidelity rows — every remaining row is the BREP
+R2013+ trailing region** (Brep_AC1027 6 + Brep_AC1032 7). The
+record-identity censuses (`analysis/record_size_census.py` against a
+`DWG_NO_ECHO=1` rewrite — a separate axis) leave these surfaces,
+ranked by size:
 
-1. The era population's real-world rows (the R13/R14 parity
-   campaign's opening surface — accepted 2026-10-03, the decision
-   record in `IMPLEMENTATION.md` §19.5 Tier 2): example_r13's 78 and
-   example_r14's 20 read+write rows, plus the gold r14 Leader's 4 and
-   the wave's Leader_r14 1. The
-   per-record pair diff names the classes; the era-census
-   continuation's gates already absorbed most of the previously
-   recorded 89/153/149, so what remains is the true post-gate
-   residue.
-2. The golden R13 ACIS class — Region_AC1012 and Solid3d_AC1012 carry
-   `acis_data` that gold re-serializes differently (the era-modeler SAT
-   text). Two rows.
-3. The BREP R2013+ trailing region — the brep dataset's thirteen rows:
-   the `materials`, `has_revision_guid`, `revision_*` and `end_marker`
-   fields that silver's typed ACSH_BREP_CLASS model does not emit yet.
-   The two brep specimens are the clean per-version pair for a
-   raw-remainder packet (the B2/A8 pattern: dissect, model typed, pin
-   bit-exact).
-4. The struct-axis key gaps — 5,510 read key-gaps, the bulk on the
+1. The BREP R2013+ trailing region — the brep dataset's thirteen
+   corpus rows: the `materials`, `has_revision_guid`, `revision_*`
+   and `end_marker` fields that silver's typed ACSH_BREP_CLASS model
+   does not emit yet. The two brep specimens are the clean
+   per-version pair for a raw-remainder packet (the B2/A8 pattern:
+   dissect, model typed, pin bit-exact).
+2. The struct-axis key gaps — 5,510 read key-gaps, the bulk on the
    era files and the R13/R14 golden files (the key-shape class;
    untouched by the fidelity fixes).
-5. The `class?` desync-mirror rows — eight on entities-2d and seven on
-   entities-3d (the B1-era mojibake family).
-6. PolyLine2D's last two POLYLINE_2D crc rows.
-7. Surface.dwg's six rows (the §18 surface family) and gh44-error's
+3. The `class?` desync-mirror rows — eight on entities-2d and seven
+   on entities-3d (the B1-era mojibake family).
+4. PolyLine2D's last two POLYLINE_2D crc rows.
+5. Surface.dwg's six rows (the §18 surface family) and gh44-error's
    eighteen (the pathological file: six LEADER records with a 2-bit
    slack between main data and handle stream, five crc-only HATCH
    rows, five type-57 rows, two DIMASSOC rows).
-8. Leader_AC1014's single remaining row.
 
 The standing era facts all hold and were re-verified on 2026-10-03:
 gh209_1 166/166, gh109_1 664/664, HatchG 229/229, example_2000

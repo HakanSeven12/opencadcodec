@@ -4468,3 +4468,73 @@ bottom, STARTING at THIS section (the file bottom), then the
 maintainer decisions, then the era-census continuation, then the
 golden-entities landing, then the b6 review, then the era-census
 addendum, then the 2026-10-02 sections bottom-up.
+
+## THE 2026-10-03 ERA-PACKET CLOSURE (the R13/R14 parity campaign's
+## opening surface — read this FIRST):
+
+**THE CAMPAIGN'S OPENING CENSUS (103 rows) IS CLOSED: example_r13
+78→0, example_r14 20→0, the gold r14 Leader 4→0, the wave's
+Leader_r14 1→0, the golden ACIS quads (Region/Solid3d at
+AC1012/AC1014/AC1015) 0/0. THE 694-FILE CORPUS NOW READS 13/13
+FIDELITY — every remaining row is the BREP R2013+ trailing region
+(Brep_AC1027 6 + Brep_AC1032 7, the named raw-remainder packet's
+two clean specimens).** Five projection classes + one wire-decode
+projection, each measured against gold's own spec/decoder:
+
+(1) THE ATTRIB/SEQEND/WIPEOUT R13/R14 GATES: the ATTRIB kids'
+decoder-default emission (every conditional field with its default,
+NO dataflags byte, the era's isbylayerlt 1), the INSERT-chained
+SEQEND's isbylayerlt, WIPEOUT's class_version at every era.
+
+(2) THE PROXY_OBJECT R13/R14 SPLIT (dwg.spec 5752): the wire field
+is `version` (FIELD_BLx, PRE R_2018); the split pair is derived,
+from_dxf is R2000b+, an empty objids array prints nowhere. R13/R14
+prints version only; R2000-R2013 prints all three.
+
+(3) THE TABLEGEOMETRY cells era gate: R13 (AC1012) prints no cells
+array; R14+ prints it.
+
+(4) THE LEADER R13/R14 WIRE FIELDS: dimgap/dimasz are AUTHORED WIRE
+FIELDS (VERSIONS R_13b1-R_14) — the model's wire-read values, the
+style-table entry only the constructed fallback (the old synthesis
+was the golden quads' coincidence). endptproj's wire slot spans
+AC1014..AC1021 (the corpus's AC1012 files are pre-R13c3 — the
+model's ZERO default must not print). hookline_on: gold's decoder
+COMPUTES it (dwg.c 3756 dwg_calc_hookline_on — the wire never
+carries the bit): 0 when annot_type&3 or path_type&1 or the last
+leg's angle (3+ points only) is within π/12 of horizontal, else 1.
+
+(5) THE V1 SAT LIST FROM THE WIRE: gold's json_3dsolid (out_json.c
+1572) splits the DECODED WIRE STREAM — and the terminator record is
+IN the stream for the R13/AC1012 wires and ABSENT from the R14/R2000
+wires (the block stream ends without it). The projection decodes
+the RETAINED RAW BLOCKS (the 159-cipher, exactly gold's acis_data)
+and splits that; the model's stripped sat_data stays the
+constructed/DXF fallback.
+
+**THE REGRESSION-REPAIR PASS (the first battery caught four
+regressions — the record for the method)**: the terminator append
+broke every R14/R2000 v1 carrier (the terminator is
+wire-dependent, not universal); the endptproj un-gating printed the
+model's ZERO default at R13; the cells drop was R13-only, not
+R13/R14; and the 3DSOLID branch SHADOWS the `version` local with
+the ACIS version int — the new era gates must use the top-level
+predicates (r14_plus added beside r13_14), never the shadowed
+variable (TS1's crash pinned it). All repaired; the regressed set
+(example_2000, example_r14, Cone, TS1, Leader_r13, Brep_AC1014/
+AC1015, the golden Leader_AC1012 + Region/Solid3d at AC1014/AC1015)
+verified 0/0.
+
+THE BATTERY: the suite 1,621/0; gold_roundtrip ok; issue80 ok; the
+four smokes 0/0; the corpus 694 files — **13/13 fidelity** (only
+the brep pair) + 5,510 struct read key-gaps + 0 write key-gaps;
+genus 3/1/0 PENDING-ZERO with `--strict`; the identity
+`f2187565…`/25,728 unmoved.
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md §7/§8.1
++ §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this file top to
+bottom, STARTING at THIS section (the file bottom), then the
+A5/A6/A7/A8 closures, then the maintainer decisions, then the
+era-census continuation, then the golden-entities landing, then
+the b6 review, then the era-census addendum, then the 2026-10-02
+sections bottom-up.
