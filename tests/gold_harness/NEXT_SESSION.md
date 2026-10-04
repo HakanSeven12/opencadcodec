@@ -28,9 +28,16 @@
 # key-gaps 6 (the class? desync-mirror family only — the R13/R14
 # HEADER RAW-MIRROR PACKET, 2026-10-04 afternoon, collapsed the
 # axis from 5,510), PolyLine2D's last 2,
-# Surface 6, gh44-error 18, the SAT-era mints' SH-BREP
+# Surface 6, the SAT-era mints' SH-BREP
 # conventional-arm delta (the era campaign's Tier-2
-# record-identity surface)**:
+# record-identity surface) — GH44-ERROR'S EIGHTEEN ROWS CLOSED
+# (the 2026-10-04 evening packet: the six LEADER handle-stream
+# slack rows [capture+replay with the merge-time walk-end guard],
+# the five crc-only HATCH rows [the retained ACAD EED block keeps
+# its position], the five type-57 rows [the BA quartet's LTYPE xref
+# binding + the 16A5 sequential-text/shapecode], the two DIMASSOC
+# rows [the intsectobj ref code 4] — the conventional rewrite reads
+# 11,073/11,073 record-identical)**:
 # A1 (the 2018-era conventional-arm wire divergence, 2,479 census
 # rows) landed as capture-and-replay of the two authorial genus
 # conventions (the ownerhandle code choice — ODA always-absolute
@@ -86,8 +93,37 @@
 # subcurve tests), the generation identity unmoved, genus --strict
 # PENDING-ZERO. THE FIRST ACTION for the
 # zero-context agent: re-verify the battery (the verification gate
-# section below), read THE 2026-10-04 R13/R14 HEADER RAW-MIRROR
-# PACKET at this file's BOTTOM first (the A9 struct-axis head
+# section below), read THE 2026-10-04 GH44-ERROR RECORD-IDENTITY
+# PACKET at this file's BOTTOM first (the A9 record-census item
+# closed: the pathological 2013 specimen's EIGHTEEN rows fell in
+# five per-record fixes — the six LEADER handle-stream slack rows
+# [her records park an unparsed bit-group between the walked main
+# tail and the flag bit, 2 zero bits on five, `0000100000` on 8774;
+# captured per record as (walk_end, len, bits) and replayed
+# verbatim, WITH THE MERGE-TIME WALK-END GUARD — the first attempt
+# regressed the INSERT 184D/MULTILEADER EAE8 whose readers
+# under-read and their un-walked field bits entered the capture;
+# the guard replays only when the writer's main end matches the
+# captured walk end], the five crc-only HATCH rows [the retained
+# ACAD EED block keeps its position — the remove-and-append
+# reordered her [ACAD,16CA] wire to [16CA,ACAD]; verbatim when the
+# block already encodes the model's pattern origin, re-encoded in
+# place when a transform moved it], the five type-57 rows [the BA
+# quartet's LTYPE xref binding — is_xref_resolved 0→256 + the real
+# block-header handle where the writer hardcoded 0+NULL, the
+# LineType model gains xref_handle — and the 16A5 row: gold
+# assigns text-dash strings SEQUENTIALLY from the strings area,
+# the shapecode is the author's own value not the offset; the
+# reader walks sequentially, the wire shapecode replays via
+# dwg_shape_number], the two DIMASSOC rows [the intsectobj
+# vector's ref code: gold's dwg2.spec declares 5, the authored
+# wire carries 4 — the ref-code lesson]; the conventional rewrite
+# reads 11,073/11,073 record-identical; six bit-exact pins in
+# tests/gh44_record_identity.rs; the full battery green — the
+# corpus 694 at 0/0 + 6/0 UNMOVED, genus PENDING-ZERO, the
+# identity f2187565…/25,728 unmoved, the suite 1,633/0), then THE
+# 2026-10-04 R13/R14 HEADER RAW-MIRROR
+# PACKET (the A9 struct-axis head
 # closed: the AXIS COLLAPSED 5,510 → 6 — the R13/R14 era files'
 # 49/50-per-file HEADER key-shape class fell with the raw-mirror
 # population of the era's header variables [unknown_10, DIMSAV,
@@ -4844,3 +4880,130 @@ closures, then the maintainer decisions, then the era-census
 continuation, then the golden-entities landing, then the b6
 review, then the era-census addendum, then the 2026-10-02
 sections bottom-up.
+
+## THE 2026-10-04 GH44-ERROR RECORD-IDENTITY PACKET (the A9
+## record-census item closed — the pathological specimen's
+## eighteen rows; read this FIRST, then the header raw-mirror
+## packet above it):
+
+The afternoon's continuation took TODO.md A9's item 5 — the
+gh44-error pathological residue (18 record-census rows in four
+named families) — and closed ALL FIVE ROOTS: **the conventional
+rewrite now reads 11,073/11,073 record-identical — ZERO
+divergent, ZERO her-only, ZERO our-only.**
+
+(1) THE DISSECTION (the B2/A8 per-record method): the -v9 pair
+diffs of all 18 divergent handles, mapped to their object
+numbers through gold's object_map, named the roots:
+- **LEADER ×6** (875B/8760/8765/876A/876F/8774): her records
+  declare a 2-bit SLACK between the main-data end and the
+  handle-stream start (gold's trace prints `handle stream: +2`;
+  her bitsizes 1412/1348/1476/1524 all %4==0 where the packed
+  emission wrote 1410/1346/1474/1514 — the RL nibble-aligned).
+  The slack bits are per-record author data: five records pad
+  `00`, 8774 parks ten bits `0000100000` (not a zeros/ones
+  genus).
+- **HATCH ×5** (1C0E/1CDC/1D26/1E22/1E47): crc-only — the EED
+  BLOCK ORDER. Her wire carries the ACAD app's block FIRST
+  ([ACAD 25B, 16CA 17B]); the writer's
+  `hatch_common_for_write` removed the retained block (the
+  pattern-origin mechanism) and the structured record re-append
+  put it LAST — [16CA, ACAD] on every rewrite.
+- **LTYPE ×4** (BA3D/BA3E/BA91/BA92 — the pipe-named
+  xref-dependent linetypes): the COMMON_TABLE_FLAGS xref
+  binding lost — her records carry `is_xref_resolved: 256` + a
+  real (5.2.x) block-header handle (BA16 ×2, BA6A ×2) where the
+  writer hardcoded 0 + NULL (`write_xref_dependant_bit()` and
+  the hardcoded null handle).
+- **DIMASSOC ×2** (C12E/C471): one handle in the blob tail —
+  the osnap-11 reference's `intsectobj` vector: gold's dwg2.spec
+  declares code 5, the authored wire carries code 4 (the
+  ref-code lesson class).
+- **LTYPE 16A5** (the fifth type-57 row): a shape dash's
+  `complex_shapecode` 4 vs our 8 + the text "S" vs "R" — gold
+  assigns text-dash strings SEQUENTIALLY from the strings area
+  (dwg.spec's LTYPE DECODER block walks `dash_i` forward per
+  text dash; the shapecode is the author's own value, NOT the
+  offset — well-formed files keep them equal, the pathological
+  specimen carries 4 where the sequential position is 8).
+
+(2) THE FIXES, five surfaces:
+- **THE LEADER SLACK CAPTURE+REPLAY**: the merged reader gains
+  `sample_handle_slack_bits` — the `(walk_end, len, bits)`
+  triple between the typed walk's end and the frame's main-data
+  anchor (the same peek-window infrastructure the close-pad
+  capture uses); the builder captures per record into
+  `CadDocument::handle_slack_by_handle` (the close-pad
+  precedent, serde-skip, excluded from the fingerprint); the
+  merged writer's `set_handle_slack` replays the pattern
+  verbatim between the main bits and the text/flag region (the
+  RL counts it; a captured slack disables the LEADER underlap —
+  the two frame quirks are mutually exclusive). **THE
+  MERGE-TIME WALK-END GUARD — the packet's one hard lesson**:
+  the first landing regressed INSERT 184D and MULTILEADER EAE8
+  (bitsize +10/+9): their readers UNDER-READ (the walk ends
+  before the writer's emission end — the INSERT's num_owned BL,
+  the MULTILEADER's tail), so the capture absorbed REAL FIELD
+  BITS as slack and the writer double-emitted them. The guard:
+  the merge replays the captured pattern ONLY when the
+  writer's own main end equals the captured `walk_end` — the
+  INSERT/EAE8 captures stay in the map but disarm themselves
+  (inert), and the census returned to zero.
+- **THE HATCH EED KEEP-POSITION** (the H8h-ext-15 rule applied
+  to the hatch path): the retained ACAD block keeps its
+  position in `raw_dwg_eed` — the bytes stay VERBATIM when they
+  already encode the model's current pattern origin (the
+  unedited authored case — byte identity), and a MOVED origin
+  (a transform) re-encodes in place at the same slot; the
+  structured record is removed from the records list (it must
+  not append after the raw blocks). Constructed/DXF content
+  (no retained block) keeps the append behavior.
+- **THE LTYPE XREF BINDING**: the LineType model gains
+  `xref_handle` (retained from the wire at the conversion);
+  the writer emits `write_xref_table_flags(true, dep, dep)` —
+  the resolved BS 256 on xref-dependent records — and the
+  retained handle in the COMMON_TABLE_FLAGS xref slot (NULL on
+  ordinary records).
+- **THE DIMASSOC REF CODE**: one line — the intsectobj vector
+  emits SoftPointer (code 4) per the authored wire.
+- **THE LTYPE SEQUENTIAL TEXT + SHAPECODE REPLAY**: the
+  reader's `extract_text_strings` walks the area sequentially
+  (gold's decoder shape — `dash_i` advances past each string's
+  terminator, the shapecode ignored); the wire
+  `complex_shapecode` is retained per dash
+  (`LineTypeComplexData::dwg_shape_number`, the dwg_shape_flag
+  precedent) and the writer replays it verbatim when captured.
+
+(3) THE ACCEPTANCE: the gh44-error conventional rewrite
+(DWG_NO_ECHO=1) reads **11,073/11,073 record-identical** (from
+18 divergent); the six bit-exact pins in
+`tests/gh44_record_identity.rs` (the LEADER slack values with
+the walk-end triple, the rewrite survival, the HATCH block
+order, the LTYPE xref bindings per block header, the 16A5
+sequential text + shapecode, the DIMASSOC intersection
+objects); **THE FULL BATTERY: the suite 1,633/0; gold_roundtrip
+ok; the genus cargo mirror ok; issue80 ok; the four family
+smokes 0/0/0/0; THE CORPUS 694 files at fidelity 0/0 + struct
+6/0 UNMOVED (the zero-keeping rule — the LTYPE/EED/DIMASSOC
+changes touch every corpus carrier of those families); genus
+3/1/0 PENDING-ZERO with --strict; the identity
+`f21875659e7501b099f91f88b37d20c3`/25,728 UNMOVED** (the
+constructed canonical carries no captures — every new gate
+defaults to the old behavior).
+
+(4) THE RESIDUE (A9 re-ranked): the struct axis's six `class?`
+desync-mirror rows; PolyLine2D's last 2; Surface.dwg's 6 (the
+§18 surface family); the SAT-era mints' SH-BREP
+conventional-arm delta (Brep_AC1015's +4-bit modeled-field
+delta + Brep_AC1014's 65 rows — the era campaign's Tier-2
+surface); the R13/R14 era record-identity surface at large.
+
+The reading order stands: AGENTS.md → IMPLEMENTATION.md
+§7/§8.1 + §20 (all of it) → §19.4/§19.5 → §18.6 + §F2 → this
+file top to bottom, STARTING at THIS section (the file bottom),
+then the header raw-mirror packet, then the same-day review
+pass, then the BREP raw-remainder packet, then the era-packet
+closure, then the A5/A6/A7/A8 closures, then the maintainer
+decisions, then the era-census continuation, then the
+golden-entities landing, then the b6 review, then the
+era-census addendum, then the 2026-10-02 sections bottom-up.

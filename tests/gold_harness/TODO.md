@@ -13,10 +13,11 @@ The large measured campaigns are closed and hold their zeros: parser
 parity, the strict loader probes, the ACS/SH solid-history work, and
 the §20 genus gates (pending-zero under `--strict`; the cargo mirror
 green — A7 closed, the pin regenerated to the grown specimen family).
-The suite passes 1,627 tests with none failing (the three
-`sh_brep_raw_tail` pins of the 2026-10-04 BREP packet and the three
+The suite passes 1,633 tests with none failing (the three
+`sh_brep_raw_tail` pins of the 2026-10-04 BREP packet, the three
 `r13_14_header_raw_mirror` pins of the same day's header raw-mirror
-packet included), and
+packet, and the six `gh44_record_identity` pins of the same day's
+gh44-error closure included), and
 the generation identity is stable at
 `f2187565…` over 25,728 bytes.
 
@@ -146,10 +147,35 @@ ranked by size:
    2004-era tables' FileDepList-features rows share the same
    gold-side-walk-quirk class.
 4. PolyLine2D's last two POLYLINE_2D crc rows.
-5. Surface.dwg's six rows (the §18 surface family) and gh44-error's
-   eighteen (the pathological file: six LEADER records with a 2-bit
-   slack between main data and handle stream, five crc-only HATCH
-   rows, five type-57 rows, two DIMASSOC rows).
+5. Surface.dwg's six rows (the §18 surface family — the known large
+   modeled-emission packet). CLOSED-SUBITEM: gh44-error's eighteen
+   record-census rows fell at the 2026-10-04 gh44-error packet (the
+   conventional rewrite now reads 11,073/11,073 record-identical):
+   (a) the six LEADER handle-stream slack rows — her records park an
+   unparsed bit-group between the walked main tail and the flag bit
+   (2 zero bits on five, `0000100000` on 8774) nibble-aligning the RL;
+   captured per record as `(walk_end, len, bits)` and replayed
+   verbatim, with a MERGE-TIME GUARD (the writer's main end must
+   equal the captured walk end — the first attempt regressed the
+   INSERT 184D/MULTILEADER EAE8 whose readers under-read, their
+   un-walked field bits entering the capture; the guard disarms them);
+   (b) the five crc-only HATCH rows — the retained ACAD EED block
+   moved to the tail (a remove-and-append reordering her
+   [ACAD,16CA] wire to [16CA,ACAD]); the block now keeps its position
+   (verbatim when it already encodes the model's pattern origin,
+   re-encoded in place when a transform moved it — the H8h-ext-15
+   keep-position rule applied to the hatch path); (c) the five
+   type-57 rows — the BA quartet's LTYPE xref binding
+   (`is_xref_resolved` 0→256 + the real block-header handle where the
+   writer hardcoded 0+NULL; the LineType model gains `xref_handle`)
+   and the 16A5 row (gold assigns text-dash strings SEQUENTIALLY from
+   the strings area — the shapecode is the author's own value, not
+   the offset; the reader walks sequentially and the wire shapecode
+   replays verbatim via `dwg_shape_number`); (d) the two DIMASSOC
+   rows — the intsectobj vector's ref code: gold's dwg2.spec
+   declares 5, the authored wire carries 4 (the ref-code lesson);
+   one-line SoftPointer. Six bit-exact pins in
+   `tests/gh44_record_identity.rs`.
 
 The standing era facts all hold and were re-verified on 2026-10-03:
 gh209_1 166/166, gh109_1 664/664, HatchG 229/229, example_2000

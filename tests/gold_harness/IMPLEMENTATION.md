@@ -28,10 +28,12 @@ the rewrite-rejection closed (the edited R2018 document opens in
 AutoCAD 2027 indistinguishably from her authored original).** The
 remaining queue: TODO.md A9 — the struct key-gaps 6 (the `class?`
 desync-mirror family, all that is left of the 5,510 axis),
-PolyLine2D's last 2, Surface 6, gh44-error 18, and the era
+PolyLine2D's last 2, Surface 6, and the era
 campaign's Tier-2 record-identity surface (the SAT-era mints'
 SH-BREP conventional-arm delta the 2026-10-04 packet surfaced;
-§19.5 version parity; pre-R13 stays the recorded C3 reject). The
+gh44-error's eighteen rows CLOSED the same afternoon — its
+conventional rewrite reads 11,073/11,073 record-identical; §19.5
+version parity; pre-R13 stays the recorded C3 reject). The
 Multiline-specimen conventional-arm residue (the twelfth
 addendum's 142/143 — the specimen does not ECHO) is RECONCILED BY
 MEASUREMENT (the 2026-10-04 review pass): the A1 genus packets
