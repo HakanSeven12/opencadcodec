@@ -443,9 +443,10 @@ fn write_header_fields(
     w.write_bit_long(splice!(unknown_8, 24) as u32 as i32);
     w.write_bit_long(splice!(unknown_9, 0) as u32 as i32);
 
-    // R13-R14 Only: BS unknown
+    // R13-R14 Only: BS unknown_10 (§19 H7 — replay the captured wire
+    // value; 256 = the '11' code on the R14 genus)
     if r13_14_only(v) {
-        w.write_bit_short(0);
+        w.write_bit_short(splice!(unknown_10, 0) as u16 as i16);
     }
 
     // Pre-2004: current viewport header handle
@@ -458,7 +459,7 @@ fn write_header_fields(
     w.write_bit(h.update_dimensions_while_dragging);
 
     if r13_14_only(v) {
-        w.write_bit(false); // DIMSAV undocumented
+        w.write_bit(splice!(dimsav, 0) != 0); // DIMSAV undocumented
     }
 
     w.write_bit(h.polyline_linetype_generation);
@@ -492,7 +493,7 @@ fn write_header_fields(
     w.write_bit(h.world_view);
 
     if r13_14_only(v) {
-        w.write_bit(false); // WIREFRAME
+        w.write_bit(splice!(wireframe, 0) != 0); // WIREFRAME
     }
 
     w.write_bit(h.show_model_space);
@@ -717,7 +718,7 @@ fn write_header_fields(
         w.write_byte(h.dim_alt_tolerance_zero_suppression as u8);
         w.write_byte(h.dim_alt_tolerance_zero_tight as u8);
         w.write_byte(h.dim_text_above as u8);
-        w.write_bit_short(0); // DIMUNIT
+        w.write_bit_short(splice!(dimunit, 0) as u16 as i16); // DIMUNIT
         w.write_bit_short(h.dim_angular_decimal_places);
         w.write_bit_short(h.dim_decimal_places);
         w.write_bit_short(h.dim_tolerance_decimal_places);

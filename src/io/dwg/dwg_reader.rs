@@ -2721,6 +2721,14 @@ impl<R: Read + Seek> DwgReader<R> {
             }
             handles.push(crate::document::DwgSecondHeaderHandle { nr, hdl });
         }
+        // gold's bit_check_CRC aligns to the next byte boundary before
+        // reading the CRC (bits.c: `if (dat->bit > 0) { dat->byte++;
+        // dat->bit = 0; }`) — the SecondHeader walk ends mid-byte when
+        // the BS num_handles leaves the cursor between boundaries, and
+        // the raw reads preserve the shift. Without the align the CRC
+        // (invisible) and the trailing junk_r14 (printed) read shifted
+        // bytes — the whole SecondHeader junk_r14 value-diff family.
+        reader.set_position(reader.position());
         let _crc = reader.read_raw_short();
         // junk_r14: RLL, R14/R2000 only (VERSIONS (R_14, R_2000) in
         // secondheader_private — R13 files stop at the CRC).

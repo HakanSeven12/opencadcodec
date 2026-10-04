@@ -163,13 +163,6 @@ impl SectionReader {
             SectionReaderInner::MergedReader(r) => r.read_variable_text(),
         }
     }
-    fn read_handle(&mut self) -> u64 {
-        match &mut self.inner {
-            SectionReaderInner::BitReader(r) => r.read_handle(),
-            SectionReaderInner::MergedReader(r) => r.read_handle(),
-        }
-    }
-
     /// Read a handle reference retaining the wire form `(code, size,
     /// value, absolute)` (§19 H3 raw retention).
     fn read_handle_raw(&mut self) -> (u8, u8, u64, u64) {
@@ -308,9 +301,10 @@ fn read_header_fields(
     raw.unknown_8 = Some(r.read_bit_long() as u32 as i64);
     raw.unknown_9 = Some(r.read_bit_long() as u32 as i64);
 
-    // R13-R14 Only: BS unknown_10 (not emitted by gold on this walk)
+    // R13-R14 Only: BS unknown_10 (gold prints it unsigned: 256 = the
+    // '11' code on the R14 genus)
     if r13_14_only(v) {
-        let _ = r.read_bit_short();
+        raw.unknown_10 = Some(r.read_bit_short() as u16 as i64);
     }
 
     // Pre-2004: current viewport header handle
@@ -329,7 +323,7 @@ fn read_header_fields(
     raw.dimsho = Some(t as i64);
 
     if r13_14_only(v) {
-        let _ = r.read_bit(); // DIMSAV undocumented
+        raw.dimsav = Some(r.read_bit() as i64); // DIMSAV undocumented
     }
 
     let t = r.read_bit();
@@ -355,7 +349,9 @@ fn read_header_fields(
     raw.limcheck = Some(t as i64);
 
     if r13_14_only(v) {
-        h.blip_mode = r.read_bit();
+        let t = r.read_bit();
+        h.blip_mode = t;
+        raw.blipmode = Some(t as i64);
     }
 
     if r2004_plus(v) {
@@ -376,8 +372,12 @@ fn read_header_fields(
     raw.splframe = Some(t as i64);
 
     if r13_14_only(v) {
-        h.attribute_request = r.read_bit();
-        h.attribute_dialog = r.read_bit();
+        let t = r.read_bit();
+        h.attribute_request = t;
+        raw.attreq = Some(t as i64);
+        let t = r.read_bit();
+        h.attribute_dialog = t;
+        raw.attdia = Some(t as i64);
     }
 
     let t = r.read_bit();
@@ -388,7 +388,7 @@ fn read_header_fields(
     raw.worldview = Some(t as i64);
 
     if r13_14_only(v) {
-        let _ = r.read_bit(); // WIREFRAME
+        raw.wireframe = Some(r.read_bit() as i64); // WIREFRAME
     }
 
     let t = r.read_bit();
@@ -402,7 +402,9 @@ fn read_header_fields(
     raw.visretain = Some(t as i64);
 
     if r13_14_only(v) {
-        h.delete_objects = r.read_bit();
+        let t = r.read_bit();
+        h.delete_objects = t;
+        raw.delobj = Some(t as i64);
     }
 
     let t = r.read_bit();
@@ -414,7 +416,9 @@ fn read_header_fields(
     raw.proxygraphics = Some(t as u16 as i64);
 
     if r13_14_only(v) {
-        h.drag_mode = r.read_bit_short();
+        let t = r.read_bit_short();
+        h.drag_mode = t;
+        raw.dragmode = Some(t as u16 as i64);
     }
 
     // ── Unit settings (Common) ──
@@ -435,7 +439,9 @@ fn read_header_fields(
     raw.auprec = Some(t as u16 as i64);
 
     if r13_14_only(v) {
-        h.object_snap_mode = r.read_bit_short() as i32;
+        let t = r.read_bit_short();
+        h.object_snap_mode = t as i32;
+        raw.osmode = Some(t as u16 as i64);
     }
 
     let t = r.read_bit_short();
@@ -443,7 +449,9 @@ fn read_header_fields(
     raw.attmode = Some(t as u16 as i64);
 
     if r13_14_only(v) {
-        h.coords_mode = r.read_bit_short();
+        let t = r.read_bit_short();
+        h.coords_mode = t;
+        raw.coords = Some(t as u16 as i64);
     }
 
     let t = r.read_bit_short();
@@ -451,7 +459,9 @@ fn read_header_fields(
     raw.pdmode = Some(t as u16 as i64);
 
     if r13_14_only(v) {
-        h.pick_style = r.read_bit_short();
+        let t = r.read_bit_short();
+        h.pick_style = t;
+        raw.pickstyle = Some(t as u16 as i64);
     }
 
     if r2004_plus(v) {
@@ -776,38 +786,96 @@ fn read_header_fields(
 
     // ── Dimension variables (R13-R14 Only block) ──
     if r13_14_only(v) {
-        h.dim_tolerance = r.read_bit();
-        h.dim_limits = r.read_bit();
-        h.dim_text_inside_horizontal = r.read_bit();
-        h.dim_text_outside_horizontal = r.read_bit();
-        h.dim_suppress_ext1 = r.read_bit();
-        h.dim_suppress_ext2 = r.read_bit();
-        h.dim_alternate_units = r.read_bit();
-        h.dim_force_line_inside = r.read_bit();
-        h.dim_separate_arrows = r.read_bit();
-        h.dim_force_text_inside = r.read_bit();
-        h.dim_suppress_outside_ext = r.read_bit();
-        h.dim_alt_decimal_places = r.read_byte() as i16;
-        h.dim_zero_suppression = r.read_byte() as i16;
-        h.dim_suppress_line1 = r.read_bit();
-        h.dim_suppress_line2 = r.read_bit();
-        h.dim_tolerance_justification = r.read_byte() as i16;
-        h.dim_horizontal_justification = r.read_byte() as i16;
-        h.dim_fit = r.read_byte() as i16;
-        h.dim_user_positioned_text = r.read_bit();
-        h.dim_tolerance_zero_suppression = r.read_byte() as i16;
-        h.dim_alt_tolerance_zero_suppression = r.read_byte() as i16;
-        h.dim_alt_tolerance_zero_tight = r.read_byte() as i16;
-        h.dim_text_above = r.read_byte() as i16;
-        let _ = r.read_bit_short(); // DIMUNIT
-        h.dim_angular_decimal_places = r.read_bit_short();
-        h.dim_decimal_places = r.read_bit_short();
-        h.dim_tolerance_decimal_places = r.read_bit_short();
-        h.dim_alt_units_format = r.read_bit_short();
-        h.dim_alt_tolerance_decimal_places = r.read_bit_short();
+        let t = r.read_bit();
+        h.dim_tolerance = t;
+        raw.dimtol = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_limits = t;
+        raw.dimlim = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_text_inside_horizontal = t;
+        raw.dimtih = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_text_outside_horizontal = t;
+        raw.dimtoh = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_suppress_ext1 = t;
+        raw.dimse1 = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_suppress_ext2 = t;
+        raw.dimse2 = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_alternate_units = t;
+        raw.dimalt = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_force_line_inside = t;
+        raw.dimtofl = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_separate_arrows = t;
+        raw.dimsah = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_force_text_inside = t;
+        raw.dimtix = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_suppress_outside_ext = t;
+        raw.dimsoxd = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_alt_decimal_places = t;
+        raw.dimaltd = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_zero_suppression = t;
+        raw.dimzin = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_suppress_line1 = t;
+        raw.dimsd1 = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_suppress_line2 = t;
+        raw.dimsd2 = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_tolerance_justification = t;
+        raw.dimtolj = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_horizontal_justification = t;
+        raw.dimjust = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_fit = t;
+        raw.dimfit = Some(t as i64);
+        let t = r.read_bit();
+        h.dim_user_positioned_text = t;
+        raw.dimupt = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_tolerance_zero_suppression = t;
+        raw.dimtzin = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_alt_tolerance_zero_suppression = t;
+        raw.dimaltz = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_alt_tolerance_zero_tight = t;
+        raw.dimalttz = Some(t as i64);
+        let t = r.read_byte() as i16;
+        h.dim_text_above = t;
+        raw.dimtad = Some(t as i64);
+        raw.dimunit = Some(r.read_bit_short() as u16 as i64); // DIMUNIT
+        let t = r.read_bit_short();
+        h.dim_angular_decimal_places = t;
+        raw.dimaunit = Some(t as u16 as i64);
+        let t = r.read_bit_short();
+        h.dim_decimal_places = t;
+        raw.dimdec = Some(t as u16 as i64);
+        let t = r.read_bit_short();
+        h.dim_tolerance_decimal_places = t;
+        raw.dimtdec = Some(t as u16 as i64);
+        let t = r.read_bit_short();
+        h.dim_alt_units_format = t;
+        raw.dimaltu = Some(t as u16 as i64);
+        let t = r.read_bit_short();
+        h.dim_alt_tolerance_decimal_places = t;
+        raw.dimalttd = Some(t as u16 as i64);
 
         // DIMTXSTY handle
-        h.dim_text_style_handle = Handle::new(r.read_handle());
+        let t = r.read_handle_raw();
+        h.dim_text_style_handle = Handle::new(t.3);
+        raw.dimtxsty = Some(t.into());
     }
 
     // ── Dimension variables (Common) ──
@@ -910,11 +978,21 @@ fn read_header_fields(
 
     // R13-R14 only: dimension text strings
     if r13_14_only(v) {
-        h.dim_post = r.read_variable_text();
-        h.dim_alt_post = r.read_variable_text();
-        h.dim_arrow_block = r.read_variable_text();
-        h.dim_arrow_block1 = r.read_variable_text();
-        h.dim_arrow_block2 = r.read_variable_text();
+        let t = r.read_variable_text();
+        h.dim_post = t.clone();
+        raw.dimpost = Some(t);
+        let t = r.read_variable_text();
+        h.dim_alt_post = t.clone();
+        raw.dimapost = Some(t);
+        let t = r.read_variable_text();
+        h.dim_arrow_block = t.clone();
+        raw.dimblk_t = Some(t);
+        let t = r.read_variable_text();
+        h.dim_arrow_block1 = t.clone();
+        raw.dimblk1_t = Some(t);
+        let t = r.read_variable_text();
+        h.dim_arrow_block2 = t.clone();
+        raw.dimblk2_t = Some(t);
     }
 
     // R2000+ only: additional dimension settings
