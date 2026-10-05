@@ -1326,6 +1326,8 @@ fn host_layout<'a>(
             _ => None,
         })
     };
+    // An attribute sits on its block reference's layout.
+    let host = attribute_insert(doc, host).unwrap_or(host);
     let owner = doc.get_entity(host).map(|e| e.common().owner_handle);
     let ctab = ctx.getvar("ctab");
     layouts()
