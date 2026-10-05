@@ -253,8 +253,44 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_assoc_parameter_body(&value.parameter_body);
         self.writer.write_bit_long(value.version);
         self.writer.write_variable_text(&value.parameter_block);
+        self.writer.write_bit_long(value.item_list_version);
+        self.writer.write_bit_long(value.items.len() as i32);
+        self.writer.write_variable_text(&value.item_class);
+        for item in &value.items {
+            self.write_assoc_array_item(item);
+        }
         for item in value.transform {
             self.writer.write_bit_double(item);
+        }
+    }
+
+    fn write_assoc_array_item(&mut self, item: &AssocArrayItem) {
+        self.writer.write_bit_long(item.class_version);
+        for location in item.location {
+            self.writer.write_bit_long(location);
+        }
+        self.writer.write_bit_long(item.flags);
+        if item.uses_default_transform {
+            self.writer.write_3bit_double(item.x_direction);
+        } else {
+            for value in item.transform {
+                self.writer.write_bit_double(value);
+            }
+        }
+        if let Some(matrix) = item.relative_transform {
+            for value in matrix {
+                self.writer.write_bit_double(value);
+            }
+        }
+        self.write_assoc_handle(
+            DwgReferenceType::SoftPointer,
+            item.first_handle.unwrap_or(Handle::NULL),
+        );
+        if item.flags & 0x10 != 0 {
+            self.write_assoc_handle(
+                DwgReferenceType::SoftPointer,
+                item.second_handle.unwrap_or(Handle::NULL),
+            );
         }
     }
 
@@ -955,6 +991,11 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_3bit_double(value.normal);
                 self.writer.write_bit_long(value.hatch_index);
                 self.writer.write_bit_long(value.flags);
+            }
+            AssociativeData::SmartCenterActionBody(value) => {
+                self.write_assoc_action_body(&value.action_body);
+                self.write_assoc_parameter_body(&value.parameter_body);
+                self.writer.write_bit_long(value.version);
             }
             AssociativeData::ViewLabelActionParam(value) => {
                 self.write_assoc_single_dependency(&value.single_dependency);

@@ -4028,9 +4028,10 @@ impl DwgDocumentBuilder {
                     e.flags.closed = (data.closed_flag & 1) != 0;
                     // smooth_type was decoded by the reader but the builder used
                     // to drop it (spline/curve-fit 3D polylines lost their fit).
-                    e.smooth_type = crate::entities::polyline3d::SmoothSurfaceType::from_value(
-                        data.smooth_type as i16,
-                    );
+                    e.smooth_type =
+                        crate::entities::polyline3d::SmoothSurfaceType::from_dwg_code(
+                            data.smooth_type,
+                        );
                     e.flags.spline_fit = data.smooth_type != 0;
                     let h = e.common.handle.value();
                     pending.polylines.push((h, EntityType::Polyline3D(e)));
@@ -6175,7 +6176,14 @@ impl DwgDocumentBuilder {
                                             xdictionary_handle: non_entity_data
                                                 .xdictionary_handle
                                                 .map(Handle::from),
-                                            dxf_name: dxf_name.to_string(),
+                                            // The class name as registered (DXF object
+                                            // names such as AcDbCenterMarkActionBody are
+                                            // case sensitive); matching uses upper case.
+                                            dxf_name: class_names
+                                                .dxf
+                                                .get(&type_code)
+                                                .cloned()
+                                                .unwrap_or_else(|| dxf_name.to_string()),
                                             cpp_class_name,
                                             data,
                                             source_version: Some(document.version),

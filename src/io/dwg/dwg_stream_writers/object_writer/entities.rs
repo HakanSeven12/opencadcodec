@@ -2655,8 +2655,8 @@ impl<'a> DwgObjectWriter<'a> {
     fn write_polyline3d(&mut self, e: &Polyline3D) {
         self.entity_preamble(common::OBJ_POLYLINE_3D, &e.common);
 
-        // Byte 1: smooth surface type (C# hardcodes 0)
-        self.writer.write_byte(e.smooth_type as u8);
+        // Byte 1: curve type (1 quadratic, 2 cubic B-spline)
+        self.writer.write_byte(e.smooth_type.to_dwg_code());
         // Byte 2: closed flag only — bit 3 (Is3DPolyline) is implied by
         // the object type code and must NOT be written in the DWG data
         let closed_flag = if e.flags.closed { 1u8 } else { 0u8 };

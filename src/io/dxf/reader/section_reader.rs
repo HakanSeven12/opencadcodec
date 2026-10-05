@@ -9478,7 +9478,12 @@ impl<'a> SectionReader<'a> {
                     document.header.block_control_handle = Handle::new(handle);
                 }
             } else if pair.code == 0 && pair.value_string == "BLOCK_RECORD" {
-                if let Some(block_record) = self.read_block_record_entry()? {
+                if let Some((block_record, reactors)) = self.read_block_record_entry()? {
+                    if !reactors.is_empty() && !block_record.handle.is_null() {
+                        document
+                            .reactors_by_handle
+                            .insert(block_record.handle, reactors);
+                    }
                     let name = block_record.name.clone();
                     if let Err(_) = document.block_records.add(block_record.clone()) {
                         // Entry already exists (from initialize_defaults),
@@ -9490,6 +9495,7 @@ impl<'a> SectionReader<'a> {
                             if !block_record.layout.is_null() {
                                 existing.layout = block_record.layout;
                             }
+                            existing.insert_handles = block_record.insert_handles.clone();
                             existing.units = block_record.units;
                             existing.flags = block_record.flags;
                         }
@@ -9531,9 +9537,12 @@ impl<'a> SectionReader<'a> {
         Ok(())
     }
 
-    /// Read a single BLOCK_RECORD entry
-    fn read_block_record_entry(&mut self) -> Result<Option<BlockRecord>> {
+    /// Read a single BLOCK_RECORD entry and its reactors
+    /// (`{ACAD_REACTORS`, e.g. the dependencies of an associative array).
+    fn read_block_record_entry(&mut self) -> Result<Option<(BlockRecord, Vec<Handle>)>> {
         let mut block_record = BlockRecord::new("*Model_Space");
+        let mut reactors = Vec::new();
+        let mut group = String::new();
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -9542,6 +9551,23 @@ impl<'a> SectionReader<'a> {
             }
 
             match pair.code {
+                102 => {
+                    group = if pair.value_string.starts_with('{') {
+                        pair.value_string.clone()
+                    } else {
+                        String::new()
+                    };
+                }
+                330 if group == "{ACAD_REACTORS" => {
+                    if let Ok(h) = u64::from_str_radix(pair.value_string.trim(), 16) {
+                        reactors.push(Handle::new(h));
+                    }
+                }
+                331 if group == "{BLKREFS" => {
+                    if let Ok(h) = u64::from_str_radix(pair.value_string.trim(), 16) {
+                        block_record.insert_handles.push(Handle::new(h));
+                    }
+                }
                 5 => {
                     if let Ok(h) = u64::from_str_radix(&pair.value_string, 16) {
                         block_record.handle = Handle::new(h);
@@ -9580,7 +9606,7 @@ impl<'a> SectionReader<'a> {
             }
         }
 
-        Ok(Some(block_record))
+        Ok(Some((block_record, reactors)))
     }
 
     /// Read DIMSTYLE table

@@ -637,8 +637,43 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_subclass("AcDbAssocArrayActionBody")?;
         self.writer.write_i32(90, value.version)?;
         self.writer.write_string(1, &value.parameter_block)?;
+        self.writer.write_i32(90, value.item_list_version)?;
+        self.writer.write_i32(90, value.items.len() as i32)?;
+        self.writer.write_string(1, &value.item_class)?;
+        for item in &value.items {
+            self.writer.write_subclass("AcDbAssocArrayItem")?;
+            self.write_assoc_array_item(item)?;
+        }
         for item in value.transform {
             self.writer.write_double(40, item)?;
+        }
+        Ok(())
+    }
+
+    fn write_assoc_array_item(&mut self, item: &AssocArrayItem) -> Result<()> {
+        self.writer.write_i32(90, item.class_version)?;
+        for location in item.location {
+            self.writer.write_i32(90, location)?;
+        }
+        self.writer.write_i32(90, item.flags)?;
+        if item.uses_default_transform {
+            self.writer.write_point3d(11, item.x_direction)?;
+        } else {
+            for value in item.transform {
+                self.writer.write_double(40, value)?;
+            }
+        }
+        if let Some(matrix) = item.relative_transform {
+            for value in matrix {
+                self.writer.write_double(40, value)?;
+            }
+        }
+        if let Some(first) = item.first_handle {
+            self.writer.write_handle(330, first)?;
+        }
+        if item.flags & 0x10 != 0 {
+            self.writer
+                .write_handle(330, item.second_handle.unwrap_or(Handle::NULL))?;
         }
         Ok(())
     }
@@ -650,30 +685,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(90, value.items.len() as i32)?;
         self.writer.write_string(1, &value.class_name)?;
         for item in &value.items {
-            self.writer.write_i32(90, item.class_version)?;
-            for location in item.location {
-                self.writer.write_i32(90, location)?;
-            }
-            self.writer.write_i32(90, item.flags)?;
-            if item.uses_default_transform {
-                self.writer.write_point3d(11, item.x_direction)?;
-            } else {
-                for matrix_value in item.transform {
-                    self.writer.write_double(40, matrix_value)?;
-                }
-            }
-            if let Some(matrix) = item.relative_transform {
-                for matrix_value in matrix {
-                    self.writer.write_double(40, matrix_value)?;
-                }
-            }
-            if let Some(first) = item.first_handle {
-                self.writer.write_handle(330, first)?;
-            }
-            if item.flags & 0x10 != 0 {
-                self.writer
-                    .write_handle(330, item.second_handle.unwrap_or(Handle::NULL))?;
-            }
+            self.write_assoc_array_item(item)?;
         }
         self.writer.write_i32(90, value.item_count)?;
         self.writer.write_i32(90, value.row_count)?;
@@ -1023,6 +1035,12 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_point3d(210, value.normal)?;
                 self.writer.write_i32(90, value.hatch_index)?;
                 self.writer.write_i32(90, value.flags)?;
+            }
+            AssociativeData::SmartCenterActionBody(value) => {
+                self.write_assoc_action_body(&value.action_body)?;
+                self.write_assoc_parameter_body(&value.parameter_body)?;
+                self.writer.write_subclass("AcDbSmartCenterActionBody")?;
+                self.writer.write_i32(90, value.version)?;
             }
             AssociativeData::ViewLabelActionParam(value) => {
                 self.write_assoc_single_dependency(

@@ -190,8 +190,24 @@ fn read_eval(cursor: &mut AssocCursor<'_>) -> AssocEvalVariant {
     } else {
         cursor.peek_code().unwrap_or_default() as i16
     };
+    // A value without data writes no group, so the next 330 is the variable
+    // handle; a handle value (330-369) is followed by that handle and the
+    // controlled-object dependency.
+    let is_handle = |index: usize| {
+        cursor
+            .entries
+            .get(index)
+            .is_some_and(|entry| (330..=369).contains(&entry.0))
+    };
+    let code = if (330..=369).contains(&code)
+        && !(is_handle(cursor.position + 1) && is_handle(cursor.position + 2))
+    {
+        0
+    } else {
+        code
+    };
     let value = match code {
-        i16::MIN..=-1 | 5 | 105 | 320..=329 | 390..=399 => {
+        i16::MIN..=-1 | 5 | 105 | 320..=369 | 390..=399 => {
             AssocEvalValue::Handle(cursor.handle(code as i32))
         }
         0..=9 | 100..=102 | 300..=309 | 410..=419 | 430..=439 | 470..=479 | 999 | 1000..=1009 => {
@@ -900,8 +916,22 @@ fn read_array_parameters(record: &AssocDxfRecord) -> AssocArrayParameters {
     let version = cursor.i32(90);
     let count = cursor.i32(90).max(0).min(100_000);
     let class_name = cursor.text(1);
-    let mut items = Vec::with_capacity(count as usize);
-    for _ in 0..count {
+    let items = (0..count).map(|_| read_array_item(&mut cursor)).collect();
+    AssocArrayParameters {
+        version,
+        class_name,
+        items,
+        item_count: cursor.i32(90),
+        row_count: cursor.i32(90),
+        level_count: cursor.i32(90),
+    }
+}
+
+/// One array item: 90 class version, 90 x3 location, 90 flags, a point (11)
+/// or a matrix (40 x16), the relative matrix (flag 2), then the entity and,
+/// with flag 0x10, a second handle (330).
+fn read_array_item(cursor: &mut AssocCursor<'_>) -> AssocArrayItem {
+    {
         let class_version = cursor.i32(90);
         let location = [cursor.i32(90), cursor.i32(90), cursor.i32(90)];
         let flags = cursor.i32(90);
@@ -940,7 +970,7 @@ fn read_array_parameters(record: &AssocDxfRecord) -> AssocArrayParameters {
             None
         };
         let second_handle = (flags & 0x10 != 0).then(|| cursor.handle(330));
-        items.push(AssocArrayItem {
+        AssocArrayItem {
             class_version,
             location,
             flags,
@@ -950,15 +980,7 @@ fn read_array_parameters(record: &AssocDxfRecord) -> AssocArrayParameters {
             relative_transform,
             first_handle,
             second_handle,
-        });
-    }
-    AssocArrayParameters {
-        version,
-        class_name,
-        items,
-        item_count: cursor.i32(90),
-        row_count: cursor.i32(90),
-        level_count: cursor.i32(90),
+        }
     }
 }
 
@@ -1518,21 +1540,34 @@ impl<'a> SectionReader<'a> {
                 AssociativeData::ArrayParameters(read_array_parameters(&record))
             }
             "ASSOCARRAYACTIONBODY" | "ASSOCARRAYMODIFYACTIONBODY" => {
-                let section = "AcDbAssocArrayActionBody";
+                // 90 version, 1 parameters class, 90 item list version,
+                // 90 count, 1 item class; each item under its own
+                // AcDbAssocArrayItem marker; the body matrix (40 x16) ends
+                // the record (after the last item).
+                let mut cursor = AssocCursor::new(&record, "AcDbAssocArrayActionBody");
+                let version = cursor.i32(90);
+                let parameter_block = cursor.text(1);
+                let has_items = cursor.peek_code() == Some(90);
+                let item_list_version = if has_items { cursor.i32(90) } else { 0 };
+                let count = if has_items { cursor.i32(90).max(0).min(100_000) } else { 0 };
+                let item_class = if has_items { cursor.text(1) } else { String::new() };
+                let mut item_cursor = AssocCursor::new(&record, "AcDbAssocArrayItem");
+                let items: Vec<_> = (0..count).map(|_| read_array_item(&mut item_cursor)).collect();
+                let matrix_cursor = if count > 0 { &mut item_cursor } else { &mut cursor };
                 let mut matrix = [0.0; 16];
-                for (target, source) in matrix
-                    .iter_mut()
-                    .zip(record.values(section, 40).into_iter())
-                {
-                    *target = source.parse().unwrap_or_default();
+                for target in &mut matrix {
+                    *target = matrix_cursor.f64(40);
                 }
                 let body = AssocArrayActionBody {
                     action_body: AssocActionBody {
                         version: record.i32("AcDbAssocActionBody", 90, 0),
                     },
                     parameter_body: read_parameter_body(&record),
-                    version: record.i32(section, 90, 0),
-                    parameter_block: record.text(section, 1, 0),
+                    version,
+                    parameter_block,
+                    item_list_version,
+                    item_class,
+                    items,
                     transform: matrix,
                 };
                 if canonical == "ASSOCARRAYMODIFYACTIONBODY" {
@@ -1551,6 +1586,15 @@ impl<'a> SectionReader<'a> {
                 } else {
                     AssociativeData::ArrayActionBody(body)
                 }
+            }
+            "ACDBCENTERMARKACTIONBODY" | "ACDBCENTERLINEACTIONBODY" => {
+                AssociativeData::SmartCenterActionBody(AssocSmartCenterActionBody {
+                    action_body: AssocActionBody {
+                        version: record.i32("AcDbAssocActionBody", 90, 0),
+                    },
+                    parameter_body: read_parameter_body(&record),
+                    version: record.i32("AcDbSmartCenterActionBody", 90, 0),
+                })
             }
             "ASSOCVIEWREPACTIONBODY" => {
                 let section = "AcDbAssocViewRepActionBody";

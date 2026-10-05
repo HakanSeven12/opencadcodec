@@ -90,6 +90,9 @@ pub enum AssociativeData {
     ViewRepHatchManager(AssocViewRepHatchManager),
     ViewRepHatchActionParam(AssocViewRepHatchActionParam),
     ViewLabelActionParam(AssocViewLabelActionParam),
+    /// Center mark and center line action bodies (`AcDbCenterMarkActionBody`,
+    /// `AcDbCenterLineActionBody`).
+    SmartCenterActionBody(AssocSmartCenterActionBody),
 }
 
 impl AssociativeData {
@@ -249,6 +252,9 @@ impl AssociativeData {
             }
             Self::ViewLabelActionParam(value) => {
                 single_dependency_references(&value.single_dependency, target)
+            }
+            Self::SmartCenterActionBody(value) => {
+                parameter_body_references(&value.parameter_body, target)
             }
         }
     }
@@ -434,6 +440,9 @@ impl AssociativeData {
             }
             Self::ViewLabelActionParam(value) => {
                 visit_single_dependency(&mut value.single_dependency, visit);
+            }
+            Self::SmartCenterActionBody(value) => {
+                visit_parameter_body(&mut value.parameter_body, visit);
             }
         }
         if let Self::AsmBodyActionParam(value) = self {
@@ -844,6 +853,18 @@ pub struct AssocSingleDependencyActionParam {
     pub dependency_class_version: i32,
     pub dependency: Handle,
     pub class_version: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// Action body of an associative center mark or center line: the action
+/// body version, the parameter-based body (before R2013) and the
+/// `AcDbSmartCenterActionBody` version. Its parameters are value parameters
+/// of the owning action.
+pub struct AssocSmartCenterActionBody {
+    pub action_body: AssocActionBody,
+    pub parameter_body: AssocParamBasedActionBody,
+    pub version: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1272,6 +1293,13 @@ pub struct AssocArrayActionBody {
     pub parameter_body: AssocParamBasedActionBody,
     pub version: i32,
     pub parameter_block: String,
+    /// Version of the item list that follows the parameters class name.
+    pub item_list_version: i32,
+    /// Class name of the items (`AcDbAssocArrayItem`).
+    pub item_class: String,
+    /// One record per array item: its location, flags, placement (a matrix
+    /// when flag 4 is set, otherwise a point) and the item's entity.
+    pub items: Vec<AssocArrayItem>,
     pub transform: [f64; 16],
 }
 
@@ -1282,6 +1310,9 @@ impl Default for AssocArrayActionBody {
             parameter_body: AssocParamBasedActionBody::default(),
             version: 0,
             parameter_block: String::new(),
+            item_list_version: 0,
+            item_class: String::new(),
+            items: Vec::new(),
             transform: [0.0; 16],
         }
     }
@@ -1412,6 +1443,8 @@ pub fn is_associative_object_name(name: &str) -> bool {
             | "ASSOCVIEWSYMBOLACTIONPARAM"
             | "ASSOCVIEWSTYLEACTIONPARAM"
             | "ASSOCVIEWLABELACTIONPARAM"
+            | "ACDBCENTERMARKACTIONBODY"
+            | "ACDBCENTERLINEACTIONBODY"
     )
 }
 
@@ -1472,6 +1505,8 @@ pub fn associative_cpp_class_name(name: &str) -> Option<&'static str> {
         "ASSOCVIEWSYMBOLACTIONPARAM" => "AcDbAssocViewSymbolActionParam",
         "ASSOCVIEWSTYLEACTIONPARAM" => "AcDbAssocViewStyleActionParam",
         "ASSOCVIEWLABELACTIONPARAM" => "AcDbAssocViewLabelActionParam",
+        "ACDBCENTERMARKACTIONBODY" => "AcDbCenterMarkActionBody",
+        "ACDBCENTERLINEACTIONBODY" => "AcDbCenterLineActionBody",
         _ => return None,
     })
 }

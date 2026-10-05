@@ -1732,6 +1732,20 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_subclass("AcDbSymbolTableRecord")?;
         self.writer.write_subclass("AcDbBlockTableRecord")?;
         self.writer.write_string(2, block_record.name())?;
+        self.writer.write_handle(340, block_record.layout)?;
+        let references: Vec<Handle> = block_record
+            .insert_handles
+            .iter()
+            .copied()
+            .filter(|handle| self.valid_handles.is_empty() || self.valid_handles.contains(handle))
+            .collect();
+        if !references.is_empty() {
+            self.writer.write_string(102, "{BLKREFS")?;
+            for handle in references {
+                self.writer.write_handle(331, handle)?;
+            }
+            self.writer.write_string(102, "}")?;
+        }
         self.writer.write_i16(70, block_record.units)?;
         self.writer
             .write_byte(280, if block_record.explodable { 1 } else { 0 })?;
@@ -1795,6 +1809,26 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     ) -> Result<()> {
         self.writer.write_handle(5, handle)?;
         self.write_table_entry_xdictionary(handle, document)?;
+        // Reactors kept from the source (an associative array's dependencies
+        // on its anonymous blocks, for example).
+        let reactors: Vec<Handle> = document
+            .reactors_by_handle
+            .get(&handle)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|reactor| {
+                !reactor.is_null()
+                    && (self.valid_handles.is_empty() || self.valid_handles.contains(reactor))
+            })
+            .collect();
+        if !reactors.is_empty() {
+            self.writer.write_string(102, "{ACAD_REACTORS")?;
+            for reactor in reactors {
+                self.writer.write_handle(330, reactor)?;
+            }
+            self.writer.write_string(102, "}")?;
+        }
         self.writer.write_handle(330, owner)?;
         Ok(())
     }
@@ -4808,6 +4842,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
         // Polyline flags (bit 8 = 3D polyline)
         self.writer.write_i16(70, polyline.flags.to_bits() as i16)?;
+        // Curve type of a spline-fit polyline (5 quadratic, 6 cubic).
+        if polyline.smooth_type != crate::entities::polyline3d::SmoothSurfaceType::None {
+            self.writer.write_i16(75, polyline.smooth_type.to_value())?;
+        }
 
         // XDATA precedes the child VERTEX/SEQEND records.
         self.write_xdata(&polyline.common.extended_data)?;
