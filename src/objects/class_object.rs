@@ -1264,6 +1264,19 @@ pub struct ModelDocViewStyle {
     pub flags: i32,
 }
 
+impl ModelDocViewStyle {
+    /// The R2018+ display name. Older files carry none; the reference
+    /// application then shows the style name, which the description holds
+    /// (an empty one makes it reject an R2018 DXF).
+    pub fn display_name_or_description(&self) -> &str {
+        if self.display_name.is_empty() {
+            &self.description
+        } else {
+            &self.display_name
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DetailViewStyle {

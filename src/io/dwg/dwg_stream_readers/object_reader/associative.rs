@@ -624,18 +624,10 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
     let marker_two = reader.read_bit_long();
     let associative_step_count = reader.read_bit_long();
     let associative_subent_count = reader.read_bit_long();
-    let count = safe_count(reader.read_bit_long());
-    let mut steps = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        steps.push(reader.read_bit_long());
-    }
-    let mut subents = Vec::new();
-    if reader.main_remaining_bits() > 0 {
-        let count = safe_count(reader.read_bit_long());
-        subents.reserve(count as usize);
-        for _ in 0..count {
-            subents.push(reader.read_bit_long());
-        }
+    // The body is a flat run of integers up to the end of the data stream.
+    let mut values = Vec::new();
+    while reader.main_remaining_bits() >= 2 {
+        values.push(reader.read_bit_long());
     }
     PersSubentManager {
         class_version,
@@ -643,8 +635,7 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
         marker_two,
         associative_step_count,
         associative_subent_count,
-        steps,
-        subents,
+        values,
     }
 }
 

@@ -742,15 +742,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(90, value.marker_two)?;
         self.writer.write_i32(90, value.associative_step_count)?;
         self.writer.write_i32(90, value.associative_subent_count)?;
-        self.writer.write_i32(90, value.steps.len() as i32)?;
-        for step in &value.steps {
-            self.writer.write_i32(90, *step)?;
-        }
-        if value.associative_subent_count != 0 || !value.subents.is_empty() {
-            self.writer.write_i32(90, value.subents.len() as i32)?;
-            for subent in &value.subents {
-                self.writer.write_i32(90, *subent)?;
-            }
+        for item in &value.values {
+            self.writer.write_i32(90, *item)?;
         }
         Ok(())
     }

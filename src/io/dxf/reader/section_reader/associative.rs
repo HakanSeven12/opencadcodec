@@ -1044,15 +1044,9 @@ fn read_static_pers_subent_manager_dxf(record: &AssocDxfRecord) -> PersSubentMan
     let marker_two = cursor.i32(90);
     let associative_step_count = cursor.i32(90);
     let associative_subent_count = cursor.i32(90);
-    let step_count = cursor.i32(90).max(0).min(100_000) as usize;
-    let mut steps = Vec::with_capacity(step_count);
-    for _ in 0..step_count {
-        steps.push(cursor.i32(90));
-    }
-    let subent_count = cursor.i32(90).max(0).min(100_000) as usize;
-    let mut subents = Vec::with_capacity(subent_count);
-    for _ in 0..subent_count {
-        subents.push(cursor.i32(90));
+    let mut values = Vec::new();
+    while cursor.peek_code() == Some(90) {
+        values.push(cursor.i32(90));
     }
     PersSubentManager {
         class_version,
@@ -1060,8 +1054,7 @@ fn read_static_pers_subent_manager_dxf(record: &AssocDxfRecord) -> PersSubentMan
         marker_two,
         associative_step_count,
         associative_subent_count,
-        steps,
-        subents,
+        values,
     }
 }
 

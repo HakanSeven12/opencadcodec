@@ -9624,6 +9624,8 @@ impl<'a> SectionReader<'a> {
                         block_record.layout = Handle::new(h);
                     }
                 }
+                // Block preview image (BMP), split over several 310 groups.
+                310 => append_hex_bytes(&mut block_record.preview_data, &pair.value_string),
                 _ => {}
             }
         }
@@ -18516,9 +18518,13 @@ impl<'a> SectionReader<'a> {
                         common.line_weight = LineWeight::from_value(v);
                     }
                 }
+                // A SAT line longer than a group comes as group 3 chunks
+                // ended by its group 1.
                 1 | 3 => {
                     acis_data.push_str(&pair.value_string);
-                    acis_data.push('\n');
+                    if pair.code == 1 {
+                        acis_data.push('\n');
+                    }
                 }
                 2 => uid = pair.value_string.clone(),
                 350 => {

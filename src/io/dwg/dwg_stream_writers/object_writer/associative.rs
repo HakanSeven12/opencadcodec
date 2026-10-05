@@ -358,15 +358,8 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.marker_two);
         self.writer.write_bit_long(value.associative_step_count);
         self.writer.write_bit_long(value.associative_subent_count);
-        self.writer.write_bit_long(value.steps.len() as i32);
-        for step in &value.steps {
-            self.writer.write_bit_long(*step);
-        }
-        if value.associative_subent_count != 0 || !value.subents.is_empty() {
-            self.writer.write_bit_long(value.subents.len() as i32);
-            for subent in &value.subents {
-                self.writer.write_bit_long(*subent);
-            }
+        for item in &value.values {
+            self.writer.write_bit_long(*item);
         }
     }
 

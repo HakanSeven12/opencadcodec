@@ -174,7 +174,8 @@ impl SatWriter {
 /// small or very large values, matching the ACIS convention.
 fn format_float(v: f64) -> String {
     if v == 0.0 {
-        "0".to_string()
+        // A negative zero keeps its sign, as the reference application writes it.
+        if v.is_sign_negative() { "-0" } else { "0" }.to_string()
     } else if v.fract() == 0.0 && v.abs() < 1e15 && !v.is_infinite() && !v.is_nan() {
         format!("{}", v as i64)
     } else if v.abs() < 1e-3 || v.abs() >= 1e15 {
