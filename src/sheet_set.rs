@@ -856,6 +856,7 @@ fn set_file_props(r: &mut Element, file: &str, folder: Option<&std::path::Path>)
     for p in ["Environ_FileName", "FileName", "Relative_FileName", "SpecialFolder_FileName"] {
         r.remove_named(p);
     }
+    let file = &native_path(file);
     r.set_prop("FileName", file);
     if let Some(rel) = folder.and_then(|f| relative_path(f, std::path::Path::new(file))) {
         r.set_prop("Relative_FileName", &rel);
@@ -899,6 +900,15 @@ fn normalize_path(p: &std::path::Path) -> String {
         }
     }
     out.to_string_lossy().to_string()
+}
+
+/// A path as the reference stores it: Windows separators on Windows.
+pub fn native_path(p: &str) -> String {
+    if cfg!(windows) {
+        p.replace('/', "\\")
+    } else {
+        p.to_string()
+    }
 }
 
 /// Case- and separator-insensitive key for comparing drawing paths.
