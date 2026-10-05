@@ -2430,52 +2430,160 @@ impl CadDocument {
         Some(container)
     }
 
-    /// A field for a table cell: a `_text` container owned by the table
-    /// holding `children` (template `%<\_FldIdx n>%` markers), registered in
-    /// the FIELDLIST. The cell's content refers to the returned container.
-    /// `None` when a marker has no child.
-    pub fn new_table_cell_field(
+    /// Draw a table into its anonymous `*T` block the way the reference keeps
+    /// it: one MTEXT per filled cell, centred in the cell, with the row
+    /// style's text height and alignment (the cell's own alignment when it
+    /// overrides it) and the column width less both horizontal margins; then
+    /// the row lines top to bottom, the column lines left to right and a
+    /// hidden point on `Defpoints`. Each of `fields` (row, column, template,
+    /// children) puts a field into that cell: the cell's MTEXT holds it under
+    /// `ACAD_FIELD` and the cell's content refers to the same container.
+    /// Returns the containers in `fields` order.
+    pub fn build_table_block(
         &mut self,
         table: Handle,
-        template: &str,
-        children: Vec<NewField>,
-    ) -> Option<Handle> {
-        let display = template_display(template, &children, false)?;
-        for (dxf, cpp) in [("FIELD", "AcDbField"), ("FIELDLIST", "AcDbFieldList")] {
-            if !self.classes.contains(dxf) {
-                let mut class = crate::classes::DxfClass::new(dxf, cpp);
-                class.proxy_flags = crate::classes::ProxyFlags(1152);
-                self.classes.add_or_update(class);
+        fields: Vec<(usize, usize, String, Vec<NewField>)>,
+    ) -> Option<Vec<Option<Handle>>> {
+        use crate::entities::{Line, MText};
+        use crate::types::{Color, LineWeight, Transparency, Vector3};
+        let Some(EntityType::Table(t)) = self.get_entity(table) else {
+            return None;
+        };
+        let t = (**t).clone();
+        let style = t.table_style_handle.and_then(|h| match self.objects.get(&h) {
+            Some(ObjectType::TableStyle(s)) => Some(s.clone()),
+            _ => None,
+        });
+        let margin = style.as_ref().map_or(0.06, |s| s.horizontal_margin);
+        let legacy = t.legacy_style_override.clone().unwrap_or_default();
+        let title = !legacy.title_suppressed.unwrap_or(false);
+        let header = !legacy.header_suppressed.unwrap_or(false);
+        // (text height, alignment) of a row by its kind: title, header, data.
+        let row_style = |r: usize| {
+            let kind = if title && r == 0 {
+                0
+            } else if header && r == usize::from(title) {
+                1
+            } else {
+                2
+            };
+            style.as_ref().map_or((0.18, 5), |s| {
+                // Newer styles keep their rows as the named cell styles.
+                let named = s.modern_overrides.iter().find(|(_, n)| {
+                    n.name.eq_ignore_ascii_case(["_TITLE", "_HEADER", "_DATA"][kind])
+                });
+                match named {
+                    Some((_, n)) if n.cell_style.content_format.text_height > 0.0 => (
+                        n.cell_style.content_format.text_height,
+                        n.cell_style.content_format.cell_alignment as i32,
+                    ),
+                    _ => {
+                        let rs = [&s.title_row_style, &s.header_row_style, &s.data_row_style][kind];
+                        (rs.text_height, rs.alignment as i32)
+                    }
+                }
+            })
+        };
+
+        let mut index = 1;
+        while self.block_records.get(&format!("*T{index}")).is_some() {
+            index += 1;
+        }
+        let mut record = crate::tables::BlockRecord::new(format!("*T{index}"));
+        record.handle = self.allocate_handle();
+        record.block_entity_handle = self.allocate_handle();
+        record.block_end_handle = self.allocate_handle();
+        record.flags.anonymous = true;
+        let owner = record.handle;
+        let name = record.name.clone();
+        self.block_records.add(record).ok()?;
+        if let Some(EntityType::Table(t)) = self.get_entity_mut(table) {
+            t.block_name = name;
+            t.block_record_handle = Some(owner);
+        }
+
+        let by_block = |c: &mut EntityCommon| {
+            c.owner_handle = owner;
+            c.layer = "0".into();
+            c.color = Color::ByBlock;
+            c.transparency = Transparency::ByBlock;
+        };
+        let widths: Vec<f64> = t.columns.iter().map(|c| c.width).collect();
+        let heights: Vec<f64> = t.rows.iter().map(|r| r.height).collect();
+        let (total_w, total_h) = (widths.iter().sum::<f64>(), heights.iter().sum::<f64>());
+        let mut texts: std::collections::HashMap<(usize, usize), Handle> = std::collections::HashMap::new();
+        let field_cells: Vec<(usize, usize)> = fields.iter().map(|f| (f.0, f.1)).collect();
+        let mut y = 0.0;
+        for (r, row) in t.rows.iter().enumerate() {
+            let mut x = 0.0;
+            for (c, w) in widths.iter().enumerate() {
+                let cell = row.cells.get(c);
+                let text = cell.and_then(|cell| cell.contents.first()).map(|ct| ct.value.text.clone()).unwrap_or_default();
+                if !text.is_empty() || field_cells.contains(&(r, c)) {
+                    let (height, mut align) = row_style(r);
+                    if let Some(s) = cell.and_then(|cell| cell.style.as_ref()).filter(|s| s.override_flags & 0x01 != 0) {
+                        align = s.alignment;
+                    }
+                    let mut m = MText::new();
+                    by_block(&mut m.common);
+                    m.value = text;
+                    m.height = height;
+                    m.rectangle_width = w - 2.0 * margin;
+                    m.insertion_point = Vector3::new(x + w / 2.0, -(y + heights[r] / 2.0), 0.0);
+                    m.attachment_point = attachment(align);
+                    m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
+                    if let Ok(h) = self.add_entity(EntityType::MText(m)) {
+                        texts.insert((r, c), h);
+                    }
+                }
+                x += w;
             }
+            y += heights[r];
         }
-        let container = self.allocate_handle();
-        let child_handles: Vec<Handle> = children.iter().map(|_| self.allocate_handle()).collect();
-        let mut checksum = CellValue::number(field_text_checksum(&display));
-        checksum.flags = 2;
-        checksum.formatted_value.clear();
-        let mut empty = CellValue::new();
-        empty.flags = 3;
-        let mut all = vec![Field {
-            handle: container,
-            owner: table,
-            evaluator_id: "_text".into(),
-            code: template.into(),
-            child_fields: child_handles.clone(),
-            evaluation_option: 63,
-            state: 13,
-            evaluation_status: 2,
-            value: empty,
-            child_values: vec![FieldChildValue {
-                key: "ACFD_FIELDTEXT_CHECKSUM".into(),
-                value: checksum,
-            }],
-            ..Field::default()
-        }];
-        for (child, handle) in children.into_iter().zip(&child_handles) {
-            all.push(child_field(child, *handle, container));
+        let line = |a: Vector3, b: Vector3, doc: &mut CadDocument| {
+            let mut l = Line::from_points(a, b);
+            by_block(&mut l.common);
+            l.common.linetype = "ByBlock".into();
+            l.common.line_weight = LineWeight::ByBlock;
+            let _ = doc.add_entity(EntityType::Line(l));
+        };
+        let mut y = 0.0;
+        for h in std::iter::once(0.0).chain(heights.iter().copied()) {
+            y -= h;
+            line(Vector3::new(0.0, y, 0.0), Vector3::new(total_w, y, 0.0), self);
         }
-        self.register_fields(all);
-        Some(container)
+        let mut x = 0.0;
+        for w in std::iter::once(0.0).chain(widths.iter().copied()) {
+            x += w;
+            line(Vector3::new(x, 0.0, 0.0), Vector3::new(x, -total_h, 0.0), self);
+        }
+        if !self.layers.contains("Defpoints") {
+            let mut layer = crate::tables::Layer::new("Defpoints");
+            layer.handle = self.allocate_handle();
+            layer.is_plottable = false;
+            self.layers.add_or_replace(layer);
+        }
+        let mut point = Line::from_points(Vector3::ZERO, Vector3::ZERO);
+        point.common.owner_handle = owner;
+        point.common.layer = "Defpoints".into();
+        point.common.color = Color::from_index(8);
+        point.common.invisible = true;
+        point.common.transparency = Transparency::ByBlock;
+        point.common.line_weight = LineWeight::from_value(0);
+        let _ = self.add_entity(EntityType::Line(point));
+
+        let mut out = Vec::new();
+        for (r, c, template, children) in fields {
+            let container = texts.get(&(r, c)).and_then(|h| self.set_text_field(*h, &template, children));
+            if let (Some(container), Some(EntityType::Table(t))) = (container, self.get_entity_mut(table)) {
+                if let Some(content) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)).and_then(|cell| cell.contents.first_mut()) {
+                    content.field_handle = Some(container);
+                }
+                t.field_handles.push(container);
+            }
+            out.push(container);
+        }
+        Some(out)
     }
 
     /// Add fields to the document and its FIELDLIST.
@@ -3105,5 +3213,21 @@ mod tests {
         );
         assert_eq!(num_str(5.0), "5");
         assert_eq!(rtos(3.14159, Some(2)), "3.14");
+    }
+}
+
+/// The MTEXT attachment for a table cell alignment (1 top left … 9 bottom right).
+fn attachment(align: i32) -> crate::entities::AttachmentPoint {
+    use crate::entities::AttachmentPoint as A;
+    match align {
+        1 => A::TopLeft,
+        2 => A::TopCenter,
+        3 => A::TopRight,
+        4 => A::MiddleLeft,
+        6 => A::MiddleRight,
+        7 => A::BottomLeft,
+        8 => A::BottomCenter,
+        9 => A::BottomRight,
+        _ => A::MiddleCenter,
     }
 }

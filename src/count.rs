@@ -242,22 +242,13 @@ pub fn single_json(targets: &[Handle]) -> String {
 }
 
 /// The objects like one picked object that is not a block reference, in
-/// model space and inside the counted block references (nested ones too):
-/// a line finds every line and polyline, a circle every circle, a polyline
-/// the polylines of the same shape at any size, rotation or position, and
-/// anything else objects of its kind. Each match is listed as the top-level
+/// model space and inside the counted block references (nested ones too).
+/// Objects match at any position, rotation and size (see [`similar`]). Each match is listed as the top-level
 /// object it is drawn by (a reference repeats once per match inside it).
 pub fn similar_matches(doc: &CadDocument, target: &EntityType, area: Option<&[[f64; 2]]>) -> Vec<Vec<Handle>> {
     let duplicates: Vec<Handle> =
         block_instances(doc, None).into_iter().filter(|i| i.duplicate_of.is_some()).map(|i| i.handle).collect();
-    let shape = polyline_shape(target);
-    let matches = |e: &EntityType| match target {
-        EntityType::Line(_) => matches!(e, EntityType::Line(_) | EntityType::LwPolyline(_)),
-        EntityType::LwPolyline(_) => {
-            matches!(e, EntityType::LwPolyline(_)) && same_shape(shape.as_deref(), polyline_shape(e).as_deref())
-        }
-        _ => std::mem::discriminant(e) == std::mem::discriminant(target),
-    };
+    let matches = |e: &EntityType| similar(target, e);
     let mut out = Vec::new();
     for e in doc.model_space_entities() {
         let top = e.common().handle;
@@ -277,15 +268,32 @@ pub fn similar_matches(doc: &CadDocument, target: &EntityType, area: Option<&[[f
 
 /// Outlines (in WCS) of the objects under `e` that `matches` accepts; `chain`
 /// holds the references `e` is drawn through, outermost first.
-fn nested_matches<'a>(
-    doc: &'a CadDocument,
-    e: &'a EntityType,
+fn nested_matches(
+    doc: &CadDocument,
+    e: &EntityType,
     matches: &dyn Fn(&EntityType) -> bool,
-    chain: &mut Vec<&'a Insert>,
+    chain: &mut Vec<Insert>,
     depth: usize,
-    found: &mut Vec<Vec<Vec<Vector3>>>,
+    found: &mut Vec<Vec<Piece>>,
 ) {
-    if let EntityType::Insert(ins) = e {
+    // A table's drawing (its `*T` block) counts like a reference's; a
+    // dimension's does not.
+    let placed = match e {
+        EntityType::Insert(ins) => Some(ins.clone()),
+        EntityType::Table(t) => {
+            // DWG tables may name their block only by its record.
+            let name = t
+                .block_record_handle
+                .and_then(|h| doc.block_records.iter().find(|r| r.handle == h))
+                .map_or_else(|| t.block_name.clone(), |r| r.name.clone());
+            let mut ins = Insert::new(name, t.insertion_point);
+            ins.rotation = t.horizontal_direction.y.atan2(t.horizontal_direction.x);
+            ins.normal = t.normal;
+            Some(ins)
+        }
+        _ => None,
+    };
+    if let Some(ins) = placed {
         let Some(record) = doc.block_records.get(&ins.block_name) else {
             return;
         };
@@ -301,18 +309,14 @@ fn nested_matches<'a>(
         chain.pop();
         return;
     }
-    if !matches(e) {
+    if e.common().invisible || !matches(e) {
         return;
     }
     let mut outline = entity_outline(doc, e);
     for ins in chain.iter().rev() {
         let base = doc.block_records.get(&ins.block_name).map(|r| r.base_point).unwrap_or_default();
         let t = ins.get_transform();
-        for part in &mut outline {
-            for p in part.iter_mut() {
-                *p = t.apply(*p - base);
-            }
-        }
+        outline = outline.into_iter().map(|p| p.placed(&t, base)).collect();
     }
     found.push(outline);
 }
@@ -352,12 +356,106 @@ fn polyline_shape(e: &EntityType) -> Option<Vec<[f64; 3]>> {
 
 /// Two polyline shapes are alike when one is the other started at another
 /// vertex (closed ones).
-fn same_shape(a: Option<&[[f64; 3]]>, b: Option<&[[f64; 3]]>) -> bool {
+fn same_shape(a: Option<&[[f64; 3]]>, b: Option<&[[f64; 3]]>, closed: bool) -> bool {
     let (Some(a), Some(b)) = (a, b) else {
         return false;
     };
     let close = |x: &[f64; 3], y: &[f64; 3]| x.iter().zip(y).all(|(p, q)| (p - q).abs() < 1e-6);
-    a.len() == b.len() && (0..a.len()).any(|k| a.iter().enumerate().all(|(i, x)| close(x, &b[(i + k) % b.len()])))
+    let shifts = if closed { a.len() } else { 1 };
+    // A mirrored copy turns the other way.
+    let mirrored: Vec<[f64; 3]> = b.iter().map(|x| [x[0], -x[1], -x[2]]).collect();
+    a.len() == b.len()
+        && [b, mirrored.as_slice()]
+            .iter()
+            .any(|b| (0..shifts).any(|k| a.iter().enumerate().all(|(i, x)| close(x, &b[(i + k) % b.len()]))))
+}
+
+/// Whether `e` counts as a copy of the single picked `target` (as measured
+/// on the reference): circles always; arcs, ellipses, polylines, splines and
+/// hatches when their shape is the same at any position, rotation and size;
+/// texts with the same string; lines always; anything else objects of its
+/// kind.
+fn similar(target: &EntityType, e: &EntityType) -> bool {
+    let eq = |a: f64, b: f64| (a - b).abs() < 1e-6;
+    let sweep = |a: f64, b: f64| (b - a).rem_euclid(std::f64::consts::TAU);
+    match (target, e) {
+        (EntityType::Line(_), EntityType::Line(_)) => true,
+        (EntityType::Arc(a), EntityType::Arc(b)) => eq(sweep(a.start_angle, a.end_angle), sweep(b.start_angle, b.end_angle)),
+        (EntityType::Ellipse(a), EntityType::Ellipse(b)) => {
+            eq(a.minor_axis_ratio, b.minor_axis_ratio)
+                && eq(sweep(a.start_parameter, a.end_parameter), sweep(b.start_parameter, b.end_parameter))
+        }
+        (EntityType::LwPolyline(a), EntityType::LwPolyline(b)) => {
+            a.is_closed == b.is_closed && same_shape(polyline_shape(target).as_deref(), polyline_shape(e).as_deref(), a.is_closed)
+        }
+        (EntityType::Text(a), EntityType::Text(b)) => a.value == b.value,
+        (EntityType::MText(a), EntityType::MText(b)) => a.value == b.value,
+        (EntityType::Spline(a), EntityType::Spline(b)) => {
+            // Splines kept by their fit points compare by those.
+            let pts = |s: &crate::entities::Spline| {
+                normalized(if s.control_points.is_empty() { &s.fit_points } else { &s.control_points })
+            };
+            let (pa, pb) = (pts(a), pts(b));
+            a.degree == b.degree
+                && pa.len() == pb.len()
+                && !pa.is_empty()
+                && pa.iter().zip(&pb).all(|(p, q)| eq(p[0], q[0]) && eq(p[1], q[1]))
+        }
+        (EntityType::Hatch(a), EntityType::Hatch(b)) => {
+            let (pa, pb) = (hatch_points(a), hatch_points(b));
+            let n = pb.len();
+            a.is_solid == b.is_solid
+                && a.pattern.name.eq_ignore_ascii_case(&b.pattern.name)
+                && pa.len() == n
+                && n > 0
+                && (0..n).any(|k| {
+                    let turned: Vec<Vector3> = (0..n).map(|i| pb[(i + k) % n]).collect();
+                    let (x, y) = (normalized(&pa), normalized(&turned));
+                    x.len() == y.len() && x.iter().zip(&y).all(|(p, q)| eq(p[0], q[0]) && eq(p[1], q[1]))
+                })
+        }
+        _ => std::mem::discriminant(e) == std::mem::discriminant(target),
+    }
+}
+
+/// A hatch's boundary corners (polyline vertices and edge start points),
+/// path after path.
+// ponytail: curved edges count by their start point only.
+fn hatch_points(h: &crate::entities::Hatch) -> Vec<Vector3> {
+    use crate::entities::hatch::BoundaryEdge;
+    let mut out = Vec::new();
+    for path in &h.paths {
+        for edge in &path.edges {
+            match edge {
+                BoundaryEdge::Polyline(pl) => out.extend(pl.vertices.iter().map(|v| Vector3::new(v.x, v.y, 0.0))),
+                BoundaryEdge::Line(l) => out.push(Vector3::new(l.start.x, l.start.y, 0.0)),
+                BoundaryEdge::CircularArc(a) => out.push(Vector3::new(a.center.x, a.center.y, a.radius)),
+                BoundaryEdge::EllipticArc(e) => out.push(Vector3::new(e.center.x, e.center.y, 0.0)),
+                BoundaryEdge::Spline(sp) => out.extend(sp.control_points.iter().map(|v| Vector3::new(v.x, v.y, 0.0))),
+            }
+        }
+    }
+    out
+}
+
+/// Points moved, turned and scaled so the first lies at the origin and the
+/// first distinct one at (1, 0).
+fn normalized(points: &[Vector3]) -> Vec<[f64; 2]> {
+    let Some(first) = points.first() else {
+        return Vec::new();
+    };
+    let Some(d) = points.iter().map(|p| *p - *first).find(|d| d.x.hypot(d.y) > 1e-12) else {
+        return Vec::new();
+    };
+    let (len, ang) = (d.x.hypot(d.y), d.y.atan2(d.x));
+    let (c, s) = (ang.cos(), ang.sin());
+    points
+        .iter()
+        .map(|p| {
+            let (x, y) = (p.x - first.x, p.y - first.y);
+            [(x * c + y * s) / len, (y * c - x * s) / len]
+        })
+        .collect()
 }
 
 /// The copies of a group of picked objects (one object that is not a block
@@ -628,21 +726,6 @@ fn segments_cross(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2]) -> bool {
         || (d4 == 0.0 && on(a, b, d))
 }
 
-/// Whether an outline lies wholly inside the polygon: all its points inside
-/// and none of its segments crossing an edge.
-pub fn inside_polygon(outline: &[Vec<Vector3>], polygon: &[[f64; 2]]) -> bool {
-    let n = polygon.len();
-    outline.iter().any(|part| !part.is_empty())
-        && outline.iter().all(|part| {
-            part.iter().all(|p| point_in_polygon([p.x, p.y], polygon))
-                && part.windows(2).all(|w| {
-                    (0..n).all(|k| {
-                        !segments_cross([w[0].x, w[0].y], [w[1].x, w[1].y], polygon[k], polygon[(k + 1) % n])
-                    })
-                })
-        })
-}
-
 /// Even-odd point-in-polygon test.
 pub fn point_in_polygon(p: [f64; 2], polygon: &[[f64; 2]]) -> bool {
     let mut inside = false;
@@ -656,13 +739,98 @@ pub fn point_in_polygon(p: [f64; 2], polygon: &[[f64; 2]]) -> bool {
     inside
 }
 
+/// A piece of drawn geometry in WCS: a straight segment, or an elliptic arc
+/// `c + u·cos t + v·sin t` for `t` in `t0..=t1` (circles, arcs, ellipses
+/// and bulges, also as references stretch them).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Piece {
+    Segment(Vector3, Vector3),
+    Conic { c: Vector3, u: Vector3, v: Vector3, t0: f64, t1: f64 },
+}
+
+impl Piece {
+    fn start(&self) -> Vector3 {
+        match *self {
+            Piece::Segment(a, _) => a,
+            Piece::Conic { c, u, v, t0, .. } => c + u * t0.cos() + v * t0.sin(),
+        }
+    }
+
+    /// The piece moved by a reference (`p ↦ t(p − base)`); conics stay exact.
+    fn placed(self, t: &crate::types::Transform, base: Vector3) -> Piece {
+        let at = |p: Vector3| t.apply(p - base);
+        match self {
+            Piece::Segment(a, b) => Piece::Segment(at(a), at(b)),
+            Piece::Conic { c, u, v, t0, t1 } => {
+                let c2 = at(c);
+                Piece::Conic { c: c2, u: at(c + u) - c2, v: at(c + v) - c2, t0, t1 }
+            }
+        }
+    }
+
+    /// Points along the piece (for extents and zooming).
+    pub fn points(&self) -> Vec<Vector3> {
+        match *self {
+            Piece::Segment(a, b) => vec![a, b],
+            Piece::Conic { c, u, v, t0, t1 } => {
+                let n = (((t1 - t0) / 5f64.to_radians()).ceil() as usize).max(2);
+                (0..=n)
+                    .map(|k| {
+                        let t = t0 + (t1 - t0) * k as f64 / n as f64;
+                        c + u * t.cos() + v * t.sin()
+                    })
+                    .collect()
+            }
+        }
+    }
+
+    /// Whether the piece meets the segment ab (in plan).
+    fn meets(&self, a: [f64; 2], b: [f64; 2]) -> bool {
+        match *self {
+            Piece::Segment(p, q) => segments_cross([p.x, p.y], [q.x, q.y], a, b),
+            Piece::Conic { c, u, v, t0, t1 } => {
+                // n·(p(t) − a) = k + α cos t + β sin t = 0 along the edge's line.
+                let d = [b[0] - a[0], b[1] - a[1]];
+                let n = [-d[1], d[0]];
+                let dot = |x: f64, y: f64| n[0] * x + n[1] * y;
+                let (k, al, be) = (dot(c.x - a[0], c.y - a[1]), dot(u.x, u.y), dot(v.x, v.y));
+                let r = al.hypot(be);
+                if r < 1e-15 || k.abs() > r {
+                    return false;
+                }
+                let phi = be.atan2(al);
+                let w = (-k / r).clamp(-1.0, 1.0).acos();
+                [phi + w, phi - w].iter().any(|&t| {
+                    let t = t0 + (t - t0).rem_euclid(std::f64::consts::TAU);
+                    if t > t1 + 1e-12 {
+                        return false;
+                    }
+                    let p = c + u * t.cos() + v * t.sin();
+                    let s = ((p.x - a[0]) * d[0] + (p.y - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]);
+                    (-1e-12..=1.0 + 1e-12).contains(&s)
+                })
+            }
+        }
+    }
+}
+
+/// Whether drawn geometry lies wholly inside the polygon: each piece starts
+/// inside it and meets none of its edges.
+pub fn inside_polygon(pieces: &[Piece], polygon: &[[f64; 2]]) -> bool {
+    let n = polygon.len();
+    !pieces.is_empty()
+        && pieces.iter().all(|piece| {
+            let s = piece.start();
+            point_in_polygon([s.x, s.y], polygon) && (0..n).all(|k| !piece.meets(polygon[k], polygon[(k + 1) % n]))
+        })
+}
+
 /// WCS corners of a reference's extents: the box of its geometry as it lies
 /// in the drawing. `None` for an empty block.
 pub fn insert_corners(doc: &CadDocument, insert: &Insert, depth: usize) -> Option<Vec<Vector3>> {
-    let outline = insert_outline(doc, insert, depth);
-    let mut pts = outline.iter().flatten();
-    let first = *pts.next()?;
-    let (lo, hi) = pts.fold((first, first), |(lo, hi), p| {
+    let pts: Vec<Vector3> = insert_outline(doc, insert, depth).iter().flat_map(Piece::points).collect();
+    let first = *pts.first()?;
+    let (lo, hi) = pts.iter().fold((first, first), |(lo, hi), p| {
         (
             Vector3::new(lo.x.min(p.x), lo.y.min(p.y), lo.z.min(p.z)),
             Vector3::new(hi.x.max(p.x), hi.y.max(p.y), hi.z.max(p.z)),
@@ -679,8 +847,8 @@ pub fn insert_corners(doc: &CadDocument, insert: &Insert, depth: usize) -> Optio
     Some(out)
 }
 
-/// The geometry of a reference in WCS as polylines (curves sampled).
-pub fn insert_outline(doc: &CadDocument, insert: &Insert, depth: usize) -> Vec<Vec<Vector3>> {
+/// The geometry of a reference in WCS.
+pub fn insert_outline(doc: &CadDocument, insert: &Insert, depth: usize) -> Vec<Piece> {
     let Some(record) = doc.block_records.get(&insert.block_name) else {
         return Vec::new();
     };
@@ -688,45 +856,51 @@ pub fn insert_outline(doc: &CadDocument, insert: &Insert, depth: usize) -> Vec<V
     let t = insert.get_transform();
     let mut out = Vec::new();
     for &h in &record.entity_handles {
-        let parts = match doc.get_entity(h) {
+        let pieces = match doc.get_entity(h) {
             Some(EntityType::Insert(nested)) if depth < 8 => insert_outline(doc, nested, depth + 1),
             Some(EntityType::Insert(_)) | Some(EntityType::AttributeDefinition(_)) | None => continue,
             Some(e) => entity_outline(doc, e),
         };
-        out.extend(parts.into_iter().map(|part| part.into_iter().map(|p| t.apply(p - base)).collect::<Vec<_>>()));
+        out.extend(pieces.into_iter().map(|p| p.placed(&t, base)));
     }
     out
 }
 
-/// The geometry of an entity in WCS as polylines: lines, circles, arcs and
-/// lightweight polylines exactly (curves sampled every 7.5°), references
-/// through their block, anything else as its bounding box.
-// ponytail: sampled curves; a boundary corner poking between two samples is missed.
-pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Vec<Vector3>> {
+/// The geometry of an entity in WCS: lines, circles, arcs, ellipses and
+/// lightweight polylines (bulges as true arcs) exactly, splines along their
+/// curve, references through their block, anything else as its box.
+pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Piece> {
     use crate::types::Matrix3;
-    let step = 7.5f64.to_radians();
-    let arc = |center: Vector3, r: f64, a0: f64, a1: f64, normal: Vector3| -> Vec<Vector3> {
-        let sweep = (a1 - a0).rem_euclid(std::f64::consts::TAU);
-        let sweep = if sweep < 1e-12 { std::f64::consts::TAU } else { sweep };
-        let n = ((sweep / step).ceil() as usize).max(2);
+    let tau = std::f64::consts::TAU;
+    let circle = |center: Vector3, r: f64, normal: Vector3, t0: f64, t1: f64| {
         let m = Matrix3::arbitrary_axis(normal);
-        (0..=n)
-            .map(|k| {
-                let a = a0 + sweep * k as f64 / n as f64;
-                m * (center + Vector3::new(r * a.cos(), r * a.sin(), 0.0))
-            })
-            .collect()
+        Piece::Conic { c: m * center, u: m * Vector3::new(r, 0.0, 0.0), v: m * Vector3::new(0.0, r, 0.0), t0, t1 }
+    };
+    let span = |a0: f64, a1: f64| {
+        let s = (a1 - a0).rem_euclid(tau);
+        if s < 1e-12 { tau } else { s }
     };
     match entity {
-        EntityType::Line(l) => vec![vec![l.start, l.end]],
-        EntityType::Circle(c) => vec![arc(c.center, c.radius, 0.0, std::f64::consts::TAU, c.normal)],
-        EntityType::Arc(a) => vec![arc(a.center, a.radius, a.start_angle, a.end_angle, a.normal)],
+        EntityType::Line(l) => vec![Piece::Segment(l.start, l.end)],
+        EntityType::Circle(c) => vec![circle(c.center, c.radius, c.normal, 0.0, tau)],
+        EntityType::Arc(a) => vec![circle(a.center, a.radius, a.normal, a.start_angle, a.start_angle + span(a.start_angle, a.end_angle))],
+        EntityType::Ellipse(e) => {
+            let n = e.normal;
+            let minor = Vector3::new(n.y * e.major_axis.z - n.z * e.major_axis.y, n.z * e.major_axis.x - n.x * e.major_axis.z, n.x * e.major_axis.y - n.y * e.major_axis.x) * e.minor_axis_ratio;
+            vec![Piece::Conic {
+                c: e.center,
+                u: e.major_axis,
+                v: minor,
+                t0: e.start_parameter,
+                t1: e.start_parameter + span(e.start_parameter, e.end_parameter),
+            }]
+        }
         EntityType::LwPolyline(pl) if !pl.vertices.is_empty() => {
             let m = Matrix3::arbitrary_axis(pl.normal);
             let n = pl.vertices.len();
             let segs = if pl.is_closed { n } else { n - 1 };
-            let at = |x: f64, y: f64| Vector3::new(x, y, pl.elevation);
-            let mut pts = vec![at(pl.vertices[0].location.x, pl.vertices[0].location.y)];
+            let at = |x: f64, y: f64| m * Vector3::new(x, y, pl.elevation);
+            let mut out = Vec::new();
             for i in 0..segs {
                 let (v0, v1) = (&pl.vertices[i], &pl.vertices[(i + 1) % n]);
                 let (p0, p1) = (v0.location, v1.location);
@@ -739,29 +913,95 @@ pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Vec<Vector3
                     let h = r * (sweep / 2.0).cos() * sweep.signum();
                     let (cx, cy) = ((p0.x + p1.x) / 2.0 - dy / chord * h, (p0.y + p1.y) / 2.0 + dx / chord * h);
                     let a0 = (p0.y - cy).atan2(p0.x - cx);
-                    let k = ((sweep.abs() / step).ceil() as usize).max(2);
-                    for j in 1..k {
-                        let a = a0 + sweep * j as f64 / k as f64;
-                        pts.push(at(cx + r * a.cos(), cy + r * a.sin()));
-                    }
+                    let (t0, t1) = if sweep > 0.0 { (a0, a0 + sweep) } else { (a0 + sweep, a0) };
+                    out.push(Piece::Conic {
+                        c: at(cx, cy),
+                        u: m * Vector3::new(r, 0.0, 0.0),
+                        v: m * Vector3::new(0.0, r, 0.0),
+                        t0,
+                        t1,
+                    });
+                } else {
+                    out.push(Piece::Segment(at(p0.x, p0.y), at(p1.x, p1.y)));
                 }
-                pts.push(at(p1.x, p1.y));
             }
-            vec![pts.into_iter().map(|p| m * p).collect()]
+            out
         }
+        EntityType::Spline(s) => spline_points(s).windows(2).map(|w| Piece::Segment(w[0], w[1])).collect(),
         EntityType::Insert(ins) => insert_outline(doc, ins, 0),
         e => {
             let b = e.as_entity().bounding_box();
             let z = b.min.z;
-            vec![vec![
+            let c = [
                 Vector3::new(b.min.x, b.min.y, z),
                 Vector3::new(b.max.x, b.min.y, z),
                 Vector3::new(b.max.x, b.max.y, z),
                 Vector3::new(b.min.x, b.max.y, z),
-                Vector3::new(b.min.x, b.min.y, z),
-            ]]
+            ];
+            (0..4).map(|i| Piece::Segment(c[i], c[(i + 1) % 4])).collect()
         }
     }
+}
+
+/// Points on a spline (de Boor, weights honoured), dense enough that the
+/// chords stay within a millionth of its size of the curve.
+// ponytail: a spline is followed by chords, not intersected analytically.
+fn spline_points(s: &crate::entities::Spline) -> Vec<Vector3> {
+    let (cp, k) = (&s.control_points, &s.knots);
+    let p = s.degree.max(1) as usize;
+    if cp.len() <= p || k.len() != cp.len() + p + 1 {
+        return s.fit_points.clone();
+    }
+    let w = |i: usize| s.weights.get(i).copied().filter(|w| *w > 0.0).unwrap_or(1.0);
+    let eval = |t: f64| {
+        let mut span = p;
+        while span + 1 < cp.len() && k[span + 1] <= t {
+            span += 1;
+        }
+        let mut d: Vec<[f64; 4]> = (0..=p)
+            .map(|j| {
+                let (q, wj) = (cp[span - p + j], w(span - p + j));
+                [q.x * wj, q.y * wj, q.z * wj, wj]
+            })
+            .collect();
+        for r in 1..=p {
+            for j in (r..=p).rev() {
+                let i = span - p + j;
+                let den = k[i + p + 1 - r] - k[i];
+                let a = if den.abs() < 1e-15 { 0.0 } else { (t - k[i]) / den };
+                for c in 0..4 {
+                    d[j][c] = (1.0 - a) * d[j - 1][c] + a * d[j][c];
+                }
+            }
+        }
+        let h = d[p];
+        Vector3::new(h[0] / h[3], h[1] / h[3], h[2] / h[3])
+    };
+    let (ta, tb) = (k[p], k[cp.len()]);
+    let size = cp.iter().fold(0.0f64, |m, q| m.max((*q - cp[0]).x.hypot((*q - cp[0]).y)));
+    let n = (cp.len() * 64).max(256);
+    let mut out: Vec<Vector3> = (0..=n).map(|i| eval(ta + (tb - ta) * i as f64 / n as f64)).collect();
+    // Halve the steps where a chord's midpoint strays from the curve.
+    for _ in 0..6 {
+        let mut refined = vec![out[0]];
+        let mut changed = false;
+        let m = out.len() - 1;
+        for i in 0..m {
+            let (t0, t1) = (ta + (tb - ta) * i as f64 / m as f64, ta + (tb - ta) * (i + 1) as f64 / m as f64);
+            let mid = eval((t0 + t1) / 2.0);
+            let chord = (out[i] + out[i + 1]) * 0.5;
+            if (mid - chord).x.hypot((mid - chord).y) > size * 1e-6 {
+                changed = true;
+            }
+            refined.push(mid);
+            refined.push(out[i + 1]);
+        }
+        if !changed {
+            break;
+        }
+        out = refined;
+    }
+    out
 }
 
 fn json_string(s: &str) -> String {

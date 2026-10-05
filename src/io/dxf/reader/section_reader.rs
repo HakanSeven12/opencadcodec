@@ -19286,6 +19286,13 @@ impl<'a> SectionReader<'a> {
                 self.reader.push_back(pair);
                 break;
             }
+            // A cell's own style code records its override bit, so the cell
+            // writes back only what it overrides.
+            if let (Some(c), false) = (cur.as_mut(), in_value) {
+                if let Some(bit) = crate::entities::table::cell_override_bit(pair.code) {
+                    c.style.get_or_insert_with(crate::entities::CellStyle::new).override_flags |= bit;
+                }
+            }
             match pair.code {
                 100 => section = pair.value_string.clone(),
                 8 => table.common.layer = pair.value_string.clone(),
