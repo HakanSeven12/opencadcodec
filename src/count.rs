@@ -372,11 +372,10 @@ fn same_shape(a: Option<&[[f64; 3]]>, b: Option<&[[f64; 3]]>, closed: bool) -> b
 
 /// Whether `e` counts as a copy of the single picked `target` (as measured
 /// on the reference): circles always; arcs, ellipses, polylines, splines and
-/// solid hatches when their shape is the same at any position, rotation and
-/// size (pattern hatches only where their pattern repeats); texts and
+/// hatches when their boundary runs the same way at any position, rotation,
+/// size or mirror and their pattern lands the same way on it; texts and
 /// multiline texts with the same string; lines always; anything else
-/// objects of its kind. Polylines and solid hatches may be mirrored, splines
-/// not.
+/// objects of its kind. Polylines and hatches may be mirrored, splines not.
 fn similar(target: &EntityType, e: &EntityType) -> bool {
     let eq = |a: f64, b: f64| (a - b).abs() < 1e-6;
     let sweep = |a: f64, b: f64| (b - a).rem_euclid(std::f64::consts::TAU);
@@ -410,35 +409,7 @@ fn similar(target: &EntityType, e: &EntityType) -> bool {
                 && !pa.is_empty()
                 && pa.iter().zip(&pb).all(|(p, q)| eq(p[0], q[0]) && eq(p[1], q[1]))
         }
-        (EntityType::Hatch(a), EntityType::Hatch(b)) => {
-            let (pa, pb) = (hatch_shape_points(a), hatch_shape_points(b));
-            let n = pb.len();
-            if a.is_solid != b.is_solid || !a.pattern.name.eq_ignore_ascii_case(&b.pattern.name) || pa.len() != n || n == 0 {
-                return false;
-            }
-            if !a.is_solid {
-                // A pattern repeats only where its lines land again: same
-                // scale and angle, moved along the pattern's own lattice.
-                let d = pb[0] - pa[0];
-                return eq(a.pattern_scale, b.pattern_scale)
-                    && eq(a.pattern_angle, b.pattern_angle)
-                    && pa.iter().zip(&pb).all(|(p, q)| (*q - *p - d).x.hypot((*q - *p - d).y) < 1e-6)
-                    && a.pattern.lines.iter().all(|l| {
-                        let (dx, dy) = (l.angle.cos(), l.angle.sin());
-                        let spacing = l.offset.x * -dy + l.offset.y * dx;
-                        let shift = d.x * -dy + d.y * dx;
-                        spacing.abs() < 1e-12 || ((shift / spacing) - (shift / spacing).round()).abs() < 1e-6
-                    });
-            }
-            let mirror: Vec<Vector3> = pb.iter().map(|q| Vector3::new(q.x, -q.y, q.z)).collect();
-            [pb.as_slice(), mirror.as_slice()].iter().any(|pb| {
-                (0..n).any(|k| {
-                    let turned: Vec<Vector3> = (0..n).map(|i| pb[(i + k) % n]).collect();
-                    let (x, y) = (normalized(&pa), normalized(&turned));
-                    x.len() == y.len() && x.iter().zip(&y).all(|(p, q)| eq(p[0], q[0]) && eq(p[1], q[1]))
-                })
-            })
-        }
+        (EntityType::Hatch(a), EntityType::Hatch(b)) => same_hatch(a, b),
         _ => std::mem::discriminant(e) == std::mem::discriminant(target),
     }
 }
@@ -1130,20 +1101,185 @@ pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Piece> {
     }
 }
 
-/// A hatch's boundary as points that fix its shape: segment ends, three
-/// points of each arc and the control points of splines, path after path.
-fn hatch_shape_points(h: &crate::entities::Hatch) -> Vec<Vector3> {
-    hatch_outline(h)
+/// A hatch's boundary paths, each as dense points along its curves (arcs
+/// every degree, splines every 1/128 of each Bézier piece) with the indices
+/// where its edges start.
+fn hatch_loops(h: &crate::entities::Hatch) -> Vec<(Vec<Vector3>, Vec<usize>)> {
+    let mut one = h.clone();
+    h.paths
         .iter()
-        .flat_map(|p| match p {
-            Piece::Segment(a, b) => vec![*a, *b],
-            Piece::Conic { c, u, v, t0, t1 } => {
-                let at = |t: f64| *c + *u * t.cos() + *v * t.sin();
-                vec![at(*t0), at((t0 + t1) / 2.0), at(*t1)]
+        .map(|path| {
+            one.paths = vec![path.clone()];
+            let mut pts = Vec::new();
+            let mut starts = Vec::new();
+            for piece in hatch_outline(&one) {
+                starts.push(pts.len());
+                match &piece {
+                    Piece::Segment(a, _) => pts.push(*a),
+                    Piece::Conic { c, u, v, t0, t1 } => {
+                        let n = (((t1 - t0) / 1f64.to_radians()).ceil() as usize).max(2);
+                        pts.extend((0..n).map(|k| {
+                            let t = t0 + (t1 - t0) * k as f64 / n as f64;
+                            *c + *u * t.cos() + *v * t.sin()
+                        }));
+                    }
+                    Piece::Bezier(cp) => {
+                        pts.extend((0..128).map(|k| dehomog(bezier_split(cp, k as f64 / 128.0).0.last().unwrap_or(&cp[0]))));
+                    }
+                }
             }
-            Piece::Bezier(cp) => cp.iter().map(dehomog).collect(),
+            (pts, starts)
         })
+        .filter(|(pts, _)| pts.len() >= 2)
         .collect()
+}
+
+/// `n` points evenly spaced by length around the closed run `pts`, from index `from`.
+fn resampled(pts: &[Vector3], from: usize, n: usize) -> Vec<Vector3> {
+    let m = pts.len();
+    let ring: Vec<Vector3> = (0..=m).map(|i| pts[(from + i) % m]).collect();
+    let seg: Vec<f64> = ring.windows(2).map(|w| (w[1] - w[0]).x.hypot((w[1] - w[0]).y)).collect();
+    let total: f64 = seg.iter().sum();
+    let mut out = Vec::with_capacity(n);
+    let (mut i, mut done) = (0, 0.0);
+    for k in 0..n {
+        let want = total * k as f64 / n as f64;
+        while i + 1 < seg.len() && done + seg[i] < want {
+            done += seg[i];
+            i += 1;
+        }
+        let f = if seg[i] > 0.0 { (want - done) / seg[i] } else { 0.0 };
+        out.push(ring[i] + (ring[i + 1] - ring[i]) * f);
+    }
+    out
+}
+
+/// Distance in plan from `p` to the closed run `pts`.
+fn distance_to_ring(p: Vector3, pts: &[Vector3]) -> f64 {
+    let m = pts.len();
+    (0..m)
+        .map(|i| {
+            let (a, b) = (pts[i], pts[(i + 1) % m]);
+            let d = b - a;
+            let l2 = d.x * d.x + d.y * d.y;
+            let t = if l2 > 0.0 { (((p.x - a.x) * d.x + (p.y - a.y) * d.y) / l2).clamp(0.0, 1.0) } else { 0.0 };
+            let q = a + d * t;
+            (p.x - q.x).hypot(p.y - q.y)
+        })
+        .fold(f64::MAX, f64::min)
+}
+
+/// A plan similarity: optional mirror (y ↦ −y) about the origin, then
+/// `p ↦ to + s·R(p − from)`.
+#[derive(Clone, Copy)]
+struct Similarity {
+    mirror: bool,
+    from: Vector3,
+    to: Vector3,
+    s: f64,
+    c: f64,
+    sn: f64,
+}
+
+impl Similarity {
+    fn linear(&self, v: Vector3) -> Vector3 {
+        let y = if self.mirror { -v.y } else { v.y };
+        Vector3::new(self.s * (self.c * v.x - self.sn * y), self.s * (self.sn * v.x + self.c * y), 0.0)
+    }
+    fn apply(&self, p: Vector3) -> Vector3 {
+        let m = |q: Vector3| if self.mirror { Vector3::new(q.x, -q.y, q.z) } else { q };
+        let d = m(p) - m(self.from);
+        self.to + Vector3::new(self.s * (self.c * d.x - self.sn * d.y), self.s * (self.sn * d.x + self.c * d.y), 0.0)
+    }
+}
+
+/// Whether two hatches are copies of one another: their boundaries run the
+/// same way (compared along the curves, at any position, rotation, size or
+/// mirror) and, for patterns, the pattern lands the same way on the copy.
+fn same_hatch(a: &crate::entities::Hatch, b: &crate::entities::Hatch) -> bool {
+    const N: usize = 96;
+    let (la, lb) = (hatch_loops(a), hatch_loops(b));
+    if la.len() != lb.len() || la.is_empty() || a.is_solid != b.is_solid || !a.pattern.name.eq_ignore_ascii_case(&b.pattern.name) {
+        return false;
+    }
+    let ra = resampled(&la[0].0, 0, N);
+    let size = ra.iter().fold(0.0f64, |m, p| m.max((*p - ra[0]).x.hypot((*p - ra[0]).y)));
+    if size <= 0.0 {
+        return false;
+    }
+    let tol = size * 1e-5;
+    for mirror in [false, true] {
+        for &start in &lb[0].1 {
+            let rb = resampled(&lb[0].0, start, N);
+            // Two far points of each first loop fix the similarity.
+            let m = |q: Vector3| if mirror { Vector3::new(q.x, -q.y, q.z) } else { q };
+            let (va, vb) = (ra[N / 2] - ra[0], m(rb[N / 2]) - m(rb[0]));
+            let (na, nb) = (va.x.hypot(va.y), vb.x.hypot(vb.y));
+            if nb <= 0.0 || na <= 0.0 {
+                continue;
+            }
+            let ang = va.y.atan2(va.x) - vb.y.atan2(vb.x);
+            let t = Similarity { mirror, from: rb[0], to: ra[0], s: na / nb, c: ang.cos(), sn: ang.sin() };
+            let fits = la.iter().zip(&lb).all(|((pa, _), (pb, _))| {
+                let tb: Vec<Vector3> = pb.iter().map(|p| t.apply(*p)).collect();
+                resampled(pa, 0, N).iter().all(|p| distance_to_ring(*p, &tb) <= tol)
+                    && resampled(&tb, 0, N).iter().all(|p| distance_to_ring(*p, pa) <= tol)
+            });
+            if fits && (a.is_solid || same_pattern(a, b, &t)) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// The pattern of `b`, carried onto `a` by `t`, lands on `a`'s pattern:
+/// same line directions, spacings and dashes, and base points apart by a
+/// step the pattern repeats on.
+fn same_pattern(a: &crate::entities::Hatch, b: &crate::entities::Hatch, t: &Similarity) -> bool {
+    let (pa, pb) = (&a.pattern.lines, &b.pattern.lines);
+    if pa.len() != pb.len() {
+        return false;
+    }
+    let near = |x: f64, y: f64, scale: f64| (x - y).abs() <= 1e-6 * scale.max(1.0);
+    let integral = |v: f64| (v - v.round()).abs() < 1e-6;
+    pa.iter().zip(pb).all(|(la, lb)| {
+        let dir_a = Vector3::new(la.angle.cos(), la.angle.sin(), 0.0);
+        let mut dir_b = t.linear(Vector3::new(lb.angle.cos(), lb.angle.sin(), 0.0));
+        let len = dir_b.x.hypot(dir_b.y);
+        if len <= 0.0 {
+            return false;
+        }
+        dir_b = dir_b * (1.0 / len);
+        // Directions agree up to a half turn.
+        if (dir_a.x * dir_b.y - dir_a.y * dir_b.x).abs() > 1e-6 {
+            return false;
+        }
+        let nrm = Vector3::new(-dir_a.y, dir_a.x, 0.0);
+        let oa = Vector3::new(la.offset.x, la.offset.y, 0.0);
+        let ob = t.linear(Vector3::new(lb.offset.x, lb.offset.y, 0.0));
+        let spacing = oa.x * nrm.x + oa.y * nrm.y;
+        if !near(spacing.abs(), (ob.x * nrm.x + ob.y * nrm.y).abs(), spacing.abs()) {
+            return false;
+        }
+        let dash_a: Vec<f64> = la.dash_lengths.clone();
+        let dash_b: Vec<f64> = lb.dash_lengths.iter().map(|d| d * t.s).collect();
+        if dash_a.len() != dash_b.len() || dash_a.iter().zip(&dash_b).any(|(x, y)| !near(*x, *y, x.abs())) {
+            return false;
+        }
+        let period: f64 = dash_a.iter().map(|d| d.abs()).sum();
+        let base_b = t.apply(Vector3::new(lb.base_point.x, lb.base_point.y, 0.0));
+        let d = base_b - Vector3::new(la.base_point.x, la.base_point.y, 0.0);
+        if spacing.abs() < 1e-12 {
+            return true;
+        }
+        let k = (d.x * nrm.x + d.y * nrm.y) / spacing;
+        if !integral(k) {
+            return false;
+        }
+        let r = d - oa * k.round();
+        period < 1e-12 || integral((r.x * dir_a.x + r.y * dir_a.y) / period)
+    })
 }
 
 fn json_string(s: &str) -> String {

@@ -2431,11 +2431,13 @@ impl CadDocument {
     }
 
     /// The entities a table's `*T` block holds, as the reference draws them:
-    /// one MTEXT per filled cell (row, column) centred in the cell, with the
+    /// one MTEXT per filled cell (row, column; a merged region as one cell)
+    /// placed by its alignment inside the cell margins, with the
     /// row style's text height and alignment (named `_TITLE` / `_HEADER` /
     /// `_DATA` cell styles first, the cell's own alignment when it overrides
     /// it) and the column width less both horizontal margins; then the row
-    /// lines top to bottom, the column lines left to right and a hidden point
+    /// lines top to bottom, the column lines left to right (both broken where
+    /// they would cross a merged region) and a hidden point
     /// on `Defpoints`. `extra` cells get an MTEXT even when empty (fields).
     fn table_block_plan(&self, t: &Table, extra: &[(usize, usize)]) -> (Vec<((usize, usize), crate::entities::MText)>, Vec<crate::entities::Line>) {
         use crate::entities::{Line, MText};
@@ -2485,37 +2487,76 @@ impl CadDocument {
         };
         let widths: Vec<f64> = t.columns.iter().map(|c| c.width).collect();
         let heights: Vec<f64> = t.rows.iter().map(|r| r.height).collect();
-        let (total_w, total_h) = (widths.iter().sum::<f64>(), heights.iter().sum::<f64>());
-        let mut texts = Vec::new();
-        let mut y = 0.0;
+        let (nr, nc) = (heights.len(), widths.len());
+        let xs: Vec<f64> = std::iter::once(0.0).chain(widths.iter().scan(0.0, |a, w| { *a += w; Some(*a) })).collect();
+        let ys: Vec<f64> = std::iter::once(0.0).chain(heights.iter().scan(0.0, |a, h| { *a += h; Some(*a) })).collect();
+        // Merged regions: the top-left cell spans its merge width and height;
+        // `owner[r][c]` is the cell a grid square belongs to.
+        let mut owner: Vec<Vec<(usize, usize)>> = (0..nr).map(|r| (0..nc).map(|c| (r, c)).collect()).collect();
+        let mut span = vec![vec![(1usize, 1usize); nc]; nr];
+        // Merges come as the table's merged ranges (binary files) or as the
+        // origin cell's merge width and height (DXF).
+        let mut regions: Vec<(usize, usize, usize, usize)> = t
+            .merged_ranges
+            .iter()
+            .map(|m| (m.top_row, m.left_col, m.col_count(), m.row_count()))
+            .collect();
         for (r, row) in t.rows.iter().enumerate() {
-            let mut x = 0.0;
-            for (c, w) in widths.iter().enumerate() {
+            for (c, cell) in row.cells.iter().enumerate().take(nc) {
+                let (w, h) = (cell.merge_width.max(1) as usize, cell.merge_height.max(1) as usize);
+                if w > 1 || h > 1 {
+                    regions.push((r, c, w, h));
+                }
+            }
+        }
+        for (r, c, w, h) in regions {
+            if r >= nr || c >= nc || owner[r][c] != (r, c) || (w <= 1 && h <= 1) {
+                continue;
+            }
+            span[r][c] = (w.min(nc - c), h.min(nr - r));
+            for rr in r..(r + h).min(nr) {
+                for cc in c..(c + w).min(nc) {
+                    owner[rr][cc] = (r, c);
+                }
+            }
+        }
+        let vmargin = style.as_ref().map_or(0.06, |s| s.vertical_margin);
+        let mut texts = Vec::new();
+        for (r, row) in t.rows.iter().enumerate() {
+            for c in 0..nc {
+                if owner[r][c] != (r, c) {
+                    continue;
+                }
                 let cell = row.cells.get(c);
                 let text = cell.and_then(|cell| cell.contents.first()).map(|ct| ct.value.text.clone()).unwrap_or_default();
                 let has_field = cell.and_then(|cell| cell.contents.first()).is_some_and(|ct| ct.field_handle.is_some());
-                if !text.is_empty() || has_field || extra.contains(&(r, c)) {
-                    let (height, mut align) = row_style(r);
-                    // A cell overriding its style brings its own alignment.
-                    if let Some(s) = cell
-                        .and_then(|cell| cell.style.as_ref())
-                        .filter(|s| s.override_flags != 0 && (1..=9).contains(&s.alignment))
-                    {
-                        align = s.alignment;
-                    }
-                    let mut m = MText::new();
-                    by_block(&mut m.common);
-                    m.value = text;
-                    m.height = height;
-                    m.rectangle_width = w - 2.0 * margin;
-                    m.insertion_point = Vector3::new(x + w / 2.0, -(y + heights[r] / 2.0), 0.0);
-                    m.attachment_point = attachment(align);
-                    m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
-                    texts.push(((r, c), m));
+                if text.is_empty() && !has_field && !extra.contains(&(r, c)) {
+                    continue;
                 }
-                x += w;
+                let (height, mut align) = row_style(r);
+                // A cell overriding its style brings its own alignment.
+                if let Some(s) = cell
+                    .and_then(|cell| cell.style.as_ref())
+                    .filter(|s| s.override_flags != 0 && (1..=9).contains(&s.alignment))
+                {
+                    align = s.alignment;
+                }
+                let (w, h) = span[r][c];
+                let (x0, x1, y0, y1) = (xs[c], xs[c + w], ys[r], ys[r + h]);
+                // The text sits where its alignment puts it inside the margins.
+                let a = (align.clamp(1, 9) - 1) as usize;
+                let x = [x0 + margin, (x0 + x1) / 2.0, x1 - margin][a % 3];
+                let y = [-(y0 + vmargin), -(y0 + y1) / 2.0, -(y1 - vmargin)][a / 3];
+                let mut m = MText::new();
+                by_block(&mut m.common);
+                m.value = text;
+                m.height = height;
+                m.rectangle_width = (x1 - x0) - 2.0 * margin;
+                m.insertion_point = Vector3::new(x, y, 0.0);
+                m.attachment_point = attachment(align);
+                m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
+                texts.push(((r, c), m));
             }
-            y += heights[r];
         }
         let line = |a: Vector3, b: Vector3| {
             let mut l = Line::from_points(a, b);
@@ -2524,16 +2565,39 @@ impl CadDocument {
             l.common.line_weight = LineWeight::ByBlock;
             l
         };
+        // Grid lines, skipping the inside of merged regions: each row
+        // boundary top to bottom as runs left to right, then each column
+        // boundary left to right as runs top to bottom.
         let mut lines = Vec::new();
-        let mut y = 0.0;
-        for h in std::iter::once(0.0).chain(heights.iter().copied()) {
-            y -= h;
-            lines.push(line(Vector3::new(0.0, y, 0.0), Vector3::new(total_w, y, 0.0)));
+        for k in 0..=nr {
+            let open = |c: usize| k == 0 || k == nr || owner[k - 1][c] != owner[k][c];
+            let mut c = 0;
+            while c < nc {
+                if !open(c) {
+                    c += 1;
+                    continue;
+                }
+                let start = c;
+                while c < nc && open(c) {
+                    c += 1;
+                }
+                lines.push(line(Vector3::new(xs[start], -ys[k], 0.0), Vector3::new(xs[c], -ys[k], 0.0)));
+            }
         }
-        let mut x = 0.0;
-        for w in std::iter::once(0.0).chain(widths.iter().copied()) {
-            x += w;
-            lines.push(line(Vector3::new(x, 0.0, 0.0), Vector3::new(x, -total_h, 0.0)));
+        for k in 0..=nc {
+            let open = |r: usize| k == 0 || k == nc || owner[r][k - 1] != owner[r][k];
+            let mut r = 0;
+            while r < nr {
+                if !open(r) {
+                    r += 1;
+                    continue;
+                }
+                let start = r;
+                while r < nr && open(r) {
+                    r += 1;
+                }
+                lines.push(line(Vector3::new(xs[k], -ys[start], 0.0), Vector3::new(xs[k], -ys[r], 0.0)));
+            }
         }
         let mut point = Line::from_points(Vector3::ZERO, Vector3::ZERO);
         point.common.layer = "Defpoints".into();
@@ -2575,12 +2639,6 @@ impl CadDocument {
     /// sizes, styles). Nothing happens when the block already shows the table;
     /// the cells' fields stay with their texts. Returns whether it redrew.
     pub fn refresh_table_block(&mut self, table: Handle) -> bool {
-        // ponytail: merged cells are not drawn by the plan; such tables keep their block.
-        if let Some(EntityType::Table(t)) = self.get_entity(table) {
-            if t.rows.iter().flat_map(|r| &r.cells).any(|c| c.merge_width > 1 || c.merge_height > 1) {
-                return false;
-            }
-        }
         self.redraw_table_block(table, &[], false).is_some()
     }
 
