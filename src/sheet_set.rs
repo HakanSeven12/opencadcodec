@@ -596,10 +596,15 @@ impl SheetSetDatabase {
 
     /// Add a sheet under `parent`; returns its id.
     pub fn add_sheet(&mut self, parent: &str, number: &str, title: &str, description: &str) -> Option<String> {
+        // Empty fields are left out; the property bag comes with the first
+        // sheet property.
         let mut sheet = object("AcSmSheet", CLSID_SHEET, None);
-        sheet.put_named(object("AcSmCustomPropertyBag", CLSID_CUSTOM_PROPERTY_BAG, Some("CustomPropertyBag")));
-        sheet.set_prop("Desc", description);
-        sheet.set_prop("Number", number);
+        if !description.is_empty() {
+            sheet.set_prop("Desc", description);
+        }
+        if !number.is_empty() {
+            sheet.set_prop("Number", number);
+        }
         sheet.put_named(object("AcSmSheetViews", CLSID_SHEET_VIEWS, Some("SheetViews")));
         sheet.set_prop("Title", title);
         // New sheets get the set's sheet properties with their defaults.
@@ -684,16 +689,13 @@ impl SheetSetDatabase {
         })
     }
 
-    /// The file a reference names: the stored absolute path when it exists,
-    /// else the relative path resolved against the `.dst` folder, else the
-    /// stored path as it is.
+    /// The file a reference names: the relative path resolved against the
+    /// `.dst` folder when that file exists (a moved set folder keeps
+    /// working), else the stored absolute path.
     pub fn resolve_file(&self, reference: &Element) -> String {
         let absolute = reference.prop("FileName").unwrap_or("").to_string();
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if !absolute.is_empty() && std::path::Path::new(&absolute).exists() {
-                return absolute;
-            }
             if let (Some(rel), Some(folder)) = (reference.prop("Relative_FileName"), self.folder()) {
                 let joined = folder.join(rel.replace('\\', std::path::MAIN_SEPARATOR_STR));
                 if joined.exists() || absolute.is_empty() {
@@ -766,13 +768,7 @@ impl SheetSetDatabase {
                         .map(|(_, v, _)| v)
                 })?,
             }),
-            "SheetSet" => Some(match property {
-                "Name" | "ProjectName" | "ProjectNumber" | "ProjectPhase" | "ProjectMilestone" => {
-                    set.prop(property).unwrap_or("").to_string()
-                }
-                "Description" => set.prop("Desc").unwrap_or("").to_string(),
-                other => custom(set, other)?,
-            }),
+            "SheetSet" => self.set_value(property),
             "Subset" => {
                 let parent = self.parent_of(sheet.id())?;
                 if ComponentKind::of(parent) != Some(ComponentKind::Subset) {
@@ -784,6 +780,41 @@ impl SheetSetDatabase {
                 })
             }
             _ => None,
+        }
+    }
+}
+
+impl SheetSetDatabase {
+    /// A property of the sheet set itself.
+    pub fn set_value(&self, property: &str) -> Option<String> {
+        let set = self.sheet_set();
+        Some(match property {
+            "Name" | "ProjectName" | "ProjectNumber" | "ProjectPhase" | "ProjectMilestone" => {
+                set.prop(property).unwrap_or("").to_string()
+            }
+            "Description" => set.prop("Desc").unwrap_or("").to_string(),
+            other => custom_properties(set).into_iter().find(|(n, _, _)| n == other).map(|(_, v, _)| v)?,
+        })
+    }
+
+    /// A Field-dialog navigation field: `property` of the set `set_id`, or
+    /// of its sheet, subset or view category `component`.
+    pub fn navigation_value(&self, set_id: &str, component: Option<&str>, property: &str) -> Option<String> {
+        if !self.sheet_set().id().eq_ignore_ascii_case(set_id) {
+            return None;
+        }
+        let Some(id) = component else {
+            return self.set_value(property);
+        };
+        let el = self.find(id)?;
+        match ComponentKind::of(el) {
+            Some(ComponentKind::Sheet) => self.sheet_value(el, "Sheet", property),
+            Some(ComponentKind::SheetSet) => self.set_value(property),
+            _ => match property {
+                "Name" => Some(el.prop("Name").unwrap_or("").to_string()),
+                "Description" => Some(el.prop("Desc").unwrap_or("").to_string()),
+                _ => None,
+            },
         }
     }
 }
@@ -1046,6 +1077,8 @@ pub fn placeholder_type_name(component: &str, property: &str) -> String {
 pub fn parse_code(code: &str) -> Option<(String, String, String)> {
     let body = code.trim().trim_start_matches('\\');
     let body = body.split_once(char::is_whitespace)?.1.trim();
+    // A navigation field may carry a hyperlink to its sheet after the format.
+    let body = body.find(" \\href ").map_or(body, |p| body[..p].trim());
     let (target, fmt) = match body.find("\\f ") {
         Some(p) => {
             let f = body[p + 3..].trim();
@@ -1055,8 +1088,51 @@ pub fn parse_code(code: &str) -> Option<(String, String, String)> {
         }
         None => (body, String::new()),
     };
-    let (component, property) = target.split_once('.')?;
+    // `Database("…").SheetSet("…")[.Component("…")].Property`: the path has
+    // dots of its own, the property follows the last call.
+    let (component, property) = if target.starts_with("Database(") {
+        let p = target.rfind(").")?;
+        (&target[..=p], &target[p + 2..])
+    } else {
+        target.split_once('.')?
+    };
     Some((component.to_string(), property.to_string(), fmt))
+}
+
+/// The file, set id and component id of a navigation target
+/// `Database("file").SheetSet("id")[.Component("id")]`.
+pub fn parse_navigation(component: &str) -> Option<(String, String, Option<String>)> {
+    let arg = |s: &str, call: &str| -> Option<(String, usize)> {
+        let start = s.find(call)? + call.len();
+        let end = start + s[start..].find("\")")?;
+        Some((s[start..end].to_string(), end + 2))
+    };
+    let (file, _) = arg(component, "Database(\"")?;
+    let (set, after) = arg(component, ".SheetSet(\"")?;
+    let comp = arg(&component[after..], ".Component(\"").map(|(c, _)| c);
+    Some((file, set, comp))
+}
+
+/// The child values a `\AcSm` field stores: the file, set and component of a
+/// navigation field, or the current sheet's component and property.
+pub fn field_child_values(code: &str) -> Vec<(&'static str, String)> {
+    let Some((component, property, _)) = parse_code(code) else {
+        return Vec::new();
+    };
+    match parse_navigation(&component) {
+        Some((file, set, comp)) => {
+            let mut v = Vec::new();
+            if let Some(c) = comp {
+                v.push(("SheetSetCompId", c));
+                v.push(("SheetSetCompName", "Component".to_string()));
+            }
+            v.push(("SheetSetFile", file));
+            v.push(("SheetSetId", set));
+            v.push(("SheetSetPropertyName", property));
+            v
+        }
+        None => vec![("SheetSetCompName", component), ("SheetSetPropertyName", property)],
+    }
 }
 
 /// Evaluate a `\AcSm` field. A drawing that is no sheet of an open sheet set
@@ -1075,23 +1151,43 @@ pub(crate) fn eval_acsm(
     if let Some(component) = component.strip_prefix('?') {
         return Some(placeholder_type_name(component, &property));
     }
-    let Some(drawing) = doc.source_path.as_deref() else {
-        return Some(NOT_A_SHEET.into());
+    let value = if let Some((file, set, comp)) = parse_navigation(&component) {
+        // A navigation field names its database: an open one, else the file.
+        let key = path_key(&file);
+        ctx.sheet_sets(&mut |db: &SheetSetDatabase| {
+            db.path.as_deref().filter(|p| path_key(p) == key)?;
+            db.navigation_value(&set, comp.as_deref(), &property)
+        })
+        .or_else(|| read_navigation(&file, &set, comp.as_deref(), &property))
+    } else {
+        // The current sheet: a field on a sheet's layout (model space is no sheet).
+        let Some(drawing) = doc.source_path.as_deref() else {
+            return Some(NOT_A_SHEET.into());
+        };
+        let Some(layout) = layout.filter(|l| !l.eq_ignore_ascii_case("Model")) else {
+            return Some(NOT_A_SHEET.into());
+        };
+        ctx.sheet_sets(&mut |db: &SheetSetDatabase| {
+            let sheet = db.sheet_for(drawing, Some(layout))?;
+            db.sheet_value(sheet, &component, &property)
+        })
     };
-    // A model-space host takes the layout the drawing was saved as a sheet for.
-    let link = doc.sheet_set_data();
-    let layout = layout
-        .filter(|l| !l.eq_ignore_ascii_case("Model"))
-        .map(str::to_string)
-        .or_else(|| link.as_ref().map(|d| d.layout_name.clone()));
-    let value = ctx.sheet_sets(&mut |db: &SheetSetDatabase| {
-        let sheet = db.sheet_for(drawing, layout.as_deref())?;
-        db.sheet_value(sheet, &component, &property)
-    });
     Some(match value {
+        // A known property without a value.
+        Some(v) if v.is_empty() => "----".into(),
         Some(v) => text_case(v, &fmt),
         None => NOT_A_SHEET.into(),
     })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_navigation(file: &str, set: &str, component: Option<&str>, property: &str) -> Option<String> {
+    SheetSetDatabase::read(file).ok()?.navigation_value(set, component, property)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_navigation(_: &str, _: &str, _: Option<&str>, _: &str) -> Option<String> {
+    None
 }
 
 #[cfg(test)]
@@ -1123,7 +1219,7 @@ mod tests {
         assert_eq!(back.sheet_value(s, "SheetSet", "Description").unwrap(), "A & B <c>");
         // Named children sorted, Layout between IssuePurpose and Number.
         let names: Vec<_> = s.children.iter().filter_map(|c| c.propname()).collect();
-        assert_eq!(names, ["CustomPropertyBag", "Desc", "Layout", "Number", "SheetViews", "Title"]);
+        assert_eq!(names, ["Desc", "Layout", "Number", "SheetViews", "Title"]);
         #[cfg(windows)]
         assert_eq!(
             relative_path(std::path::Path::new("C:\\p"), std::path::Path::new("C:\\p\\sheet1.dwg")).unwrap(),

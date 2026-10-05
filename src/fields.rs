@@ -2507,13 +2507,11 @@ impl CadDocument {
             // drawing that is no sheet it is left unevaluated (`####`).
             let mut unevaluated = false;
             if child.evaluator.starts_with("AcSm") {
-                if let Some((component, property, _)) = crate::sheet_set::parse_code(&child.code) {
-                    for (key, text) in [("SheetSetCompName", component), ("SheetSetPropertyName", property)] {
-                        let mut v = CellValue::text(&text);
-                        v.flags = 2;
-                        v.formatted_value.clear();
-                        child_values.push(FieldChildValue { key: key.into(), value: v });
-                    }
+                for (key, text) in crate::sheet_set::field_child_values(&child.code) {
+                    let mut v = CellValue::text(&text);
+                    v.flags = 2;
+                    v.formatted_value.clear();
+                    child_values.push(FieldChildValue { key: key.into(), value: v });
                 }
                 unevaluated = child.value.display() == "####";
             }
@@ -2522,6 +2520,12 @@ impl CadDocument {
             let value = if unevaluated {
                 let mut v = CellValue::new();
                 v.flags = 1;
+                v.format = child.value.format.clone();
+                v
+            } else if shown == "----" && child.evaluator.starts_with("AcSm") {
+                // A property without a value keeps an empty string; only the
+                // shown text is `----`.
+                let mut v = CellValue::text("");
                 v.format = child.value.format.clone();
                 v
             } else {
