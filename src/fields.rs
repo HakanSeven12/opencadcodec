@@ -195,9 +195,9 @@ fn eval_field(
             diesel_eval(doc, expr, ctx)
         }
         // AcExpr — a table cell formula (Sum/Average/… over A1-style cell refs).
-        "AcExpr" => eval_acexpr(doc, &field.code, host),
+        "AcExpr" => eval_acexpr(doc, field, host),
         // AcObjProp[.ver] — a property of a referenced object.
-        e if e.starts_with("AcObjProp") => eval_acobjprop(doc, field),
+        e if e.starts_with("AcObjProp") => eval_acobjprop(doc, field, host),
         // AcCount / AcCount2 — block counts (see `crate::count`).
         "AcCount" | "AcCount2" => Some(crate::count::evaluate(doc, &field.code)),
         _ => None,
@@ -246,44 +246,44 @@ fn eval_template(
 
 // ── AcExpr: formulas ─────────────────────────────────────────────────────────
 
-/// Evaluate an `AcExpr` field — a formula such as `((12+3)*2)`, or a table-cell
+/// Evaluate an `AcExpr` field — a formula such as `((12+3)*2)`, a table-cell
 /// formula such as `(Sum(A3:B3))` / `(A3*2+B4)` whose cell references resolve
 /// against the ACAD_TABLE that owns the host cell (found via the host's
-/// block-record). An invalid formula (syntax, division by zero, integer
-/// overflow) shows `####` as in the reference application; a cell that can't
-/// be resolved to a number yields `None` (→ keep the cached text).
+/// block-record), or a formula that names its table:
+/// `(Table(%<\_ObjIdx 0>%).Evaluate(Sum(A3:B5)))`, `(Table(%<\_ObjIdx 0>%).B4)`.
+/// An invalid formula (syntax, division by zero, integer overflow, a cell that
+/// holds no number, `Sum`/`Average`/`Count` outside a table) shows `####` as in
+/// the reference application; a table the drawing does not hold yields `None`
+/// (→ keep the cached text).
 ///
 /// Without a format an integer result shows as an integer and a real one with
 /// six decimals (`30`, `3.333333`, `8.000000`); a `\f` picture formats the
 /// number like any unit field (`%lu2%pr2` → `3.33`).
-fn eval_acexpr(doc: &CadDocument, code: &str, host: Handle) -> Option<String> {
+fn eval_acexpr(doc: &CadDocument, field: &FieldDef, host: Handle) -> Option<String> {
+    let code = &field.code;
     let body = code.trim().strip_prefix("\\AcExpr").unwrap_or(code);
     let (expr, fmt) = match body.find("\\f ") {
         Some(fp) => (body[..fp].trim(), format_of(&body[fp + 3..])),
         None => (body.trim(), String::new()),
     };
     let mut p = ExprParser {
+        doc,
         s: expr.as_bytes(),
         i: 0,
+        objects: &field.objects,
         table: table_for_host(doc, host),
+        host_cells: true,
         used_cells: false,
+        depth: 0,
     };
-    let parsed = p.parse_expr().and_then(|v| {
-        p.skip_ws();
-        if p.i == p.s.len() {
-            Ok(v)
-        } else {
-            Err(ExprError::Invalid)
-        }
-    });
-    let v = match parsed {
+    let v = match p.parse_all() {
         Ok(v) => v,
         Err(ExprError::Invalid) => return Some("####".into()),
         Err(ExprError::Unresolved) => return None,
     };
     Some(match v {
         _ if !fmt.is_empty() => format_number(doc, v.real(), &fmt),
-        // Table formulas keep the plain numeric text.
+        // Cell formulas of the host table keep the plain numeric text.
         _ if p.used_cells => num_str(v.real()),
         Num::Int(n) => n.to_string(),
         Num::Real(x) => format!("{:.6}", x),
@@ -297,16 +297,20 @@ fn table_for_host(doc: &CadDocument, host: Handle) -> Option<&Table> {
     if let Some(EntityType::Table(table)) = doc.get_entity(host) {
         return Some(table);
     }
-    let owner = doc
-        .entities()
-        .find(|e| e.common().handle == host)
-        .map(|e| e.common().owner_handle);
-    if let Some(owner) = owner {
+    if let Some(owner) = doc.get_entity(host).map(|e| e.common().owner_handle) {
         if let Some(t) = doc.entities().find_map(|e| match e {
             EntityType::Table(t) if t.block_record_handle == Some(owner) => Some(t),
             _ => None,
         }) {
             return Some(t);
+        }
+        // A text in model or paper space is no table cell.
+        let layout_block = doc.block_records.iter().any(|b| {
+            let n = b.name.to_ascii_lowercase();
+            b.handle == owner && (n.starts_with("*model_space") || n.starts_with("*paper_space"))
+        });
+        if layout_block {
+            return None;
         }
     }
     let mut tables = doc.entities().filter_map(|e| match e {
@@ -317,21 +321,14 @@ fn table_for_host(doc: &CadDocument, host: Handle) -> Option<&Table> {
     tables.next().is_none().then_some(first)
 }
 
-/// Numeric value of a table cell (0-based row/col). `None` for a non-numeric or
-/// empty cell (e.g. another formula cell, whose result is not on the entity).
-fn cell_num(table: &Table, col: usize, row: usize) -> Option<f64> {
-    let cv = &table.rows.get(row)?.cells.get(col)?.contents.first()?.value;
-    match cv.value_type {
-        CellValueType::Long | CellValueType::Double => Some(cv.numeric_value),
-        _ => {
-            let s = if !cv.formatted_value.is_empty() {
-                &cv.formatted_value
-            } else {
-                &cv.text
-            };
-            s.trim().parse::<f64>().ok()
-        }
-    }
+/// What a table cell holds for a formula.
+enum CellNum {
+    Num(Num),
+    /// Text, an empty cell or a cell outside the table: skipped by ranges,
+    /// `####` when referenced alone.
+    Blank,
+    /// A field the engine can't evaluate — keep the cached text.
+    Unknown,
 }
 
 /// Parse an A1-style cell reference at `*i`, returning 0-based `(col, row)`.
@@ -387,7 +384,7 @@ impl Num {
 enum ExprError {
     /// Syntax error, division by zero or overflow — shows `####`.
     Invalid,
-    /// A table cell that isn't a resolvable number — keep the cached text.
+    /// A table cell or table the engine can't resolve — keep the cached text.
     Unresolved,
 }
 
@@ -402,16 +399,35 @@ fn int_checked(n: Option<i64>) -> ExprResult {
 
 /// A recursive-descent formula evaluator: `+ - * / ^` (`^` left-associative,
 /// a unary sign binds tighter), parentheses, numbers, `pi`, `abs/sqrt/round`,
-/// and for table formulas cell references, ranges (`A3:B3`) and the
-/// `Sum/Average/Count/Min/Max/Product` aggregate functions.
+/// and in a table context cell references, ranges (`A3:B3`) and the
+/// `Sum` / `Average` / `Count` functions.
 struct ExprParser<'a> {
+    doc: &'a CadDocument,
     s: &'a [u8],
     i: usize,
+    /// The field's referenced objects (`%<\_ObjIdx n>%`).
+    objects: &'a [Handle],
+    /// The table bare cell references address: the host table of a cell
+    /// formula, or the table of an enclosing `Table(…).Evaluate(…)`.
     table: Option<&'a Table>,
+    /// `table` is the host table of a cell formula.
+    host_cells: bool,
+    /// A host-table cell was referenced.
     used_cells: bool,
+    /// Nesting of formula cells evaluated for this one.
+    depth: u8,
 }
 
-impl ExprParser<'_> {
+impl<'a> ExprParser<'a> {
+    fn parse_all(&mut self) -> ExprResult {
+        let v = self.parse_expr()?;
+        self.skip_ws();
+        if self.i == self.s.len() {
+            Ok(v)
+        } else {
+            Err(ExprError::Invalid)
+        }
+    }
     fn peek(&self) -> Option<u8> {
         self.s.get(self.i).copied()
     }
@@ -525,8 +541,8 @@ impl ExprParser<'_> {
             int_checked(text.parse().ok())
         }
     }
-    /// A letter run is a function call `Name(...)`, the constant `pi`, or a
-    /// cell reference of the host table.
+    /// A letter run is a function call `Name(...)`, a `Table(…)` reference,
+    /// the constant `pi`, or a cell reference of the current table.
     fn parse_name(&mut self) -> ExprResult {
         let start = self.i;
         while matches!(self.peek(), Some(b) if b.is_ascii_alphabetic()) {
@@ -537,27 +553,82 @@ impl ExprParser<'_> {
             .to_lowercase();
         if self.peek() == Some(b'(') {
             self.i += 1;
+            if name == "table" {
+                return self.parse_table_ref();
+            }
             let vals = self.parse_args()?;
             if !self.eat(b')') {
                 return Err(ExprError::Invalid);
             }
-            return apply_func(&name, &vals);
+            return apply_func(&name, &vals, self.table.is_some());
         }
         if name == "pi" {
             return Ok(Num::Real(std::f64::consts::PI));
         }
         self.i = start;
         let (col, row) = parse_cellref(self.s, &mut self.i).ok_or(ExprError::Invalid)?;
-        self.cell(col, row)
+        match self.cell(col, row)? {
+            CellNum::Num(v) => Ok(v),
+            CellNum::Blank => Err(ExprError::Invalid),
+            CellNum::Unknown => Err(ExprError::Unresolved),
+        }
     }
-    fn cell(&mut self, col: usize, row: usize) -> ExprResult {
-        self.used_cells = true;
-        let table = self.table.ok_or(ExprError::Unresolved)?;
-        cell_num(table, col, row)
-            .map(Num::Real)
-            .ok_or(ExprError::Unresolved)
+    /// `Table(%<\_ObjIdx n>%)` (or `%<\_ObjId n>%`, n the handle value)
+    /// followed by `.Evaluate(<formula over its cells>)` or `.<cell>`.
+    fn parse_table_ref(&mut self) -> ExprResult {
+        self.skip_ws();
+        let rest = std::str::from_utf8(&self.s[self.i..]).map_err(|_| ExprError::Invalid)?;
+        let end = rest.find(">%").ok_or(ExprError::Invalid)?;
+        let marker = &rest[..end];
+        let handle = if let Some(n) = marker.strip_prefix("%<\\_ObjIdx ") {
+            let idx: usize = n.trim().parse().map_err(|_| ExprError::Invalid)?;
+            *self.objects.get(idx).ok_or(ExprError::Unresolved)?
+        } else if let Some(n) = marker.strip_prefix("%<\\_ObjId ") {
+            Handle::new(n.trim().parse().map_err(|_| ExprError::Invalid)?)
+        } else {
+            return Err(ExprError::Invalid);
+        };
+        self.i += end + 2;
+        if !self.eat(b')') || !self.eat(b'.') {
+            return Err(ExprError::Invalid);
+        }
+        let doc = self.doc;
+        let Some(EntityType::Table(table)) = doc.get_entity(handle) else {
+            return Err(ExprError::Unresolved);
+        };
+        let saved = (self.table, self.host_cells);
+        self.table = Some(table);
+        self.host_cells = false;
+        let evaluate = self.s[self.i..]
+            .get(..9)
+            .is_some_and(|w| w.eq_ignore_ascii_case(b"evaluate("));
+        let r = if evaluate {
+            self.i += 9;
+            self.parse_expr().and_then(|v| {
+                if self.eat(b')') {
+                    Ok(v)
+                } else {
+                    Err(ExprError::Invalid)
+                }
+            })
+        } else {
+            self.parse_name()
+        };
+        (self.table, self.host_cells) = saved;
+        r
     }
-    /// Function arguments: comma-separated ranges (`A3:B3`) and/or expressions.
+    /// The value of a cell of the current table (`Unknown` without a table).
+    fn cell(&mut self, col: usize, row: usize) -> Result<CellNum, ExprError> {
+        let Some(table) = self.table else {
+            return Err(ExprError::Unresolved);
+        };
+        if self.host_cells {
+            self.used_cells = true;
+        }
+        Ok(cell_value(self.doc, table, col, row, self.depth))
+    }
+    /// Function arguments: comma-separated ranges (`A3:B3`, whose numeric
+    /// cells are taken) and/or expressions.
     fn parse_args(&mut self) -> Result<Vec<Num>, ExprError> {
         let mut vals = Vec::new();
         loop {
@@ -570,7 +641,11 @@ impl ExprParser<'_> {
                         parse_cellref(self.s, &mut self.i).ok_or(ExprError::Invalid)?;
                     for r in r1.min(r2)..=r1.max(r2) {
                         for c in c1.min(c2)..=c1.max(c2) {
-                            vals.push(self.cell(c, r)?);
+                            match self.cell(c, r)? {
+                                CellNum::Num(v) => vals.push(v),
+                                CellNum::Blank => {}
+                                CellNum::Unknown => return Err(ExprError::Unresolved),
+                            }
                         }
                     }
                 }
@@ -586,19 +661,88 @@ impl ExprParser<'_> {
     }
 }
 
-fn apply_func(name: &str, vals: &[Num]) -> ExprResult {
+/// A table cell as a formula number: Long / Double values, number text
+/// (`10` integer, `1.5` real), or the result of the cell's own formula.
+fn cell_value(doc: &CadDocument, table: &Table, col: usize, row: usize, depth: u8) -> CellNum {
+    let Some(content) = table
+        .rows
+        .get(row)
+        .and_then(|r| r.cells.get(col))
+        .and_then(|c| c.contents.first())
+    else {
+        return CellNum::Blank;
+    };
+    if let Some(fh) = content.field_handle {
+        let Some(mut f) = doc.fields.get(&fh) else {
+            return CellNum::Unknown;
+        };
+        // A cell formula is the only child of the cell's `_text` container.
+        if f.evaluator == "_text" && f.code.trim() == "%<\\_FldIdx 0>%" {
+            match doc.fields.values().find(|c| c.owner == f.handle) {
+                Some(child) => f = child,
+                None => return CellNum::Unknown,
+            }
+        }
+        if f.evaluator != "AcExpr" || depth >= 8 {
+            return CellNum::Unknown;
+        }
+        let body = f.code.trim().strip_prefix("\\AcExpr").unwrap_or(&f.code);
+        let expr = body.find("\\f ").map_or(body, |fp| &body[..fp]).trim();
+        let mut p = ExprParser {
+            doc,
+            s: expr.as_bytes(),
+            i: 0,
+            objects: &f.objects,
+            table: Some(table),
+            host_cells: false,
+            used_cells: false,
+            depth: depth + 1,
+        };
+        return match p.parse_all() {
+            Ok(v) => CellNum::Num(v),
+            Err(ExprError::Invalid) => CellNum::Blank,
+            Err(ExprError::Unresolved) => CellNum::Unknown,
+        };
+    }
+    let cv = &content.value;
+    match cv.value_type {
+        CellValueType::Long => CellNum::Num(Num::Int(cv.numeric_value as i64)),
+        CellValueType::Double => CellNum::Num(Num::Real(cv.numeric_value)),
+        _ => {
+            let s = if !cv.formatted_value.is_empty() {
+                &cv.formatted_value
+            } else {
+                &cv.text
+            };
+            let s = s.trim();
+            match (s.parse::<i32>(), s.parse::<f64>()) {
+                (Ok(n), _) => CellNum::Num(Num::Int(n as i64)),
+                (_, Ok(x)) => CellNum::Num(Num::Real(x)),
+                _ => CellNum::Blank,
+            }
+        }
+    }
+}
+
+/// Functions: `abs`, `sqrt`, `round`, and in a table context `Sum` (integer
+/// when every value is), `Average` (real; `####` without values) and `Count`
+/// (the number of numeric cells).
+fn apply_func(name: &str, vals: &[Num], table: bool) -> ExprResult {
     let xs: Vec<f64> = vals.iter().map(|v| v.real()).collect();
     let one = || match xs.as_slice() {
         [x] => Ok(*x),
         _ => Err(ExprError::Invalid),
     };
     let r = match name {
-        "sum" => xs.iter().sum(),
-        "average" | "mean" if !xs.is_empty() => xs.iter().sum::<f64>() / xs.len() as f64,
-        "count" => xs.len() as f64,
-        "min" => xs.iter().copied().reduce(f64::min).ok_or(ExprError::Invalid)?,
-        "max" => xs.iter().copied().reduce(f64::max).ok_or(ExprError::Invalid)?,
-        "product" => xs.iter().product(),
+        "sum" if table => {
+            if vals.iter().all(|v| matches!(v, Num::Int(_))) {
+                let total = vals.iter().map(|v| v.real() as i64).sum();
+                return int_checked(Some(total));
+            }
+            xs.iter().sum()
+        }
+        "average" if table && !xs.is_empty() => xs.iter().sum::<f64>() / xs.len() as f64,
+        "count" if table => return Ok(Num::Int(xs.len() as i64)),
         "abs" => one()?.abs(),
         "sqrt" if one()? >= 0.0 => one()?.sqrt(),
         // `round` gives an integer (`round(2.5)` shows `3`).
@@ -613,47 +757,75 @@ fn apply_func(name: &str, vals: &[Num]) -> ExprResult {
 /// A resolved object-property value, before formatting.
 enum PropVal {
     Num(f64),
+    /// Radians: `%au` pictures format it as an angle.
+    Angle(f64),
     Point([f64; 3]),
+    Text(String),
+    /// Hundredths of a millimetre; -1 ByLayer, -2 ByBlock, -3 Default.
+    Lineweight(i16),
 }
 
 /// Evaluate an `AcObjProp` field — a property of a referenced object, e.g.
-/// `Object(%<\_ObjIdx 0>%).Center \f "%lu2%pr8%ps[X=,]%zs8"`. The object is the
-/// field's `objects[N]` handle. Geometry properties (Center / Area / Length /
-/// Radius / …) are computed from the entity; view- and section-specific
-/// properties, or references to objects the reader keeps only as raw bytes,
-/// yield `None` (→ cached text).
-fn eval_acobjprop(doc: &CadDocument, field: &FieldDef) -> Option<String> {
+/// `Object(%<\_ObjIdx 0>%).Center \f "%lu2%pt3"`. The object is the field's
+/// `objects[N]` handle. Geometry properties (Center / Area / Length / Radius /
+/// …), the common entity properties and the block-reference properties are
+/// computed from the entity; others yield `None` (→ cached text).
+///
+/// A block placeholder (`Object(?BlockRefId,1).<property>`) resolves against
+/// the INSERT that owns the host ATTRIB. Anywhere else — the ATTDEF or MTEXT
+/// in the block definition — it shows its temporary value, the property name.
+fn eval_acobjprop(doc: &CadDocument, field: &FieldDef, host: Handle) -> Option<String> {
     let code = &field.code;
-    let direct;
-    let handle = match between(code, "_ObjIdx ", ">%") {
-        Some(idx) => field.objects.get(idx.trim().parse::<usize>().ok()?)?,
-        // `%<\_ObjId n>%` names the object directly (preview codes).
-        None => {
-            direct = Handle::new(between(code, "_ObjId ", ">%")?.trim().parse().ok()?);
-            &direct
-        }
-    };
     let prop = code.split(").").nth(1)?.split([' ', '\\']).next()?.trim();
     if prop.is_empty() {
         return None;
     }
     let fmt = code
         .find("\\f ")
-        .map(|p| code[p + 3..].trim().trim_matches('"'))
-        .unwrap_or("");
+        .map(|p| format_of(&code[p + 3..]))
+        .unwrap_or_default();
+    let direct;
+    let handle = if code.contains("?BlockRefId") {
+        match attribute_insert(doc, host) {
+            Some(insert) => {
+                direct = insert;
+                &direct
+            }
+            None => return Some(text_case(prop.to_string(), &fmt)),
+        }
+    } else {
+        match between(code, "_ObjIdx ", ">%") {
+            Some(idx) => field.objects.get(idx.trim().parse::<usize>().ok()?)?,
+            // `%<\_ObjId n>%` names the object directly (preview codes).
+            None => {
+                direct = Handle::new(between(code, "_ObjId ", ">%")?.trim().parse().ok()?);
+                &direct
+            }
+        }
+    };
     // NamedObject fields: `.Name` of a layer, block, style, linetype, view, …
     if prop == "Name" {
         if let Some(name) = named_object_name(doc, *handle) {
-            return Some(text_case(name, fmt));
+            return Some(text_case(name, &fmt));
         }
     }
     let entity = doc.entities().find(|e| &e.common().handle == handle)?;
-    let val = object_property(entity, prop)?;
-    Some(format_propval(val, fmt))
+    let val = object_property(doc, entity, prop)?;
+    Some(format_propval(doc, val, &fmt))
+}
+
+/// The INSERT whose ATTRIB is `host`.
+fn attribute_insert(doc: &CadDocument, host: Handle) -> Option<Handle> {
+    doc.entities().find_map(|e| match e {
+        EntityType::Insert(i) if i.attributes.iter().any(|a| a.common.handle == host) => {
+            Some(i.common.handle)
+        }
+        _ => None,
+    })
 }
 
 /// Name of a symbol-table record or of an object kept in a named dictionary
-/// (table style, multileader style, group, …).
+/// (table style, multileader style, group, material, …).
 fn named_object_name(doc: &CadDocument, h: Handle) -> Option<String> {
     use crate::tables::TableEntry;
     macro_rules! find_in {
@@ -686,29 +858,175 @@ fn after<'a>(s: &'a str, a: &str) -> Option<&'a str> {
     s.find(a).map(|p| &s[p + a.len()..])
 }
 
-fn object_property(e: &EntityType, prop: &str) -> Option<PropVal> {
+fn object_property(doc: &CadDocument, e: &EntityType, prop: &str) -> Option<PropVal> {
     use std::f64::consts::PI;
-    match prop {
-        "Center" => center(e).map(PropVal::Point),
+    let c = e.common();
+    let point = |v: &crate::types::Vector3| PropVal::Point([v.x, v.y, v.z]);
+    Some(match prop {
+        "Center" => PropVal::Point(center(e)?),
         "StartPoint" => match e {
-            EntityType::Line(l) => Some([l.start.x, l.start.y, l.start.z]),
-            _ => None,
-        }
-        .map(PropVal::Point),
+            EntityType::Line(l) => point(&l.start),
+            _ => return None,
+        },
         "EndPoint" => match e {
-            EntityType::Line(l) => Some([l.end.x, l.end.y, l.end.z]),
-            _ => None,
-        }
-        .map(PropVal::Point),
-        "Radius" => radius(e).map(PropVal::Num),
-        "Diameter" => radius(e).map(|r| PropVal::Num(2.0 * r)),
-        "Circumference" => radius(e).map(|r| PropVal::Num(2.0 * PI * r)),
-        "Area" => area(e).map(PropVal::Num),
-        "Length" | "Perimeter" => length(e).map(PropVal::Num),
+            EntityType::Line(l) => point(&l.end),
+            _ => return None,
+        },
+        "Radius" => PropVal::Num(radius(e)?),
+        "Diameter" => PropVal::Num(2.0 * radius(e)?),
+        "Circumference" => PropVal::Num(2.0 * PI * radius(e)?),
+        "Area" => PropVal::Num(area(e)?),
+        "Length" | "Perimeter" => PropVal::Num(length(e)?),
+        "Normal" => match e {
+            EntityType::Circle(c) => point(&c.normal),
+            EntityType::Arc(a) => point(&a.normal),
+            EntityType::Insert(i) => point(&i.normal),
+            _ => return None,
+        },
+        "Thickness" => match e {
+            EntityType::Circle(c) => PropVal::Num(c.thickness),
+            EntityType::Arc(a) => PropVal::Num(a.thickness),
+            EntityType::Line(l) => PropVal::Num(l.thickness),
+            _ => return None,
+        },
+        // Common entity properties.
+        "Layer" => PropVal::Text(c.layer.clone()),
+        "TrueColor" | "Color" => PropVal::Text(color_text(&c.color)),
+        "Linetype" => PropVal::Text(match c.linetype.to_ascii_lowercase().as_str() {
+            "" | "bylayer" => "ByLayer".into(),
+            "byblock" => "ByBlock".into(),
+            _ => c.linetype.clone(),
+        }),
+        "LinetypeScale" => PropVal::Num(c.linetype_scale),
+        "Lineweight" => PropVal::Lineweight(c.line_weight.value()),
+        "EntityTransparency" => PropVal::Text(match c.transparency {
+            crate::types::Transparency::ByLayer => "ByLayer".into(),
+            crate::types::Transparency::ByBlock => "ByBlock".into(),
+            crate::types::Transparency::Explicit(a) => {
+                ((a as f64) * 100.0 / 255.0).round().to_string()
+            }
+        }),
+        "PlotStyleName" => PropVal::Text(match (c.plotstyle_flags, c.plotstyle_handle) {
+            (1, _) => "ByBlock".into(),
+            (3, Some(h)) => named_object_name(doc, h)?,
+            _ if doc.header.plotstyle_mode => "ByColor".into(),
+            _ => "ByLayer".into(),
+        }),
+        "Material" => PropVal::Text(match (c.material_flags, c.material_handle) {
+            (1, _) => "ByBlock".into(),
+            (3, Some(h)) => named_object_name(doc, h)?,
+            _ => "ByLayer".into(),
+        }),
+        "ObjectName" => PropVal::Text(
+            match e {
+                EntityType::Insert(_) => "AcDbBlockReference",
+                EntityType::Circle(_) => "AcDbCircle",
+                EntityType::Arc(_) => "AcDbArc",
+                EntityType::Line(_) => "AcDbLine",
+                EntityType::Ellipse(_) => "AcDbEllipse",
+                EntityType::MText(_) => "AcDbMText",
+                EntityType::Text(_) => "AcDbText",
+                EntityType::LwPolyline(_) => "AcDbPolyline",
+                EntityType::Table(_) => "AcDbTable",
+                _ => return None,
+            }
+            .into(),
+        ),
+        // Block reference properties.
+        "EffectiveName" | "Name" => match e {
+            EntityType::Insert(i) => PropVal::Text(i.block_name.clone()),
+            _ => return None,
+        },
+        "InsertionPoint" | "Position" => match e {
+            EntityType::Insert(i) => point(&i.insert_point),
+            _ => return None,
+        },
+        "Rotation" => match e {
+            EntityType::Insert(i) => PropVal::Angle(i.rotation),
+            _ => return None,
+        },
+        "XScaleFactor" | "YScaleFactor" | "ZScaleFactor" | "XEffectiveScaleFactor"
+        | "YEffectiveScaleFactor" | "ZEffectiveScaleFactor" => match e {
+            EntityType::Insert(i) => {
+                let s = match &prop[..1] {
+                    "X" => i.x_scale(),
+                    "Y" => i.y_scale(),
+                    _ => i.z_scale(),
+                };
+                // The effective scale leaves out the block-unit conversion.
+                let unit = if prop.contains("Effective") { insert_unit_factor(doc, i) } else { 1.0 };
+                PropVal::Num(s / unit)
+            }
+            _ => return None,
+        },
+        "InsUnits" => match e {
+            EntityType::Insert(i) => {
+                let u = doc.block_records.get(&i.block_name).map_or(0, |b| b.units);
+                PropVal::Text(INSERT_UNITS.get(u as usize)?.0.into())
+            }
+            _ => return None,
+        },
+        "InsUnitsFactor" => match e {
+            EntityType::Insert(i) => PropVal::Num(insert_unit_factor(doc, i)),
+            _ => return None,
+        },
         // View/section-specific properties (StartIdentifier, EndIdentifier,
         // StandardScaleViewLabel, …) live on objects the reader keeps as raw
         // bytes — not evaluable, so the cache is kept.
-        _ => None,
+        _ => return None,
+    })
+}
+
+/// Unit names (`InsUnits`) and metres per unit, indexed by INSUNITS code.
+const INSERT_UNITS: [(&str, f64); 25] = [
+    ("Unitless", 1.0),
+    ("Inches", 0.0254),
+    ("Feet", 0.3048),
+    ("Miles", 1609.344),
+    ("Millimeters", 0.001),
+    ("Centimeters", 0.01),
+    ("Meters", 1.0),
+    ("Kilometers", 1000.0),
+    ("Microinches", 2.54e-8),
+    ("Mils", 2.54e-5),
+    ("Yards", 0.9144),
+    ("Angstroms", 1e-10),
+    ("Nanometers", 1e-9),
+    ("Microns", 1e-6),
+    ("Decimeters", 0.1),
+    ("Dekameters", 10.0),
+    ("Hectometers", 100.0),
+    ("Gigameters", 1e9),
+    ("Astronomical", 1.496e11),
+    ("Light Years", 9.4605e15),
+    ("Parsecs", 3.084123e16),
+    ("US Survey Feet", 1200.0 / 3937.0),
+    ("US Survey Inch", 100.0 / 3937.0),
+    ("US Survey Yard", 3600.0 / 3937.0),
+    ("US Survey Mile", 6336000.0 / 3937.0),
+];
+
+/// Block units ÷ drawing units (INSUNITS); 1 when either is unitless.
+fn insert_unit_factor(doc: &CadDocument, i: &crate::entities::Insert) -> f64 {
+    let block = doc.block_records.get(&i.block_name).map_or(0, |b| b.units);
+    let drawing = doc.header.insertion_units;
+    match (INSERT_UNITS.get(block as usize), INSERT_UNITS.get(drawing as usize)) {
+        (Some(b), Some(d)) if block > 0 && drawing > 0 => b.1 / d.1,
+        _ => 1.0,
+    }
+}
+
+/// `TrueColor` text: `BYLAYER`, `BYBLOCK`, the standard colour names in lower
+/// case (`red` … `white`), other indexes as numbers, true colours as `r,g,b`.
+fn color_text(c: &crate::types::Color) -> String {
+    use crate::types::Color;
+    const NAMES: [&str; 7] = ["red", "yellow", "green", "cyan", "blue", "magenta", "white"];
+    match c {
+        Color::ByLayer | Color::None => "BYLAYER".into(),
+        Color::ByBlock => "BYBLOCK".into(),
+        Color::Index(i @ 1..=7) => NAMES[*i as usize - 1].into(),
+        Color::Index(i) => i.to_string(),
+        Color::Rgb { r, g, b } => format!("{r},{g},{b}"),
     }
 }
 
@@ -765,53 +1083,19 @@ fn length(e: &EntityType) -> Option<f64> {
     }
 }
 
-/// Format a property value with an AutoCAD field unit picture. Understands the
-/// common codes: `%pr<n>` precision, `%ps[pre,suf]` prefix/suffix, `%zs<n>`
-/// trailing-zero suppression. A point renders one coordinate when the prefix
-/// names it (`X=`, `Y=`, `Z=`), else `x,y`.
-fn format_propval(val: PropVal, pic: &str) -> String {
-    let prec = after(pic, "%pr")
-        .and_then(|s| {
-            s.chars()
-                .take_while(|c| c.is_ascii_digit())
-                .collect::<String>()
-                .parse()
-                .ok()
-        })
-        // With no format at all the reference application shows six decimals
-        // (a circle's Area: 78.539816).
-        .unwrap_or(if pic.trim().is_empty() { 6 } else { 4 });
-    let (pre, suf) = between(pic, "%ps[", "]")
-        .map(|ps| {
-            let mut it = ps.splitn(2, ',');
-            (
-                it.next().unwrap_or("").to_string(),
-                it.next().unwrap_or("").to_string(),
-            )
-        })
-        .unwrap_or_default();
-    let zs = pic.contains("%zs");
-    let num = |v: f64| {
-        let mut s = format!("{:.*}", prec, v);
-        if zs && s.contains('.') {
-            s = s.trim_end_matches('0').trim_end_matches('.').to_string();
-        }
-        s
-    };
+/// Format a property value. Without a picture numbers show six decimals,
+/// angles six-decimal radians, points `x, y, z` with six decimals and
+/// lineweights their raw value; a picture formats them like any unit field.
+fn format_propval(doc: &CadDocument, val: PropVal, pic: &str) -> String {
+    let empty = pic.trim().is_empty();
     match val {
-        PropVal::Num(n) => format!("{}{}{}", pre, num(n), suf),
-        PropVal::Point(p) => {
-            let coord = match pre.chars().next() {
-                Some('X') | Some('x') => Some(p[0]),
-                Some('Y') | Some('y') => Some(p[1]),
-                Some('Z') | Some('z') => Some(p[2]),
-                _ => None,
-            };
-            match coord {
-                Some(c) => format!("{}{}{}", pre, num(c), suf),
-                None => format!("{}{},{}{}", pre, num(p[0]), num(p[1]), suf),
-            }
-        }
+        PropVal::Num(n) | PropVal::Angle(n) if empty => format!("{n:.6}"),
+        PropVal::Num(n) | PropVal::Angle(n) => format_number(doc, n, pic),
+        PropVal::Point(p) if empty => p.map(|v| format!("{v:.6}")).join(", "),
+        PropVal::Point(p) => format_point(doc, p, pic),
+        PropVal::Text(s) => text_case(s, pic),
+        PropVal::Lineweight(w) if !pic.contains("%lw") => w.to_string(),
+        PropVal::Lineweight(w) => format_number(doc, w as f64, pic),
     }
 }
 
@@ -959,10 +1243,23 @@ fn eval_acvar(
             .and_then(|(_, v)| nonempty(v))
             .or_else(|| {
                 let v = getvar(doc, name, ctx)?;
-                match (fmt.contains("%pr") || fmt.contains("%lu"), v.trim().parse::<f64>()) {
-                    (true, Ok(n)) => Some(format_number(doc, n, &fmt)),
-                    _ => Some(v),
-                }
+                let numeric = ["%lu", "%au", "%pr", "%bl", "%zs", "%qf", "%ct", "%ps"]
+                    .iter()
+                    .any(|c| fmt.contains(c));
+                let nums: Vec<f64> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                Some(match (numeric, nums.as_slice()) {
+                    (true, [n]) => format_number(doc, *n, &fmt),
+                    // A point variable (`viewctr`, `insbase`, …).
+                    (true, [x, y]) => format_point(doc, [*x, *y, 0.0], &fmt),
+                    (true, [x, y, z]) => format_point(doc, [*x, *y, *z], &fmt),
+                    // Without a format a point shows six decimals per coordinate.
+                    (false, [_, _] | [_, _, _]) if fmt.is_empty() => {
+                        let mut p = [0.0; 3];
+                        p[..nums.len()].copy_from_slice(&nums);
+                        p.map(|c| format!("{c:.6}")).join(", ")
+                    }
+                    _ => v,
+                })
             }),
     }?;
     Some(text_case(value, &fmt))
@@ -1062,97 +1359,232 @@ fn scale_list(doc: &CadDocument) -> Vec<&crate::objects::Scale> {
         .unwrap_or_default()
 }
 
+/// A parsed field unit picture: the codes plus the literal text around them
+/// (`1:%lu2%ct1` keeps `1:` before the number).
+#[derive(Default)]
+struct Picture {
+    lit: String,
+    /// Where the value goes in `lit` (at the first code).
+    slot: Option<usize>,
+    lu: Option<i64>,
+    au: Option<i64>,
+    pr: Option<usize>,
+    zs: i64,
+    qf: i64,
+    ds: Option<char>,
+    th: Option<char>,
+    ls: Option<char>,
+    pt: Option<i64>,
+    bl: Option<i64>,
+    lw: Option<i64>,
+    /// `%.Nf` printf precision.
+    printf: Option<usize>,
+    pre: String,
+    suf: String,
+    /// `%ctN[factor]` conversions in order.
+    conv: Vec<(i64, Option<f64>)>,
+}
+
+impl Picture {
+    fn parse(pic: &str) -> Self {
+        let mut p = Picture::default();
+        let mut rest = pic;
+        while let Some(at) = rest.find('%') {
+            p.lit.push_str(&rest[..at]);
+            let tail = &rest[at + 1..];
+            // `%.2f` — a printf precision.
+            if let Some(d) = tail.strip_prefix('.') {
+                let digits: String = d.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if !digits.is_empty() && d[digits.len()..].starts_with('f') {
+                    p.printf = digits.parse().ok();
+                    p.slot.get_or_insert(p.lit.len());
+                    rest = &d[digits.len() + 1..];
+                    continue;
+                }
+            }
+            let key: String = tail.chars().take_while(|c| c.is_ascii_alphabetic()).take(2).collect();
+            if key.len() < 2 {
+                p.lit.push('%');
+                rest = tail;
+                continue;
+            }
+            let after_key = &tail[key.len()..];
+            let digits: String = after_key.chars().take_while(|c| c.is_ascii_digit()).collect();
+            let mut end = key.len() + digits.len();
+            let arg = after_key[digits.len()..]
+                .strip_prefix('[')
+                .and_then(|a| a.find(']').map(|e| &a[..e]));
+            if let Some(a) = arg {
+                end += a.len() + 2;
+            }
+            let n: i64 = digits.parse().unwrap_or(0);
+            let ch = || char::from_u32(n as u32);
+            match key.as_str() {
+                "lu" => p.lu = Some(n),
+                "au" => p.au = Some(n),
+                "pr" => p.pr = Some(n as usize),
+                "zs" => p.zs = n,
+                "qf" => p.qf = n,
+                "ds" => p.ds = ch(),
+                "th" => p.th = ch(),
+                "ls" => p.ls = ch(),
+                "pt" => p.pt = Some(n),
+                "bl" => p.bl = Some(n),
+                "lw" => p.lw = Some(n),
+                "ct" => p.conv.push((n, arg.and_then(|a| a.trim().parse().ok()))),
+                "ps" => {
+                    let a = arg.unwrap_or("");
+                    let (x, y) = a.split_once(',').unwrap_or((a, ""));
+                    p.pre = x.to_string();
+                    p.suf = y.to_string();
+                }
+                _ => {}
+            }
+            p.slot.get_or_insert(p.lit.len());
+            rest = &tail[end..];
+        }
+        p.lit.push_str(rest);
+        p
+    }
+
+    /// Zero suppression: `%zs` bits 1 zero feet, 2 zero inches, 4 leading,
+    /// 8 trailing; `%qf` bits 256, 512, 1024, 2048 the same.
+    fn zeros(&self) -> Zeros {
+        let bit = |zs: i64, qf: i64| self.zs & zs != 0 || self.qf & qf != 0;
+        Zeros {
+            feet: bit(1, 256),
+            inches: bit(2, 512),
+            leading: bit(4, 1024),
+            trailing: bit(8, 2048),
+        }
+    }
+
+    /// The value after the `%ct` conversions: 1 and 5 and 7 reciprocal,
+    /// 2 × 12, 3 1 ÷ (12 × value), 4 ÷ 144, 6 none, 8 and 10 × factor,
+    /// 9 and 11 factor ÷ value (1 without a factor).
+    fn convert(&self, mut v: f64) -> f64 {
+        for &(n, f) in &self.conv {
+            v = match n {
+                1 | 5 | 7 => 1.0 / v,
+                2 => v * 12.0,
+                3 => 1.0 / (12.0 * v),
+                4 => v / 144.0,
+                8 | 10 => v * f.unwrap_or(1.0),
+                9 | 11 => f.unwrap_or(1.0) / v,
+                _ => v,
+            };
+        }
+        v
+    }
+
+    /// Place the formatted value into the literal text.
+    fn wrap(&self, value: &str) -> String {
+        let num = format!("{}{value}{}", self.pre, self.suf);
+        match self.slot {
+            Some(at) => format!("{}{}{}", &self.lit[..at], num, &self.lit[at..]),
+            None => format!("{}{num}", self.lit),
+        }
+    }
+
+    /// The linear unit mode: `%lu6` is the drawing's LUNITS, and with `%qf1`
+    /// (areas) engineering and architectural LUNITS show as decimal.
+    fn linear_mode(&self, doc: &CadDocument) -> i64 {
+        match self.lu.unwrap_or(2) {
+            6 => match doc.header.linear_unit_format as i64 {
+                3 | 4 if self.qf & 1 != 0 => 2,
+                m => m,
+            },
+            m => m,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct Zeros {
+    feet: bool,
+    inches: bool,
+    leading: bool,
+    trailing: bool,
+}
+
 /// Format a number with a field unit picture. Literal text in the picture is
 /// kept around the number (`1:%lu2%ct1` → `1:50`). Codes:
 /// `%lu1..5` scientific / decimal / engineering / architectural / fractional,
-/// `%lu6` the drawing's LUNITS; `%prN` precision (LUPREC when absent);
-/// `%zsN` zero suppression (4 leading, 8 trailing); `%qfN` with bit 2048
-/// suppresses trailing zeros, and zero feet / zero inches in architectural
-/// values; `%ps[pre,suf]`; `%dsN` / `%thN` decimal / thousands separator
-/// (character code); `%ct1` reciprocal, `%ct2` × 12, `%ct8[f]` × f,
-/// `%ct9[f]` f ÷ value.
+/// `%lu6` the drawing's LUNITS (`%qf1`: decimal instead of feet and inches);
+/// `%au0..4` decimal degrees / deg-min-sec / grads / radians / surveyor's,
+/// `%au5` the drawing's AUNITS, for a value in radians; `%prN` precision
+/// (LUPREC / AUPREC when absent); `%zsN` / `%qfN` zero suppression;
+/// `%ps[pre,suf]`; `%dsN` / `%thN` decimal / thousands separator (character
+/// code); `%ctN[f]` conversions; `%blN` booleans (1 True/False, 2 Yes/No,
+/// 3 On/Off, 4 Enabled/Disabled); `%lw1` / `%lw2` a lineweight (hundredths
+/// of a millimetre) in millimetres / inches, `%.Nf` its decimals.
 fn format_number(doc: &CadDocument, value: f64, pic: &str) -> String {
-    let mut lit = String::new();
-    let mut slot = None;
-    let (mut lu, mut pr, mut zs, mut qf, mut ds, mut th) = (None, None, 0, 0, None, None);
-    let (mut pre, mut suf) = (String::new(), String::new());
-    let mut v = value;
-    let mut rest = pic;
-    while let Some(p) = rest.find('%') {
-        lit.push_str(&rest[..p]);
-        let tail = &rest[p + 1..];
-        let key: String = tail.chars().take_while(|c| c.is_ascii_alphabetic()).take(2).collect();
-        let after_key = &tail[key.len()..];
-        let digits: String = after_key.chars().take_while(|c| c.is_ascii_digit()).collect();
-        let mut end = key.len() + digits.len();
-        let arg = after_key[digits.len()..]
-            .strip_prefix('[')
-            .and_then(|a| a.find(']').map(|e| &a[..e]));
-        if let Some(a) = arg {
-            end += a.len() + 2;
-        }
-        if key.len() < 2 {
-            lit.push('%');
-            rest = tail;
-            continue;
-        }
-        let n: i64 = digits.parse().unwrap_or(0);
-        let factor = arg.and_then(|a| a.trim().parse::<f64>().ok());
-        match key.as_str() {
-            "lu" => lu = Some(n),
-            "pr" => pr = Some(n as usize),
-            "zs" => zs = n,
-            "qf" => qf = n,
-            "ds" => ds = char::from_u32(n as u32),
-            "th" => th = char::from_u32(n as u32),
-            "ps" => {
-                let (a, b) = arg.unwrap_or("").split_once(',').unwrap_or((arg.unwrap_or(""), ""));
-                pre = a.to_string();
-                suf = b.to_string();
-            }
-            "ct" => match (n, factor) {
-                (1, _) => v = 1.0 / v,
-                (2, _) => v *= 12.0,
-                (8, Some(f)) => v *= f,
-                (9, Some(f)) => v = f / v,
-                _ => {}
-            },
-            _ => {}
-        }
-        if slot.is_none() {
-            slot = Some(lit.len());
-        }
-        rest = &tail[end..];
+    let p = Picture::parse(pic);
+    if let Some(mode) = p.bl {
+        let names = match mode {
+            1 => ["True", "False"],
+            2 => ["Yes", "No"],
+            3 => ["On", "Off"],
+            4 => ["Enabled", "Disabled"],
+            _ => return p.wrap(&num_str(value)),
+        };
+        return p.wrap(names[(value == 0.0) as usize]);
     }
-    lit.push_str(rest);
+    if let Some(unit) = p.lw {
+        let named = match value as i64 {
+            -1 => Some("ByLayer"),
+            -2 => Some("ByBlock"),
+            -3 => Some("Default"),
+            _ => None,
+        };
+        if let Some(n) = named {
+            return n.into();
+        }
+        let mm = value / 100.0;
+        let v = if unit == 2 { mm / 25.4 } else { mm };
+        return p.wrap(&format!("{:.*}", p.printf.unwrap_or(6), v));
+    }
+    let v = p.convert(value);
     if !v.is_finite() {
         return "####".into();
     }
-    let mode = match lu.unwrap_or(2) {
-        6 => doc.header.linear_unit_format as i64,
-        m => m,
-    };
-    let prec = pr.unwrap_or(doc.header.linear_unit_precision.max(0) as usize).min(16);
-    let drop_zeros = qf & 2048 != 0;
-    let num = unit_text(v, mode, prec, zs, drop_zeros, ds.unwrap_or('.'), th);
-    let num = format!("{pre}{num}{suf}");
-    match slot {
-        Some(at) => format!("{}{}{}", &lit[..at], num, &lit[at..]),
-        None => format!("{lit}{num}"),
+    p.wrap(&number_text(doc, &p, v))
+}
+
+/// One number in the picture's unit mode, without literal text.
+fn number_text(doc: &CadDocument, p: &Picture, v: f64) -> String {
+    let z = p.zeros();
+    if let Some(au) = p.au {
+        let mode = if au == 5 { doc.header.angular_unit_format as i64 } else { au };
+        let prec = p.pr.unwrap_or(doc.header.angular_unit_precision.max(0) as usize);
+        return angle_text(v, mode, prec.min(16), z.trailing, true);
     }
+    let prec = p.pr.unwrap_or(doc.header.linear_unit_precision.max(0) as usize).min(16);
+    // `%qf2` / `%qf4`: an angle in radians whose `%lu` number is the angle
+    // mode, normalised to one turn with 2, as is with 4.
+    if p.qf & 6 != 0 {
+        return angle_text(v, p.lu.unwrap_or(2), prec, z.trailing, p.qf & 2 != 0);
+    }
+    unit_text(v, p.linear_mode(doc), prec, z, p.ds.unwrap_or('.'), p.th)
+}
+
+/// A point in a field picture: the coordinates `%pt` selects (bits 1 X, 2 Y,
+/// 4 Z; all by default), each formatted as a number and separated by the
+/// `%ls` character (comma) and a space; prefix / suffix wrap the whole text.
+fn format_point(doc: &CadDocument, pt: [f64; 3], pic: &str) -> String {
+    let p = Picture::parse(pic);
+    let bits = p.pt.unwrap_or(7);
+    let sep = format!("{} ", p.ls.unwrap_or(','));
+    let parts: Vec<String> = (0..3)
+        .filter(|i| bits & (1 << i) != 0)
+        .map(|i| number_text(doc, &p, p.convert(pt[i])))
+        .collect();
+    p.wrap(&parts.join(&sep))
 }
 
 /// A distance in LUNITS-style notation (`mode` 1–5) with `prec` decimals or,
 /// for architectural / fractional, a 1/2^prec fraction.
-fn unit_text(
-    v: f64,
-    mode: i64,
-    prec: usize,
-    zs: i64,
-    drop_zeros: bool,
-    ds: char,
-    th: Option<char>,
-) -> String {
+fn unit_text(v: f64, mode: i64, prec: usize, z: Zeros, ds: char, th: Option<char>) -> String {
     let sign = if v < 0.0 { "-" } else { "" };
     let a = v.abs();
     let decimal = |x: f64, p: usize| {
@@ -1169,10 +1601,10 @@ fn unit_text(
             }
             s = grouped + frac;
         }
-        if (zs & 8 != 0 || drop_zeros) && s.contains('.') {
+        if z.trailing && s.contains('.') {
             s = s.trim_end_matches('0').trim_end_matches('.').to_string();
         }
-        if zs & 4 != 0 && s.starts_with("0.") {
+        if z.leading && s.starts_with("0.") {
             s.remove(0);
         }
         s.replace('.', &ds.to_string())
@@ -1204,23 +1636,30 @@ fn unit_text(
             let m = 10f64.powi(prec as i32);
             let total = (a * m).round() / m;
             let feet = (total / 12.0).trunc();
-            format!("{sign}{}'-{}\"", feet, decimal(total - feet * 12.0, prec))
+            let inches = total - feet * 12.0;
+            if z.feet && feet == 0.0 {
+                format!("{sign}{}\"", decimal(inches, prec))
+            } else if z.inches && inches == 0.0 {
+                format!("{sign}{feet}'")
+            } else {
+                format!("{sign}{feet}'-{}\"", decimal(inches, prec))
+            }
         }
         4 => {
             let (inches, num, den) = fraction(a);
             let (feet, inch) = (inches / 12, inches % 12);
             let frac = if num != 0 { format!("{num}/{den}") } else { String::new() };
-            let inch_text = match (inch, frac.is_empty()) {
-                (0, false) if drop_zeros => frac,
+            let inch_text = |drop_zero: bool| match (inch, frac.is_empty()) {
+                (0, false) if drop_zero => frac.clone(),
                 (i, false) => format!("{i} {frac}"),
                 (i, true) => i.to_string(),
             };
-            if drop_zeros && feet == 0 && (inch != 0 || num != 0) {
-                format!("{sign}{inch_text}\"")
-            } else if drop_zeros && inch == 0 && num == 0 {
+            if z.feet && feet == 0 {
+                format!("{sign}{}\"", inch_text(true))
+            } else if z.inches && inch == 0 && num == 0 {
                 format!("{sign}{feet}'")
             } else {
-                format!("{sign}{feet}'-{inch_text}\"")
+                format!("{sign}{feet}'-{}\"", inch_text(false))
             }
         }
         5 => {
@@ -1232,6 +1671,64 @@ fn unit_text(
             }
         }
         _ => format!("{sign}{}", decimal(a, prec)),
+    }
+}
+
+/// An angle (radians, normalised to 0–360° unless `normalize` is false) in AUNITS-style notation:
+/// 0 decimal degrees, 1 degrees/minutes/seconds (`30d0'0"`; precision 0
+/// degrees, 1–2 minutes, 3–4 seconds, more adds decimals to the seconds),
+/// 2 grads (`33g`), 3 radians (`1r`), 4 surveyor's bearing (`N 60d E`; an
+/// exact east / west bearing shows `E` / `W` when a precision is given).
+fn angle_text(rad: f64, mode: i64, prec: usize, trailing: bool, normalize: bool) -> String {
+    use std::f64::consts::TAU;
+    let a = if normalize { rad.rem_euclid(TAU) } else { rad };
+    let fixed = |x: f64| {
+        let s = format!("{x:.prec$}");
+        if trailing && s.contains('.') {
+            s.trim_end_matches('0').trim_end_matches('.').to_string()
+        } else {
+            s
+        }
+    };
+    let dms = |deg: f64| match prec {
+        0 => format!("{}d", deg.round()),
+        1 | 2 => {
+            let m = (deg * 60.0).round() as i64;
+            format!("{}d{}'", m / 60, m % 60)
+        }
+        _ => {
+            let k = prec.saturating_sub(4);
+            let scale = 10f64.powi(k as i32);
+            let s = (deg * 3600.0 * scale).round() / scale;
+            let whole = s.trunc() as i64;
+            let sec = s - (whole - whole % 60) as f64;
+            format!("{}d{}'{:.k$}\"", whole / 3600, whole % 3600 / 60, sec)
+        }
+    };
+    match mode {
+        1 => dms(a.to_degrees()),
+        2 => format!("{}g", fixed(a * 200.0 / std::f64::consts::PI)),
+        3 => format!("{}r", fixed(a)),
+        4 => {
+            let deg = a.to_degrees();
+            let (ns, bearing, ew) = if deg <= 90.0 {
+                ('N', 90.0 - deg, 'E')
+            } else if deg <= 180.0 {
+                ('N', deg - 90.0, 'W')
+            } else if deg <= 270.0 {
+                ('S', 270.0 - deg, 'W')
+            } else {
+                ('S', deg - 270.0, 'E')
+            };
+            if prec > 0 && (bearing - 90.0).abs() < 1e-9 {
+                ew.to_string()
+            } else if prec > 0 && bearing.abs() < 1e-9 {
+                ns.to_string()
+            } else {
+                format!("{ns} {} {ew}", dms(bearing))
+            }
+        }
+        _ => fixed(a.to_degrees()),
     }
 }
 
@@ -1526,14 +2023,9 @@ fn rtos(val: f64, prec: Option<usize>) -> String {
     format!("{:.*}", prec.unwrap_or(4), val)
 }
 
-/// `$(angtos,value[,mode,prec])` — `value` in radians; mode 3 = radians, else degrees.
+/// `$(angtos,value[,mode,prec])` — `value` in radians, `mode` as AUNITS.
 fn angtos(val: f64, mode: i64, prec: Option<usize>) -> String {
-    let p = prec.unwrap_or(0);
-    if mode == 3 {
-        format!("{:.*}r", p, val)
-    } else {
-        format!("{:.*}", p, val.to_degrees())
-    }
+    angle_text(val, mode, prec.unwrap_or(0), false, true)
 }
 
 /// Gregorian (Y, M, D, h, m, s) for an astronomical Julian date.
@@ -2051,6 +2543,157 @@ impl CadDocument {
         true
     }
 
+    /// Give the ATTRIBs of `insert` the fields of their ATTDEFs, as the
+    /// reference application does on insertion: an ATTRIB whose ATTDEF (same
+    /// tag in the block definition) hosts a field gets a copy of it — a block
+    /// placeholder `Object(?BlockRefId,1)` then names the INSERT as
+    /// `Object(%<\_ObjIdx 0>%,1)` — and shows its evaluated text. Returns the
+    /// ATTRIBs that received a field.
+    pub fn attach_attribute_fields(
+        &mut self,
+        insert: Handle,
+        ctx: &dyn FieldContext,
+    ) -> Vec<Handle> {
+        // ATTRIBs need handles to host fields.
+        let unset = match self.get_entity(insert) {
+            Some(EntityType::Insert(i)) => i.attributes.iter().filter(|a| a.common.handle.is_null()).count(),
+            _ => return Vec::new(),
+        };
+        let fresh: Vec<Handle> = (0..unset).map(|_| self.allocate_handle()).collect();
+        if let Some(EntityType::Insert(i)) = self.get_entity_mut(insert) {
+            let owner = i.common.handle;
+            let mut fresh = fresh.into_iter();
+            for a in i.attributes.iter_mut().filter(|a| a.common.handle.is_null()) {
+                a.common.handle = fresh.next().unwrap_or_default();
+                a.common.owner_handle = owner;
+            }
+        }
+        let Some(EntityType::Insert(ins)) = self.get_entity(insert) else {
+            return Vec::new();
+        };
+        let mut plans = Vec::new();
+        for attrib in &ins.attributes {
+            let Some(def) = self.entities_in_block(&ins.block_name).find_map(|e| match e {
+                EntityType::AttributeDefinition(d) if d.tag.eq_ignore_ascii_case(&attrib.tag) => {
+                    Some(d.common.handle)
+                }
+                _ => None,
+            }) else {
+                continue;
+            };
+            let Some(container) = container_for_host(self, def) else {
+                continue;
+            };
+            let mut kids: Vec<&FieldDef> = self
+                .fields
+                .values()
+                .filter(|f| f.owner == container.handle)
+                .collect();
+            kids.sort_by_key(|f| u64::from(f.handle));
+            let children = kids
+                .iter()
+                .map(|k| {
+                    let placeholder = k.code.contains("?BlockRefId");
+                    let code = k.code.replace("?BlockRefId", "%<\\_ObjIdx 0>%");
+                    let objects = if placeholder { vec![insert] } else { k.objects.clone() };
+                    let stored = match self.objects.get(&k.handle) {
+                        Some(ObjectType::Field(f)) => Some(f),
+                        _ => None,
+                    };
+                    let cached = stored.map(|f| f.value.display().to_string()).unwrap_or_default();
+                    let shown = evaluate_code(self, &code, &objects, Some(attrib.common.handle), ctx)
+                        .unwrap_or(cached);
+                    let mut child = NewField::new(code, shown);
+                    child.objects = objects;
+                    if let Some(f) = stored {
+                        child.evaluation_option = f.evaluation_option;
+                    }
+                    child
+                })
+                .collect::<Vec<_>>();
+            plans.push((attrib.common.handle, container.code.clone(), children));
+        }
+        plans
+            .into_iter()
+            .filter_map(|(attrib, template, children)| {
+                self.set_text_field(attrib, &template, children).map(|_| attrib)
+            })
+            .collect()
+    }
+
+    /// What the reference application does to fields when it plots: every
+    /// field evaluated on plot (evaluation option bit 4) is re-evaluated with
+    /// [`FieldContext::plotting`] true — `PlotDate` takes the plot time — and
+    /// its value is stored in the field object and the host text. Fields
+    /// evaluated only on demand (a `Date` field) keep their value. `ctx` is the
+    /// host's ordinary context. Returns the hosts whose text changed.
+    pub fn stamp_plot_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
+        let plot = Plotting(ctx);
+        let mut values: Vec<(Handle, CellValue)> = Vec::new();
+        let mut hosts: Vec<(Handle, Handle, String)> = Vec::new();
+        for container in self.fields.values().filter(|f| f.evaluator == "_text") {
+            let Some(host) = host_of(self, container) else {
+                continue;
+            };
+            let mut kids: Vec<&FieldDef> = self
+                .fields
+                .values()
+                .filter(|f| f.owner == container.handle)
+                .collect();
+            kids.sort_by_key(|f| u64::from(f.handle));
+            let mut shown = Vec::new();
+            let mut changed = false;
+            for kid in kids {
+                let Some(ObjectType::Field(stored)) = self.objects.get(&kid.handle) else {
+                    shown.push(String::new());
+                    continue;
+                };
+                let cached = match stored.value.display() {
+                    "" => stored.value_string.clone(),
+                    shown => shown.to_string(),
+                };
+                let fresh = (stored.evaluation_option & 4 != 0)
+                    .then(|| eval_field(self, kid, &plot, host))
+                    .flatten();
+                match fresh {
+                    Some(text) if text != cached => {
+                        changed = true;
+                        values.push((kid.handle, plot_value(kid, &text, ctx.now_julian())));
+                        shown.push(text);
+                    }
+                    _ => shown.push(cached),
+                }
+            }
+            let mtext = matches!(self.get_entity(host), Some(EntityType::MText(_)));
+            if let Some(text) = changed.then(|| fill_template(&container.code, &shown, mtext)).flatten() {
+                hosts.push((host, container.handle, text));
+            }
+        }
+        for (h, value) in values {
+            if let Some(ObjectType::Field(f)) = self.objects.get_mut(&h) {
+                f.value_string = value.display().to_string();
+                f.value_string_length = f.value_string.encode_utf16().count() as i32;
+                f.evaluation_status = 2;
+                f.value = value;
+            }
+        }
+        let mut changed = Vec::new();
+        for (host, container, text) in hosts {
+            if let Some(ObjectType::Field(c)) = self.objects.get_mut(&container) {
+                for cv in &mut c.child_values {
+                    if cv.key == "ACFD_FIELDTEXT_CHECKSUM" {
+                        cv.value.numeric_value = field_text_checksum(&text);
+                    }
+                }
+            }
+            let replaced = self.text_host(host, |_, t, _| std::mem::replace(t, text.clone()));
+            if replaced.is_some_and(|old| old != text) {
+                changed.push(host);
+            }
+        }
+        changed
+    }
+
     /// Owner walk over objects *and* fields (`object_owner` does not know
     /// FIELD objects).
     fn object_or_field_reaches(&self, start: Handle, target: Handle) -> bool {
@@ -2191,6 +2834,35 @@ fn child_field(child: NewField, handle: Handle, owner: Handle) -> Field {
                 value: v,
             });
         }
+        // `Object(<id>,1)`: the option, as a number and as text.
+        let object_arg = between(&child.code, "Object(", ").").unwrap_or("");
+        if let Some((_, option)) = object_arg.rsplit_once(',') {
+            let option = option.trim();
+            let mut n = CellValue::integer(option.parse().unwrap_or(0));
+            n.flags = 2;
+            n.formatted_value.clear();
+            let mut s = CellValue::text(option);
+            s.flags = 2;
+            s.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyOption".into(),
+                value: n,
+            });
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyOptionString".into(),
+                value: s,
+            });
+        }
+        // A block placeholder names its object only on insertion.
+        if object_arg.starts_with("?BlockRefId") {
+            let mut v = CellValue::text("?BlockRefId");
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyUnresolvedId".into(),
+                value: v,
+            });
+        }
     }
     if child.evaluator.starts_with("AcCount") {
         // The count's JSON query, kept beside the code.
@@ -2232,6 +2904,13 @@ fn child_field(child: NewField, handle: Handle, owner: Handle) -> Field {
 /// `children[n]`'s display text (escaped for MTEXT). `None` when a marker has
 /// no child.
 fn template_display(template: &str, children: &[NewField], mtext: bool) -> Option<String> {
+    let shown: Vec<&str> = children.iter().map(|c| c.value.display()).collect();
+    fill_template(template, &shown, mtext)
+}
+
+/// `template` with every `%<\_FldIdx n>%` replaced by `shown[n]` (escaped
+/// for MTEXT). `None` when a marker has no text.
+fn fill_template<S: AsRef<str>>(template: &str, shown: &[S], mtext: bool) -> Option<String> {
     let mut out = String::new();
     let mut rest = template;
     while let Some(p) = rest.find("%<\\_FldIdx ") {
@@ -2239,13 +2918,111 @@ fn template_display(template: &str, children: &[NewField], mtext: bool) -> Optio
         let after = &rest[p + 11..];
         let end = after.find(">%")?;
         let idx: usize = after[..end].trim().parse().ok()?;
-        let shown = children.get(idx)?.value.display();
+        let shown = shown.get(idx)?.as_ref();
         out.push_str(&if mtext { mtext_escape(shown) } else { shown.to_string() });
         rest = &after[end + 2..];
     }
     out.push_str(rest);
     Some(out)
 }
+
+/// A host context that is plotting.
+struct Plotting<'a>(&'a dyn FieldContext);
+
+impl FieldContext for Plotting<'_> {
+    fn now_julian(&self) -> f64 {
+        self.0.now_julian()
+    }
+    fn file_times(&self) -> Option<(f64, f64)> {
+        self.0.file_times()
+    }
+    fn plotting(&self) -> bool {
+        true
+    }
+    fn login(&self) -> Option<String> {
+        self.0.login()
+    }
+    fn getenv(&self, name: &str) -> Option<String> {
+        self.0.getenv(name)
+    }
+    fn getvar(&self, name: &str) -> Option<String> {
+        self.0.getvar(name)
+    }
+    fn file_size(&self) -> Option<u64> {
+        self.0.file_size()
+    }
+    fn date_locale(&self) -> DateLocale {
+        self.0.date_locale()
+    }
+}
+
+/// The cached value of a field evaluated on plot: `PlotDate` keeps the plot
+/// time as a date value (SYSTEMTIME, format `%x` when the code has none), as
+/// the reference application stores it; other fields keep their text.
+fn plot_value(field: &FieldDef, shown: &str, jd: f64) -> CellValue {
+    let format = code_format(&field.code);
+    let mut v = CellValue::text(shown);
+    if code_word(&field.code, 1) == Some("PlotDate") {
+        let (y, mo, d, h, mi, s) = julian_parts(jd);
+        let wd = weekday(jd);
+        v.value_type = CellValueType::Date;
+        v.raw_type_code = CellValueType::Date as i32;
+        v.text.clear();
+        v.data_size = 16;
+        v.binary_value = [y as u32, mo, wd, d, h, mi, s, 0]
+            .iter()
+            .flat_map(|x| (*x as u16).to_le_bytes())
+            .collect();
+    }
+    v.flags = 4;
+    v.format = if format.is_empty() && v.value_type == CellValueType::Date {
+        "%x".into()
+    } else {
+        format.to_string()
+    };
+    v
+}
+
+/// The reference Field dialog's BlockPlaceholder "Block reference property"
+/// list (block editor), in its order: label, property and default `\f`
+/// picture. The code is `\AcObjProp.16.2 Object(?BlockRefId,1).<property>
+/// \f "<picture>"` (`Object(?BlockRefId)` with "Display value for block
+/// reference" cleared); the temporary value is the property name.
+pub const BLOCK_PLACEHOLDER_PROPERTIES: [(&str, &str, &str); 17] = [
+    ("Block Unit", "InsUnits", "%tc4"),
+    ("Color", "TrueColor", "%tc4"),
+    ("Layer", "Layer", "%tc4"),
+    ("Linetype", "Linetype", "%tc4"),
+    ("Linetype scale", "LinetypeScale", "%lu6"),
+    ("Lineweight", "Lineweight", "%.2f mm%lw1"),
+    ("Material", "Material", "%tc4"),
+    ("Name", "EffectiveName", "%tc4"),
+    ("Object name", "ObjectName", "%tc4"),
+    ("Plot style", "PlotStyleName", "%tc4"),
+    ("Position", "InsertionPoint", "%lu6"),
+    ("Rotation", "Rotation", "%au5"),
+    ("Scale X", "XEffectiveScaleFactor", "%lu6"),
+    ("Scale Y", "YEffectiveScaleFactor", "%lu6"),
+    ("Scale Z", "ZEffectiveScaleFactor", "%lu6"),
+    ("Transparency", "EntityTransparency", "%tc4"),
+    ("Unit factor", "InsUnitsFactor", "%lu6"),
+];
+
+/// The reference Field dialog's angle formats, in its order: label and `\f`
+/// picture (none for "(none)"). A chosen precision N appends `%prN`.
+pub const ANGLE_FORMATS: [(&str, &str); 7] = [
+    ("(none)", ""),
+    ("Current units", "%au5"),
+    ("Decimal degrees", "%au0"),
+    ("Deg/min/sec", "%au1"),
+    ("Grads", "%au2"),
+    ("Radians", "%au3"),
+    ("Surveyor's units", "%au4"),
+];
+
+/// The reference Field dialog's lineweight formats: label and `\f` picture.
+pub const LINEWEIGHT_FORMATS: [(&str, &str); 2] =
+    [("Millimeters", "%.2f mm%lw1"), ("Inches", "%.3f\"%lw2")];
 
 /// The `PE_URL` XDATA the reference application keeps on a hyperlink field
 /// (`\AcVar \href "url#location#text#flags"`): the address, then a group with

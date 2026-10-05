@@ -5179,8 +5179,8 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_surface_matrix(&mut self, value: &[f64; 16]) {
-        for item in value {
-            self.writer.write_bit_double(*item);
+        for item in crate::entities::surface::transpose_matrix(*value) {
+            self.writer.write_bit_double(item);
         }
     }
 
@@ -5189,6 +5189,24 @@ impl<'a> DwgObjectWriter<'a> {
         entity: &crate::entities::EmbeddedEntity,
         byte_aligned: bool,
     ) {
+        if let crate::entities::EmbeddedEntity::Body {
+            type_code,
+            acis_data,
+        } = entity
+        {
+            // Type, a presence bit (set when there is no body), then the
+            // modeler block. The reference application writes the binary form.
+            self.writer.write_bit_long(*type_code);
+            self.writer.write_bit(!acis_data.has_data());
+            if acis_data.has_data() {
+                let binary = (!acis_data.is_binary)
+                    .then(|| acis_data.parse_sat())
+                    .flatten()
+                    .map(|doc| AcisData::from_sab(crate::entities::acis::SabWriter::write(&doc)));
+                self.write_modeler_block(binary.as_ref().unwrap_or(acis_data));
+            }
+            return;
+        }
         let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
             entity,
             self.version,
@@ -5262,19 +5280,7 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_3bit_double(*sweep_vector);
                 self.write_surface_matrix(sweep_transform);
                 if let Some(entity) = sweep_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        self.version,
-                        self.dxf_version,
-                    );
-                    let bit_length = encoded.bytes.len() * 8;
-                    self.writer.write_bit_long(encoded.type_code);
-                    self.writer.write_bit_long(bit_length as i32);
-                    crate::io::dwg::embedded_entity::write_embedded_bits_with_length(
-                        &mut self.writer,
-                        &encoded,
-                        bit_length,
-                    );
+                    self.write_surface_embedded_entity(entity, true);
                 } else {
                     self.writer.write_bit_long(0);
                     self.writer.write_bit_long(0);
@@ -5373,37 +5379,13 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_surface_matrix(sweep_transform);
                 self.write_surface_matrix(path_transform);
                 if let Some(entity) = sweep_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        self.version,
-                        self.dxf_version,
-                    );
-                    let bit_length = encoded.bytes.len() * 8;
-                    self.writer.write_bit_long(encoded.type_code);
-                    self.writer.write_bit_long(bit_length as i32);
-                    crate::io::dwg::embedded_entity::write_embedded_bits_with_length(
-                        &mut self.writer,
-                        &encoded,
-                        bit_length,
-                    );
+                    self.write_surface_embedded_entity(entity, true);
                 } else {
                     self.writer.write_bit_long(0);
                     self.writer.write_bit_long(0);
                 }
                 if let Some(entity) = path_entity {
-                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
-                        entity,
-                        self.version,
-                        self.dxf_version,
-                    );
-                    let bit_length = encoded.bytes.len() * 8;
-                    self.writer.write_bit_long(encoded.type_code);
-                    self.writer.write_bit_long(bit_length as i32);
-                    crate::io::dwg::embedded_entity::write_embedded_bits_with_length(
-                        &mut self.writer,
-                        &encoded,
-                        bit_length,
-                    );
+                    self.write_surface_embedded_entity(entity, true);
                 } else {
                     self.writer.write_bit_long(0);
                     self.writer.write_bit_long(0);
@@ -5490,9 +5472,14 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_extra_acis_data(&mut self, acis: &AcisData) {
-        let Some(extra) = &acis.extra_acis_data else {
-            return;
-        };
+        if let Some(extra) = &acis.extra_acis_data {
+            self.write_modeler_block(extra);
+        }
+    }
+
+    /// Modeler block: B, then BS 2 and SAB bytes, or BS 1 and the
+    /// encrypted SAT text in length-prefixed blocks ending with 0.
+    fn write_modeler_block(&mut self, extra: &AcisData) {
         self.writer.write_bit(false);
         if extra.is_binary && !extra.sab_data.is_empty() {
             self.writer.write_bit_short(2);
@@ -5721,7 +5708,11 @@ impl<'a> DwgObjectWriter<'a> {
         // Some valid AcDs-backed solids intentionally carry geometry only
         // (no point, isolines, wires or silhouettes). Synthesizing a cache for
         // those changes COMMON_3DSOLID and ODA rejects the object.
+        // Before R2013 the modeler data is inline and a non-empty body must
+        // announce the cache block, even when it holds nothing: a record
+        // without it is rejected (a DXF-sourced solid never has one).
         let wireframe_present = acis.wireframe_data_present
+            || (acis.has_data() && !self.version.r2013_plus(self.dxf_version))
             || point != Vector3::ZERO
             || acis.wireframe_isolines != 0
             || !wires.is_empty()

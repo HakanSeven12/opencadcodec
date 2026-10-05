@@ -3,6 +3,7 @@
 //! These values are not database-resident entities: their DWG payload contains
 //! only the type-specific entity body, without common entity data or handles.
 
+use super::solid3d::AcisData;
 use super::{Arc, Circle, Ellipse, Line, LwPolyline, Point, Ray, Region, Spline, XLine};
 
 /// Curve or point geometry embedded in a 3D construction-history record.
@@ -20,6 +21,13 @@ pub enum EmbeddedEntity {
     Region(Region),
     Ray(Ray),
     XLine(XLine),
+    /// 2D or 3D polyline profile, which the modeler keeps as a wire body:
+    /// the entity type (15 or 16) and the body's modeler data instead of
+    /// an entity body.
+    Body {
+        type_code: i32,
+        acis_data: AcisData,
+    },
     /// Unsupported entity body preserved losslessly for round-trip output.
     Unknown {
         type_code: i32,

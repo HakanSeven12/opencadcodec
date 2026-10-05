@@ -5094,9 +5094,9 @@ fn read_extra_acis_data(
         let remaining_bits =
             (inline_end.unwrap_or_else(|| reader.handle_start()) - data_start).max(0) as usize;
         let probe = reader.read_bytes(remaining_bits / 8);
-        if !probe.starts_with(b"ACIS BinaryFile")
-            && !(inline_end.is_some() && probe.starts_with(b"ASM BinaryFile"))
-        {
+        // Newer modelers write an "ASM BinaryFile" header, also in the
+        // extra modeler block of an AcDs-backed surface record.
+        if !probe.starts_with(b"ACIS BinaryFile") && !probe.starts_with(b"ASM BinaryFile") {
             reader.set_position_in_bits(prefix_start);
             return None;
         }
@@ -5510,7 +5510,7 @@ fn read_surface_matrix(reader: &mut DwgMergedReader) -> [f64; 16] {
     for item in &mut value {
         *item = reader.read_bit_double();
     }
-    value
+    crate::entities::surface::transpose_matrix(value)
 }
 
 fn read_surface_sweep_options(reader: &mut DwgMergedReader) -> SurfaceSweepOptions {
@@ -5558,6 +5558,18 @@ fn read_surface_embedded_entity(
     dxf_version: DxfVersion,
 ) -> Option<crate::entities::EmbeddedEntity> {
     let type_code = reader.read_bit_long();
+    if crate::io::dwg::embedded_entity::is_body_profile(type_code) {
+        // A presence bit (set when there is no body), then the modeler block.
+        let acis_data = if reader.read_bit() {
+            crate::entities::solid3d::AcisData::default()
+        } else {
+            read_extra_acis_data(reader, None).unwrap_or_default()
+        };
+        return Some(crate::entities::EmbeddedEntity::Body {
+            type_code,
+            acis_data,
+        });
+    }
     let bit_length = safe_count(reader.read_bit_long()) as usize;
     crate::io::dwg::embedded_entity::read_embedded_entity_bits(
         reader,
@@ -5591,15 +5603,7 @@ pub fn read_surface(
             let options = read_surface_sweep_options(reader);
             let sweep_vector = reader.read_3bit_double();
             let sweep_transform = read_surface_matrix(reader);
-            let type_code = reader.read_bit_long();
-            let bit_length = safe_count(reader.read_bit_long()) as usize;
-            let sweep_entity = crate::io::dwg::embedded_entity::read_embedded_entity_bits(
-                reader,
-                type_code,
-                bit_length,
-                version,
-                dxf_version,
-            );
+            let sweep_entity = read_surface_embedded_entity(reader, version, dxf_version);
             SurfaceData::Extruded {
                 sweep_entity,
                 options,
@@ -5733,24 +5737,8 @@ pub fn read_surface(
             let options = read_surface_sweep_options(reader);
             let sweep_transform = read_surface_matrix(reader);
             let path_transform = read_surface_matrix(reader);
-            let sweep_entity_id = reader.read_bit_long();
-            let sweep_size = safe_count(reader.read_bit_long()) as usize;
-            let sweep_entity = crate::io::dwg::embedded_entity::read_embedded_entity_bits(
-                reader,
-                sweep_entity_id,
-                sweep_size,
-                version,
-                dxf_version,
-            );
-            let path_entity_id = reader.read_bit_long();
-            let path_size = safe_count(reader.read_bit_long()) as usize;
-            let path_entity = crate::io::dwg::embedded_entity::read_embedded_entity_bits(
-                reader,
-                path_entity_id,
-                path_size,
-                version,
-                dxf_version,
-            );
+            let sweep_entity = read_surface_embedded_entity(reader, version, dxf_version);
+            let path_entity = read_surface_embedded_entity(reader, version, dxf_version);
             SurfaceData::Swept {
                 class_version: 0,
                 sweep_entity,

@@ -763,12 +763,27 @@ impl<'a> DwgObjectWriter<'a> {
         else {
             return;
         };
-        self.write_common_non_entity_data(
+        // A visual style filed in the pre-R2010 layout must say so: the
+        // reader rejects the record unless it carries the ACAD
+        // `AcDbSavedByObjectVersion` marker that announces the down-level
+        // object version.
+        let extra: Vec<(u64, Vec<u8>)> = if self.version.r2010_plus() {
+            Vec::new()
+        } else {
+            let mut marker = crate::xdata::ExtendedDataRecord::new("ACAD");
+            marker.add_value(crate::xdata::XDataValue::String(
+                "AcDbSavedByObjectVersion".to_string(),
+            ));
+            marker.add_value(crate::xdata::XDataValue::Integer16(0));
+            self.encode_xdata_record(&marker).into_iter().collect()
+        };
+        self.write_common_non_entity_data_eed(
             type_code,
             value.handle,
             value.owner,
             &value.reactors,
             &value.xdictionary_handle,
+            extra,
         );
         self.writer.write_variable_text(&value.description);
         self.writer.write_bit_long(value.style_type as i32);
@@ -828,8 +843,8 @@ impl<'a> DwgObjectWriter<'a> {
                 .write_bit_long(Self::visual_style_long(&properties[21]));
             self.writer
                 .write_bit_long(Self::visual_style_long(&properties[22]));
-            self.writer
-                .write_bit_double(Self::visual_style_double(&properties[23]));
+            // properties[23] is the DXF-only group 45; the binary record ends
+            // with the internal-use flag.
             self.writer.write_bit(value.internal_use_only);
         } else {
             self.writer.write_bit_short(value.extended_lighting_model);

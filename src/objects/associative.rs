@@ -590,11 +590,44 @@ pub struct AssocValueDependency {
     pub value: AssocEvalVariant,
 }
 
+/// Persistent subentity id of a geometry dependency. DWG writes a flag,
+/// the class code, the class's integer fields and the compound-object bit;
+/// DXF writes the class name, the fields (90) and the bit (290).
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssocPersistentSubentId {
     pub class_name: String,
     pub dependent_on_compound_object: bool,
+    /// DWG class code: 1 single edge, 5 modeler-body subentity.
+    pub class_code: i32,
+    /// Class fields; a modeler-body subentity has three.
+    pub values: Vec<i32>,
+    /// DWG bit before the class code (clear in reference output).
+    pub leading_flag: bool,
+}
+
+/// DWG class codes of persistent subentity ids and their DXF class names.
+const PERS_SUBENT_CLASSES: [(i32, &str); 2] = [
+    (1, "AcDbAssocSingleEdgePersSubentId"),
+    (5, "AcDbAssocAsmBasedEntityPersSubentId"),
+];
+
+impl AssocPersistentSubentId {
+    /// DXF class name for a DWG class code.
+    pub fn class_name_for_code(code: i32) -> Option<&'static str> {
+        PERS_SUBENT_CLASSES
+            .iter()
+            .find(|(value, _)| *value == code)
+            .map(|(_, name)| *name)
+    }
+
+    /// DWG class code for a DXF class name.
+    pub fn code_for_class_name(name: &str) -> Option<i32> {
+        PERS_SUBENT_CLASSES
+            .iter()
+            .find(|(_, value)| value.eq_ignore_ascii_case(name))
+            .map(|(code, _)| *code)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -899,6 +932,26 @@ pub struct AssocEdgeActionParam {
     pub has_action: bool,
     pub action_type: i32,
     pub subcurve_kind: AssocSubcurveKind,
+    /// The referenced edge's curve, stored after the action type, value by
+    /// value. Arc (11): centre, normal, reference axis, radius, start and end
+    /// angle, one more real. Ellipse (17): centre, major and minor axis
+    /// directions, major and minor radius, start and end parameter, one more
+    /// real. Line segment (23): start point, vector to the end. NURBS (42):
+    /// two flags, degree, tolerance, then knots, weights and control points,
+    /// each as length, physical length, grow length and the items. Composite
+    /// (47): count, then a type and its curve for each part.
+    pub curve: Vec<AssocCurveValue>,
+}
+
+/// One stored value of an edge action parameter's curve: DXF groups 70, 90,
+/// 40 and 10 (DWG B, BL, BD and 3BD).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AssocCurveValue {
+    Bool(bool),
+    Int(i32),
+    Real(f64),
+    Point(Vector3),
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

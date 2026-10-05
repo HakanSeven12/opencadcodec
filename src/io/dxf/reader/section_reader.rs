@@ -335,12 +335,16 @@ fn read_field_cell_value_dxf(
                 }
             }
             0x10 | 0x20 => {
-                value.data_size = field_next_code(entries, cursor, 92)
-                    .and_then(|item| item.parse().ok())
-                    .unwrap_or(0);
-                value.point_value.x = field_next_code(entries, cursor, 11)
-                    .and_then(|item| item.parse().ok())
-                    .unwrap_or(0.0);
+                // Field values written by the reference application carry no
+                // size before the point.
+                if entries.get(*cursor).map(|entry| entry.0) == Some(92) {
+                    value.data_size = entries[*cursor].1.trim().parse().unwrap_or(0);
+                    *cursor += 1;
+                }
+                if entries.get(*cursor).map(|entry| entry.0) == Some(11) {
+                    value.point_value.x = entries[*cursor].1.parse().unwrap_or(0.0);
+                    *cursor += 1;
+                }
                 if entries.get(*cursor).map(|entry| entry.0) == Some(21) {
                     value.point_value.y = entries[*cursor].1.parse().unwrap_or(0.0);
                     *cursor += 1;
@@ -1307,7 +1311,7 @@ fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
         eval: dynamic_dxf_eval(fields),
         major: fields.i32(section, 90),
         minor: fields.i32(section, 91),
-        transform,
+        transform: crate::entities::surface::transpose_matrix(transform),
         color,
         step_id: fields.i32(section, 92),
         material: fields.handle(section, 347),
@@ -1391,8 +1395,8 @@ fn dynamic_dxf_history_sweep(
         twist_angle: fields.f64(section, 45),
         scale_factor: fields.f64(section, 48),
         align_angle: fields.f64(section, 49),
-        sweep_entity_transform,
-        path_entity_transform,
+        sweep_entity_transform: crate::entities::surface::transpose_matrix(sweep_entity_transform),
+        path_entity_transform: crate::entities::surface::transpose_matrix(path_entity_transform),
         align_option: fields.i16(section, 70).clamp(0, 255) as u8,
         miter_option: fields.i16(section, 71).clamp(0, 255) as u8,
         has_align_start: fields.bool(section, 290),
@@ -18690,7 +18694,7 @@ impl<'a> SectionReader<'a> {
         let mut sweep_data = Vec::new();
         let mut path_data = Vec::new();
         let mut swept_binary_target = 0u8;
-        let mut swept_class_version_seen = false;
+        let mut swept_lead: Vec<i32> = Vec::new();
         let mut sweep_entity_type = 0i32;
         let mut sweep_entity_bits = 0usize;
         let mut path_entity_type = 0i32;
@@ -18698,13 +18702,23 @@ impl<'a> SectionReader<'a> {
         // Native loft input records use 90/91/92 for section/guide/path
         // entity types, then 90 for bit length and 310 for body chunks.
         let mut loft_entities: Vec<(i32, i32, usize, Vec<u8>)> = Vec::new();
+        // A polyline profile is kept as a modeler body: after its type come
+        // the SAT version (70) and the encrypted SAT text (1/3) instead of a
+        // bit length and chunks.
+        let mut loft_sat: Vec<String> = Vec::new();
+        let mut loft_body = false;
+        let mut sweep_sat = String::new();
+        let mut path_sat = String::new();
+        let add_sat = |text: &mut String, code: i32, value: &str| {
+            if code == 1 && !text.is_empty() {
+                text.push('\n');
+            }
+            text.push_str(value);
+        };
         let mut loft_expecting_length = false;
         let mut loft_options_seen = false;
         let mut proxy_graphics_size = 0usize;
         let mut proxy_graphics = Vec::new();
-        let swept_has_class_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
-            .map(|version| version.r2007_plus())
-            .unwrap_or(true);
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -18773,6 +18787,10 @@ impl<'a> SectionReader<'a> {
                         sweep_entity_type = pair.as_i32().unwrap_or(0);
                         swept_binary_target = 1;
                     }
+                    70 if swept_binary_target == 1 => swept_binary_target = 5,
+                    1 | 3 if swept_binary_target == 5 => {
+                        add_sat(&mut sweep_sat, pair.code, &pair.value_string)
+                    }
                     90 => {
                         sweep_entity_bits = pair.as_i32().unwrap_or(0).max(0) as usize;
                         swept_binary_target = 2;
@@ -18833,9 +18851,20 @@ impl<'a> SectionReader<'a> {
                         }
                         loft_expecting_length = false;
                     }
+                    70 if loft_expecting_length => {
+                        loft_expecting_length = false;
+                        loft_body = true;
+                    }
+                    1 | 3 if loft_body => {
+                        if let Some(text) = loft_sat.last_mut() {
+                            add_sat(text, pair.code, &pair.value_string);
+                        }
+                    }
                     90..=92 if !loft_options_seen => {
                         loft_entities.push((pair.code, pair.as_i32().unwrap_or(0), 0, Vec::new()));
+                        loft_sat.push(String::new());
                         loft_expecting_length = true;
+                        loft_body = false;
                     }
                     310 if !loft_options_seen => {
                         if let Some((_, _, _, bytes)) = loft_entities.last_mut() {
@@ -18844,6 +18873,7 @@ impl<'a> SectionReader<'a> {
                     }
                     70 => {
                         loft_options_seen = true;
+                        loft_body = false;
                         *plane_normal_lofting_type = pair.as_i32().unwrap_or(0)
                     }
                     41 => *start_draft_angle = pair.as_double().unwrap_or(0.0),
@@ -18894,6 +18924,10 @@ impl<'a> SectionReader<'a> {
                         sweep_entity_type = pair.as_i32().unwrap_or(0);
                         swept_binary_target = 1;
                     }
+                    70 if swept_binary_target == 1 => swept_binary_target = 5,
+                    1 | 3 if swept_binary_target == 5 => {
+                        add_sat(&mut sweep_sat, pair.code, &pair.value_string)
+                    }
                     90 => {
                         sweep_entity_bits = pair.as_i32().unwrap_or(0).max(0) as usize;
                         swept_binary_target = 2;
@@ -18926,17 +18960,46 @@ impl<'a> SectionReader<'a> {
                     path_transform: _,
                     options,
                 } => match pair.code {
-                    90 if swept_has_class_version && !swept_class_version_seen => {
-                        *class_version = pair.as_i32().unwrap_or(0);
-                        swept_class_version_seen = true;
+                    // The reference application starts the subclass with the
+                    // profile type and bit length; older output of this crate
+                    // put a class version before them. Collect the leading
+                    // 90 groups and tell the forms apart by their count when
+                    // the first body chunk or the path type arrives.
+                    90 if swept_binary_target == 0 && swept_lead.len() < 3 => {
+                        swept_lead.push(pair.as_i32().unwrap_or(0));
                     }
-                    90 if swept_binary_target == 0 => {
-                        sweep_entity_type = pair.as_i32().unwrap_or(0);
-                        swept_binary_target = 1;
+                    70 if swept_binary_target == 0 && !swept_lead.is_empty() => {
+                        sweep_entity_type = swept_lead.pop().unwrap_or(0);
+                        if let Some(version) = swept_lead.first() {
+                            *class_version = *version;
+                        }
+                        swept_lead.clear();
+                        swept_binary_target = 5;
                     }
-                    90 if swept_binary_target == 1 => {
-                        sweep_entity_bits = pair.as_i32().unwrap_or(0).max(0) as usize;
-                        swept_binary_target = 2;
+                    70 if swept_binary_target == 3 => swept_binary_target = 6,
+                    1 | 3 if swept_binary_target == 5 => {
+                        add_sat(&mut sweep_sat, pair.code, &pair.value_string)
+                    }
+                    1 | 3 if swept_binary_target == 6 => {
+                        add_sat(&mut path_sat, pair.code, &pair.value_string)
+                    }
+                    310 | 91 if swept_binary_target == 0 => {
+                        let lead = std::mem::take(&mut swept_lead);
+                        let lead = if lead.len() == 3 {
+                            *class_version = lead[0];
+                            &lead[1..]
+                        } else {
+                            &lead[..]
+                        };
+                        sweep_entity_type = lead.first().copied().unwrap_or(0);
+                        sweep_entity_bits = lead.get(1).copied().unwrap_or(0).max(0) as usize;
+                        if pair.code == 310 {
+                            swept_binary_target = 2;
+                            append_hex_bytes(&mut sweep_data, &pair.value_string);
+                        } else {
+                            path_entity_type = pair.as_i32().unwrap_or(0);
+                            swept_binary_target = 3;
+                        }
                     }
                     90 if swept_binary_target == 2 => {
                         path_entity_type = pair.as_i32().unwrap_or(0);
@@ -19017,10 +19080,17 @@ impl<'a> SectionReader<'a> {
             AcisVersion::Version1
         };
 
+        let body_profile = |type_code: i32, sat: &str| {
+            (!sat.is_empty()).then(|| EmbeddedEntity::Body {
+                type_code,
+                acis_data: AcisData::from_sat(&AcisData::decode_sat_binary(sat)),
+            })
+        };
         let fill_matrix = |target: &mut [f64; 16], values: &[f64]| {
             for (to, from) in target.iter_mut().zip(values.iter()) {
                 *to = *from;
             }
+            *target = crate::entities::surface::transpose_matrix(*target);
         };
         match &mut surface.surface_data {
             SurfaceData::Extruded {
@@ -19031,13 +19101,15 @@ impl<'a> SectionReader<'a> {
             } => {
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                *sweep_entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                    sweep_entity_type,
-                    sweep_entity_bits,
-                    sweep_data,
-                    dwg_version,
-                    dxf_version,
-                );
+                *sweep_entity = body_profile(sweep_entity_type, &sweep_sat).or_else(|| {
+                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                        sweep_entity_type,
+                        sweep_entity_bits,
+                        sweep_data,
+                        dwg_version,
+                        dxf_version,
+                    )
+                });
                 *sweep_vector = point_10.get_point().unwrap_or(Vector3::ZERO);
                 options.reference_vector = point_11.get_point().unwrap_or(Vector3::UNIT_Z);
                 fill_matrix(sweep_transform, &matrix);
@@ -19057,17 +19129,22 @@ impl<'a> SectionReader<'a> {
                 fill_matrix(loft_transform, &matrix);
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                for (group, entity_type, bit_length, bytes) in loft_entities {
-                    if bytes.len() < bit_length.div_ceil(8) {
+                for ((group, entity_type, bit_length, bytes), sat) in
+                    loft_entities.into_iter().zip(loft_sat)
+                {
+                    let body = body_profile(entity_type, &sat);
+                    if body.is_none() && bytes.len() < bit_length.div_ceil(8) {
                         continue;
                     }
-                    if let Some(entity) = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                        entity_type,
-                        bit_length,
-                        bytes,
-                        dwg_version,
-                        dxf_version,
-                    ) {
+                    if let Some(entity) = body.or_else(|| {
+                        crate::io::dwg::embedded_entity::decode_embedded_entity(
+                            entity_type,
+                            bit_length,
+                            bytes,
+                            dwg_version,
+                            dxf_version,
+                        )
+                    }) {
                         match group {
                             90 => cross_section_entities.push(entity),
                             91 => guide_entities.push(entity),
@@ -19093,7 +19170,9 @@ impl<'a> SectionReader<'a> {
                 entity_transform,
                 ..
             } => {
-                if sweep_data.is_empty() {
+                if let Some(body) = body_profile(sweep_entity_type, &sweep_sat) {
+                    *revolve_entity = Some(body);
+                } else if sweep_data.is_empty() {
                     *class_version = sweep_entity_type;
                     *entity_id = sweep_entity_bits as i32;
                 } else {
@@ -19121,20 +19200,24 @@ impl<'a> SectionReader<'a> {
             } => {
                 let dwg_version = crate::io::dwg::DwgVersion::from_dxf_version(dxf_version)
                     .unwrap_or(crate::io::dwg::DwgVersion::AC24);
-                *sweep_entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                    sweep_entity_type,
-                    sweep_entity_bits,
-                    sweep_data,
-                    dwg_version,
-                    dxf_version,
-                );
-                *path_entity = crate::io::dwg::embedded_entity::decode_embedded_entity(
-                    path_entity_type,
-                    path_entity_bits,
-                    path_data,
-                    dwg_version,
-                    dxf_version,
-                );
+                *sweep_entity = body_profile(sweep_entity_type, &sweep_sat).or_else(|| {
+                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                        sweep_entity_type,
+                        sweep_entity_bits,
+                        sweep_data,
+                        dwg_version,
+                        dxf_version,
+                    )
+                });
+                *path_entity = body_profile(path_entity_type, &path_sat).or_else(|| {
+                    crate::io::dwg::embedded_entity::decode_embedded_entity(
+                        path_entity_type,
+                        path_entity_bits,
+                        path_data,
+                        dwg_version,
+                        dxf_version,
+                    )
+                });
                 fill_matrix(sweep_transform, &matrix);
                 fill_matrix(path_transform, &path_matrix);
                 options.reference_vector = point_11.get_point().unwrap_or(Vector3::UNIT_Z);
@@ -19320,7 +19403,7 @@ impl<'a> SectionReader<'a> {
                     if let (Some(c), Some(v)) = (cur.as_mut(), pair.as_double()) {
                         ensure_content(c);
                         let value = &mut c.contents.last_mut().unwrap().value;
-                        if (value.flags & 3) == 0 {
+                        if (value.flags & 1) == 0 {
                             match pair.code {
                                 11 => value.point_value.x = v,
                                 21 => value.point_value.y = v,
@@ -19493,7 +19576,7 @@ impl<'a> SectionReader<'a> {
                         let content = c.contents.last_mut().unwrap();
                         content.content_type = TableCellContentType::Value;
                         let value = &mut content.value;
-                        if !in_value || (value.flags & 3) == 0 {
+                        if !in_value || (value.flags & 1) == 0 {
                             value.text.push_str(&pair.value_string);
                             if value.value_type == CellValueType::Unknown {
                                 value.value_type = CellValueType::String;
@@ -19513,7 +19596,7 @@ impl<'a> SectionReader<'a> {
                     if let (Some(c), Some(v)) = (cur.as_mut(), pair.as_double()) {
                         ensure_content(c);
                         let cv = &mut c.contents.last_mut().unwrap().value;
-                        if (cv.flags & 3) == 0 {
+                        if (cv.flags & 1) == 0 {
                             cv.numeric_value = v;
                         }
                     }
@@ -19537,7 +19620,7 @@ impl<'a> SectionReader<'a> {
                     if let (Some(c), Some(v)) = (cur.as_mut(), pair.as_i32()) {
                         ensure_content(c);
                         let value = &mut c.contents.last_mut().unwrap().value;
-                        if (value.flags & 3) == 0 {
+                        if (value.flags & 1) == 0 {
                             value.numeric_value = v as f64;
                         }
                     }
@@ -19565,12 +19648,15 @@ impl<'a> SectionReader<'a> {
                     pending_attribute_index = None;
                 }
                 // CELL_VALUE block start: the cell has an actual value → mark
-                // its content as Value.
+                // its content as Value, unless the cell holds a field (344),
+                // whose cached value this block is.
                 301 => {
                     if let Some(c) = cur.as_mut() {
                         ensure_content(c);
                         let content = c.contents.last_mut().unwrap();
-                        content.content_type = TableCellContentType::Value;
+                        if content.field_handle.is_none() {
+                            content.content_type = TableCellContentType::Value;
+                        }
                         content.value = crate::entities::table::CellValue::new();
                         in_value = true;
                     }
@@ -19608,7 +19694,7 @@ impl<'a> SectionReader<'a> {
                     if let Some(c) = cur.as_mut() {
                         ensure_content(c);
                         let value = &mut c.contents.last_mut().unwrap().value;
-                        if (value.flags & 3) == 0 {
+                        if (value.flags & 1) == 0 {
                             append_hex_bytes(&mut value.binary_value, &pair.value_string);
                         }
                     }
