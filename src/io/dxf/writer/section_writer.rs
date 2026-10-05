@@ -2662,7 +2662,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(91, value.minor)?;
         // Groups 50..55 are angle codes: the reference application stores
         // those matrix elements in degrees.
-        for (index, item) in value.transform.iter().enumerate() {
+        for (index, item) in crate::entities::surface::transpose_matrix(value.transform).iter().enumerate() {
             let item = if index >= 10 { item.to_degrees() } else { *item };
             self.writer.write_double(40 + index as i32, item)?;
         }
@@ -2695,10 +2695,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(48, value.scale_factor)?;
         self.writer.write_double(49, value.align_angle)?;
         // The reference application repeats 46 and 47 once per element.
-        for item in value.sweep_entity_transform {
+        for item in crate::entities::surface::transpose_matrix(value.sweep_entity_transform) {
             self.writer.write_double(46, item)?;
         }
-        for item in value.path_entity_transform {
+        for item in crate::entities::surface::transpose_matrix(value.path_entity_transform) {
             self.writer.write_double(47, item)?;
         }
         self.writer.write_bool(290, value.has_align_start)?;
@@ -5313,13 +5313,22 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         Ok(())
     }
 
+    /// Table cell values: as in AcDbField values only flag bit 0 suppresses
+    /// the body (the reference application writes it with flags 2 and 6).
     fn write_field_cell_value_dxf(&mut self, value: &CellValue) -> Result<()> {
-        self.write_cell_value_dxf_masked(value, 3)
+        self.write_cell_value_dxf_masked(value, 1, true)
     }
 
     /// `body_mask`: R2007+ value flags that suppress the value body. AcDbField
     /// values use bit 0 only (flag 2 still carries a body).
-    fn write_cell_value_dxf_masked(&mut self, value: &CellValue, body_mask: i32) -> Result<()> {
+    /// `point_size`: write the size (92) before a point (table cells; AcDbField
+    /// values have none).
+    fn write_cell_value_dxf_masked(
+        &mut self,
+        value: &CellValue,
+        body_mask: i32,
+        point_size: bool,
+    ) -> Result<()> {
         if self.dxf_version >= DxfVersion::AC1021 {
             self.writer.write_i32(93, value.flags)?;
         }
@@ -5354,28 +5363,18 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     }
                 }
                 0x10 => {
-                    self.writer.write_i32(
-                        92,
-                        if value.data_size != 0 {
-                            value.data_size
-                        } else {
-                            16
-                        },
-                    )?;
+                    if point_size {
+                        self.writer.write_i32(92, if value.data_size != 0 { value.data_size } else { 16 })?;
+                    }
                     self.writer.write_point2d(
                         11,
                         crate::types::Vector2::new(value.point_value.x, value.point_value.y),
                     )?;
                 }
                 0x20 => {
-                    self.writer.write_i32(
-                        92,
-                        if value.data_size != 0 {
-                            value.data_size
-                        } else {
-                            24
-                        },
-                    )?;
+                    if point_size {
+                        self.writer.write_i32(92, if value.data_size != 0 { value.data_size } else { 24 })?;
+                    }
                     self.writer.write_point3d(11, value.point_value)?;
                 }
                 0x40 => {
@@ -5438,7 +5437,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     }
 
     fn write_field_value_dxf(&mut self, value: &CellValue) -> Result<()> {
-        self.write_cell_value_dxf_masked(value, 1)?;
+        self.write_cell_value_dxf_masked(value, 1, false)?;
         if self.dxf_version >= DxfVersion::AC1021 {
             self.writer.write_string(304, "ACVALUE_END")?;
         }
@@ -9958,7 +9957,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     self.writer.write_i32(90, 0)?;
                 }
                 self.writer.write_point3d(10, *sweep_vector)?;
-                for value in sweep_transform {
+                for value in &crate::entities::surface::transpose_matrix(*sweep_transform) {
                     self.writer.write_double(40, *value)?;
                 }
                 self.write_surface_sweep_options_dxf(options)?;
@@ -9986,7 +9985,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 path_curve,
             } => {
                 self.writer.write_subclass("AcDbLoftedSurface")?;
-                for value in loft_transform {
+                for value in &crate::entities::surface::transpose_matrix(*loft_transform) {
                     self.writer.write_double(40, *value)?;
                 }
                 let resolve_inputs = |embedded: &[EmbeddedEntity], handles: &[Handle]| {
@@ -10056,7 +10055,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_point3d(11, *axis_vector)?;
                 self.writer.write_double(40, *revolve_angle)?;
                 self.writer.write_double(41, *start_angle)?;
-                for value in entity_transform {
+                for value in &crate::entities::surface::transpose_matrix(*entity_transform) {
                     self.writer.write_double(42, *value)?;
                 }
                 self.writer.write_double(43, *draft_angle)?;
@@ -10089,10 +10088,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                     self.writer.write_i32(91, 0)?;
                     self.writer.write_i32(90, 0)?;
                 }
-                for value in sweep_transform {
+                for value in &crate::entities::surface::transpose_matrix(*sweep_transform) {
                     self.writer.write_double(40, *value)?;
                 }
-                for value in path_transform {
+                for value in &crate::entities::surface::transpose_matrix(*path_transform) {
                     self.writer.write_double(41, *value)?;
                 }
                 self.write_surface_sweep_options_dxf(options)?;
@@ -10124,10 +10123,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(45, options.twist_angle)?;
         self.writer.write_double(48, options.scale_factor)?;
         self.writer.write_double(49, options.align_angle)?;
-        for value in &options.sweep_entity_transform {
+        for value in &crate::entities::surface::transpose_matrix(options.sweep_entity_transform) {
             self.writer.write_double(46, *value)?;
         }
-        for value in &options.path_entity_transform {
+        for value in &crate::entities::surface::transpose_matrix(options.path_entity_transform) {
             self.writer.write_double(47, *value)?;
         }
         self.writer.write_bool(290, options.is_solid)?;
@@ -10603,8 +10602,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         }
         self.writer
             .write_i32(92, table.field_handles.len() as i32)?;
+        // The table owns its cell fields (hard owner, as the reference writes them).
         for field in &table.field_handles {
-            self.writer.write_handle(340, *field)?;
+            self.writer.write_handle(360, *field)?;
         }
         self.writer.write_subclass("AcDbFormattedTableData")?;
         self.writer.write_string(300, "TABLEFORMAT")?;

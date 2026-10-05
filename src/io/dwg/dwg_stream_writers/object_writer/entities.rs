@@ -5179,8 +5179,8 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_surface_matrix(&mut self, value: &[f64; 16]) {
-        for item in value {
-            self.writer.write_bit_double(*item);
+        for item in crate::entities::surface::transpose_matrix(*value) {
+            self.writer.write_bit_double(item);
         }
     }
 
@@ -5708,7 +5708,11 @@ impl<'a> DwgObjectWriter<'a> {
         // Some valid AcDs-backed solids intentionally carry geometry only
         // (no point, isolines, wires or silhouettes). Synthesizing a cache for
         // those changes COMMON_3DSOLID and ODA rejects the object.
+        // Before R2013 the modeler data is inline and a non-empty body must
+        // announce the cache block, even when it holds nothing: a record
+        // without it is rejected (a DXF-sourced solid never has one).
         let wireframe_present = acis.wireframe_data_present
+            || (acis.has_data() && !self.version.r2013_plus(self.dxf_version))
             || point != Vector3::ZERO
             || acis.wireframe_isolines != 0
             || !wires.is_empty()

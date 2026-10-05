@@ -335,12 +335,16 @@ fn read_field_cell_value_dxf(
                 }
             }
             0x10 | 0x20 => {
-                value.data_size = field_next_code(entries, cursor, 92)
-                    .and_then(|item| item.parse().ok())
-                    .unwrap_or(0);
-                value.point_value.x = field_next_code(entries, cursor, 11)
-                    .and_then(|item| item.parse().ok())
-                    .unwrap_or(0.0);
+                // Field values written by the reference application carry no
+                // size before the point.
+                if entries.get(*cursor).map(|entry| entry.0) == Some(92) {
+                    value.data_size = entries[*cursor].1.trim().parse().unwrap_or(0);
+                    *cursor += 1;
+                }
+                if entries.get(*cursor).map(|entry| entry.0) == Some(11) {
+                    value.point_value.x = entries[*cursor].1.parse().unwrap_or(0.0);
+                    *cursor += 1;
+                }
                 if entries.get(*cursor).map(|entry| entry.0) == Some(21) {
                     value.point_value.y = entries[*cursor].1.parse().unwrap_or(0.0);
                     *cursor += 1;
@@ -1307,7 +1311,7 @@ fn dynamic_dxf_history_base(fields: &DynamicDxfFields) -> SolidHistoryNodeBase {
         eval: dynamic_dxf_eval(fields),
         major: fields.i32(section, 90),
         minor: fields.i32(section, 91),
-        transform,
+        transform: crate::entities::surface::transpose_matrix(transform),
         color,
         step_id: fields.i32(section, 92),
         material: fields.handle(section, 347),
@@ -1391,8 +1395,8 @@ fn dynamic_dxf_history_sweep(
         twist_angle: fields.f64(section, 45),
         scale_factor: fields.f64(section, 48),
         align_angle: fields.f64(section, 49),
-        sweep_entity_transform,
-        path_entity_transform,
+        sweep_entity_transform: crate::entities::surface::transpose_matrix(sweep_entity_transform),
+        path_entity_transform: crate::entities::surface::transpose_matrix(path_entity_transform),
         align_option: fields.i16(section, 70).clamp(0, 255) as u8,
         miter_option: fields.i16(section, 71).clamp(0, 255) as u8,
         has_align_start: fields.bool(section, 290),
@@ -19112,6 +19116,7 @@ impl<'a> SectionReader<'a> {
             for (to, from) in target.iter_mut().zip(values.iter()) {
                 *to = *from;
             }
+            *target = crate::entities::surface::transpose_matrix(*target);
         };
         match &mut surface.surface_data {
             SurfaceData::Extruded {
@@ -19424,7 +19429,7 @@ impl<'a> SectionReader<'a> {
                     if let (Some(c), Some(v)) = (cur.as_mut(), pair.as_double()) {
                         ensure_content(c);
                         let value = &mut c.contents.last_mut().unwrap().value;
-                        if (value.flags & 3) == 0 {
+                        if (value.flags & 1) == 0 {
                             match pair.code {
                                 11 => value.point_value.x = v,
                                 21 => value.point_value.y = v,
@@ -19597,7 +19602,7 @@ impl<'a> SectionReader<'a> {
                         let content = c.contents.last_mut().unwrap();
                         content.content_type = TableCellContentType::Value;
                         let value = &mut content.value;
-                        if !in_value || (value.flags & 3) == 0 {
+                        if !in_value || (value.flags & 1) == 0 {
                             value.text.push_str(&pair.value_string);
                             if value.value_type == CellValueType::Unknown {
                                 value.value_type = CellValueType::String;
@@ -19617,7 +19622,7 @@ impl<'a> SectionReader<'a> {
                     if let (Some(c), Some(v)) = (cur.as_mut(), pair.as_double()) {
                         ensure_content(c);
                         let cv = &mut c.contents.last_mut().unwrap().value;
-                        if (cv.flags & 3) == 0 {
+                        if (cv.flags & 1) == 0 {
                             cv.numeric_value = v;
                         }
                     }
@@ -19641,7 +19646,7 @@ impl<'a> SectionReader<'a> {
                     if let (Some(c), Some(v)) = (cur.as_mut(), pair.as_i32()) {
                         ensure_content(c);
                         let value = &mut c.contents.last_mut().unwrap().value;
-                        if (value.flags & 3) == 0 {
+                        if (value.flags & 1) == 0 {
                             value.numeric_value = v as f64;
                         }
                     }
@@ -19669,12 +19674,15 @@ impl<'a> SectionReader<'a> {
                     pending_attribute_index = None;
                 }
                 // CELL_VALUE block start: the cell has an actual value → mark
-                // its content as Value.
+                // its content as Value, unless the cell holds a field (344),
+                // whose cached value this block is.
                 301 => {
                     if let Some(c) = cur.as_mut() {
                         ensure_content(c);
                         let content = c.contents.last_mut().unwrap();
-                        content.content_type = TableCellContentType::Value;
+                        if content.field_handle.is_none() {
+                            content.content_type = TableCellContentType::Value;
+                        }
                         content.value = crate::entities::table::CellValue::new();
                         in_value = true;
                     }
@@ -19712,7 +19720,7 @@ impl<'a> SectionReader<'a> {
                     if let Some(c) = cur.as_mut() {
                         ensure_content(c);
                         let value = &mut c.contents.last_mut().unwrap().value;
-                        if (value.flags & 3) == 0 {
+                        if (value.flags & 1) == 0 {
                             append_hex_bytes(&mut value.binary_value, &pair.value_string);
                         }
                     }
