@@ -2721,6 +2721,25 @@ impl CadDocument {
     /// host's ordinary context. Returns the hosts whose text changed.
     pub fn stamp_plot_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
         let plot = Plotting(ctx);
+        self.restamp_fields(&plot, ctx, &|_, f| f.evaluation_option & 4 != 0)
+    }
+
+    /// Re-evaluate the sheet set (`AcSm`) fields — after a sheet set changed —
+    /// storing their values in the field objects and host texts, as the
+    /// reference does when it updates fields. Returns the hosts whose text changed.
+    pub fn refresh_sheet_set_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
+        self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator.starts_with("AcSm"))
+    }
+
+    /// Re-evaluate (with `eval_ctx`) the fields `pick` selects and store the
+    /// changed values.
+    fn restamp_fields(
+        &mut self,
+        eval_ctx: &dyn FieldContext,
+        ctx: &dyn FieldContext,
+        pick: &dyn Fn(&FieldDef, &Field) -> bool,
+    ) -> Vec<Handle> {
+        let plot = eval_ctx;
         let mut values: Vec<(Handle, CellValue)> = Vec::new();
         let mut hosts: Vec<(Handle, Handle, String)> = Vec::new();
         for container in self.fields.values().filter(|f| f.evaluator == "_text") {
@@ -2744,9 +2763,7 @@ impl CadDocument {
                     "" => stored.value_string.clone(),
                     shown => shown.to_string(),
                 };
-                let fresh = (stored.evaluation_option & 4 != 0)
-                    .then(|| eval_field(self, kid, &plot, host))
-                    .flatten();
+                let fresh = pick(kid, stored).then(|| eval_field(self, kid, plot, host)).flatten();
                 match fresh {
                     Some(text) if text != cached => {
                         changed = true;
