@@ -104,7 +104,7 @@ pub use semantic_property::{
     ProxyReferenceKind, RegisteredClassObject, SemanticProperty, SemanticPropertyValue,
 };
 pub use sort_entities_table::{SortEntitiesTable, SortEntsEntry};
-pub(crate) use stub_objects::restore_visual_style_roundtrip;
+pub(crate) use stub_objects::{restore_visual_style_roundtrip, store_visual_style_roundtrip};
 pub(crate) use table_style::{restore_table_style_roundtrip, store_table_style_roundtrip};
 pub use stub_objects::{
     BookColor, DictionaryWithDefault, GeoData, GeoDataMeshFace, GeoDataMeshPoint, Material,
