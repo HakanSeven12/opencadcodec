@@ -7231,7 +7231,14 @@ impl<'a> SectionReader<'a> {
         let mut extended_seen = false;
         let mut property_count = None;
         let mut pending_property = None;
-        let mut legacy_properties = Vec::new();
+        // Pre-R2010 properties in record order; each group code has one slot
+        // (the file interleaves them with the lighting/edge fields).
+        const LEGACY_CODES: [i32; 24] = [
+            40, 41, 63, 64, 65, 75, 42, 92, 66, 43, 76, 77, 78, 67, 79, 170, 171, 290, 174, 175,
+            93, 44, 173, 45,
+        ];
+        let mut legacy_properties: Vec<VisualStyleProperty> = VisualStyle::new().legacy_properties();
+        let mut legacy_color_slot: Option<usize> = None;
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
                 self.reader.push_back(pair);
@@ -7346,22 +7353,26 @@ impl<'a> SectionReader<'a> {
                     290 => Some(VisualStylePropertyValue::Bool(
                         pair.as_bool().unwrap_or(false),
                     )),
-                    420 => {
-                        if let Some(VisualStyleProperty {
-                            value: VisualStylePropertyValue::Color(value),
-                            ..
-                        }) = legacy_properties.last_mut()
-                        {
-                            *value = Color::from_true_color_value(
-                                pair.as_i32_bits().unwrap_or_default(),
-                            );
+                    // True color of the color just read (42n follows 6n).
+                    420..=427 => {
+                        if let Some(slot) = legacy_color_slot {
+                            legacy_properties[slot].value =
+                                VisualStylePropertyValue::Color(Color::from_true_color_value(
+                                    pair.as_i32_bits().unwrap_or_default(),
+                                ));
                         }
                         None
                     }
                     _ => None,
                 };
-                if let Some(value) = property {
-                    legacy_properties.push(VisualStyleProperty { value, enabled: 1 });
+                if let (Some(value), Some(slot)) = (
+                    property,
+                    LEGACY_CODES.iter().position(|code| *code == pair.code),
+                ) {
+                    if matches!(value, VisualStylePropertyValue::Color(_)) {
+                        legacy_color_slot = Some(slot);
+                    }
+                    legacy_properties[slot] = VisualStyleProperty { value, enabled: 1 };
                 }
             }
             match pair.code {
@@ -20035,6 +20046,8 @@ impl<'a> SectionReader<'a> {
         let mut xr = XRecord::new();
         let mut group = String::new();
         let mut owner_seen = false;
+        // Only the first 280 is the cloning flag; later ones are record data.
+        let mut cloning_seen = false;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -20066,7 +20079,8 @@ impl<'a> SectionReader<'a> {
                     xr.owner = parse_dxf_handle(&pair.value_string);
                     owner_seen = true;
                 }
-                280 => {
+                280 if !cloning_seen => {
+                    cloning_seen = true;
                     if let Some(v) = pair.as_i16() {
                         xr.cloning_flags = DictionaryCloningFlags::from_value(v);
                     }
