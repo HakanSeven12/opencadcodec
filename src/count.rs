@@ -372,9 +372,11 @@ fn same_shape(a: Option<&[[f64; 3]]>, b: Option<&[[f64; 3]]>, closed: bool) -> b
 
 /// Whether `e` counts as a copy of the single picked `target` (as measured
 /// on the reference): circles always; arcs, ellipses, polylines, splines and
-/// hatches when their shape is the same at any position, rotation and size;
-/// texts with the same string; lines always; anything else objects of its
-/// kind.
+/// solid hatches when their shape is the same at any position, rotation and
+/// size (pattern hatches only where their pattern repeats); texts and
+/// multiline texts with the same string; lines always; anything else
+/// objects of its kind. Polylines and solid hatches may be mirrored, splines
+/// not.
 fn similar(target: &EntityType, e: &EntityType) -> bool {
     let eq = |a: f64, b: f64| (a - b).abs() < 1e-6;
     let sweep = |a: f64, b: f64| (b - a).rem_euclid(std::f64::consts::TAU);
@@ -388,8 +390,15 @@ fn similar(target: &EntityType, e: &EntityType) -> bool {
         (EntityType::LwPolyline(a), EntityType::LwPolyline(b)) => {
             a.is_closed == b.is_closed && same_shape(polyline_shape(target).as_deref(), polyline_shape(e).as_deref(), a.is_closed)
         }
-        (EntityType::Text(a), EntityType::Text(b)) => a.value == b.value,
-        (EntityType::MText(a), EntityType::MText(b)) => a.value == b.value,
+        // Texts and multiline texts match one another by their string.
+        (EntityType::Text(_) | EntityType::MText(_), EntityType::Text(_) | EntityType::MText(_)) => {
+            let raw = |e: &EntityType| match e {
+                EntityType::Text(t) => t.value.clone(),
+                EntityType::MText(t) => t.value.clone(),
+                _ => String::new(),
+            };
+            raw(target) == raw(e)
+        }
         (EntityType::Spline(a), EntityType::Spline(b)) => {
             // Splines kept by their fit points compare by those.
             let pts = |s: &crate::entities::Spline| {
@@ -402,40 +411,36 @@ fn similar(target: &EntityType, e: &EntityType) -> bool {
                 && pa.iter().zip(&pb).all(|(p, q)| eq(p[0], q[0]) && eq(p[1], q[1]))
         }
         (EntityType::Hatch(a), EntityType::Hatch(b)) => {
-            let (pa, pb) = (hatch_points(a), hatch_points(b));
+            let (pa, pb) = (hatch_shape_points(a), hatch_shape_points(b));
             let n = pb.len();
-            a.is_solid == b.is_solid
-                && a.pattern.name.eq_ignore_ascii_case(&b.pattern.name)
-                && pa.len() == n
-                && n > 0
-                && (0..n).any(|k| {
+            if a.is_solid != b.is_solid || !a.pattern.name.eq_ignore_ascii_case(&b.pattern.name) || pa.len() != n || n == 0 {
+                return false;
+            }
+            if !a.is_solid {
+                // A pattern repeats only where its lines land again: same
+                // scale and angle, moved along the pattern's own lattice.
+                let d = pb[0] - pa[0];
+                return eq(a.pattern_scale, b.pattern_scale)
+                    && eq(a.pattern_angle, b.pattern_angle)
+                    && pa.iter().zip(&pb).all(|(p, q)| (*q - *p - d).x.hypot((*q - *p - d).y) < 1e-6)
+                    && a.pattern.lines.iter().all(|l| {
+                        let (dx, dy) = (l.angle.cos(), l.angle.sin());
+                        let spacing = l.offset.x * -dy + l.offset.y * dx;
+                        let shift = d.x * -dy + d.y * dx;
+                        spacing.abs() < 1e-12 || ((shift / spacing) - (shift / spacing).round()).abs() < 1e-6
+                    });
+            }
+            let mirror: Vec<Vector3> = pb.iter().map(|q| Vector3::new(q.x, -q.y, q.z)).collect();
+            [pb.as_slice(), mirror.as_slice()].iter().any(|pb| {
+                (0..n).any(|k| {
                     let turned: Vec<Vector3> = (0..n).map(|i| pb[(i + k) % n]).collect();
                     let (x, y) = (normalized(&pa), normalized(&turned));
                     x.len() == y.len() && x.iter().zip(&y).all(|(p, q)| eq(p[0], q[0]) && eq(p[1], q[1]))
                 })
+            })
         }
         _ => std::mem::discriminant(e) == std::mem::discriminant(target),
     }
-}
-
-/// A hatch's boundary corners (polyline vertices and edge start points),
-/// path after path.
-// ponytail: curved edges count by their start point only.
-fn hatch_points(h: &crate::entities::Hatch) -> Vec<Vector3> {
-    use crate::entities::hatch::BoundaryEdge;
-    let mut out = Vec::new();
-    for path in &h.paths {
-        for edge in &path.edges {
-            match edge {
-                BoundaryEdge::Polyline(pl) => out.extend(pl.vertices.iter().map(|v| Vector3::new(v.x, v.y, 0.0))),
-                BoundaryEdge::Line(l) => out.push(Vector3::new(l.start.x, l.start.y, 0.0)),
-                BoundaryEdge::CircularArc(a) => out.push(Vector3::new(a.center.x, a.center.y, a.radius)),
-                BoundaryEdge::EllipticArc(e) => out.push(Vector3::new(e.center.x, e.center.y, 0.0)),
-                BoundaryEdge::Spline(sp) => out.extend(sp.control_points.iter().map(|v| Vector3::new(v.x, v.y, 0.0))),
-            }
-        }
-    }
-    out
 }
 
 /// Points moved, turned and scaled so the first lies at the origin and the
@@ -739,24 +744,127 @@ pub fn point_in_polygon(p: [f64; 2], polygon: &[[f64; 2]]) -> bool {
     inside
 }
 
-/// A piece of drawn geometry in WCS: a straight segment, or an elliptic arc
-/// `c + u·cos t + v·sin t` for `t` in `t0..=t1` (circles, arcs, ellipses
-/// and bulges, also as references stretch them).
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// A piece of drawn geometry in WCS: a straight segment, an elliptic arc
+/// `c + u·cos t + v·sin t` for `t` in `t0..=t1` (circles, arcs, ellipses and
+/// bulges, also as references stretch them), or a rational Bézier curve
+/// (homogeneous control points `[w·x, w·y, w·z, w]`; splines are split into
+/// these).
+#[derive(Debug, Clone, PartialEq)]
 pub enum Piece {
     Segment(Vector3, Vector3),
     Conic { c: Vector3, u: Vector3, v: Vector3, t0: f64, t1: f64 },
+    Bezier(Vec<[f64; 4]>),
+}
+
+fn dehomog(p: &[f64; 4]) -> Vector3 {
+    Vector3::new(p[0] / p[3], p[1] / p[3], p[2] / p[3])
+}
+
+/// De Casteljau split of a homogeneous Bézier at `t`.
+fn bezier_split(cp: &[[f64; 4]], t: f64) -> (Vec<[f64; 4]>, Vec<[f64; 4]>) {
+    let mut work = cp.to_vec();
+    let n = work.len();
+    let mut left = vec![work[0]];
+    let mut right = vec![work[n - 1]];
+    for r in 1..n {
+        for j in 0..n - r {
+            for k in 0..4 {
+                work[j][k] = (1.0 - t) * work[j][k] + t * work[j + 1][k];
+            }
+        }
+        left.push(work[0]);
+        right.push(work[n - 1 - r]);
+    }
+    right.reverse();
+    (left, right)
+}
+
+/// Whether a Bézier meets segment ab in plan: hull tests and halving until
+/// the piece is flatter than `tol` (exact to rounding).
+fn bezier_meets(cp: &[[f64; 4]], a: [f64; 2], b: [f64; 2], tol: f64, depth: usize) -> bool {
+    let pts: Vec<Vector3> = cp.iter().map(dehomog).collect();
+    let d = [b[0] - a[0], b[1] - a[1]];
+    let len = d[0].hypot(d[1]);
+    if len < 1e-15 {
+        return false;
+    }
+    let side = |p: &Vector3| (d[0] * (p.y - a[1]) - d[1] * (p.x - a[0])) / len;
+    let along = |p: &Vector3| ((p.x - a[0]) * d[0] + (p.y - a[1]) * d[1]) / (len * len);
+    let (smin, smax) = pts.iter().map(side).fold((f64::MAX, f64::MIN), |(lo, hi), s| (lo.min(s), hi.max(s)));
+    let (amin, amax) = pts.iter().map(along).fold((f64::MAX, f64::MIN), |(lo, hi), s| (lo.min(s), hi.max(s)));
+    if smin > 0.0 || smax < 0.0 || amax < 0.0 || amin > 1.0 {
+        return false;
+    }
+    let size = pts.iter().fold(0.0f64, |m, p| m.max((*p - pts[0]).x.hypot((*p - pts[0]).y)));
+    if size <= tol || depth > 60 {
+        // Flat enough: the chord decides.
+        let (p, q) = (pts[0], pts[pts.len() - 1]);
+        return segments_cross([p.x, p.y], [q.x, q.y], a, b) || smin.abs() <= tol || smax.abs() <= tol;
+    }
+    let (l, r) = bezier_split(cp, 0.5);
+    bezier_meets(&l, a, b, tol, depth + 1) || bezier_meets(&r, a, b, tol, depth + 1)
+}
+
+/// A B-spline as rational Bézier pieces (knots raised to full multiplicity
+/// by Boehm insertion).
+fn spline_beziers(degree: usize, knots: &[f64], points: &[Vector3], weights: &[f64]) -> Vec<Piece> {
+    let p = degree.max(1);
+    if points.len() <= p || knots.len() != points.len() + p + 1 {
+        return Vec::new();
+    }
+    let w = |i: usize| weights.get(i).copied().filter(|w| *w > 0.0).unwrap_or(1.0);
+    let mut cp: Vec<[f64; 4]> = points.iter().enumerate().map(|(i, q)| [q.x * w(i), q.y * w(i), q.z * w(i), w(i)]).collect();
+    let mut kv = knots.to_vec();
+    let (a, b) = (kv[p], kv[cp.len()]);
+    let mut distinct: Vec<f64> = kv.iter().copied().filter(|u| *u >= a && *u <= b).collect();
+    distinct.dedup_by(|x, y| (*x - *y).abs() < 1e-14);
+    for &u in &distinct {
+        loop {
+            let mult = kv.iter().filter(|k| (**k - u).abs() < 1e-14).count();
+            if mult >= p {
+                break;
+            }
+            // Boehm: insert u once.
+            let k = kv.iter().rposition(|x| *x <= u + 1e-14).unwrap_or(p).min(cp.len() - 1).max(p);
+            let mut next = Vec::with_capacity(cp.len() + 1);
+            for i in 0..=cp.len() {
+                if i <= k - p {
+                    next.push(cp[i]);
+                } else if i > k {
+                    next.push(cp[i - 1]);
+                } else {
+                    let den = kv[i + p] - kv[i];
+                    let al = if den.abs() < 1e-15 { 0.0 } else { (u - kv[i]) / den };
+                    let mut q = [0.0; 4];
+                    for c in 0..4 {
+                        q[c] = al * cp[i][c] + (1.0 - al) * cp[i - 1][c];
+                    }
+                    next.push(q);
+                }
+            }
+            kv.insert(k + 1, u);
+            cp = next;
+        }
+    }
+    let mut out = Vec::new();
+    for k in p..cp.len() {
+        if kv[k + 1] - kv[k] > 1e-14 && kv[k] >= a - 1e-14 && kv[k + 1] <= b + 1e-14 {
+            out.push(Piece::Bezier(cp[k - p..=k].to_vec()));
+        }
+    }
+    out
 }
 
 impl Piece {
     fn start(&self) -> Vector3 {
-        match *self {
-            Piece::Segment(a, _) => a,
-            Piece::Conic { c, u, v, t0, .. } => c + u * t0.cos() + v * t0.sin(),
+        match self {
+            Piece::Segment(a, _) => *a,
+            Piece::Conic { c, u, v, t0, .. } => *c + *u * t0.cos() + *v * t0.sin(),
+            Piece::Bezier(cp) => dehomog(&cp[0]),
         }
     }
 
-    /// The piece moved by a reference (`p ↦ t(p − base)`); conics stay exact.
+    /// The piece moved by a reference (`p ↦ t(p − base)`); curves stay exact.
     fn placed(self, t: &crate::types::Transform, base: Vector3) -> Piece {
         let at = |p: Vector3| t.apply(p - base);
         match self {
@@ -765,28 +873,37 @@ impl Piece {
                 let c2 = at(c);
                 Piece::Conic { c: c2, u: at(c + u) - c2, v: at(c + v) - c2, t0, t1 }
             }
+            Piece::Bezier(cp) => Piece::Bezier(
+                cp.iter()
+                    .map(|h| {
+                        let q = at(dehomog(h));
+                        [q.x * h[3], q.y * h[3], q.z * h[3], h[3]]
+                    })
+                    .collect(),
+            ),
         }
     }
 
     /// Points along the piece (for extents and zooming).
     pub fn points(&self) -> Vec<Vector3> {
-        match *self {
-            Piece::Segment(a, b) => vec![a, b],
+        match self {
+            Piece::Segment(a, b) => vec![*a, *b],
             Piece::Conic { c, u, v, t0, t1 } => {
                 let n = (((t1 - t0) / 5f64.to_radians()).ceil() as usize).max(2);
                 (0..=n)
                     .map(|k| {
                         let t = t0 + (t1 - t0) * k as f64 / n as f64;
-                        c + u * t.cos() + v * t.sin()
+                        *c + *u * t.cos() + *v * t.sin()
                     })
                     .collect()
             }
+            Piece::Bezier(cp) => (0..=16).map(|k| dehomog(&bezier_split(cp, k as f64 / 16.0).0.last().copied().unwrap_or(cp[0]))).collect(),
         }
     }
 
     /// Whether the piece meets the segment ab (in plan).
     fn meets(&self, a: [f64; 2], b: [f64; 2]) -> bool {
-        match *self {
+        match self {
             Piece::Segment(p, q) => segments_cross([p.x, p.y], [q.x, q.y], a, b),
             Piece::Conic { c, u, v, t0, t1 } => {
                 // n·(p(t) − a) = k + α cos t + β sin t = 0 along the edge's line.
@@ -805,10 +922,15 @@ impl Piece {
                     if t > t1 + 1e-12 {
                         return false;
                     }
-                    let p = c + u * t.cos() + v * t.sin();
+                    let p = *c + *u * t.cos() + *v * t.sin();
                     let s = ((p.x - a[0]) * d[0] + (p.y - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]);
                     (-1e-12..=1.0 + 1e-12).contains(&s)
                 })
+            }
+            Piece::Bezier(cp) => {
+                let pts: Vec<Vector3> = cp.iter().map(dehomog).collect();
+                let size = pts.iter().fold(0.0f64, |m, p| m.max((*p - pts[0]).x.hypot((*p - pts[0]).y)));
+                bezier_meets(cp, a, b, (size * 1e-12).max(1e-12), 0)
             }
         }
     }
@@ -866,9 +988,99 @@ pub fn insert_outline(doc: &CadDocument, insert: &Insert, depth: usize) -> Vec<P
     out
 }
 
-/// The geometry of an entity in WCS: lines, circles, arcs, ellipses and
-/// lightweight polylines (bulges as true arcs) exactly, splines along their
-/// curve, references through their block, anything else as its box.
+/// Pieces of a plane run of vertices with bulges (`(x, y, bulge)` in the
+/// plane `m`, at `elevation`).
+fn bulge_pieces(v: &[(f64, f64, f64)], closed: bool, elevation: f64, m: &crate::types::Matrix3) -> Vec<Piece> {
+    let n = v.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let segs = if closed { n } else { n - 1 };
+    let at = |x: f64, y: f64| *m * Vector3::new(x, y, elevation);
+    let mut out = Vec::new();
+    for i in 0..segs {
+        let ((x0, y0, bulge), (x1, y1, _)) = (v[i], v[(i + 1) % n]);
+        let (dx, dy) = (x1 - x0, y1 - y0);
+        let chord = dx.hypot(dy);
+        if bulge.abs() > 1e-12 && chord > 1e-12 {
+            // bulge = tan(sweep / 4); the centre lies on the chord's bisector.
+            let sweep = 4.0 * bulge.atan();
+            let r = chord / (2.0 * (sweep / 2.0).sin().abs());
+            let h = r * (sweep / 2.0).cos() * sweep.signum();
+            let (cx, cy) = ((x0 + x1) / 2.0 - dy / chord * h, (y0 + y1) / 2.0 + dx / chord * h);
+            let a0 = (y0 - cy).atan2(x0 - cx);
+            let (t0, t1) = if sweep > 0.0 { (a0, a0 + sweep) } else { (a0 + sweep, a0) };
+            out.push(Piece::Conic {
+                c: at(cx, cy),
+                u: *m * Vector3::new(r, 0.0, 0.0),
+                v: *m * Vector3::new(0.0, r, 0.0),
+                t0,
+                t1,
+            });
+        } else {
+            out.push(Piece::Segment(at(x0, y0), at(x1, y1)));
+        }
+    }
+    out
+}
+
+/// The pieces of a hatch's boundary loops, in WCS.
+pub fn hatch_outline(h: &crate::entities::Hatch) -> Vec<Piece> {
+    use crate::entities::hatch::BoundaryEdge;
+    use crate::types::Matrix3;
+    let m = Matrix3::arbitrary_axis(h.normal);
+    let z = h.elevation;
+    let at = |x: f64, y: f64| m * Vector3::new(x, y, z);
+    let span = |a0: f64, a1: f64| {
+        let s = (a1 - a0).rem_euclid(std::f64::consts::TAU);
+        if s < 1e-12 { std::f64::consts::TAU } else { s }
+    };
+    let mut out = Vec::new();
+    for path in &h.paths {
+        for edge in &path.edges {
+            match edge {
+                BoundaryEdge::Line(l) => out.push(Piece::Segment(at(l.start.x, l.start.y), at(l.end.x, l.end.y))),
+                BoundaryEdge::Polyline(pl) => {
+                    let v: Vec<(f64, f64, f64)> = pl.vertices.iter().map(|q| (q.x, q.y, q.z)).collect();
+                    out.extend(bulge_pieces(&v, pl.is_closed, z, &m));
+                }
+                BoundaryEdge::CircularArc(a) => {
+                    // A clockwise edge keeps its angles measured the other way.
+                    let s = if a.counter_clockwise { 1.0 } else { -1.0 };
+                    out.push(Piece::Conic {
+                        c: at(a.center.x, a.center.y),
+                        u: m * Vector3::new(a.radius, 0.0, 0.0),
+                        v: m * Vector3::new(0.0, s * a.radius, 0.0),
+                        t0: a.start_angle,
+                        t1: a.start_angle + span(a.start_angle, a.end_angle),
+                    });
+                }
+                BoundaryEdge::EllipticArc(e) => {
+                    let s = if e.counter_clockwise { 1.0 } else { -1.0 };
+                    let (mx, my) = (e.major_axis_endpoint.x, e.major_axis_endpoint.y);
+                    out.push(Piece::Conic {
+                        c: at(e.center.x, e.center.y),
+                        u: m * Vector3::new(mx, my, 0.0),
+                        v: m * Vector3::new(-my * e.minor_axis_ratio * s, mx * e.minor_axis_ratio * s, 0.0),
+                        t0: e.start_angle,
+                        t1: e.start_angle + span(e.start_angle, e.end_angle),
+                    });
+                }
+                BoundaryEdge::Spline(sp) => {
+                    // Rational edges keep their weight in z.
+                    let pts: Vec<Vector3> = sp.control_points.iter().map(|q| at(q.x, q.y)).collect();
+                    let weights: Vec<f64> = if sp.rational { sp.control_points.iter().map(|q| q.z).collect() } else { Vec::new() };
+                    out.extend(spline_beziers(sp.degree.max(1) as usize, &sp.knots, &pts, &weights));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The geometry of an entity in WCS: lines, circles, arcs, ellipses,
+/// polyline bulges and splines exactly, hatches by their boundary loops,
+/// references through their block, anything else as its box.
 pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Piece> {
     use crate::types::Matrix3;
     let tau = std::f64::consts::TAU;
@@ -895,39 +1107,14 @@ pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Piece> {
                 t1: e.start_parameter + span(e.start_parameter, e.end_parameter),
             }]
         }
-        EntityType::LwPolyline(pl) if !pl.vertices.is_empty() => {
-            let m = Matrix3::arbitrary_axis(pl.normal);
-            let n = pl.vertices.len();
-            let segs = if pl.is_closed { n } else { n - 1 };
-            let at = |x: f64, y: f64| m * Vector3::new(x, y, pl.elevation);
-            let mut out = Vec::new();
-            for i in 0..segs {
-                let (v0, v1) = (&pl.vertices[i], &pl.vertices[(i + 1) % n]);
-                let (p0, p1) = (v0.location, v1.location);
-                let (dx, dy) = (p1.x - p0.x, p1.y - p0.y);
-                let chord = dx.hypot(dy);
-                if v0.bulge.abs() > 1e-12 && chord > 1e-12 {
-                    // bulge = tan(sweep / 4); the centre lies on the chord's bisector.
-                    let sweep = 4.0 * v0.bulge.atan();
-                    let r = chord / (2.0 * (sweep / 2.0).sin().abs());
-                    let h = r * (sweep / 2.0).cos() * sweep.signum();
-                    let (cx, cy) = ((p0.x + p1.x) / 2.0 - dy / chord * h, (p0.y + p1.y) / 2.0 + dx / chord * h);
-                    let a0 = (p0.y - cy).atan2(p0.x - cx);
-                    let (t0, t1) = if sweep > 0.0 { (a0, a0 + sweep) } else { (a0 + sweep, a0) };
-                    out.push(Piece::Conic {
-                        c: at(cx, cy),
-                        u: m * Vector3::new(r, 0.0, 0.0),
-                        v: m * Vector3::new(0.0, r, 0.0),
-                        t0,
-                        t1,
-                    });
-                } else {
-                    out.push(Piece::Segment(at(p0.x, p0.y), at(p1.x, p1.y)));
-                }
-            }
-            out
+        EntityType::LwPolyline(pl) => {
+            let v: Vec<(f64, f64, f64)> = pl.vertices.iter().map(|q| (q.location.x, q.location.y, q.bulge)).collect();
+            bulge_pieces(&v, pl.is_closed, pl.elevation, &Matrix3::arbitrary_axis(pl.normal))
         }
-        EntityType::Spline(s) => spline_points(s).windows(2).map(|w| Piece::Segment(w[0], w[1])).collect(),
+        EntityType::Spline(s) if !s.control_points.is_empty() => {
+            spline_beziers(s.degree.max(1) as usize, &s.knots, &s.control_points, &s.weights)
+        }
+        EntityType::Hatch(h) => hatch_outline(h),
         EntityType::Insert(ins) => insert_outline(doc, ins, 0),
         e => {
             let b = e.as_entity().bounding_box();
@@ -943,65 +1130,20 @@ pub fn entity_outline(doc: &CadDocument, entity: &EntityType) -> Vec<Piece> {
     }
 }
 
-/// Points on a spline (de Boor, weights honoured), dense enough that the
-/// chords stay within a millionth of its size of the curve.
-// ponytail: a spline is followed by chords, not intersected analytically.
-fn spline_points(s: &crate::entities::Spline) -> Vec<Vector3> {
-    let (cp, k) = (&s.control_points, &s.knots);
-    let p = s.degree.max(1) as usize;
-    if cp.len() <= p || k.len() != cp.len() + p + 1 {
-        return s.fit_points.clone();
-    }
-    let w = |i: usize| s.weights.get(i).copied().filter(|w| *w > 0.0).unwrap_or(1.0);
-    let eval = |t: f64| {
-        let mut span = p;
-        while span + 1 < cp.len() && k[span + 1] <= t {
-            span += 1;
-        }
-        let mut d: Vec<[f64; 4]> = (0..=p)
-            .map(|j| {
-                let (q, wj) = (cp[span - p + j], w(span - p + j));
-                [q.x * wj, q.y * wj, q.z * wj, wj]
-            })
-            .collect();
-        for r in 1..=p {
-            for j in (r..=p).rev() {
-                let i = span - p + j;
-                let den = k[i + p + 1 - r] - k[i];
-                let a = if den.abs() < 1e-15 { 0.0 } else { (t - k[i]) / den };
-                for c in 0..4 {
-                    d[j][c] = (1.0 - a) * d[j - 1][c] + a * d[j][c];
-                }
+/// A hatch's boundary as points that fix its shape: segment ends, three
+/// points of each arc and the control points of splines, path after path.
+fn hatch_shape_points(h: &crate::entities::Hatch) -> Vec<Vector3> {
+    hatch_outline(h)
+        .iter()
+        .flat_map(|p| match p {
+            Piece::Segment(a, b) => vec![*a, *b],
+            Piece::Conic { c, u, v, t0, t1 } => {
+                let at = |t: f64| *c + *u * t.cos() + *v * t.sin();
+                vec![at(*t0), at((t0 + t1) / 2.0), at(*t1)]
             }
-        }
-        let h = d[p];
-        Vector3::new(h[0] / h[3], h[1] / h[3], h[2] / h[3])
-    };
-    let (ta, tb) = (k[p], k[cp.len()]);
-    let size = cp.iter().fold(0.0f64, |m, q| m.max((*q - cp[0]).x.hypot((*q - cp[0]).y)));
-    let n = (cp.len() * 64).max(256);
-    let mut out: Vec<Vector3> = (0..=n).map(|i| eval(ta + (tb - ta) * i as f64 / n as f64)).collect();
-    // Halve the steps where a chord's midpoint strays from the curve.
-    for _ in 0..6 {
-        let mut refined = vec![out[0]];
-        let mut changed = false;
-        let m = out.len() - 1;
-        for i in 0..m {
-            let (t0, t1) = (ta + (tb - ta) * i as f64 / m as f64, ta + (tb - ta) * (i + 1) as f64 / m as f64);
-            let mid = eval((t0 + t1) / 2.0);
-            let chord = (out[i] + out[i + 1]) * 0.5;
-            if (mid - chord).x.hypot((mid - chord).y) > size * 1e-6 {
-                changed = true;
-            }
-            refined.push(mid);
-            refined.push(out[i + 1]);
-        }
-        if !changed {
-            break;
-        }
-        out = refined;
-    }
-    out
+            Piece::Bezier(cp) => cp.iter().map(dehomog).collect(),
+        })
+        .collect()
 }
 
 fn json_string(s: &str) -> String {

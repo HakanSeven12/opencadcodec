@@ -2430,26 +2430,16 @@ impl CadDocument {
         Some(container)
     }
 
-    /// Draw a table into its anonymous `*T` block the way the reference keeps
-    /// it: one MTEXT per filled cell, centred in the cell, with the row
-    /// style's text height and alignment (the cell's own alignment when it
-    /// overrides it) and the column width less both horizontal margins; then
-    /// the row lines top to bottom, the column lines left to right and a
-    /// hidden point on `Defpoints`. Each of `fields` (row, column, template,
-    /// children) puts a field into that cell: the cell's MTEXT holds it under
-    /// `ACAD_FIELD` and the cell's content refers to the same container.
-    /// Returns the containers in `fields` order.
-    pub fn build_table_block(
-        &mut self,
-        table: Handle,
-        fields: Vec<(usize, usize, String, Vec<NewField>)>,
-    ) -> Option<Vec<Option<Handle>>> {
+    /// The entities a table's `*T` block holds, as the reference draws them:
+    /// one MTEXT per filled cell (row, column) centred in the cell, with the
+    /// row style's text height and alignment (named `_TITLE` / `_HEADER` /
+    /// `_DATA` cell styles first, the cell's own alignment when it overrides
+    /// it) and the column width less both horizontal margins; then the row
+    /// lines top to bottom, the column lines left to right and a hidden point
+    /// on `Defpoints`. `extra` cells get an MTEXT even when empty (fields).
+    fn table_block_plan(&self, t: &Table, extra: &[(usize, usize)]) -> (Vec<((usize, usize), crate::entities::MText)>, Vec<crate::entities::Line>) {
         use crate::entities::{Line, MText};
         use crate::types::{Color, LineWeight, Transparency, Vector3};
-        let Some(EntityType::Table(t)) = self.get_entity(table) else {
-            return None;
-        };
-        let t = (**t).clone();
         let style = t.table_style_handle.and_then(|h| match self.objects.get(&h) {
             Some(ObjectType::TableStyle(s)) => Some(s.clone()),
             _ => None,
@@ -2460,7 +2450,11 @@ impl CadDocument {
         let header = !legacy.header_suppressed.unwrap_or(false);
         // (text height, alignment) of a row by its kind: title, header, data.
         let row_style = |r: usize| {
-            let kind = if title && r == 0 {
+            // Newer tables name each row's cell style (1 title, 2 header, 3 data).
+            let named_kind = t.rows.get(r).map(|row| row.style_id).filter(|id| (1..=3).contains(id));
+            let kind = if let Some(id) = named_kind {
+                (id - 1) as usize
+            } else if title && r == 0 {
                 0
             } else if header && r == usize::from(title) {
                 1
@@ -2484,26 +2478,7 @@ impl CadDocument {
                 }
             })
         };
-
-        let mut index = 1;
-        while self.block_records.get(&format!("*T{index}")).is_some() {
-            index += 1;
-        }
-        let mut record = crate::tables::BlockRecord::new(format!("*T{index}"));
-        record.handle = self.allocate_handle();
-        record.block_entity_handle = self.allocate_handle();
-        record.block_end_handle = self.allocate_handle();
-        record.flags.anonymous = true;
-        let owner = record.handle;
-        let name = record.name.clone();
-        self.block_records.add(record).ok()?;
-        if let Some(EntityType::Table(t)) = self.get_entity_mut(table) {
-            t.block_name = name;
-            t.block_record_handle = Some(owner);
-        }
-
         let by_block = |c: &mut EntityCommon| {
-            c.owner_handle = owner;
             c.layer = "0".into();
             c.color = Color::ByBlock;
             c.transparency = Transparency::ByBlock;
@@ -2511,17 +2486,21 @@ impl CadDocument {
         let widths: Vec<f64> = t.columns.iter().map(|c| c.width).collect();
         let heights: Vec<f64> = t.rows.iter().map(|r| r.height).collect();
         let (total_w, total_h) = (widths.iter().sum::<f64>(), heights.iter().sum::<f64>());
-        let mut texts: std::collections::HashMap<(usize, usize), Handle> = std::collections::HashMap::new();
-        let field_cells: Vec<(usize, usize)> = fields.iter().map(|f| (f.0, f.1)).collect();
+        let mut texts = Vec::new();
         let mut y = 0.0;
         for (r, row) in t.rows.iter().enumerate() {
             let mut x = 0.0;
             for (c, w) in widths.iter().enumerate() {
                 let cell = row.cells.get(c);
                 let text = cell.and_then(|cell| cell.contents.first()).map(|ct| ct.value.text.clone()).unwrap_or_default();
-                if !text.is_empty() || field_cells.contains(&(r, c)) {
+                let has_field = cell.and_then(|cell| cell.contents.first()).is_some_and(|ct| ct.field_handle.is_some());
+                if !text.is_empty() || has_field || extra.contains(&(r, c)) {
                     let (height, mut align) = row_style(r);
-                    if let Some(s) = cell.and_then(|cell| cell.style.as_ref()).filter(|s| s.override_flags & 0x01 != 0) {
+                    // A cell overriding its style brings its own alignment.
+                    if let Some(s) = cell
+                        .and_then(|cell| cell.style.as_ref())
+                        .filter(|s| s.override_flags != 0 && (1..=9).contains(&s.alignment))
+                    {
                         align = s.alignment;
                     }
                     let mut m = MText::new();
@@ -2532,46 +2511,52 @@ impl CadDocument {
                     m.insertion_point = Vector3::new(x + w / 2.0, -(y + heights[r] / 2.0), 0.0);
                     m.attachment_point = attachment(align);
                     m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
-                    if let Ok(h) = self.add_entity(EntityType::MText(m)) {
-                        texts.insert((r, c), h);
-                    }
+                    texts.push(((r, c), m));
                 }
                 x += w;
             }
             y += heights[r];
         }
-        let line = |a: Vector3, b: Vector3, doc: &mut CadDocument| {
+        let line = |a: Vector3, b: Vector3| {
             let mut l = Line::from_points(a, b);
             by_block(&mut l.common);
             l.common.linetype = "ByBlock".into();
             l.common.line_weight = LineWeight::ByBlock;
-            let _ = doc.add_entity(EntityType::Line(l));
+            l
         };
+        let mut lines = Vec::new();
         let mut y = 0.0;
         for h in std::iter::once(0.0).chain(heights.iter().copied()) {
             y -= h;
-            line(Vector3::new(0.0, y, 0.0), Vector3::new(total_w, y, 0.0), self);
+            lines.push(line(Vector3::new(0.0, y, 0.0), Vector3::new(total_w, y, 0.0)));
         }
         let mut x = 0.0;
         for w in std::iter::once(0.0).chain(widths.iter().copied()) {
             x += w;
-            line(Vector3::new(x, 0.0, 0.0), Vector3::new(x, -total_h, 0.0), self);
-        }
-        if !self.layers.contains("Defpoints") {
-            let mut layer = crate::tables::Layer::new("Defpoints");
-            layer.handle = self.allocate_handle();
-            layer.is_plottable = false;
-            self.layers.add_or_replace(layer);
+            lines.push(line(Vector3::new(x, 0.0, 0.0), Vector3::new(x, -total_h, 0.0)));
         }
         let mut point = Line::from_points(Vector3::ZERO, Vector3::ZERO);
-        point.common.owner_handle = owner;
         point.common.layer = "Defpoints".into();
         point.common.color = Color::from_index(8);
         point.common.invisible = true;
         point.common.transparency = Transparency::ByBlock;
         point.common.line_weight = LineWeight::from_value(0);
-        let _ = self.add_entity(EntityType::Line(point));
+        lines.push(point);
+        (texts, lines)
+    }
 
+    /// Draw a table into its anonymous `*T` block the way the reference keeps
+    /// it (see `table_block_plan`). Each of `fields` (row, column, template,
+    /// children) puts a field into that cell: the cell's MTEXT holds it under
+    /// `ACAD_FIELD` and the cell's content refers to the same container.
+    /// Returns the containers in `fields` order.
+    pub fn build_table_block(
+        &mut self,
+        table: Handle,
+        fields: Vec<(usize, usize, String, Vec<NewField>)>,
+    ) -> Option<Vec<Option<Handle>>> {
+        let cells: Vec<(usize, usize)> = fields.iter().map(|f| (f.0, f.1)).collect();
+        let texts = self.redraw_table_block(table, &cells, true)?;
         let mut out = Vec::new();
         for (r, c, template, children) in fields {
             let container = texts.get(&(r, c)).and_then(|h| self.set_text_field(*h, &template, children));
@@ -2584,6 +2569,162 @@ impl CadDocument {
             out.push(container);
         }
         Some(out)
+    }
+
+    /// Bring a table's `*T` block up to date after the table changed (cells,
+    /// sizes, styles). Nothing happens when the block already shows the table;
+    /// the cells' fields stay with their texts. Returns whether it redrew.
+    pub fn refresh_table_block(&mut self, table: Handle) -> bool {
+        // ponytail: merged cells are not drawn by the plan; such tables keep their block.
+        if let Some(EntityType::Table(t)) = self.get_entity(table) {
+            if t.rows.iter().flat_map(|r| &r.cells).any(|c| c.merge_width > 1 || c.merge_height > 1) {
+                return false;
+            }
+        }
+        self.redraw_table_block(table, &[], false).is_some()
+    }
+
+    fn redraw_table_block(
+        &mut self,
+        table: Handle,
+        extra: &[(usize, usize)],
+        always: bool,
+    ) -> Option<std::collections::HashMap<(usize, usize), Handle>> {
+        let Some(EntityType::Table(t)) = self.get_entity(table) else {
+            return None;
+        };
+        let t = (**t).clone();
+        let (texts, lines) = self.table_block_plan(&t, extra);
+        let record = t
+            .block_record_handle
+            .and_then(|h| self.block_records.iter().find(|r| r.handle == h))
+            .or_else(|| self.block_records.get(&t.block_name).filter(|_| !t.block_name.is_empty()))
+            .map(|r| (r.handle, r.name.clone(), r.entity_handles.clone()));
+
+        // What the block shows now, against what it should show.
+        let key = |e: &EntityType| -> Option<String> {
+            let r = |v: f64| format!("{:.9}", v + 0.0);
+            match e {
+                EntityType::MText(m) => Some(format!(
+                    "T {} {} {} {} {} {:?}",
+                    r(m.insertion_point.x),
+                    r(m.insertion_point.y),
+                    r(m.height),
+                    r(m.rectangle_width),
+                    m.attachment_point as i32,
+                    if m.common.xdictionary_handle.is_some() { "" } else { m.value.as_str() }
+                )),
+                EntityType::Line(l) => Some(format!("L {} {} {} {} {}", r(l.start.x), r(l.start.y), r(l.end.x), r(l.end.y), l.common.layer)),
+                _ => None,
+            }
+        };
+        let field_cells: Vec<(usize, usize)> = t
+            .rows
+            .iter()
+            .enumerate()
+            .flat_map(|(r, row)| {
+                row.cells
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, cell)| cell.contents.first().is_some_and(|ct| ct.field_handle.is_some()))
+                    .map(move |(c, _)| (r, c))
+            })
+            .collect();
+        if let (false, Some((_, _, old))) = (always, record.as_ref()) {
+            let mut now: Vec<String> = old.iter().filter_map(|h| self.get_entity(*h)).filter_map(key).collect();
+            let mut want: Vec<String> = texts
+                .iter()
+                .map(|(cell, m)| {
+                    let mut m = m.clone();
+                    if field_cells.contains(cell) {
+                        m.common.xdictionary_handle = Some(Handle::NULL);
+                    }
+                    key(&EntityType::MText(m)).unwrap_or_default()
+                })
+                .chain(lines.iter().filter_map(|l| key(&EntityType::Line(l.clone()))))
+                .collect();
+            now.sort();
+            want.sort();
+            if now == want {
+                return None;
+            }
+        }
+
+        // Field cells keep their text's dictionary (the field) and value.
+        let mut carried: std::collections::HashMap<(usize, usize), (Handle, String)> = std::collections::HashMap::new();
+        for (cell, container) in t.rows.iter().enumerate().flat_map(|(r, row)| {
+            row.cells.iter().enumerate().filter_map(move |(c, cell)| cell.contents.first().and_then(|ct| ct.field_handle).map(|h| ((r, c), h)))
+        }) {
+            let owner_of = |h: Handle| match self.objects.get(&h) {
+                Some(ObjectType::Field(f)) => Some(f.owner),
+                Some(ObjectType::Dictionary(d)) => Some(d.owner),
+                _ => None,
+            };
+            // container › TEXT dictionary › extension dictionary › MTEXT
+            let xdict = owner_of(container).and_then(owner_of);
+            let host = xdict.and_then(owner_of);
+            if let (Some(xdict), Some(EntityType::MText(m))) = (xdict, host.and_then(|h| self.get_entity(h))) {
+                carried.insert(cell, (xdict, m.value.clone()));
+            }
+        }
+
+        let owner = match record {
+            Some((handle, _, old)) => {
+                for h in &old {
+                    self.remove_entity(*h);
+                }
+                if let Some(r) = self.block_records.iter_mut().find(|r| r.handle == handle) {
+                    r.entity_handles.clear();
+                }
+                handle
+            }
+            None => {
+                let mut index = 1;
+                while self.block_records.get(&format!("*T{index}")).is_some() {
+                    index += 1;
+                }
+                let mut record = crate::tables::BlockRecord::new(format!("*T{index}"));
+                record.handle = self.allocate_handle();
+                record.block_entity_handle = self.allocate_handle();
+                record.block_end_handle = self.allocate_handle();
+                record.flags.anonymous = true;
+                let handle = record.handle;
+                let name = record.name.clone();
+                self.block_records.add(record).ok()?;
+                if let Some(EntityType::Table(t)) = self.get_entity_mut(table) {
+                    t.block_name = name;
+                    t.block_record_handle = Some(handle);
+                }
+                handle
+            }
+        };
+        if !self.layers.contains("Defpoints") {
+            let mut layer = crate::tables::Layer::new("Defpoints");
+            layer.handle = self.allocate_handle();
+            layer.is_plottable = false;
+            self.layers.add_or_replace(layer);
+        }
+        let mut handles = std::collections::HashMap::new();
+        for (cell, mut m) in texts {
+            m.common.owner_handle = owner;
+            if let Some((xdict, value)) = carried.get(&cell) {
+                m.common.xdictionary_handle = Some(*xdict);
+                m.value = value.clone();
+            }
+            if let Ok(h) = self.add_entity(EntityType::MText(m)) {
+                if let Some((xdict, _)) = carried.get(&cell) {
+                    if let Some(ObjectType::Dictionary(d)) = self.objects.get_mut(xdict) {
+                        d.owner = h;
+                    }
+                }
+                handles.insert(cell, h);
+            }
+        }
+        for mut l in lines {
+            l.common.owner_handle = owner;
+            let _ = self.add_entity(EntityType::Line(l));
+        }
+        Some(handles)
     }
 
     /// Add fields to the document and its FIELDLIST.
