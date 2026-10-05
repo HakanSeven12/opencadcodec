@@ -4932,6 +4932,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_handle(331, *frozen_layer)?;
             }
         }
+        // Boundary presence and clipping activation are independent.
+        if !viewport.clip_boundary_handle.is_null() {
+            self.writer.write_handle(340, viewport.clip_boundary_handle)?;
+        }
 
         // Render mode
         self.writer
