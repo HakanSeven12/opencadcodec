@@ -1082,7 +1082,8 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.writer.write_byte(value.modern_unknown_byte);
             self.writer.write_variable_text(&value.name);
-            self.writer.write_bit_long(value.modern_unknown_long1);
+            // The R2010+ flags field carries the table style flags.
+            self.writer.write_bit_long(value.flags.bits() as i32);
             self.writer.write_bit_long(value.modern_unknown_long2);
             self.writer.write_handle(
                 DwgReferenceType::HardOwnership,
@@ -1216,22 +1217,23 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_named_table_cell_style(&value);
     }
 
+    /// The base "Table" cell style of a style without one: only the margins
+    /// come from the style; content, fill and borders are left to the named
+    /// cell styles.
     fn write_default_modern_table_cell_style(&mut self, value: &TableStyle) {
-        let row = &value.data_row_style;
         let cell_style = TableCellStyleData {
             style_type: 5,
             data_flags: 1,
-            background_color: row.fill_color,
+            background_color: Color::None,
             content_layout: 1,
             content_format: TableContentFormat {
-                value_data_type: row.data_type,
-                value_unit_type: row.unit_type,
-                value_format_string: row.format_string.clone(),
+                value_data_type: 512,
                 block_scale: 1.0,
-                cell_alignment: row.alignment as i32,
-                content_color: row.text_color,
-                text_style: self.resolve_table_row_text_style(row),
-                text_height: row.text_height,
+                cell_alignment: 1,
+                content_color: Color::ByBlock,
+                // Not the data row height: a style with 0.4 data text still
+                // carries 0.18 here.
+                text_height: 0.18,
                 ..TableContentFormat::default()
             },
             margin_override_flags: 1,
@@ -1241,21 +1243,6 @@ impl<'a> DwgObjectWriter<'a> {
             right_margin: value.horizontal_margin,
             horizontal_spacing: value.horizontal_margin * 3.0,
             vertical_spacing: value.vertical_margin * 3.0,
-            borders: [
-                (1, &row.top_border),
-                (2, &row.right_border),
-                (4, &row.bottom_border),
-                (8, &row.left_border),
-                (16, &row.horizontal_inside_border),
-                (32, &row.vertical_inside_border),
-            ]
-            .into_iter()
-            .map(|(index_mask, border)| TableGridFormat {
-                index_mask,
-                border: border.clone(),
-                line_type: Handle::NULL,
-            })
-            .collect(),
             ..TableCellStyleData::default()
         };
         self.write_named_table_cell_style(&NamedTableCellStyle {
@@ -1288,18 +1275,23 @@ impl<'a> DwgObjectWriter<'a> {
         name: &str,
         merge_flags: i32,
     ) {
+        // R2010+ edge order; the grid flag is set for a hidden edge, the
+        // reverse of the row border's `is_invisible`.
         let borders = [
             (1, &row.top_border),
-            (2, &row.right_border),
+            (2, &row.horizontal_inside_border),
             (4, &row.bottom_border),
             (8, &row.left_border),
-            (16, &row.horizontal_inside_border),
-            (32, &row.vertical_inside_border),
+            (16, &row.vertical_inside_border),
+            (32, &row.right_border),
         ]
         .into_iter()
         .map(|(index_mask, border)| TableGridFormat {
             index_mask,
-            border: border.clone(),
+            border: TableCellBorder {
+                is_invisible: !border.is_invisible,
+                ..border.clone()
+            },
             line_type: Handle::NULL,
         })
         .collect();
@@ -1316,7 +1308,7 @@ impl<'a> DwgObjectWriter<'a> {
                 },
                 content_layout: 1,
                 content_format: TableContentFormat {
-                    value_data_type: 4,
+                    value_data_type: row.data_type,
                     value_unit_type: row.unit_type,
                     value_format_string: row.format_string.clone(),
                     block_scale: 1.0,

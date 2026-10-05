@@ -137,6 +137,7 @@ impl DwgWriter {
             }
             if owned.version < DxfVersion::AC1027 {
                 prepare_legacy_document(&mut owned);
+                crate::objects::store_table_style_roundtrip(&mut owned);
             }
             &owned
         } else {

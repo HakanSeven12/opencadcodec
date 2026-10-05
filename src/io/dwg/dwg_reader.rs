@@ -1264,6 +1264,7 @@ impl<R: Read + Seek> DwgReader<R> {
         document.source_path = self.source_path.clone();
         decode_field_xdata(&mut document);
         crate::objects::restore_visual_style_roundtrip(&mut document);
+        crate::objects::restore_table_style_roundtrip(&mut document);
 
         // Document summary information (Author/Title/Subject/… → the
         // Document-category dynamic-text fields).
@@ -1331,6 +1332,7 @@ impl<R: Read + Seek> DwgReader<R> {
         document.source_path = self.source_path.clone();
         decode_field_xdata(&mut document);
         crate::objects::restore_visual_style_roundtrip(&mut document);
+        crate::objects::restore_table_style_roundtrip(&mut document);
 
         // Document summary information (Author/Title/Subject/… → the
         // Document-category dynamic-text fields).

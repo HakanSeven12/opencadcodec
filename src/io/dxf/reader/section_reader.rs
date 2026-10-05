@@ -20797,7 +20797,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 280 if saw_name => {
-                    if let Some(v) = pair.as_bool() {
+                    if let Some(v) = pair.as_i16().map(|v| v != 0) {
                         ts.title_suppressed = v;
                     }
                 }
@@ -20807,7 +20807,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 281 => {
-                    if let Some(v) = pair.as_bool() {
+                    if let Some(v) = pair.as_i16().map(|v| v != 0) {
                         ts.header_suppressed = v;
                     }
                 }
@@ -20837,7 +20837,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 283 => {
-                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_bool()) {
+                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_i16().map(|v| v != 0)) {
                         row.fill_enabled = v;
                     }
                 }
@@ -20863,7 +20863,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 284..=289 => {
-                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_bool()) {
+                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_i16().map(|v| v != 0)) {
                         border_mut(row, (pair.code - 284) as usize).is_invisible = !v;
                     }
                 }
