@@ -843,8 +843,12 @@ impl<'a> DwgObjectWriter<'a> {
                 .write_bit_long(Self::visual_style_long(&properties[21]));
             self.writer
                 .write_bit_long(Self::visual_style_long(&properties[22]));
-            // properties[23] is the DXF-only group 45; the binary record ends
-            // with the internal-use flag.
+            // properties[23] (DXF group 45) is part of the binary record
+            // only from R2007 on; R2004 ends with the internal-use flag.
+            if self.version.r2007_plus() {
+                self.writer
+                    .write_bit_double(Self::visual_style_double(&properties[23]));
+            }
             self.writer.write_bit(value.internal_use_only);
         } else {
             self.writer.write_bit_short(value.extended_lighting_model);

@@ -108,13 +108,18 @@ pub fn read_visual_style(
                 enabled: 1,
             });
         }
-        value.internal_use_only = reader.read_bit();
-        // The legacy DXF form ends with group 45, which the binary record
-        // does not carry; keep the 24-entry legacy list complete.
+        // Group 45 is in the binary record only from R2007 on; R2004 ends
+        // with the internal-use flag. Keep the 24-entry legacy list complete.
+        let group_45 = if version.r2007_plus() {
+            reader.read_bit_double()
+        } else {
+            0.0
+        };
         value.properties.push(VisualStyleProperty {
-            value: VisualStylePropertyValue::Double(0.0),
+            value: VisualStylePropertyValue::Double(group_45),
             enabled: 1,
         });
+        value.internal_use_only = reader.read_bit();
         return value;
     }
 
