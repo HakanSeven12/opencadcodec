@@ -6782,6 +6782,18 @@ impl<'a> SectionReader<'a> {
                         dict.handle = Handle::new(h);
                     }
                 }
+                // The owner of a dictionary is also its reactor; dropping the
+                // reactor leaves the owner unnotified when the dictionary is
+                // erased (the reference application erases the decomposed
+                // AcDs data dictionary on load and reports the stale entry).
+                102 => match pair.value_string.trim() {
+                    "{ACAD_REACTORS" => dict.reactors = self.read_reactor_handles()?,
+                    "{ACAD_XDICTIONARY" => {
+                        dict.xdictionary_handle = self.read_xdictionary_handle()?
+                    }
+                    group if group.starts_with('{') => self.skip_defined_group()?,
+                    _ => {}
+                },
                 330 => {
                     // Owner handle
                     if let Ok(h) = u64::from_str_radix(&pair.value_string, 16) {
@@ -9549,11 +9561,32 @@ impl<'a> SectionReader<'a> {
     /// Read a single BLOCK_RECORD entry
     fn read_block_record_entry(&mut self) -> Result<Option<BlockRecord>> {
         let mut block_record = BlockRecord::new("*Model_Space");
+        // Pre-R2007 files carry the units as ACAD `DesignCenter Data`
+        // xdata `{ <version> <units> }` instead of group 70.
+        let mut units_seen = false;
+        let mut design_center: Option<Vec<i16>> = None;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
                 self.reader.push_back(pair);
                 break;
+            }
+
+            match pair.code {
+                1001 => design_center = None,
+                1000 if pair.value_string == "DesignCenter Data" => {
+                    design_center = Some(Vec::new())
+                }
+                1070 => {
+                    if let (Some(values), Some(value)) = (design_center.as_mut(), pair.as_i16()) {
+                        values.push(value);
+                        if values.len() == 2 && !units_seen {
+                            block_record.units = value;
+                        }
+                    }
+                }
+                70 => units_seen = true,
+                _ => {}
             }
 
             match pair.code {

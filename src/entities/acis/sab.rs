@@ -105,17 +105,15 @@ impl SabWriter {
             Self::write_record(&mut buf, record);
         }
 
-        // End marker, with no end-of-record tag. ShapeManager bodies end with
-        // the tagged `End-of-ASM-data` components; the reference application
-        // rejects a 22300 body closed with the classic single-string marker.
-        if Self::is_asm(&doc.header) {
-            for part in ["End", "of", "ASM"] {
-                Self::write_subtype(&mut buf, part);
-            }
-            Self::write_entity_type(&mut buf, "data");
-        } else {
-            Self::write_entity_type(&mut buf, "End-of-ACIS-data");
+        // End marker, with no end-of-record tag, written as tagged components
+        // (`End-of-ASM-data` for ShapeManager bodies, `End-of-ACIS-data`
+        // before); the reference application rejects a 22300 body closed with
+        // a single-string marker.
+        let kernel = if Self::is_asm(&doc.header) { "ASM" } else { "ACIS" };
+        for part in ["End", "of", kernel] {
+            Self::write_subtype(&mut buf, part);
         }
+        Self::write_entity_type(&mut buf, "data");
 
         buf
     }
@@ -229,7 +227,7 @@ impl SabWriter {
         // composite position(0x13)/direction(0x14) tags for coordinate triplets.
         let layout = CoordLayout::for_entity(&record.entity_type);
         let ints_as_doubles = Self::integers_are_doubles(&record.entity_type);
-        let contextual;
+        let mut contextual;
         let tokens = if base_entity_type(&record.entity_type) == "face" {
             contextual = Self::encode_face_boolean_roles(&record.tokens);
             &contextual
@@ -250,6 +248,25 @@ impl SabWriter {
             "intcurve-curve" | "spline-surface" | "pcurve"
         ) {
             contextual = Self::encode_spline_numeric_roles(&record.entity_type, &record.tokens);
+            &contextual
+        } else if record.entity_type == "eye_refinement" {
+            // Labelled fields: the tolerances are doubles even when SAT
+            // writes them as whole numbers; the grid counts stay integers.
+            contextual = record.tokens.clone();
+            for index in 1..contextual.len() {
+                let label = match &contextual[index - 1] {
+                    SatToken::String(label) | SatToken::Ident(label) => label.as_str(),
+                    _ => continue,
+                };
+                if matches!(
+                    label,
+                    "stol" | "ntol" | "dsil" | "flatness" | "pixarea" | "hmax" | "gridar"
+                ) {
+                    if let SatToken::Integer(value) = contextual[index] {
+                        contextual[index] = SatToken::Float(value as f64);
+                    }
+                }
+            }
             &contextual
         } else {
             &record.tokens
@@ -540,9 +557,11 @@ impl SabWriter {
             if matches!(token.as_ident(), Some("nurbs" | "nubs")) {
                 let previous = index.checked_sub(1).and_then(|i| tokens[i].as_ident());
                 let parent = index.checked_sub(2).and_then(|i| tokens[i].as_ident());
-                // ShapeManager curves write `exact_int_cur <version> full`.
+                // ShapeManager curves write `exact_int_cur <version> full`;
+                // the other interpolated curves (`surfintcur`, ...) open with
+                // the same approximating `full nubs` spline.
                 let parent = match subtypes.last() {
-                    Some(Some("exact_int_cur")) => Some("exactcur"),
+                    Some(Some(name)) if name.ends_with("cur") => Some("exactcur"),
                     _ => parent,
                 };
                 let dimensions = match (parent, previous) {
@@ -593,6 +612,26 @@ impl SabWriter {
                 doubles.extend(
                     (index + 1..tokens.len()).take_while(|&i| tokens[i].as_ident() != Some("}")),
                 );
+            }
+            // An interpolated curve stores its analytic support surfaces
+            // inline after the spline; their numbers are doubles, while the
+            // trailing fields after the `nullbs` pcurves stay integers.
+            if entity_type == "intcurve-curve"
+                && matches!(subtypes.last(), Some(Some(name)) if name.ends_with("cur"))
+                && matches!(
+                    token.as_ident(),
+                    Some("plane" | "cone" | "sphere" | "torus")
+                )
+            {
+                doubles.extend((index + 1..tokens.len()).take_while(|&i| {
+                    !matches!(
+                        tokens[i].as_ident(),
+                        Some(
+                            "plane" | "cone" | "sphere" | "torus" | "spline" | "nullbs" | "nubs"
+                                | "nurbs" | "{" | "}"
+                        )
+                    )
+                }));
             }
         }
         if entity_type == "pcurve" && tokens.len() >= 2 {

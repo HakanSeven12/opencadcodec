@@ -746,6 +746,39 @@ fn decode_field_xdata(document: &mut crate::document::CadDocument) {
     }
 }
 
+/// Before R2007 a block record's insertion units live in its ACAD
+/// `DesignCenter Data` EED. Move them into `BlockRecord::units`; the writer
+/// regenerates the EED for older versions and stores the field for newer.
+fn decode_block_units_xdata(document: &mut crate::document::CadDocument) {
+    if document.version >= crate::types::DxfVersion::AC1021 {
+        return;
+    }
+    let Some(acad) = document.app_ids.get("ACAD").map(|app| app.handle.value()) else {
+        return;
+    };
+    for record in document.block_records.iter_mut() {
+        let Some(blocks) = document.eed_by_handle.get_mut(&record.handle) else { continue };
+        blocks.retain(|(app, bytes)| {
+            let units = (*app == acad)
+                .then(|| crate::io::dwg::eed_codec::decode_values(bytes, false, |_| None))
+                .flatten()
+                .and_then(|values| crate::tables::block_record::design_center_units(&values));
+            match units {
+                Some(units) => {
+                    if record.units == 0 {
+                        record.units = units;
+                    }
+                    false
+                }
+                None => true,
+            }
+        });
+        if blocks.is_empty() {
+            document.eed_by_handle.remove(&record.handle);
+        }
+    }
+}
+
 /// Parse the decompressed `AcDb:SummaryInfo` section (R2004+): eight fixed
 /// strings, three 8-byte timers, then the custom-property pairs.
 fn parse_summary_info(buf: &[u8], utf16: bool) -> crate::document::SummaryInfo {
@@ -1263,6 +1296,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // file rather than a bare stream.
         document.source_path = self.source_path.clone();
         decode_field_xdata(&mut document);
+        decode_block_units_xdata(&mut document);
         crate::objects::restore_visual_style_roundtrip(&mut document);
         crate::objects::restore_table_style_roundtrip(&mut document);
 
@@ -1331,6 +1365,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // file rather than a bare stream.
         document.source_path = self.source_path.clone();
         decode_field_xdata(&mut document);
+        decode_block_units_xdata(&mut document);
         crate::objects::restore_visual_style_roundtrip(&mut document);
         crate::objects::restore_table_style_roundtrip(&mut document);
 

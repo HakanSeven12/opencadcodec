@@ -445,7 +445,7 @@ pub(crate) fn store_visual_style_roundtrip(document: &mut crate::document::CadDo
     if !(DxfVersion::AC1018..DxfVersion::AC1024).contains(&document.version) {
         return;
     }
-    let styles: Vec<_> = document
+    let mut styles: Vec<_> = document
         .objects
         .iter()
         .filter_map(|(handle, object)| match object {
@@ -455,6 +455,8 @@ pub(crate) fn store_visual_style_roundtrip(document: &mut crate::document::CadDo
             _ => None,
         })
         .collect();
+    // Objects are created in handle order so the output is deterministic.
+    styles.sort_by_key(|style| style.0);
     let key = |text: String| XRecordEntry {
         code: 102,
         value: XRecordValue::String(text),

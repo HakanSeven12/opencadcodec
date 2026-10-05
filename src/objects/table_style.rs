@@ -807,7 +807,7 @@ pub(crate) fn store_table_style_roundtrip(document: &mut crate::document::CadDoc
         return;
     }
     let with_row_types = document.version < DxfVersion::AC1021;
-    let styles: Vec<_> = document
+    let mut styles: Vec<_> = document
         .objects
         .iter()
         .filter_map(|(handle, object)| match object {
@@ -828,6 +828,8 @@ pub(crate) fn store_table_style_roundtrip(document: &mut crate::document::CadDoc
             _ => None,
         })
         .collect();
+    // Objects are created in handle order so the output is deterministic.
+    styles.sort_by_key(|style| style.0);
     for (handle, cells, row_types) in styles {
         let dictionary = document.ensure_extension_dictionary(handle);
         let existing = match document.objects.get(&dictionary) {

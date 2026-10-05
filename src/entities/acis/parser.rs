@@ -562,8 +562,12 @@ impl<'a> SatTokenizer<'a> {
         // Number or negative index or identifier
         let raw = self.next_raw_token()?;
 
-        // Try integer
+        // Try integer. A signed zero (`-0`) is a double whose sign the binary
+        // form keeps, so it must not collapse into the integer 0.
         if let Ok(v) = raw.parse::<i64>() {
+            if v == 0 && raw.starts_with('-') {
+                return Some(SatToken::Float(-0.0));
+            }
             return Some(SatToken::Integer(v));
         }
 

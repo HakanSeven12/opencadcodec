@@ -2056,12 +2056,22 @@ impl<'a> DwgObjectWriter<'a> {
 
     /// Write a BLOCK_HEADER (block record) object with explicit entity handles.
     fn write_block_header_with_handles(&mut self, record: &BlockRecord, entity_handles: &[Handle]) {
-        self.write_common_non_entity_data(
+        // Before R2007 the block record has no insertion-units field; the
+        // units travel in the ACAD `DesignCenter Data` EED (version 1).
+        let extra = if self.version.r2007_plus() || record.units == 0 {
+            Vec::new()
+        } else {
+            let mut units = crate::xdata::ExtendedDataRecord::new("ACAD");
+            units.values = crate::tables::block_record::design_center_units_values(record.units);
+            self.encode_xdata_record(&units).into_iter().collect()
+        };
+        self.write_common_non_entity_data_eed(
             common::OBJ_BLOCK_HEADER,
             record.handle,
             self.document.block_records.handle(),
             &[],
             &None,
+            extra,
         );
 
         // Entry name (DWG uses bare names without numeric suffixes)
