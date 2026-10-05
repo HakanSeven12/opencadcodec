@@ -375,7 +375,8 @@ fn same_shape(a: Option<&[[f64; 3]]>, b: Option<&[[f64; 3]]>, closed: bool) -> b
 /// hatches when their boundary runs the same way at any position, rotation,
 /// size or mirror and their pattern lands the same way on it; texts and
 /// multiline texts with the same string; lines always; anything else
-/// objects of its kind. Polylines and hatches may be mirrored, splines not.
+/// objects of its kind. Polylines and solid hatches may be mirrored; pattern
+/// hatches and splines not.
 fn similar(target: &EntityType, e: &EntityType) -> bool {
     let eq = |a: f64, b: f64| (a - b).abs() < 1e-6;
     let sweep = |a: f64, b: f64| (b - a).rem_euclid(std::f64::consts::TAU);
@@ -1208,7 +1209,9 @@ fn same_hatch(a: &crate::entities::Hatch, b: &crate::entities::Hatch) -> bool {
         return false;
     }
     let tol = size * 1e-5;
-    for mirror in [false, true] {
+    // A mirrored pattern hatch is not a copy (measured), a mirrored solid one is.
+    let mirrors: &[bool] = if a.is_solid { &[false, true] } else { &[false] };
+    for &mirror in mirrors {
         for &start in &lb[0].1 {
             let rb = resampled(&lb[0].0, start, N);
             // Two far points of each first loop fix the similarity.
