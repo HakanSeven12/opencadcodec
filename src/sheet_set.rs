@@ -356,6 +356,8 @@ pub const CLSID_VIEW_CATEGORIES: &str = "g021730DF-5BEA-48E9-BC7A-35087A674FD0";
 pub const CLSID_LAYOUT_REFERENCE: &str = "g94910E94-4FCA-427C-B6ED-2EC9E1C900C7";
 pub const CLSID_SHEET_VIEWS: &str = "gF40F931B-64BC-4B90-9FC8-A11A77D6815B";
 pub const CLSID_FILE_REFERENCE: &str = "g6BF87AE7-1BEC-4BDB-98BB-5B91F7772793";
+/// The reference spells the element `AcSmSimpleFileReferece`.
+pub const CLSID_SIMPLE_FILE_REFERENCE: &str = "gD15A03C2-C39B-428A-9BBA-C031347C496F";
 pub const CLSID_VIEW_CATEGORY: &str = "g4AEA81ED-C24F-477B-A534-EA69220A276A";
 pub const CLSID_CALLOUT_BLOCK_REFERENCES: &str = "g67C52FE4-0A6B-4C82-A4CC-5E68537747B0";
 pub const CLSID_OBJECT_REFERENCE: &str = "g00DEB7FB-A073-4ECD-BCE0-121B45C6864D";
@@ -521,6 +523,12 @@ impl SheetSetDatabase {
     /// Write to `path`, counting a new file revision.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn write(&mut self, path: &str) -> Result<(), String> {
+        // The publish options always carry the (empty) default output folder.
+        if let Some(p) = self.sheet_set_mut().named_mut("PublishOptions") {
+            if p.named("DefaultOutputdir").is_none() {
+                p.put_named(object("AcSmSimpleFileReferece", CLSID_SIMPLE_FILE_REFERENCE, Some("DefaultOutputdir")));
+            }
+        }
         // Every save gets a new fingerprint and counts the revision up.
         let revision = self.file_revision() + 1;
         self.root.set_prop("DbFingerPrint", &new_id());
