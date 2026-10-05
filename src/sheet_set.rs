@@ -358,6 +358,8 @@ pub const CLSID_SHEET_VIEWS: &str = "gF40F931B-64BC-4B90-9FC8-A11A77D6815B";
 pub const CLSID_FILE_REFERENCE: &str = "g6BF87AE7-1BEC-4BDB-98BB-5B91F7772793";
 /// The reference spells the element `AcSmSimpleFileReferece`.
 pub const CLSID_SIMPLE_FILE_REFERENCE: &str = "gD15A03C2-C39B-428A-9BBA-C031347C496F";
+pub const CLSID_SHEET_VIEW: &str = "gB6E09611-4659-4F0D-981D-D62B11FD8426";
+pub const CLSID_VIEW_REFERENCE: &str = "g9BEA33B1-05AD-419F-B680-BC7FF6A4F41D";
 pub const CLSID_VIEW_CATEGORY: &str = "g4AEA81ED-C24F-477B-A534-EA69220A276A";
 pub const CLSID_CALLOUT_BLOCK_REFERENCES: &str = "g67C52FE4-0A6B-4C82-A4CC-5E68537747B0";
 pub const CLSID_OBJECT_REFERENCE: &str = "g00DEB7FB-A073-4ECD-BCE0-121B45C6864D";
@@ -829,6 +831,13 @@ impl SheetSetDatabase {
         match ComponentKind::of(el) {
             Some(ComponentKind::Sheet) => self.sheet_value(el, "Sheet", property),
             Some(ComponentKind::SheetSet) => self.set_value(property),
+            // A sheet view: its number and title (the viewport scale lives in
+            // the sheet drawing, not in the set).
+            _ if el.name == "AcSmSheetView" => match property {
+                "Number" | "Title" => Some(el.prop(property).unwrap_or("").to_string()),
+                "NumberAndTitle" => Some(number_and_title(el)),
+                _ => None,
+            },
             _ => match property {
                 "Name" => Some(el.prop("Name").unwrap_or("").to_string()),
                 "Description" => Some(el.prop("Desc").unwrap_or("").to_string()),
@@ -901,6 +910,42 @@ impl SheetSetDatabase {
         }
         set.named_mut("ViewCategories")?.children.push(c);
         Some(new)
+    }
+
+    /// A sheet's views (`AcSmSheetView`).
+    pub fn sheet_views<'a>(&'a self, sheet: &'a Element) -> Vec<&'a Element> {
+        sheet.named("SheetViews").map(|v| v.children.iter().filter(|c| c.name == "AcSmSheetView").collect()).unwrap_or_default()
+    }
+
+    /// The view category a sheet view belongs to (its `Category` reference).
+    pub fn view_category_of(view: &Element) -> Option<&str> {
+        view.named("Category").and_then(|c| c.prop("ReferencedObject"))
+    }
+
+    /// Add a sheet view to `sheet`, as Place on Sheet records it: the view
+    /// category, the paper-space named view (`AcSmAcDbViewReference`: handle,
+    /// drawing, name) and the title. Returns its id.
+    pub fn add_sheet_view(&mut self, sheet: &str, category: Option<&str>, view: &LayoutReference, title: &str) -> Option<String> {
+        let folder = self.folder();
+        let mut v = object("AcSmSheetView", CLSID_SHEET_VIEW, None);
+        if let Some(c) = category {
+            let mut r = object("AcSmObjectReference", CLSID_OBJECT_REFERENCE, Some("Category"));
+            r.set_prop_vt("ReferencedObject", -1, c);
+            v.put_named(r);
+        }
+        let mut r = object("AcSmAcDbViewReference", CLSID_VIEW_REFERENCE, Some("NamedView"));
+        r.set_prop("AcDbHandle", &view.handle);
+        set_file_props(&mut r, &view.file_name, folder.as_deref());
+        r.set_prop("Name", &view.name);
+        v.put_named(r);
+        v.set_prop("Title", title);
+        let id = v.id().to_string();
+        let sh = self.find_mut(sheet)?;
+        if sh.named("SheetViews").is_none() {
+            sh.put_named(object("AcSmSheetViews", CLSID_SHEET_VIEWS, Some("SheetViews")));
+        }
+        sh.named_mut("SheetViews")?.children.push(v);
+        Some(id)
     }
 
     /// Add a model view location (a folder) to the set's resources.
