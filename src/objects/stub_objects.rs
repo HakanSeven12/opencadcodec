@@ -171,7 +171,33 @@ impl VisualStyle {
                 (21, 26),
                 (22, 27),
             ] {
-                values[modern] = self.properties[legacy].clone();
+                // The R2010+ record writes each property by its own type, so
+                // a legacy value takes the modern slot's type (the legacy
+                // brightness is a long, the modern one a double).
+                let source = &self.properties[legacy];
+                let number = match &source.value {
+                    VisualStylePropertyValue::Short(v) => Some(*v as f64),
+                    VisualStylePropertyValue::Long(v) => Some(*v as f64),
+                    VisualStylePropertyValue::Double(v) => Some(*v),
+                    VisualStylePropertyValue::Bool(v) => Some(*v as u8 as f64),
+                    _ => None,
+                };
+                let value = match (&values[modern].value, number) {
+                    (VisualStylePropertyValue::Long(_), Some(n)) => {
+                        VisualStylePropertyValue::Long(n as i32)
+                    }
+                    (VisualStylePropertyValue::Double(_), Some(n)) => {
+                        VisualStylePropertyValue::Double(n)
+                    }
+                    (VisualStylePropertyValue::Bool(_), Some(n)) => {
+                        VisualStylePropertyValue::Bool(n != 0.0)
+                    }
+                    _ => source.value.clone(),
+                };
+                values[modern] = VisualStyleProperty {
+                    value,
+                    enabled: source.enabled,
+                };
             }
         } else {
             for (index, property) in self.properties.iter().take(28).enumerate() {
@@ -228,7 +254,7 @@ impl VisualStyle {
             color(Color::Rgb { r: 0, g: 0, b: 0 }, 1),
             long(50),
             long(3),
-            color(Color::Index(5), 1),
+            color(Color::Rgb { r: 0, g: 0, b: 255 }, 1),
             bool_value(false),
             long(50),
             long(50),
