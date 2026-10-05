@@ -282,6 +282,10 @@ fn matrix_to_column_major(m: &crate::types::Matrix4) -> [f64; 12] {
     out
 }
 
+/// Table style flag bit 8 is found in older files but never written back:
+/// a re-save of such a style stores the flags without it.
+const STALE_TABLE_STYLE_FLAG: i16 = 8;
+
 impl<'a> DwgObjectWriter<'a> {
     // ── Object dispatch ─────────────────────────────────────────────
 
@@ -1071,7 +1075,7 @@ impl<'a> DwgObjectWriter<'a> {
         if !self.version.r2010_plus() {
             self.writer.write_variable_text(&value.name);
             self.writer.write_bit_short(value.flow_direction as i16);
-            self.writer.write_bit_short(value.flags.bits());
+            self.writer.write_bit_short(value.flags.bits() & !STALE_TABLE_STYLE_FLAG);
             self.writer.write_bit_double(value.horizontal_margin);
             self.writer.write_bit_double(value.vertical_margin);
             self.writer.write_bit(value.title_suppressed);
@@ -1083,14 +1087,20 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_byte(value.modern_unknown_byte);
             self.writer.write_variable_text(&value.name);
             // The R2010+ flags field carries the table style flags.
-            self.writer.write_bit_long(value.flags.bits() as i32);
+            self.writer.write_bit_long((value.flags.bits() & !STALE_TABLE_STYLE_FLAG) as i32);
             self.writer.write_bit_long(value.modern_unknown_long2);
             self.writer.write_handle(
                 DwgReferenceType::HardOwnership,
                 value.modern_cell_style_handle.value(),
             );
             if let Some(style) = &value.modern_style {
-                self.write_table_style_named_cell_style(style);
+                // The base "Table" style normally has no text style and keeps
+                // none; only a dangling one is resolved.
+                if style.cell_style.content_format.text_style.is_null() {
+                    self.write_named_table_cell_style(style);
+                } else {
+                    self.write_table_style_named_cell_style(style);
+                }
             } else {
                 self.write_default_modern_table_cell_style(value);
             }
@@ -1231,8 +1241,8 @@ impl<'a> DwgObjectWriter<'a> {
                 block_scale: 1.0,
                 cell_alignment: 1,
                 content_color: Color::ByBlock,
-                // Not the data row height: a style with 0.4 data text still
-                // carries 0.18 here.
+                // Not the data row height, in imperial and metric drawings alike
+                // (data text of 0.4 or 4.5 still carries 0.18 here; so do the spacings).
                 text_height: 0.18,
                 ..TableContentFormat::default()
             },
@@ -1241,8 +1251,8 @@ impl<'a> DwgObjectWriter<'a> {
             horizontal_margin: value.horizontal_margin,
             bottom_margin: value.vertical_margin,
             right_margin: value.horizontal_margin,
-            horizontal_spacing: value.horizontal_margin * 3.0,
-            vertical_spacing: value.vertical_margin * 3.0,
+            horizontal_spacing: 0.18,
+            vertical_spacing: 0.18,
             ..TableCellStyleData::default()
         };
         self.write_named_table_cell_style(&NamedTableCellStyle {
