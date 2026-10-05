@@ -356,6 +356,10 @@ pub const CLSID_VIEW_CATEGORIES: &str = "g021730DF-5BEA-48E9-BC7A-35087A674FD0";
 pub const CLSID_LAYOUT_REFERENCE: &str = "g94910E94-4FCA-427C-B6ED-2EC9E1C900C7";
 pub const CLSID_SHEET_VIEWS: &str = "gF40F931B-64BC-4B90-9FC8-A11A77D6815B";
 pub const CLSID_FILE_REFERENCE: &str = "g6BF87AE7-1BEC-4BDB-98BB-5B91F7772793";
+pub const CLSID_VIEW_CATEGORY: &str = "g4AEA81ED-C24F-477B-A534-EA69220A276A";
+pub const CLSID_CALLOUT_BLOCK_REFERENCES: &str = "g67C52FE4-0A6B-4C82-A4CC-5E68537747B0";
+pub const CLSID_OBJECT_REFERENCE: &str = "g00DEB7FB-A073-4ECD-BCE0-121B45C6864D";
+pub const CLSID_BLOCK_RECORD_REFERENCE: &str = "g11782523-474B-4C83-9646-57C052847FBB";
 
 /// Custom property flags: owned by the sheet set, or a sheet property whose
 /// set-level value is the default for new sheets.
@@ -517,7 +521,9 @@ impl SheetSetDatabase {
     /// Write to `path`, counting a new file revision.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn write(&mut self, path: &str) -> Result<(), String> {
+        // Every save gets a new fingerprint and counts the revision up.
         let revision = self.file_revision() + 1;
+        self.root.set_prop("DbFingerPrint", &new_id());
         self.root.set_prop_vt("FileRevision", 3, &revision.to_string());
         std::fs::write(path, self.to_bytes()).map_err(|e| e.to_string())?;
         self.path = Some(path.to_string());
@@ -570,8 +576,10 @@ impl SheetSetDatabase {
     }
 
     /// Add a subset under `parent` (the sheet set or a subset); returns its id.
-    /// It inherits the parent's sheet storage location and template.
+    /// It inherits the parent's sheet storage location, template and
+    /// prompt for template (a subset keeps the prompt as a short, -1 = yes).
     pub fn add_subset(&mut self, parent: &str, name: &str, description: &str) -> Option<String> {
+        let prompt = self.find(parent)?.prop("PromptForDwt").is_some_and(|v| !matches!(v.trim(), "" | "0"));
         let inherited: Vec<Element> = {
             let p = self.find(parent)?;
             ["DefDwtLayout", "NewSheetLocation"]
@@ -589,6 +597,9 @@ impl SheetSetDatabase {
         }
         sub.set_prop("Desc", description);
         sub.set_prop("Name", name);
+        if prompt {
+            sub.set_prop_vt("PromptForDwt", 2, "-1");
+        }
         let id = sub.id().to_string();
         self.find_mut(parent)?.children.push(sub);
         Some(id)
@@ -816,6 +827,86 @@ impl SheetSetDatabase {
                 _ => None,
             },
         }
+    }
+}
+
+impl SheetSetDatabase {
+    /// The set's named view categories.
+    pub fn view_categories(&self) -> Vec<&Element> {
+        self.sheet_set()
+            .named("ViewCategories")
+            .map(|v| v.children.iter().filter(|c| c.name == "AcSmViewCategory" && c.prop("Name").is_some()).collect())
+            .unwrap_or_default()
+    }
+
+    /// The set's callout blocks (`AcSmAcDbBlockRecordReference`).
+    pub fn callout_blocks(&self) -> Vec<&Element> {
+        self.sheet_set().named("CalloutBlocks").map(|v| v.children.iter().collect()).unwrap_or_default()
+    }
+
+    /// Add a callout block (a block of `file`) to the set; returns its id.
+    pub fn add_callout_block(&mut self, file: &str, name: &str, handle: &str) -> Option<String> {
+        let folder = self.folder();
+        let mut r = object("AcSmAcDbBlockRecordReference", CLSID_BLOCK_RECORD_REFERENCE, None);
+        r.set_prop("AcDbHandle", handle);
+        set_file_props(&mut r, file, folder.as_deref());
+        r.set_prop("Name", name);
+        let id = r.id().to_string();
+        let set = self.sheet_set_mut();
+        if set.named("CalloutBlocks").is_none() {
+            set.put_named(object("AcSmCalloutBlocks", CLSID_CALLOUT_BLOCKS, Some("CalloutBlocks")));
+        }
+        set.named_mut("CalloutBlocks")?.children.push(r);
+        Some(id)
+    }
+
+    /// The callout block ids a view category uses.
+    pub fn category_blocks(&self, id: &str) -> Vec<String> {
+        self.find(id)
+            .and_then(|c| c.named("CalloutBlocks"))
+            .map(|r| r.children.iter().filter_map(|o| o.prop("ReferencedObject").map(str::to_string)).collect())
+            .unwrap_or_default()
+    }
+
+    /// Create (`id` = None) or change a view category: its name and the
+    /// callout blocks it uses. Returns its id.
+    pub fn set_view_category(&mut self, id: Option<&str>, name: &str, blocks: &[String]) -> Option<String> {
+        let mut refs = object("AcSmCalloutBlockReferences", CLSID_CALLOUT_BLOCK_REFERENCES, Some("CalloutBlocks"));
+        for b in blocks {
+            let mut o = object("AcSmObjectReference", CLSID_OBJECT_REFERENCE, None);
+            o.set_prop_vt("ReferencedObject", -1, b);
+            refs.children.push(o);
+        }
+        if let Some(id) = id {
+            let c = self.find_mut(id)?;
+            c.put_named(refs);
+            c.set_prop("Name", name);
+            return Some(id.to_string());
+        }
+        let mut c = object("AcSmViewCategory", CLSID_VIEW_CATEGORY, None);
+        c.put_named(refs);
+        c.set_prop("Name", name);
+        let new = c.id().to_string();
+        let set = self.sheet_set_mut();
+        if set.named("ViewCategories").is_none() {
+            set.put_named(object("AcSmViewCategories", CLSID_VIEW_CATEGORIES, Some("ViewCategories")));
+        }
+        set.named_mut("ViewCategories")?.children.push(c);
+        Some(new)
+    }
+
+    /// Add a model view location (a folder) to the set's resources.
+    pub fn add_resource(&mut self, folder: &str) -> Option<String> {
+        let base = self.folder();
+        let mut r = object("AcSmFileReference", CLSID_FILE_REFERENCE, None);
+        set_file_props(&mut r, folder, base.as_deref());
+        let id = r.id().to_string();
+        let set = self.sheet_set_mut();
+        if set.named("Resources").is_none() {
+            set.put_named(object("AcSmResources", CLSID_RESOURCES, Some("Resources")));
+        }
+        set.named_mut("Resources")?.children.push(r);
+        Some(id)
     }
 }
 
