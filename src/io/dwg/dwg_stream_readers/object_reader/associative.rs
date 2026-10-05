@@ -1065,25 +1065,16 @@ pub fn read_associative_data(
                 reader.read_bit_long(),
                 reader.read_bit_long(),
             ];
-            let steps = {
-                let count = safe_count(reader.read_bit_long());
-                let mut result = Vec::with_capacity(count as usize);
-                for _ in 0..count {
-                    result.push(reader.read_bit_long());
-                }
-                result
-            };
-            let subent_count = reader.read_bit_long();
-            let mut subent_data = Vec::new();
+            // The integers run up to the closing flag; their count is not
+            // stored, so the record end bounds them.
+            let mut values = Vec::new();
             while reader.main_remaining_bits() > 1 {
-                subent_data.push(reader.read_bit_long());
+                values.push(reader.read_bit_long());
             }
             AssociativeData::PersSubentManager(AssocPersSubentManager {
                 class_version,
                 markers,
-                steps,
-                subent_count,
-                subent_data,
+                values,
                 final_flag: reader.read_bit(),
             })
         }

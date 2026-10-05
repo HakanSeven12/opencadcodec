@@ -814,12 +814,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for marker in value.markers {
                     self.writer.write_i32(90, marker)?;
                 }
-                self.writer.write_i32(90, value.steps.len() as i32)?;
-                for step in &value.steps {
-                    self.writer.write_i32(90, *step)?;
-                }
-                self.writer.write_i32(90, value.subent_count)?;
-                for item in &value.subent_data {
+                for item in &value.values {
                     self.writer.write_i32(90, *item)?;
                 }
                 self.writer.write_bool(290, value.final_flag)?;

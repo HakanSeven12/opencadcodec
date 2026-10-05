@@ -1287,18 +1287,10 @@ impl<'a> SectionReader<'a> {
                     parsed.next().unwrap_or_default(),
                     parsed.next().unwrap_or_default(),
                 ];
-                let step_count = parsed.next().unwrap_or_default().max(0).min(100_000);
-                let mut steps = Vec::with_capacity(step_count as usize);
-                for _ in 0..step_count {
-                    steps.push(parsed.next().unwrap_or_default());
-                }
-                let subent_count = parsed.next().unwrap_or_default();
                 AssociativeData::PersSubentManager(AssocPersSubentManager {
                     class_version,
                     markers,
-                    steps,
-                    subent_count,
-                    subent_data: parsed.collect(),
+                    values: parsed.collect(),
                     final_flag: record.bool("AcDbAssocPersSubentManager", 290, 0),
                 })
             }
