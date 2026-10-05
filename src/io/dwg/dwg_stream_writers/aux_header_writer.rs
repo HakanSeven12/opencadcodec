@@ -56,6 +56,16 @@ pub fn write_aux_header(version: DxfVersion, header: &HeaderVariables) -> Vec<u8
 
     let internal_ver = dwg_internal_version(version);
     let maintenance_ver: i16 = dwg_maintenance_version(version);
+    // R2018+ widens every maintenance field to RL. Writing RS there shifts the
+    // educational plot stamp onto the save counter, which flags the file as
+    // student-made.
+    let write_maint = |writer: &mut DwgBitWriter| {
+        if version >= DxfVersion::AC1032 {
+            writer.write_raw_long(maintenance_ver as i32);
+        } else {
+            writer.write_raw_short(maintenance_ver);
+        }
+    };
 
     // RC: 0xFF, 0x77, 0x01
     writer.write_byte(0xFF);
@@ -65,8 +75,8 @@ pub fn write_aux_header(version: DxfVersion, header: &HeaderVariables) -> Vec<u8
     // RS: DWG version
     writer.write_raw_short(internal_ver);
 
-    // RS: Maintenance release version
-    writer.write_raw_short(maintenance_ver);
+    // RS (RL in R2018+): Maintenance release version
+    write_maint(&mut writer);
 
     // RL: Number of saves (starts at 1)
     writer.write_raw_long(1);
@@ -84,11 +94,11 @@ pub fn write_aux_header(version: DxfVersion, header: &HeaderVariables) -> Vec<u8
     // RS: DWG version string (repeated)
     writer.write_raw_short(internal_ver);
     // RS: Maintenance version
-    writer.write_raw_short(maintenance_ver);
+    write_maint(&mut writer);
     // RS: DWG version string (repeated again)
     writer.write_raw_short(internal_ver);
     // RS: Maintenance version (repeated)
-    writer.write_raw_short(maintenance_ver);
+    write_maint(&mut writer);
 
     // RS: 0x0005
     writer.write_raw_short(0x0005);
@@ -145,13 +155,6 @@ pub fn write_aux_header(version: DxfVersion, header: &HeaderVariables) -> Vec<u8
     writer.write_raw_long(0);
     writer.write_raw_long(0);
     writer.write_raw_long(0);
-
-    // R2018+: 3 extra zero shorts
-    if version >= DxfVersion::AC1032 {
-        writer.write_raw_short(0);
-        writer.write_raw_short(0);
-        writer.write_raw_short(0);
-    }
 
     writer.into_bytes()
 }
@@ -210,7 +213,10 @@ mod tests {
         let data_2000 = write_aux_header(DxfVersion::AC1015, &header);
         let data_2018 = write_aux_header(DxfVersion::AC1032, &header);
 
-        // R2018 should be 6 bytes longer (3 extra RS fields)
+        // R2018 widens the three maintenance fields to RL.
         assert_eq!(data_2018.len(), data_2000.len() + 6);
+        assert_eq!(&data_2018[5..9], &[4, 0, 0, 0]);
+        // The educational plot stamp sits right after HANDSEED and must be 0.
+        assert_eq!(&data_2018[89..93], &[0, 0, 0, 0]);
     }
 }

@@ -9,13 +9,32 @@ use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
 use crate::io::dwg::dwg_stream_readers::object_reader::{common, entities};
 use crate::io::dwg::dwg_stream_writers::{DwgBitWriter, DwgMergedWriter};
 use crate::io::dwg::dwg_version::DwgVersion;
-use crate::types::{DxfVersion, Vector2, Vector3};
+use crate::types::{DxfVersion, Matrix3, Vector2, Vector3};
+
+// Circle and arc bodies embedded in 3D construction data store their centre
+// in world coordinates, unlike CIRCLE and ARC records, which store it in the
+// entity coordinate system. In memory the embedded bodies use the entity
+// convention, like any other circle or arc.
+fn center_to_entity(center: Vector3, normal: Vector3) -> Vector3 {
+    Matrix3::arbitrary_axis(normal).transpose() * center
+}
+
+fn center_to_world(center: Vector3, normal: Vector3) -> Vector3 {
+    Matrix3::arbitrary_axis(normal) * center
+}
 
 /// Encoded embedded entity body, including exact meaningful bit length.
 pub(crate) struct EncodedEmbeddedEntity {
     pub type_code: i32,
     pub bit_length: usize,
     pub bytes: Vec<u8>,
+}
+
+/// Profile types the modeler stores as a wire body (2D and 3D polylines):
+/// the record carries a modeler block where other types carry a bit length
+/// and an entity body.
+pub(crate) fn is_body_profile(type_code: i32) -> bool {
+    type_code == common::OBJ_POLYLINE_2D as i32 || type_code == common::OBJ_POLYLINE_3D as i32
 }
 
 /// Compare meaningful body bits without interpreting unused final-byte bits.
@@ -150,6 +169,7 @@ pub(crate) fn decode_embedded_entity(
             entity.normal = reader.read_3bit_double();
             entity.start_angle = reader.read_bit_double();
             entity.end_angle = reader.read_bit_double();
+            entity.center = center_to_entity(entity.center, entity.normal);
             Some(EmbeddedEntity::Arc(entity))
         }
         common::OBJ_CIRCLE => {
@@ -157,6 +177,7 @@ pub(crate) fn decode_embedded_entity(
             entity.center = reader.read_3bit_double();
             entity.radius = reader.read_bit_double();
             entity.normal = reader.read_3bit_double();
+            entity.center = center_to_entity(entity.center, entity.normal);
             Some(EmbeddedEntity::Circle(entity))
         }
         common::OBJ_ELLIPSE => {
@@ -268,13 +289,13 @@ pub(crate) fn encode_embedded_entity(
             common::OBJ_LINE
         }
         EmbeddedEntity::Circle(entity) => {
-            writer.write_3bit_double(entity.center);
+            writer.write_3bit_double(center_to_world(entity.center, entity.normal));
             writer.write_bit_double(entity.radius);
             writer.write_3bit_double(entity.normal);
             common::OBJ_CIRCLE
         }
         EmbeddedEntity::Arc(entity) => {
-            writer.write_3bit_double(entity.center);
+            writer.write_3bit_double(center_to_world(entity.center, entity.normal));
             writer.write_bit_double(entity.radius);
             writer.write_3bit_double(entity.normal);
             writer.write_bit_double(entity.start_angle);
@@ -307,6 +328,14 @@ pub(crate) fn encode_embedded_entity(
             writer.write_3bit_double(entity.base_point);
             writer.write_3bit_double(entity.direction);
             common::OBJ_XLINE
+        }
+        // Written by the surface writers; a body has no entity bits.
+        EmbeddedEntity::Body { type_code, .. } => {
+            return EncodedEmbeddedEntity {
+                type_code: *type_code,
+                bit_length: 0,
+                bytes: Vec::new(),
+            };
         }
         EmbeddedEntity::Unknown {
             type_code,

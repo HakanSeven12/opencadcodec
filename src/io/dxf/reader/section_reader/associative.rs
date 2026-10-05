@@ -669,6 +669,53 @@ fn skip_action(cursor: &mut AssocCursor<'_>) {
     }
 }
 
+/// The curve groups an edge action parameter writes after its type code
+/// (the second 90 group of the subclass).
+fn read_edge_curve(record: &AssocDxfRecord) -> Vec<AssocCurveValue> {
+    let Some(pairs) = record.sections.get("AcDbAssocEdgeActionParam") else {
+        return Vec::new();
+    };
+    let Some(start) = pairs
+        .iter()
+        .enumerate()
+        .filter(|(_, (code, _))| *code == 90)
+        .nth(1)
+        .map(|(index, _)| index + 1)
+    else {
+        return Vec::new();
+    };
+    let number = |value: &str| value.trim().parse::<f64>().unwrap_or(0.0);
+    let mut curve = Vec::new();
+    let mut index = start;
+    while index < pairs.len() {
+        let (code, value) = &pairs[index];
+        match code {
+            70 => curve.push(AssocCurveValue::Bool(number(value) != 0.0)),
+            90 => curve.push(AssocCurveValue::Int(value.trim().parse().unwrap_or(0))),
+            40 => curve.push(AssocCurveValue::Real(number(value))),
+            10 => {
+                let coordinate = |offset: usize, expected: i32| {
+                    pairs
+                        .get(index + offset)
+                        .filter(|(code, _)| *code == expected)
+                        .map(|(_, value)| number(value))
+                };
+                let y = coordinate(1, 20);
+                let z = coordinate(2, 30);
+                curve.push(AssocCurveValue::Point(Vector3::new(
+                    number(value),
+                    y.unwrap_or(0.0),
+                    z.unwrap_or(0.0),
+                )));
+                index += usize::from(y.is_some()) + usize::from(z.is_some());
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    curve
+}
+
 fn read_action_param(record: &AssocDxfRecord) -> AssocActionParam {
     let mut cursor = AssocCursor::new(record, "AcDbAssocActionParam");
     let is_r2013 = cursor.i16(90);
@@ -1069,23 +1116,42 @@ impl<'a> SectionReader<'a> {
                     value: read_eval(&mut cursor),
                 })
             }
-            "ASSOCGEOMDEPENDENCY" => AssociativeData::GeomDependency(AssocGeomDependency {
-                dependency: read_dependency(&record),
-                class_version: record.i16("AcDbAssocGeomDependency", 90, 0),
-                enabled: record.bool("AcDbAssocGeomDependency", 290, 0),
-                persistent_subent: AssocPersistentSubentId {
-                    class_name: {
-                        let value = record.text("AcDbAssocPersSubentId", 1, 0);
-                        if value.is_empty() {
-                            record.text("AcDbAssocAsmBasedEntityPersSubentId", 1, 0)
-                        } else {
-                            value
-                        }
+            "ASSOCGEOMDEPENDENCY" => {
+                // 90 version, 290 enabled, then the subentity id: 1 class
+                // name, 90 fields, 290 compound-object bit. Older output of
+                // this crate put the id under an AcDbAssocPersSubentId marker.
+                let section = if record.sections.contains_key("AcDbAssocPersSubentId") {
+                    "AcDbAssocPersSubentId"
+                } else {
+                    "AcDbAssocGeomDependency"
+                };
+                let entries = record.sections.get(section).map(Vec::as_slice).unwrap_or_default();
+                let start = entries.iter().position(|(code, _)| *code == 1);
+                let class_name = start.map(|index| entries[index].1.clone()).unwrap_or_default();
+                let tail = start.map(|index| &entries[index + 1..]).unwrap_or_default();
+                let values = tail
+                    .iter()
+                    .take_while(|(code, _)| *code == 90)
+                    .map(|(_, value)| value.trim().parse().unwrap_or(0))
+                    .collect();
+                let dependent_on_compound_object = tail
+                    .iter()
+                    .find(|(code, _)| *code == 290)
+                    .is_some_and(|(_, value)| value.trim() != "0");
+                AssociativeData::GeomDependency(AssocGeomDependency {
+                    dependency: read_dependency(&record),
+                    class_version: record.i16("AcDbAssocGeomDependency", 90, 0),
+                    enabled: record.bool("AcDbAssocGeomDependency", 290, 0),
+                    persistent_subent: AssocPersistentSubentId {
+                        class_code: AssocPersistentSubentId::code_for_class_name(&class_name)
+                            .unwrap_or(0),
+                        class_name,
+                        dependent_on_compound_object,
+                        values,
+                        leading_flag: false,
                     },
-                    dependent_on_compound_object: record.bool("AcDbAssocPersSubentId", 290, 0)
-                        || record.bool("AcDbAssocAsmBasedEntityPersSubentId", 290, 0),
-                },
-            }),
+                })
+            }
             "ASSOCACTION" => AssociativeData::Action(read_action(&record)),
             "ASSOCNETWORK" => {
                 let mut cursor = AssocCursor::new(&record, "AcDbAssocNetwork");
@@ -1262,6 +1328,7 @@ impl<'a> SectionReader<'a> {
                         27 => AssocSubcurveKind::Curve3d,
                         _ => AssocSubcurveKind::None,
                     },
+                    curve: read_edge_curve(&record),
                 })
             }
             "ASSOC2DCONSTRAINTGROUP" => {

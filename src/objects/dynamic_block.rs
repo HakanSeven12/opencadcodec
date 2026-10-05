@@ -885,6 +885,7 @@ pub struct SolidHistoryNodeBase {
     pub eval: BlockEvalExpression,
     pub major: i32,
     pub minor: i32,
+    /// Column-major 4x4 matrix (translation in elements 12, 13, 14).
     pub transform: [f64; 16],
     pub color: Color,
     pub step_id: i32,
@@ -1147,7 +1148,9 @@ pub struct SolidHistorySweep {
     pub scale_factor: f64,
     pub twist_angle: f64,
     pub align_angle: f64,
+    /// Column-major 4x4 matrix (translation in elements 12, 13, 14).
     pub sweep_entity_transform: [f64; 16],
+    /// Column-major 4x4 matrix (translation in elements 12, 13, 14).
     pub path_entity_transform: [f64; 16],
     pub align_option: u8,
     pub miter_option: u8,
