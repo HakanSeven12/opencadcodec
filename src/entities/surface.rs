@@ -1,4 +1,4 @@
-//! Surface entities (ACAD_SURFACE family).
+﻿//! Surface entities (ACAD_SURFACE family).
 //!
 //! Lofted / swept / extruded / revolved / plane / NURB surfaces share the
 //! `AcDbSurface` base, which stores its geometry in ACIS format just like
@@ -373,4 +373,12 @@ impl Entity for Surface {
     fn apply_transform(&mut self, transform: &crate::types::Transform) {
         super::transform::transform_surface(self, transform);
     }
+}
+
+/// Swap a 4×4 transform between the two storage orders. The SH node base
+/// on disk is row-major (translation at [3,7,11] — measured on the authored
+/// sh_history fixtures); this crate's hosts keep column-major glam arrays
+/// (translation at [12,13,14]).
+pub(crate) fn transpose_matrix(value: [f64; 16]) -> [f64; 16] {
+    std::array::from_fn(|index| value[(index % 4) * 4 + index / 4])
 }

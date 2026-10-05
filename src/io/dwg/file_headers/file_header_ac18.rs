@@ -231,6 +231,20 @@ impl DwgFileHeaderWriterAC18 {
         compressed: bool,
         decomp_size: usize,
     ) -> Result<(), DxfError> {
+        // Section-dump instrumentation: SECTION_DUMP_DIR writes each
+        // section's raw (pre-page-encoding) bytes to <dir>/<name>.bin and
+        // hashes the content — the byte-level oracle for merging-flow
+        // regressions. No-op unless the env var is set.
+        if let Some(dir) = std::env::var_os("SECTION_DUMP_DIR") {
+            let dir: std::path::PathBuf = dir.into();
+            let _ = std::fs::create_dir_all(&dir);
+            let safe: String = name
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+                .collect();
+            let _ = std::fs::write(dir.join(format!("{safe}.bin")), data);
+            eprintln!("SECTION {name} len={}", data.len());
+        }
         let perf = std::env::var_os("PERF").is_some();
         let started = web_time::Instant::now();
         let mut descriptor = DwgSectionDescriptor::new(name);
@@ -326,6 +340,16 @@ impl DwgFileHeaderWriterAC18 {
         max_decomp: usize,
         author_pages: &[(i32, u64)],
     ) -> Result<(), DxfError> {
+        if let Some(dir) = std::env::var_os("SECTION_DUMP_DIR") {
+            let dir: std::path::PathBuf = dir.into();
+            let _ = std::fs::create_dir_all(&dir);
+            let safe: String = name
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+                .collect();
+            let _ = std::fs::write(dir.join(format!("{safe}.bin")), data);
+            eprintln!("SECTION {name} len={}", data.len());
+        }
         let perf = std::env::var_os("PERF").is_some();
         let started = web_time::Instant::now();
 

@@ -1577,12 +1577,16 @@ fn write_ac18<W: Write + Seek>(
     // presence divergence, gap entries, interleaved pages: the
     // rewrite stays valid everywhere, the residue rows stay open on
     // the files it declines.
+    // DWG_NO_MIRROR (diagnostics): force the container-shape mirror to
+    // decline so the conventional sequential layout writes the file —
+    // the isolation switch for bisecting the two emission arms.
+    let mirror_disabled = std::env::var_os("DWG_NO_MIRROR").is_some();
     let mirror_plan = match (
         document.dwg_ac18_shape.as_ref(),
         document.dwg_r2004_header.as_ref(),
     ) {
         (Some(shape), Some(sys)) => {
-            if same_origin {
+            if same_origin && !mirror_disabled {
                 ac18_mirror_plan(shape, sys, &sections, preview_gate_len)
             } else {
                 None

@@ -183,6 +183,21 @@ pub(crate) fn classes_state_fingerprint(document: &crate::document::CadDocument)
 /// object writer's write-time census, which cannot see the
 /// raw-passthrough records) — self-consistency between the read-time
 /// capture and the write-time gate is what matters.
+///
+/// The census must mirror the writer's full class-resolution landscape:
+/// every `class_type_code` call in the object writer corresponds to a
+/// class instance the raw classes passthrough claims a count for. The
+/// 2026-10-02 AutoCAD manual-test round found the gap: only three entity
+/// kinds were counted, so adding a helix, view border, section symbol,
+/// wipeout, image, table, light or multileader to a same-version read
+/// document left the classes fingerprint unchanged — the raw class bytes
+/// re-emitted with the source file's zero-instance zombie state while
+/// real records referenced those classes — and AutoCAD's strict
+/// open-time validation refused the whole file (BricsCAD tolerated it).
+/// Missing arms resolved to type code 0 or their fixed fallbacks wrote
+/// the same, but the stale table is what a strict loader cannot accept:
+/// count every class-resolved kind, over-counting being harmless (any
+/// census change merely forces the sane re-encode).
 fn document_class_census(
     document: &crate::document::CadDocument,
 ) -> std::collections::HashMap<i16, i32> {
@@ -192,26 +207,96 @@ fn document_class_census(
             *counts.entry(class.class_number).or_default() += 1;
         }
     };
+    use crate::entities::EntityType;
     for entity in document.entities() {
         match entity {
-            crate::entities::EntityType::Surface(surface) => {
-                bump(surface.kind.dxf_name(), &mut counts)
+            // ── class-resolved entities, mirroring the writer dispatch ──
+            EntityType::Surface(surface) => bump(surface.kind.dxf_name(), &mut counts),
+            EntityType::Extended(entity) => bump(entity.class_name(), &mut counts),
+            EntityType::Underlay(entity) => bump(entity.entity_name(), &mut counts),
+            EntityType::SectionSymbol(_) => bump("SECTIONLINE", &mut counts),
+            EntityType::ViewBorder(_) => bump("DRAWINGVIEW", &mut counts),
+            EntityType::Helix(_) => bump("HELIX", &mut counts),
+            EntityType::Mesh(_) => bump("MESH", &mut counts),
+            EntityType::Table(_) => bump("ACAD_TABLE", &mut counts),
+            EntityType::RasterImage(_) => bump("IMAGE", &mut counts),
+            EntityType::Wipeout(_) => bump("WIPEOUT", &mut counts),
+            EntityType::Light(_) => bump("LIGHT", &mut counts),
+            EntityType::MultiLeader(_) => bump("MULTILEADER", &mut counts),
+            EntityType::Ole2Frame(_) => bump("OLE2FRAME", &mut counts),
+            // An mpolygon is a hatch whose record the writer routes through
+            // the MPOLYGON class; plain hatches stay fixed-type.
+            EntityType::Hatch(entity) => {
+                if entity.is_mpolygon {
+                    bump("MPOLYGON", &mut counts);
+                }
             }
-            crate::entities::EntityType::Extended(entity) => {
-                bump(entity.class_name(), &mut counts)
+            // A view-rep insert is the one INSERT form that resolves through
+            // its class; plain and MINSERT forms are fixed-type.
+            EntityType::Insert(insert) => {
+                if insert.view_rep_handle.is_some() {
+                    bump("ACDBVIEWREPBLOCKREFERENCE", &mut counts);
+                }
             }
-            crate::entities::EntityType::Underlay(entity) => {
-                bump(entity.entity_name(), &mut counts)
-            }
+            // The arc and large-radial dimension subtypes are class-resolved;
+            // the rest of the dimension family is fixed-type.
+            EntityType::Dimension(dimension) => match dimension {
+                crate::entities::dimension::Dimension::Arc(_) => {
+                    bump("ARC_DIMENSION", &mut counts)
+                }
+                crate::entities::dimension::Dimension::LargeRadial(_) => {
+                    bump("LARGE_RADIAL_DIMENSION", &mut counts)
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
     for object in document.objects.values() {
-        if let crate::objects::ObjectType::ClassObject(class_object) = object {
-            let name = class_object.dxf_name();
-            if !name.is_empty() {
-                bump(name, &mut counts);
+        match object {
+            // ── class-resolved objects, mirroring the writer dispatch ──
+            crate::objects::ObjectType::ClassObject(class_object) => {
+                let name = class_object.dxf_name();
+                if !name.is_empty() {
+                    bump(name, &mut counts);
+                }
             }
+            crate::objects::ObjectType::UnderlayDefinition(def) => {
+                bump(def.entity_name(), &mut counts)
+            }
+            crate::objects::ObjectType::ImageDefinition(_) => bump("IMAGEDEF", &mut counts),
+            crate::objects::ObjectType::ImageDefinitionReactor(_) => {
+                bump("IMAGEDEF_REACTOR", &mut counts)
+            }
+            crate::objects::ObjectType::MultiLeaderStyle(_) => {
+                bump("MLEADERSTYLE", &mut counts)
+            }
+            crate::objects::ObjectType::TableContent(_) => bump("TABLECONTENT", &mut counts),
+            crate::objects::ObjectType::SortEntitiesTable(_) => {
+                bump("SORTENTSTABLE", &mut counts)
+            }
+            crate::objects::ObjectType::BlockVisibilityParameter(_) => {
+                bump("BLOCKVISIBILITYPARAMETER", &mut counts)
+            }
+            crate::objects::ObjectType::ObjectContextData(data) => {
+                bump(data.class_name(), &mut counts)
+            }
+            crate::objects::ObjectType::DgnLineStyle(object) => {
+                bump(object.dxf_name(), &mut counts)
+            }
+            // Fixed-family classes: the records resolve through the class
+            // table too (class_type_code with a fixed fallback), so their
+            // instances count the same way.
+            crate::objects::ObjectType::PlotSettings(_) => bump("PLOTSETTINGS", &mut counts),
+            crate::objects::ObjectType::Scale(_) => bump("SCALE", &mut counts),
+            crate::objects::ObjectType::DictionaryVariable(_) => {
+                bump("DICTIONARYVAR", &mut counts)
+            }
+            crate::objects::ObjectType::DictionaryWithDefault(_) => {
+                bump("ACDBDICTIONARYWDFLT", &mut counts)
+            }
+            crate::objects::ObjectType::XRecord(_) => bump("XRECORD", &mut counts),
+            _ => {}
         }
     }
     counts

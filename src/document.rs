@@ -20,8 +20,9 @@
 use crate::classes::DxfClassCollection;
 use crate::entities::{EntityCommon, EntityType};
 use crate::objects::{
-    DataObjectData, DynamicBlockData, DynamicBlockObject, MaterialColor, MaterialTexture,
-    ObjectType, SolidHistory, SolidHistoryOperation, XRecordEntry,
+    BlockEvaluationEdge, BlockEvaluationGraph, BlockEvaluationNode, DataObjectData,
+    DynamicBlockData, DynamicBlockObject, MaterialColor, MaterialTexture, ObjectType,
+    SolidHistory, SolidHistoryNodeBase, SolidHistoryOperation, XRecordEntry,
 };
 use crate::tables::*;
 use crate::types::{Color, DxfVersion, Handle, Vector2, Vector3};
@@ -132,6 +133,24 @@ thread_local! {
 pub struct SolidHistoryGraph {
     pub root: Handle,
     pub nodes: Vec<Handle>,
+    /// The ACAD_EVALUATION_GRAPH object interposed between the history
+    /// root and its nodes — the authored genus (payload owner -> graph,
+    /// never the solid). `None` only for trees written by older releases
+    /// of this crate, which `ensure_solid_history_evaluation_graph`
+    /// upgrades before any append.
+    pub evaluation_graph: Option<Handle>,
+}
+
+/// Evaluation node flags the reference application stores on every solid
+/// history node.
+const SOLID_HISTORY_NODE_FLAGS: i32 = 32;
+
+fn solid_history_node_id(base: &SolidHistoryNodeBase) -> i32 {
+    if base.eval.node_id > 0 {
+        base.eval.node_id
+    } else {
+        base.step_id
+    }
 }
 
 /// DWG header variables containing drawing settings
@@ -4131,7 +4150,197 @@ impl CadDocument {
             };
             (step, handle.value())
         });
-        Some(SolidHistoryGraph { root, nodes })
+        let evaluation_graph = self.solid_history_evaluation_graph(root);
+        Some(SolidHistoryGraph {
+            root,
+            nodes,
+            evaluation_graph,
+        })
+    }
+
+    /// The evaluation graph a history root owns, if any.
+    fn solid_history_evaluation_graph(&self, root: Handle) -> Option<Handle> {
+        let ObjectType::DynamicBlock(root_object) = self.objects.get(&root)? else {
+            return None;
+        };
+        if !matches!(root_object.data, DynamicBlockData::SolidHistory(_)) {
+            return None;
+        }
+        self.objects
+            .keys()
+            .copied()
+            .find(|handle| match self.objects.get(handle) {
+                Some(ObjectType::DynamicBlock(value)) => {
+                    matches!(value.data, DynamicBlockData::EvaluationGraph(_))
+                        && self.owner_chain_reaches(value.owner, root)
+                }
+                _ => false,
+            })
+    }
+
+    /// The operation a history node object carries.
+    fn solid_history_node_operation(
+        &self,
+        node: Handle,
+    ) -> Option<&SolidHistoryOperation> {
+        match self.objects.get(&node)? {
+            ObjectType::DynamicBlock(value) => match &value.data {
+                DynamicBlockData::SolidHistoryNode(operation) => Some(operation),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// The node the history root names as active, when exactly one node
+    /// matches its id.
+    fn solid_history_active_node(&self, graph: &SolidHistoryGraph) -> Option<Handle> {
+        let active = match self.objects.get(&graph.root)? {
+            ObjectType::DynamicBlock(value) => match &value.data {
+                DynamicBlockData::SolidHistory(history) => history.history_node_id,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        let mut matches = graph.nodes.iter().copied().filter(|handle| {
+            self.solid_history_node_operation(*handle)
+                .and_then(SolidHistoryOperation::base)
+                .is_some_and(|base| solid_history_node_id(base) == active)
+        });
+        let node = matches.next()?;
+        matches.next().is_none().then_some(node)
+    }
+
+    /// Node handles from the root to the active node, following each node's
+    /// first incoming edge (its primary operand) in the evaluation graph.
+    fn solid_history_graph_chain(&self, graph: &SolidHistoryGraph) -> Option<Vec<Handle>> {
+        let ObjectType::DynamicBlock(object) = self.objects.get(&graph.evaluation_graph?)? else {
+            return None;
+        };
+        let DynamicBlockData::EvaluationGraph(evaluation) = &object.data else {
+            return None;
+        };
+        let active = self.solid_history_active_node(graph)?;
+        let mut node = evaluation
+            .nodes
+            .iter()
+            .find(|node| node.expression == active)?;
+        let mut chain = Vec::new();
+        loop {
+            if chain.contains(&node.expression) {
+                return None;
+            }
+            chain.push(node.expression);
+            let first_in = node.node_data[0];
+            if first_in < 0 {
+                break;
+            }
+            let source = evaluation
+                .edges
+                .iter()
+                .find(|edge| edge.id == first_in)?
+                .source_node;
+            node = evaluation.nodes.iter().find(|node| node.id == source)?;
+        }
+        chain.reverse();
+        Some(chain)
+    }
+
+    /// Give a history written without an evaluation graph (older releases of
+    /// this crate) one, built from its parent-linked chain, so new steps can
+    /// be linked the way the reference application links them.
+    pub(crate) fn ensure_solid_history_evaluation_graph(
+        &mut self,
+        entity: Handle,
+    ) -> Option<SolidHistoryGraph> {
+        let graph = self.solid_history_graph(entity)?;
+        if graph.evaluation_graph.is_some() {
+            return Some(graph);
+        }
+        let chain = self.solid_history_operations(entity)?;
+        if chain.len() != graph.nodes.len() {
+            return None;
+        }
+        let handles = chain
+            .iter()
+            .map(|operation| {
+                let id = solid_history_node_id(operation.base()?);
+                graph.nodes.iter().copied().find(|handle| {
+                    self.solid_history_node_operation(*handle)
+                        .and_then(SolidHistoryOperation::base)
+                        .is_some_and(|base| solid_history_node_id(base) == id)
+                })
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let count = handles.len() as i32;
+        let evaluation = self.allocate_handle();
+        let mut nodes = Vec::with_capacity(handles.len());
+        let mut edges = Vec::new();
+        for (index, handle) in handles.iter().enumerate() {
+            let id = index as i32;
+            let incoming = if id > 0 { id - 1 } else { -1 };
+            let outgoing = if id + 1 < count { id } else { -1 };
+            nodes.push(BlockEvaluationNode {
+                id,
+                edge_flags: SOLID_HISTORY_NODE_FLAGS,
+                next_id: id + 1,
+                expression: *handle,
+                node_data: [incoming, incoming, outgoing, outgoing],
+                active_cycles: None,
+            });
+            if id + 1 < count {
+                edges.push(Self::solid_history_edge(id, id, id + 1));
+            }
+            let ObjectType::DynamicBlock(value) = self.objects.get_mut(handle)? else {
+                return None;
+            };
+            value.owner = evaluation;
+        }
+        self.insert_solid_history_evaluation_graph(
+            evaluation,
+            graph.root,
+            BlockEvaluationGraph {
+                first_node_id: count,
+                first_node_id_copy: count,
+                nodes,
+                edges,
+            },
+        );
+        Some(SolidHistoryGraph {
+            root: graph.root,
+            nodes: graph.nodes,
+            evaluation_graph: Some(evaluation),
+        })
+    }
+
+    fn solid_history_edge(id: i32, source: i32, destination: i32) -> BlockEvaluationEdge {
+        BlockEvaluationEdge {
+            id,
+            next_id: 0,
+            incoming_edge: 1,
+            source_node: source,
+            destination_node: destination,
+            outgoing_edges: [-1; 5],
+        }
+    }
+
+    fn insert_solid_history_evaluation_graph(
+        &mut self,
+        handle: Handle,
+        root: Handle,
+        graph: BlockEvaluationGraph,
+    ) {
+        if !self.classes.contains("ACAD_EVALUATION_GRAPH") {
+            self.classes.add_or_update(crate::classes::DxfClass::new(
+                "ACAD_EVALUATION_GRAPH",
+                "AcDbEvalGraph",
+            ));
+        }
+        let mut object = DynamicBlockObject::new("ACAD_EVALUATION_GRAPH", "AcDbEvalGraph");
+        object.handle = handle;
+        object.owner = root;
+        object.data = DynamicBlockData::EvaluationGraph(graph);
+        self.objects.insert(handle, ObjectType::DynamicBlock(object));
     }
 
     pub fn solid_history_operation(&self, entity: Handle) -> Option<&SolidHistoryOperation> {
@@ -4182,6 +4391,13 @@ impl CadDocument {
     /// Missing, cyclic, or ambiguous links make the graph unusable.
     pub fn solid_history_operations(&self, entity: Handle) -> Option<Vec<SolidHistoryOperation>> {
         let graph = self.solid_history_graph(entity)?;
+        if graph.evaluation_graph.is_some() {
+            return self
+                .solid_history_graph_chain(&graph)?
+                .into_iter()
+                .map(|handle| self.solid_history_node_operation(handle).cloned())
+                .collect();
+        }
         let active_step = match self.objects.get(&graph.root)? {
             ObjectType::DynamicBlock(value) => match &value.data {
                 DynamicBlockData::SolidHistory(history) => history.history_node_id,
@@ -4262,13 +4478,13 @@ impl CadDocument {
         if base.step_id <= 0 {
             base.step_id = 1;
         }
-        if base.eval.node_id <= 0 {
-            base.eval.node_id = base.step_id;
-        }
-        let step_id = base.step_id;
+        // Node ids follow the evaluation graph: the first node is 1.
+        base.eval.node_id = 1;
+        base.eval.parent_id = SolidHistoryNodeBase::ROOT_PARENT;
 
         self.delete_solid_history(entity);
         let root = self.allocate_handle();
+        let evaluation = self.allocate_handle();
         let node = self.allocate_handle();
 
         if !self.classes.contains("ACSH_HISTORY_CLASS") {
@@ -4287,28 +4503,47 @@ impl CadDocument {
         root_object.owner = entity;
         root_object.data = DynamicBlockData::SolidHistory(SolidHistory {
             major: 1,
-            owner: entity,
-            history_node_id: step_id,
+            owner: evaluation,
+            history_node_id: 1,
             record_history: self.header.record_solid_history,
             ..SolidHistory::default()
         });
 
         let mut node_object = DynamicBlockObject::new(dxf_name, cpp_class_name);
         node_object.handle = node;
-        node_object.owner = root;
+        node_object.owner = evaluation;
         node_object.data = DynamicBlockData::SolidHistoryNode(operation);
         self.objects
             .insert(root, ObjectType::DynamicBlock(root_object));
+        self.insert_solid_history_evaluation_graph(
+            evaluation,
+            root,
+            BlockEvaluationGraph {
+                first_node_id: 1,
+                first_node_id_copy: 1,
+                nodes: vec![BlockEvaluationNode {
+                    id: 0,
+                    edge_flags: SOLID_HISTORY_NODE_FLAGS,
+                    next_id: 1,
+                    expression: node,
+                    node_data: [-1; 4],
+                    active_cycles: None,
+                }],
+                edges: Vec::new(),
+            },
+        );
         self.objects
             .insert(node, ObjectType::DynamicBlock(node_object));
         if !self.set_entity_history_handle(entity, Some(root)) {
             self.objects.remove(&root);
+            self.objects.remove(&evaluation);
             self.objects.remove(&node);
             return None;
         }
         Some(SolidHistoryGraph {
             root,
             nodes: vec![node],
+            evaluation_graph: Some(evaluation),
         })
     }
 
@@ -4324,44 +4559,20 @@ impl CadDocument {
     ) -> Option<SolidHistoryGraph> {
         let (dxf_name, cpp_class_name) = operation.class_names()?;
         self.solid_history_operations(entity)?;
-        let mut graph = self.solid_history_graph(entity)?;
-        let active_step = match self.objects.get(&graph.root)? {
-            ObjectType::DynamicBlock(value) => match &value.data {
-                DynamicBlockData::SolidHistory(history) => history.history_node_id,
-                _ => return None,
-            },
-            _ => return None,
-        };
+        let mut graph = self.ensure_solid_history_evaluation_graph(entity)?;
+        let evaluation = graph.evaluation_graph?;
+        let parent = self.solid_history_active_node(&graph)?;
         let bases = graph
             .nodes
             .iter()
-            .filter_map(|handle| match self.objects.get(handle) {
-                Some(ObjectType::DynamicBlock(value)) => match &value.data {
-                    DynamicBlockData::SolidHistoryNode(operation) => operation.base(),
-                    _ => None,
-                },
-                _ => None,
-            })
+            .filter_map(|handle| self.solid_history_node_operation(*handle)?.base())
             .collect::<Vec<_>>();
-        let mut parent_matches = bases.iter().copied().filter(|base| {
-            if base.eval.node_id > 0 {
-                base.eval.node_id == active_step
-            } else {
-                base.step_id == active_step
-            }
-        });
-        let parent = parent_matches.next()?;
-        if parent_matches.next().is_some() {
-            return None;
-        }
-        let parent_node_id = if parent.eval.node_id > 0 {
-            parent.eval.node_id
-        } else {
-            parent.step_id
-        };
-        if parent_node_id <= 0 {
-            return None;
-        }
+        let node_id = bases
+            .iter()
+            .map(|base| solid_history_node_id(base))
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)?;
         let step_id = bases
             .iter()
             .flat_map(|base| [base.step_id.max(0), base.eval.node_id.max(0)])
@@ -4370,23 +4581,61 @@ impl CadDocument {
             .checked_add(1)?;
         let base = operation.base_mut()?;
         base.step_id = step_id;
-        base.eval.node_id = step_id;
-        base.eval.parent_id = parent_node_id;
+        base.eval.node_id = node_id;
+        base.eval.parent_id = SolidHistoryNodeBase::ROOT_PARENT;
+
+        let node = self.allocate_handle();
+        let ObjectType::DynamicBlock(object) = self.objects.get_mut(&evaluation)? else {
+            return None;
+        };
+        let DynamicBlockData::EvaluationGraph(evaluation_data) = &mut object.data else {
+            return None;
+        };
+        let source = evaluation_data
+            .nodes
+            .iter()
+            .position(|item| item.expression == parent)?;
+        // The active node is the latest result and so has no outgoing edge.
+        if evaluation_data.nodes[source].node_data[2] >= 0 {
+            return None;
+        }
+        let id = evaluation_data.nodes.iter().map(|item| item.id).max()? + 1;
+        let edge = evaluation_data
+            .edges
+            .iter()
+            .map(|item| item.id)
+            .max()
+            .map_or(0, |value| value + 1);
+        let source_id = evaluation_data.nodes[source].id;
+        evaluation_data.nodes[source].node_data[2] = edge;
+        evaluation_data.nodes[source].node_data[3] = edge;
+        evaluation_data.nodes.push(BlockEvaluationNode {
+            id,
+            edge_flags: SOLID_HISTORY_NODE_FLAGS,
+            next_id: id + 1,
+            expression: node,
+            node_data: [edge, edge, -1, -1],
+            active_cycles: None,
+        });
+        evaluation_data
+            .edges
+            .push(Self::solid_history_edge(edge, source_id, id));
+        evaluation_data.first_node_id = id + 1;
+        evaluation_data.first_node_id_copy = id + 1;
 
         if !self.classes.contains(dxf_name) {
             self.classes
                 .add_or_update(crate::classes::DxfClass::new(dxf_name, cpp_class_name));
         }
-        let node = self.allocate_handle();
         let mut node_object = DynamicBlockObject::new(dxf_name, cpp_class_name);
         node_object.handle = node;
-        node_object.owner = graph.root;
+        node_object.owner = evaluation;
         node_object.data = DynamicBlockData::SolidHistoryNode(operation);
         self.objects
             .insert(node, ObjectType::DynamicBlock(node_object));
         if let Some(ObjectType::DynamicBlock(value)) = self.objects.get_mut(&graph.root) {
             if let DynamicBlockData::SolidHistory(history) = &mut value.data {
-                history.history_node_id = step_id;
+                history.history_node_id = node_id;
             }
         }
         graph.nodes.push(node);
@@ -4558,8 +4807,9 @@ impl CadDocument {
         }
         self.get_entity(target)?;
         let graph = self.solid_history_graph(source)?;
-        let mut source_handles = Vec::with_capacity(graph.nodes.len() + 1);
+        let mut source_handles = Vec::with_capacity(graph.nodes.len() + 2);
         source_handles.push(graph.root);
+        source_handles.extend(graph.evaluation_graph);
         source_handles.extend(graph.nodes.iter().copied());
         let source_objects = source_handles
             .iter()
@@ -4585,12 +4835,18 @@ impl CadDocument {
             value.handle = new_handle;
             if old_handle == graph.root {
                 value.owner = target;
-                if let DynamicBlockData::SolidHistory(history) = &mut value.data {
-                    history.owner = target;
+                // Without an evaluation graph (older releases of this crate)
+                // the root's handle names the solid.
+                if graph.evaluation_graph.is_none() {
+                    if let DynamicBlockData::SolidHistory(history) = &mut value.data {
+                        history.owner = target;
+                    }
                 }
             } else {
                 value.owner = remap.get(&value.owner).copied().unwrap_or(value.owner);
-                new_nodes.push(new_handle);
+                if Some(old_handle) != graph.evaluation_graph {
+                    new_nodes.push(new_handle);
+                }
             }
             value.visit_handles_mut(&mut |handle| {
                 if let Some(mapped) = remap.get(handle) {
@@ -4598,10 +4854,15 @@ impl CadDocument {
                 }
             });
             self.objects.insert(new_handle, object);
+            // Node XDATA (e.g. loft end-profile data) travels with the node.
+            if let Some(eed) = self.eed_by_handle.get(&old_handle).cloned() {
+                self.eed_by_handle.insert(new_handle, eed);
+            }
         }
+        let new_evaluation = graph.evaluation_graph.map(|handle| remap[&handle]);
         if !self.set_entity_history_handle(target, Some(new_root)) {
             self.objects.remove(&new_root);
-            for handle in &new_nodes {
+            for handle in new_nodes.iter().chain(&new_evaluation) {
                 self.objects.remove(handle);
             }
             return None;
@@ -4609,6 +4870,7 @@ impl CadDocument {
         Some(SolidHistoryGraph {
             root: new_root,
             nodes: new_nodes,
+            evaluation_graph: new_evaluation,
         })
     }
 

@@ -78,6 +78,7 @@ pub use dynamic_block::{
     SolidHistoryRevolveTail, SolidHistorySphere, SolidHistorySweep, SolidHistorySweepTail,
     SolidHistoryTorus,
 };
+pub(crate) use dynamic_block::primitive_center_shift;
 pub use field::{Field, FieldChildValue, FieldList};
 pub use group::Group;
 pub use image_definition::{ImageDefinition, ImageDefinitionReactor, ResolutionUnit};

@@ -448,6 +448,11 @@ pub struct BlockEvalExpression {
     pub node_id: i32,
 }
 
+impl BlockEvalExpression {
+    /// Parent id of a root evaluation node.
+    pub const NO_PARENT: i32 = -1;
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockElement {
@@ -892,9 +897,49 @@ pub struct SolidHistoryNodeBase {
 }
 
 impl SolidHistoryNodeBase {
+    /// Parent id of a root history node.
+    pub const ROOT_PARENT: i32 = BlockEvalExpression::NO_PARENT;
+    /// Expression value code meaning "no value".
+    pub const NO_VALUE: i16 = -9999;
+
+    /// The evaluation header as stored on disk. The reference application
+    /// rejects the whole drawing when a history node's expression has
+    /// parent 0 or value code 0 without a value; it writes -1 and -9999.
+    /// Nodes built with those defaults by earlier releases of this crate
+    /// are saved in the reference form.
+    pub(crate) fn saved_eval(&self) -> BlockEvalExpression {
+        let mut eval = self.eval.clone();
+        if eval.parent_id == 0 {
+            eval.parent_id = Self::ROOT_PARENT;
+        }
+        if eval.value_code == 0 && eval.value == BlockEvalValue::None {
+            eval.value_code = Self::NO_VALUE;
+        }
+        eval
+    }
+
+    /// Move the frame origin along the transform's own basis by `center`
+    /// (signed: `+1.0` shifts to the authored centre form, `-1.0` back to
+    /// the base-at-origin form). Only the translation column changes: the
+    /// frame's axes are what the shift is measured along.
+    ///
+    /// The transform is the crate's column-major glam convention — basis
+    /// x at [0..3], y at [4..7], z at [8..11], translation at
+    /// [12..15].
+    pub(crate) fn translate_frame(&mut self, center: [f64; 3], sign: f64) {
+        for row in 0..3 {
+            let mut delta = 0.0;
+            for axis in 0..3 {
+                delta += self.transform[axis * 4 + row] * center[axis];
+            }
+            self.transform[12 + row] += sign * delta;
+        }
+    }
+
     pub fn new(step_id: i32) -> Self {
         Self {
             eval: BlockEvalExpression {
+                parent_id: Self::ROOT_PARENT,
                 major: 1,
                 node_id: step_id,
                 ..BlockEvalExpression::default()
@@ -906,6 +951,32 @@ impl SolidHistoryNodeBase {
             step_id,
             ..Self::default()
         }
+    }
+}
+
+/// The local-frame centre of a primitive history node — the point the
+/// authored node genus carries its transform translation at (measured on
+/// the gold `sh_history` fixtures: the authored cylinder/box/cone/
+/// pyramid/wedge nodes translate to the solid's world centre, and their
+/// local bodies hang centred on the frame origin).
+///
+/// This crate's hosts build those primitives base-at-origin instead, so
+/// the writer shifts a constructed node's translation by this centre and
+/// the reader shifts it back — every family outside the primitive set
+/// (sphere and torus are already centred, the profile and derived
+/// families keep their own conventions) answers zero and passes through
+/// untouched.
+pub(crate) fn primitive_center_shift(operation: &SolidHistoryOperation) -> [f64; 3] {
+    match operation {
+        SolidHistoryOperation::Box(value) | SolidHistoryOperation::Wedge(value) => [
+            value.length * 0.5,
+            value.width * 0.5,
+            value.height * 0.5,
+        ],
+        SolidHistoryOperation::Cylinder(value) => [0.0, 0.0, value.height * 0.5],
+        SolidHistoryOperation::Cone(value) => [0.0, 0.0, value.height * 0.5],
+        SolidHistoryOperation::Pyramid(value) => [0.0, 0.0, value.height * 0.5],
+        _ => [0.0; 3],
     }
 }
 
