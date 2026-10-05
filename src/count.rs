@@ -199,7 +199,7 @@ pub fn count_of(instances: &[BlockInstance], name: &str, key: &CountKey) -> usiz
 }
 
 /// The distinct keys of block `name` when expanded by the chosen properties,
-/// each with its count, ordered by label.
+/// each with its count, in the order the drawing first shows them.
 pub fn expanded_counts(
     instances: &[BlockInstance],
     name: &str,
@@ -215,7 +215,6 @@ pub fn expanded_counts(
             None => out.push((key, 1)),
         }
     }
-    out.sort_by_key(|(k, _)| k.label().to_ascii_uppercase());
     out
 }
 
