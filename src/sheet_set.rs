@@ -1295,6 +1295,23 @@ pub(crate) fn eval_acsm(
     if let Some(component) = component.strip_prefix('?') {
         return Some(placeholder_type_name(component, &property));
     }
+    // A view's ViewportScale: the scale of the viewport showing its named
+    // view in the sheet drawing.
+    if property == "ViewportScale" {
+        if let Some((file, set, Some(comp))) = parse_navigation(&component) {
+            let named = ctx
+                .sheet_sets(&mut |db: &SheetSetDatabase| {
+                    db.path.as_deref().filter(|p| path_key(p) == path_key(&file))?;
+                    view_named_ref(db, &set, &comp)
+                })
+                .or_else(|| read_view_named_ref(&file, &set, &comp));
+            let Some(named) = named else {
+                return Some(NOT_A_SHEET.into());
+            };
+            let (drawing, handle, name) = split_named_ref(&named);
+            return Some(view_scale(doc, drawing, handle, name).map_or_else(|| NOT_A_SHEET.into(), |scale| crate::fields::plot_scale_text(doc, scale, &fmt)));
+        }
+    }
     let value = if let Some((file, set, comp)) = parse_navigation(&component) {
         // A navigation field names its database: an open one, else the file.
         let key = path_key(&file);
@@ -1322,6 +1339,67 @@ pub(crate) fn eval_acsm(
         Some(v) => text_case(v, &fmt),
         None => NOT_A_SHEET.into(),
     })
+}
+
+/// `drawing|handle|name` of a sheet view's named view.
+fn view_named_ref(db: &SheetSetDatabase, set: &str, comp: &str) -> Option<String> {
+    if !db.sheet_set().id().eq_ignore_ascii_case(set) {
+        return None;
+    }
+    let r = db.find(comp)?.named("NamedView")?;
+    Some(format!("{}|{}|{}", db.resolve_file(r), r.prop("AcDbHandle").unwrap_or(""), r.prop("Name").unwrap_or("")))
+}
+
+fn split_named_ref(s: &str) -> (&str, &str, &str) {
+    let mut p = s.splitn(3, '|');
+    (p.next().unwrap_or(""), p.next().unwrap_or(""), p.next().unwrap_or(""))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_view_named_ref(file: &str, set: &str, comp: &str) -> Option<String> {
+    view_named_ref(&SheetSetDatabase::read(file).ok()?, set, comp)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_view_named_ref(_: &str, _: &str, _: &str) -> Option<String> {
+    None
+}
+
+/// The custom scale of the paper-space viewport showing named view
+/// `handle` / `name` of `drawing` (the host drawing itself, or read from disk).
+fn view_scale(doc: &CadDocument, drawing: &str, handle: &str, name: &str) -> Option<f64> {
+    let in_doc = doc.source_path.as_deref().is_some_and(|p| path_key(p) == path_key(drawing));
+    #[cfg(not(target_arch = "wasm32"))]
+    let loaded;
+    let sheet: &CadDocument = if in_doc {
+        doc
+    } else {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            loaded = crate::DwgReader::from_file(drawing).ok()?.read().ok()?;
+            &loaded
+        }
+        #[cfg(target_arch = "wasm32")]
+        return None;
+    };
+    let view = sheet
+        .views
+        .iter()
+        .find(|v| format!("{:X}", v.handle.value()).eq_ignore_ascii_case(handle))
+        .or_else(|| sheet.views.iter().find(|v| v.name.eq_ignore_ascii_case(name)))?;
+    // ponytail: the view and its viewport are paired by the nearest centre;
+    // a stored link would be exact if one turns up.
+    sheet
+        .entities()
+        .filter_map(|e| match e {
+            crate::EntityType::Viewport(vp) if vp.id != 1 && vp.view_height > 0.0 => Some(vp),
+            _ => None,
+        })
+        .min_by(|a, b| {
+            let d = |vp: &crate::entities::Viewport| (vp.center.x - view.center.x).hypot(vp.center.y - view.center.y);
+            d(a).total_cmp(&d(b))
+        })
+        .map(|vp| if vp.custom_scale > 0.0 { vp.custom_scale } else { vp.height / vp.view_height })
 }
 
 #[cfg(not(target_arch = "wasm32"))]

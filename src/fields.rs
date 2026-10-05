@@ -1337,7 +1337,7 @@ fn host_layout<'a>(
 /// `PlotScale`: plain six decimals; `%sn` the name of the first entry of the
 /// drawing's scale list with the same ratio (six decimals when none); any
 /// other picture formats the ratio as a number.
-fn plot_scale_text(doc: &CadDocument, scale: f64, fmt: &str) -> String {
+pub(crate) fn plot_scale_text(doc: &CadDocument, scale: f64, fmt: &str) -> String {
     if fmt.is_empty() {
         return format!("{:.6}", scale);
     }
@@ -2634,6 +2634,18 @@ impl CadDocument {
         insert: Handle,
         ctx: &dyn FieldContext,
     ) -> Vec<Handle> {
+        self.attach_attribute_fields_mapped(insert, ctx, &|code: &str| code.to_string())
+    }
+
+    /// [`Self::attach_attribute_fields`] with each field code passed through
+    /// `map` first — a sheet set view label turns its `?View.` / `?Sheet.`
+    /// placeholders into the placed view's and sheet's navigation fields.
+    pub fn attach_attribute_fields_mapped(
+        &mut self,
+        insert: Handle,
+        ctx: &dyn FieldContext,
+        map: &dyn Fn(&str) -> String,
+    ) -> Vec<Handle> {
         // ATTRIBs need handles to host fields.
         let unset = match self.get_entity(insert) {
             Some(EntityType::Insert(i)) => i.attributes.iter().filter(|a| a.common.handle.is_null()).count(),
@@ -2674,7 +2686,7 @@ impl CadDocument {
                 .iter()
                 .map(|k| {
                     let placeholder = k.code.contains("?BlockRefId");
-                    let code = k.code.replace("?BlockRefId", "%<\\_ObjIdx 0>%");
+                    let code = map(&k.code.replace("?BlockRefId", "%<\\_ObjIdx 0>%"));
                     let objects = if placeholder { vec![insert] } else { k.objects.clone() };
                     let stored = match self.objects.get(&k.handle) {
                         Some(ObjectType::Field(f)) => Some(f),
