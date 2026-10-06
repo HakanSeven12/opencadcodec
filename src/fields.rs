@@ -3052,6 +3052,24 @@ impl CadDocument {
         self.restamp_fields(ctx, ctx, &|_, f| f.evaluation_option & event != 0, hosts)
     }
 
+    /// Re-evaluate the formulas (`AcExpr`) in a table's cells, as the
+    /// reference recomputes them when the table changes, storing the values
+    /// in the field objects and the cell texts of the table's block. Returns
+    /// the texts that changed.
+    pub fn refresh_table_formulas(&mut self, ctx: &dyn FieldContext, table: Handle) -> Vec<Handle> {
+        let hosts = match self.get_entity(table) {
+            Some(EntityType::Table(t)) => t
+                .block_record_handle
+                .and_then(|h| self.block_records.iter().find(|r| r.handle == h))
+                .map(|r| r.entity_handles.clone()),
+            _ => None,
+        };
+        match hosts {
+            Some(hosts) => self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator == "AcExpr", Some(&hosts)).0,
+            None => Vec::new(),
+        }
+    }
+
     /// Re-evaluate the sheet set (`AcSm`) fields — after a sheet set changed —
     /// storing their values in the field objects and host texts, as the
     /// reference does when it updates fields. Returns the hosts whose text changed.
