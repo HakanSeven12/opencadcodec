@@ -773,6 +773,10 @@ pub struct CellStyle {
     pub property_flags: CellStylePropertyFlags,
     /// Complete style override flag word.
     pub override_flags: i32,
+    /// `override_flags` holds the legacy DXF cell bits (a cell read from
+    /// DXF) rather than the binary layout's property bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub legacy_override_bits: bool,
     /// Nested content-format metadata.
     pub content_format_override_flags: i32,
     pub content_property_flags: i32,
@@ -829,8 +833,7 @@ impl CellStyle {
     /// bits — in the binary layout, or the legacy DXF layout a style read
     /// from DXF keeps (whose meaning `property_flags` already holds).
     pub fn overridden(&self) -> CellStylePropertyFlags {
-        let legacy = self.override_flags != 0 && legacy_override_properties(self.override_flags) == self.property_flags;
-        if legacy {
+        if self.legacy_override_bits {
             self.property_flags
         } else {
             self.property_flags | CellStylePropertyFlags::from_bits_truncate(self.override_flags as u32)
@@ -848,6 +851,7 @@ impl CellStyle {
             style_type: CellStyleType::Cell,
             property_flags: CellStylePropertyFlags::NONE,
             override_flags: 0,
+            legacy_override_bits: false,
             content_format_override_flags: 0,
             content_property_flags: 0,
             value_data_type: 0,
@@ -1094,6 +1098,7 @@ impl TableCell {
             if let Some(style) = cell.style.as_mut() {
                 style.override_flags = (p & !CONTENT).bits() as i32;
                 style.property_flags = P::NONE;
+                style.legacy_override_bits = false;
             }
         }
         std::borrow::Cow::Owned(cell)

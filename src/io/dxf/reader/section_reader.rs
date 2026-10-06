@@ -19318,6 +19318,7 @@ impl<'a> SectionReader<'a> {
                 if let Some(bit) = crate::entities::table::cell_override_bit(pair.code) {
                     let style = c.style.get_or_insert_with(crate::entities::CellStyle::new);
                     style.override_flags |= bit;
+                    style.legacy_override_bits = true;
                     // The overridden properties, so the cell's own values win
                     // over the row, column and table styles.
                     style.property_flags |= crate::entities::table::legacy_override_properties(bit);
