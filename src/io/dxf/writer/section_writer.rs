@@ -3994,7 +3994,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             let columns = &mtext.column_data;
             let manual_heights = columns.column_type == 2 && !columns.auto_height;
             self.writer.write_string(101, "Embedded Object")?;
-            self.writer.write_i16(70, 1)?;
+            self.writer.write_i16(70, mtext.attachment_point as i16)?;
             self.writer
                 .write_point3d(10, Vector3::new(mtext.rotation.cos(), mtext.rotation.sin(), 0.0))?;
             self.writer.write_point3d(11, mtext.insertion_point)?;
