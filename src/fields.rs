@@ -212,6 +212,8 @@ fn eval_field(
             let layout = host_layout(doc, host, ctx).map(|l| l.name.as_str());
             crate::sheet_set::eval_acsm(doc, &field.code, ctx, layout, text_case)
         }
+        // AcCount / AcCount2 — block counts (see `crate::count`).
+        "AcCount" | "AcCount2" => Some(crate::count::evaluate(doc, &field.code)),
         _ => None,
     }
 }
@@ -2277,6 +2279,13 @@ impl NewField {
         value.flags = 4;
         value.format = code_format(&code).to_string();
         // The reference application leaves the Date field on demand only.
+        // A count is an integer value (`####` while its code is empty).
+        if evaluator.starts_with("AcCount") {
+            if let Ok(n) = display.parse::<i64>() {
+                value = CellValue::integer(n);
+                value.flags = 4;
+            }
+        }
         let evaluation_option = if evaluator == "AcVar" && code_word(&code, 1) == Some("Date") {
             32
         } else {
@@ -2425,137 +2434,375 @@ impl CadDocument {
         };
         let mut all = vec![container_field];
         for (child, handle) in children.into_iter().zip(&child_handles) {
-            let mut child_values = Vec::new();
-            if child.evaluator.starts_with("AcVar") {
-                if let Some(name) = code_word(&child.code, 1) {
-                    // A hyperlink (`\href`) names no variable.
-                    let name = if name.starts_with('\\') { "" } else { name };
-                    let mut v = CellValue::text(name);
-                    v.flags = 2;
-                    v.formatted_value.clear();
-                    child_values.push(FieldChildValue {
-                        key: "Variable".into(),
-                        value: v,
-                    });
-                }
-            }
-            if child.evaluator == "AcDiesel" {
-                let expr = child.code.trim().trim_start_matches("\\AcDiesel").trim();
-                let mut v = CellValue::text(expr);
-                v.flags = 2;
-                v.formatted_value.clear();
-                child_values.push(FieldChildValue {
-                    key: "DieselExpression".into(),
-                    value: v,
-                });
-            }
-            if child.evaluator.starts_with("AcObjProp") {
-                if let Some(&object) = child.objects.first() {
-                    let mut id = CellValue::new();
-                    id.value_type = CellValueType::Handle;
-                    id.raw_type_code = 0x40;
-                    id.handle_value = Some(object);
-                    id.flags = 2;
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyId".into(),
-                        value: id,
-                    });
-                }
-                if let Some(prop) = child
-                    .code
-                    .split(").")
-                    .nth(1)
-                    .and_then(|s| s.split([' ', '\\']).next())
-                {
-                    let mut v = CellValue::text(prop);
-                    v.flags = 2;
-                    v.formatted_value.clear();
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyName".into(),
-                        value: v,
-                    });
-                }
-                // `Object(<id>,1)`: the option, as a number and as text.
-                let object_arg = between(&child.code, "Object(", ").").unwrap_or("");
-                if let Some((_, option)) = object_arg.rsplit_once(',') {
-                    let option = option.trim();
-                    let mut n = CellValue::integer(option.parse().unwrap_or(0));
-                    n.flags = 2;
-                    n.formatted_value.clear();
-                    let mut s = CellValue::text(option);
-                    s.flags = 2;
-                    s.formatted_value.clear();
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyOption".into(),
-                        value: n,
-                    });
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyOptionString".into(),
-                        value: s,
-                    });
-                }
-                // A block placeholder names its object only on insertion.
-                if object_arg.starts_with("?BlockRefId") {
-                    let mut v = CellValue::text("?BlockRefId");
-                    v.flags = 2;
-                    v.formatted_value.clear();
-                    child_values.push(FieldChildValue {
-                        key: "ObjectPropertyUnresolvedId".into(),
-                        value: v,
-                    });
-                }
-            }
-            // A sheet set field names its component and property; in a
-            // drawing that is no sheet it is left unevaluated (`####`).
-            let mut unevaluated = false;
-            if child.evaluator.starts_with("AcSm") {
-                for (key, text) in crate::sheet_set::field_child_values(&child.code) {
-                    let mut v = CellValue::text(&text);
-                    v.flags = 2;
-                    v.formatted_value.clear();
-                    child_values.push(FieldChildValue { key: key.into(), value: v });
-                }
-                unevaluated = child.value.display() == "####";
-            }
-            let shown = child.value.display().to_string();
-            let xdata = hyperlink_xdata(&child.code).unwrap_or_default();
-            let value = if unevaluated {
-                let mut v = CellValue::new();
-                v.flags = 1;
-                v.format = child.value.format.clone();
-                v
-            } else if shown == "----" && child.evaluator.starts_with("AcSm") {
-                // A property without a value keeps an empty string; only the
-                // shown text is `----`.
-                let mut v = CellValue::text("");
-                v.format = child.value.format.clone();
-                v
-            } else {
-                child.value.clone()
-            };
-            let (state, evaluation_status, evaluation_error_code) =
-                if unevaluated { (43, 32, 22) } else { (59, 2, 0) };
-            all.push(Field {
-                handle: *handle,
-                owner: container,
-                // Pre-R2007 files keep the format on the field itself.
-                format: child.value.format.clone(),
-                evaluator_id: child.evaluator,
-                code: child.code,
-                referenced_objects: child.objects,
-                evaluation_option: child.evaluation_option,
-                state,
-                evaluation_status,
-                evaluation_error_code,
-                value,
-                value_string_length: shown.encode_utf16().count() as i32,
-                value_string: shown,
-                xdata,
-                child_values,
-                ..Field::default()
-            });
+            all.push(child_field(child, *handle, container));
         }
 
+        self.register_fields(all);
+
+        self.text_host(host, |common, text, _| {
+            common.xdictionary_handle = Some(xdict);
+            *text = display;
+        })?;
+        Some(container)
+    }
+
+    /// The entities a table's `*T` block holds, as the reference draws them:
+    /// one MTEXT per filled cell (row, column; a merged region as one cell)
+    /// placed by its alignment inside the cell margins, with the
+    /// row style's text height and alignment (named `_TITLE` / `_HEADER` /
+    /// `_DATA` cell styles first, the cell's own alignment when it overrides
+    /// it) and the column width less both horizontal margins; then the row
+    /// lines top to bottom, the column lines left to right (both broken where
+    /// they would cross a merged region) and a hidden point
+    /// on `Defpoints`. `extra` cells get an MTEXT even when empty (fields).
+    fn table_block_plan(&self, t: &Table, extra: &[(usize, usize)]) -> (Vec<((usize, usize), crate::entities::MText)>, Vec<crate::entities::Line>) {
+        use crate::entities::{Line, MText};
+        use crate::types::{Color, LineWeight, Transparency, Vector3};
+        let style = t.table_style_handle.and_then(|h| match self.objects.get(&h) {
+            Some(ObjectType::TableStyle(s)) => Some(s.clone()),
+            _ => None,
+        });
+        let margin = style.as_ref().map_or(0.06, |s| s.horizontal_margin);
+        let legacy = t.legacy_style_override.clone().unwrap_or_default();
+        let title = !legacy.title_suppressed.unwrap_or(false);
+        let header = !legacy.header_suppressed.unwrap_or(false);
+        // (text height, alignment) of a row by its kind: title, header, data.
+        let row_style = |r: usize| {
+            // Newer tables name each row's cell style (1 title, 2 header, 3 data).
+            let named_kind = t.rows.get(r).map(|row| row.style_id).filter(|id| (1..=3).contains(id));
+            let kind = if let Some(id) = named_kind {
+                (id - 1) as usize
+            } else if title && r == 0 {
+                0
+            } else if header && r == usize::from(title) {
+                1
+            } else {
+                2
+            };
+            style.as_ref().map_or((0.18, 5), |s| {
+                // Newer styles keep their rows as the named cell styles.
+                let named = s.modern_overrides.iter().find(|(_, n)| {
+                    n.name.eq_ignore_ascii_case(["_TITLE", "_HEADER", "_DATA"][kind])
+                });
+                match named {
+                    Some((_, n)) if n.cell_style.content_format.text_height > 0.0 => (
+                        n.cell_style.content_format.text_height,
+                        n.cell_style.content_format.cell_alignment as i32,
+                    ),
+                    _ => {
+                        let rs = [&s.title_row_style, &s.header_row_style, &s.data_row_style][kind];
+                        (rs.text_height, rs.alignment as i32)
+                    }
+                }
+            })
+        };
+        let by_block = |c: &mut EntityCommon| {
+            c.layer = "0".into();
+            c.color = Color::ByBlock;
+            c.transparency = Transparency::ByBlock;
+        };
+        let widths: Vec<f64> = t.columns.iter().map(|c| c.width).collect();
+        let heights: Vec<f64> = t.rows.iter().map(|r| r.height).collect();
+        let (nr, nc) = (heights.len(), widths.len());
+        let xs: Vec<f64> = std::iter::once(0.0).chain(widths.iter().scan(0.0, |a, w| { *a += w; Some(*a) })).collect();
+        let ys: Vec<f64> = std::iter::once(0.0).chain(heights.iter().scan(0.0, |a, h| { *a += h; Some(*a) })).collect();
+        // Merged regions: the top-left cell spans its merge width and height;
+        // `owner[r][c]` is the cell a grid square belongs to.
+        let mut owner: Vec<Vec<(usize, usize)>> = (0..nr).map(|r| (0..nc).map(|c| (r, c)).collect()).collect();
+        let mut span = vec![vec![(1usize, 1usize); nc]; nr];
+        // Merges come as the table's merged ranges (binary files) or as the
+        // origin cell's merge width and height (DXF).
+        let mut regions: Vec<(usize, usize, usize, usize)> = t
+            .merged_ranges
+            .iter()
+            .map(|m| (m.top_row, m.left_col, m.col_count(), m.row_count()))
+            .collect();
+        for (r, row) in t.rows.iter().enumerate() {
+            for (c, cell) in row.cells.iter().enumerate().take(nc) {
+                let (w, h) = (cell.merge_width.max(1) as usize, cell.merge_height.max(1) as usize);
+                if w > 1 || h > 1 {
+                    regions.push((r, c, w, h));
+                }
+            }
+        }
+        for (r, c, w, h) in regions {
+            if r >= nr || c >= nc || owner[r][c] != (r, c) || (w <= 1 && h <= 1) {
+                continue;
+            }
+            span[r][c] = (w.min(nc - c), h.min(nr - r));
+            for rr in r..(r + h).min(nr) {
+                for cc in c..(c + w).min(nc) {
+                    owner[rr][cc] = (r, c);
+                }
+            }
+        }
+        let vmargin = style.as_ref().map_or(0.06, |s| s.vertical_margin);
+        let mut texts = Vec::new();
+        for (r, row) in t.rows.iter().enumerate() {
+            for c in 0..nc {
+                if owner[r][c] != (r, c) {
+                    continue;
+                }
+                let cell = row.cells.get(c);
+                let text = cell.and_then(|cell| cell.contents.first()).map(|ct| ct.value.text.clone()).unwrap_or_default();
+                let has_field = cell.and_then(|cell| cell.contents.first()).is_some_and(|ct| ct.field_handle.is_some());
+                if text.is_empty() && !has_field && !extra.contains(&(r, c)) {
+                    continue;
+                }
+                let (height, mut align) = row_style(r);
+                // A cell overriding its style brings its own alignment.
+                if let Some(s) = cell
+                    .and_then(|cell| cell.style.as_ref())
+                    .filter(|s| s.override_flags != 0 && (1..=9).contains(&s.alignment))
+                {
+                    align = s.alignment;
+                }
+                let (w, h) = span[r][c];
+                let (x0, x1, y0, y1) = (xs[c], xs[c + w], ys[r], ys[r + h]);
+                // The text sits where its alignment puts it inside the margins.
+                let a = (align.clamp(1, 9) - 1) as usize;
+                let x = [x0 + margin, (x0 + x1) / 2.0, x1 - margin][a % 3];
+                let y = [-(y0 + vmargin), -(y0 + y1) / 2.0, -(y1 - vmargin)][a / 3];
+                let mut m = MText::new();
+                by_block(&mut m.common);
+                m.value = text;
+                m.height = height;
+                m.rectangle_width = (x1 - x0) - 2.0 * margin;
+                m.insertion_point = Vector3::new(x, y, 0.0);
+                m.attachment_point = attachment(align);
+                m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
+                texts.push(((r, c), m));
+            }
+        }
+        let line = |a: Vector3, b: Vector3| {
+            let mut l = Line::from_points(a, b);
+            by_block(&mut l.common);
+            l.common.linetype = "ByBlock".into();
+            l.common.line_weight = LineWeight::ByBlock;
+            l
+        };
+        // Grid lines, skipping the inside of merged regions: each row
+        // boundary top to bottom as runs left to right, then each column
+        // boundary left to right as runs top to bottom.
+        let mut lines = Vec::new();
+        for k in 0..=nr {
+            let open = |c: usize| k == 0 || k == nr || owner[k - 1][c] != owner[k][c];
+            let mut c = 0;
+            while c < nc {
+                if !open(c) {
+                    c += 1;
+                    continue;
+                }
+                let start = c;
+                while c < nc && open(c) {
+                    c += 1;
+                }
+                lines.push(line(Vector3::new(xs[start], -ys[k], 0.0), Vector3::new(xs[c], -ys[k], 0.0)));
+            }
+        }
+        for k in 0..=nc {
+            let open = |r: usize| k == 0 || k == nc || owner[r][k - 1] != owner[r][k];
+            let mut r = 0;
+            while r < nr {
+                if !open(r) {
+                    r += 1;
+                    continue;
+                }
+                let start = r;
+                while r < nr && open(r) {
+                    r += 1;
+                }
+                lines.push(line(Vector3::new(xs[k], -ys[start], 0.0), Vector3::new(xs[k], -ys[r], 0.0)));
+            }
+        }
+        let mut point = Line::from_points(Vector3::ZERO, Vector3::ZERO);
+        point.common.layer = "Defpoints".into();
+        point.common.color = Color::from_index(8);
+        point.common.invisible = true;
+        point.common.transparency = Transparency::ByBlock;
+        point.common.line_weight = LineWeight::from_value(0);
+        lines.push(point);
+        (texts, lines)
+    }
+
+    /// Draw a table into its anonymous `*T` block the way the reference keeps
+    /// it (see `table_block_plan`). Each of `fields` (row, column, template,
+    /// children) puts a field into that cell: the cell's MTEXT holds it under
+    /// `ACAD_FIELD` and the cell's content refers to the same container.
+    /// Returns the containers in `fields` order.
+    pub fn build_table_block(
+        &mut self,
+        table: Handle,
+        fields: Vec<(usize, usize, String, Vec<NewField>)>,
+    ) -> Option<Vec<Option<Handle>>> {
+        let cells: Vec<(usize, usize)> = fields.iter().map(|f| (f.0, f.1)).collect();
+        let texts = self.redraw_table_block(table, &cells, true)?;
+        let mut out = Vec::new();
+        for (r, c, template, children) in fields {
+            let container = texts.get(&(r, c)).and_then(|h| self.set_text_field(*h, &template, children));
+            if let (Some(container), Some(EntityType::Table(t))) = (container, self.get_entity_mut(table)) {
+                if let Some(content) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)).and_then(|cell| cell.contents.first_mut()) {
+                    content.field_handle = Some(container);
+                }
+                t.field_handles.push(container);
+            }
+            out.push(container);
+        }
+        Some(out)
+    }
+
+    /// Bring a table's `*T` block up to date after the table changed (cells,
+    /// sizes, styles). Nothing happens when the block already shows the table;
+    /// the cells' fields stay with their texts. Returns whether it redrew.
+    pub fn refresh_table_block(&mut self, table: Handle) -> bool {
+        self.redraw_table_block(table, &[], false).is_some()
+    }
+
+    fn redraw_table_block(
+        &mut self,
+        table: Handle,
+        extra: &[(usize, usize)],
+        always: bool,
+    ) -> Option<std::collections::HashMap<(usize, usize), Handle>> {
+        let Some(EntityType::Table(t)) = self.get_entity(table) else {
+            return None;
+        };
+        let t = (**t).clone();
+        let (texts, lines) = self.table_block_plan(&t, extra);
+        let record = t
+            .block_record_handle
+            .and_then(|h| self.block_records.iter().find(|r| r.handle == h))
+            .or_else(|| self.block_records.get(&t.block_name).filter(|_| !t.block_name.is_empty()))
+            .map(|r| (r.handle, r.name.clone(), r.entity_handles.clone()));
+
+        // What the block shows now, against what it should show.
+        let key = |e: &EntityType| -> Option<String> {
+            let r = |v: f64| format!("{:.9}", v + 0.0);
+            match e {
+                EntityType::MText(m) => Some(format!(
+                    "T {} {} {} {} {} {:?}",
+                    r(m.insertion_point.x),
+                    r(m.insertion_point.y),
+                    r(m.height),
+                    r(m.rectangle_width),
+                    m.attachment_point as i32,
+                    if m.common.xdictionary_handle.is_some() { "" } else { m.value.as_str() }
+                )),
+                EntityType::Line(l) => Some(format!("L {} {} {} {} {}", r(l.start.x), r(l.start.y), r(l.end.x), r(l.end.y), l.common.layer)),
+                _ => None,
+            }
+        };
+        let field_cells: Vec<(usize, usize)> = t
+            .rows
+            .iter()
+            .enumerate()
+            .flat_map(|(r, row)| {
+                row.cells
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, cell)| cell.contents.first().is_some_and(|ct| ct.field_handle.is_some()))
+                    .map(move |(c, _)| (r, c))
+            })
+            .collect();
+        if let (false, Some((_, _, old))) = (always, record.as_ref()) {
+            let mut now: Vec<String> = old.iter().filter_map(|h| self.get_entity(*h)).filter_map(key).collect();
+            let mut want: Vec<String> = texts
+                .iter()
+                .map(|(cell, m)| {
+                    let mut m = m.clone();
+                    if field_cells.contains(cell) {
+                        m.common.xdictionary_handle = Some(Handle::NULL);
+                    }
+                    key(&EntityType::MText(m)).unwrap_or_default()
+                })
+                .chain(lines.iter().filter_map(|l| key(&EntityType::Line(l.clone()))))
+                .collect();
+            now.sort();
+            want.sort();
+            if now == want {
+                return None;
+            }
+        }
+
+        // Field cells keep their text's dictionary (the field) and value.
+        let mut carried: std::collections::HashMap<(usize, usize), (Handle, String)> = std::collections::HashMap::new();
+        for (cell, container) in t.rows.iter().enumerate().flat_map(|(r, row)| {
+            row.cells.iter().enumerate().filter_map(move |(c, cell)| cell.contents.first().and_then(|ct| ct.field_handle).map(|h| ((r, c), h)))
+        }) {
+            let owner_of = |h: Handle| match self.objects.get(&h) {
+                Some(ObjectType::Field(f)) => Some(f.owner),
+                Some(ObjectType::Dictionary(d)) => Some(d.owner),
+                _ => None,
+            };
+            // container › TEXT dictionary › extension dictionary › MTEXT
+            let xdict = owner_of(container).and_then(owner_of);
+            let host = xdict.and_then(owner_of);
+            if let (Some(xdict), Some(EntityType::MText(m))) = (xdict, host.and_then(|h| self.get_entity(h))) {
+                carried.insert(cell, (xdict, m.value.clone()));
+            }
+        }
+
+        let owner = match record {
+            Some((handle, _, old)) => {
+                for h in &old {
+                    self.remove_entity(*h);
+                }
+                if let Some(r) = self.block_records.iter_mut().find(|r| r.handle == handle) {
+                    r.entity_handles.clear();
+                }
+                handle
+            }
+            None => {
+                let mut index = 1;
+                while self.block_records.get(&format!("*T{index}")).is_some() {
+                    index += 1;
+                }
+                let mut record = crate::tables::BlockRecord::new(format!("*T{index}"));
+                record.handle = self.allocate_handle();
+                record.block_entity_handle = self.allocate_handle();
+                record.block_end_handle = self.allocate_handle();
+                record.flags.anonymous = true;
+                let handle = record.handle;
+                let name = record.name.clone();
+                self.block_records.add(record).ok()?;
+                if let Some(EntityType::Table(t)) = self.get_entity_mut(table) {
+                    t.block_name = name;
+                    t.block_record_handle = Some(handle);
+                }
+                handle
+            }
+        };
+        if !self.layers.contains("Defpoints") {
+            let mut layer = crate::tables::Layer::new("Defpoints");
+            layer.handle = self.allocate_handle();
+            layer.is_plottable = false;
+            self.layers.add_or_replace(layer);
+        }
+        let mut handles = std::collections::HashMap::new();
+        for (cell, mut m) in texts {
+            m.common.owner_handle = owner;
+            if let Some((xdict, value)) = carried.get(&cell) {
+                m.common.xdictionary_handle = Some(*xdict);
+                m.value = value.clone();
+            }
+            if let Ok(h) = self.add_entity(EntityType::MText(m)) {
+                if let Some((xdict, _)) = carried.get(&cell) {
+                    if let Some(ObjectType::Dictionary(d)) = self.objects.get_mut(xdict) {
+                        d.owner = h;
+                    }
+                }
+                handles.insert(cell, h);
+            }
+        }
+        for mut l in lines {
+            l.common.owner_handle = owner;
+            let _ = self.add_entity(EntityType::Line(l));
+        }
+        Some(handles)
+    }
+
+    /// Add fields to the document and its FIELDLIST.
+    fn register_fields(&mut self, all: Vec<Field>) {
         let list = self.field_list_handle();
         if let Some(ObjectType::FieldList(l)) = self.objects.get_mut(&list) {
             l.fields.extend(all.iter().map(|f| f.handle));
@@ -2573,12 +2820,6 @@ impl CadDocument {
             );
             self.objects.insert(f.handle, ObjectType::Field(f));
         }
-
-        self.text_host(host, |common, text, _| {
-            common.xdictionary_handle = Some(xdict);
-            *text = display;
-        })?;
-        Some(container)
     }
 
     /// Detach the field from a text host, keeping its current text as plain
@@ -2893,6 +3134,153 @@ impl CadDocument {
     }
 }
 
+/// A child FIELD of `owner` (a `_text` container) from its description.
+fn child_field(child: NewField, handle: Handle, owner: Handle) -> Field {
+    let mut child_values = Vec::new();
+    if child.evaluator.starts_with("AcVar") {
+        if let Some(name) = code_word(&child.code, 1) {
+            // A hyperlink (`\href`) names no variable.
+            let name = if name.starts_with('\\') { "" } else { name };
+            let mut v = CellValue::text(name);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "Variable".into(),
+                value: v,
+            });
+        }
+    }
+    if child.evaluator == "AcDiesel" {
+        let expr = child.code.trim().trim_start_matches("\\AcDiesel").trim();
+        let mut v = CellValue::text(expr);
+        v.flags = 2;
+        v.formatted_value.clear();
+        child_values.push(FieldChildValue {
+            key: "DieselExpression".into(),
+            value: v,
+        });
+    }
+    if child.evaluator.starts_with("AcObjProp") {
+        if let Some(&object) = child.objects.first() {
+            let mut id = CellValue::new();
+            id.value_type = CellValueType::Handle;
+            id.raw_type_code = 0x40;
+            id.handle_value = Some(object);
+            id.flags = 2;
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyId".into(),
+                value: id,
+            });
+        }
+        if let Some(prop) = child
+            .code
+            .split(").")
+            .nth(1)
+            .and_then(|s| s.split([' ', '\\']).next())
+        {
+            let mut v = CellValue::text(prop);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyName".into(),
+                value: v,
+            });
+        }
+        // `Object(<id>,1)`: the option, as a number and as text.
+        let object_arg = between(&child.code, "Object(", ").").unwrap_or("");
+        if let Some((_, option)) = object_arg.rsplit_once(',') {
+            let option = option.trim();
+            let mut n = CellValue::integer(option.parse().unwrap_or(0));
+            n.flags = 2;
+            n.formatted_value.clear();
+            let mut s = CellValue::text(option);
+            s.flags = 2;
+            s.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyOption".into(),
+                value: n,
+            });
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyOptionString".into(),
+                value: s,
+            });
+        }
+        // A block placeholder names its object only on insertion.
+        if object_arg.starts_with("?BlockRefId") {
+            let mut v = CellValue::text("?BlockRefId");
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "ObjectPropertyUnresolvedId".into(),
+                value: v,
+            });
+        }
+    }
+    if child.evaluator.starts_with("AcCount") {
+        // The count's JSON query, kept beside the code.
+        let body = child.code.trim().trim_start_matches('\\');
+        let json = body.split_once(char::is_whitespace).map(|(_, j)| j.trim()).unwrap_or("");
+        if !json.is_empty() {
+            let mut v = CellValue::text(json);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue {
+                key: "CountJsonString".into(),
+                value: v,
+            });
+        }
+    }
+    // A sheet set field names its component and property; in a drawing that
+    // is no sheet it is left unevaluated (`####`).
+    let mut unevaluated = false;
+    if child.evaluator.starts_with("AcSm") {
+        for (key, text) in crate::sheet_set::field_child_values(&child.code) {
+            let mut v = CellValue::text(&text);
+            v.flags = 2;
+            v.formatted_value.clear();
+            child_values.push(FieldChildValue { key: key.into(), value: v });
+        }
+        unevaluated = child.value.display() == "####";
+    }
+    let shown = child.value.display().to_string();
+    let xdata = hyperlink_xdata(&child.code).unwrap_or_default();
+    let value = if unevaluated {
+        let mut v = CellValue::new();
+        v.flags = 1;
+        v.format = child.value.format.clone();
+        v
+    } else if shown == "----" && child.evaluator.starts_with("AcSm") {
+        // A property without a value keeps an empty string; only the shown
+        // text is `----`.
+        let mut v = CellValue::text("");
+        v.format = child.value.format.clone();
+        v
+    } else {
+        child.value.clone()
+    };
+    let (state, evaluation_status, evaluation_error_code) =
+        if unevaluated { (43, 32, 22) } else { (59, 2, 0) };
+    Field {
+        handle,
+        owner,
+        // Pre-R2007 files keep the format on the field itself.
+        format: child.value.format.clone(),
+        evaluator_id: child.evaluator,
+        code: child.code,
+        referenced_objects: child.objects,
+        evaluation_option: child.evaluation_option,
+        state,
+        evaluation_status,
+        evaluation_error_code,
+        value,
+        value_string_length: shown.encode_utf16().count() as i32,
+        value_string: shown,
+        xdata,
+        child_values,
+        ..Field::default()
+    }
+}
+
 /// The host text for a container template: every `%<\_FldIdx n>%` replaced by
 /// `children[n]`'s display text (escaped for MTEXT). `None` when a marker has
 /// no child.
@@ -3098,5 +3486,21 @@ mod tests {
         );
         assert_eq!(num_str(5.0), "5");
         assert_eq!(rtos(3.14159, Some(2)), "3.14");
+    }
+}
+
+/// The MTEXT attachment for a table cell alignment (1 top left … 9 bottom right).
+fn attachment(align: i32) -> crate::entities::AttachmentPoint {
+    use crate::entities::AttachmentPoint as A;
+    match align {
+        1 => A::TopLeft,
+        2 => A::TopCenter,
+        3 => A::TopRight,
+        4 => A::MiddleLeft,
+        6 => A::MiddleRight,
+        7 => A::BottomLeft,
+        8 => A::BottomCenter,
+        9 => A::BottomRight,
+        _ => A::MiddleCenter,
     }
 }

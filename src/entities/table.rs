@@ -2273,3 +2273,25 @@ mod tests {
         assert!(!flags.contains(CellStateFlags::LINKED));
     }
 }
+
+/// The cell style override bit a DXF group code of a table cell sets (the
+/// bit layout the binary format stores in `CellStyle::override_flags`).
+pub fn cell_override_bit(code: i32) -> Option<i32> {
+    Some(match code {
+        170 => 0x01,
+        283 => 0x02,
+        63 => 0x04,
+        64 => 0x08,
+        7 => 0x10,
+        140 => 0x20,
+        69 => 0x40,
+        65 => 0x80,
+        66 => 0x100,
+        68 => 0x200,
+        279 | 289 => 0x400,
+        275 | 285 => 0x800,
+        276 | 286 => 0x1000,
+        278 | 288 => 0x2000,
+        _ => return None,
+    })
+}
