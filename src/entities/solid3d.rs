@@ -84,13 +84,16 @@ pub struct Wire {
 }
 
 impl Wire {
-    /// Creates a new wire with default transform.
+    /// Creates a new wire with default transform: a visible edge in the
+    /// block color with no ACIS index or selection marker, as the reference
+    /// application writes its wireframe. (An unknown-type wire, or one in
+    /// the layer color, makes it reject or hang on the drawing.)
     pub fn new() -> Self {
         Self {
-            acis_index: 0,
-            wire_type: WireType::Unknown,
-            selection_marker: 0,
-            color: Color::ByLayer,
+            acis_index: -1,
+            wire_type: WireType::VisibleEdge,
+            selection_marker: -1,
+            color: Color::ByBlock,
             points: Vec::new(),
             has_transform: false,
             has_rotation: false,
@@ -1258,7 +1261,7 @@ mod tests {
     #[test]
     fn test_wire_creation() {
         let wire = Wire::new();
-        assert_eq!(wire.wire_type, WireType::Unknown);
+        assert_eq!(wire.wire_type, WireType::VisibleEdge);
         assert!(wire.points.is_empty());
         assert!(!wire.has_transform);
     }

@@ -705,6 +705,201 @@ impl Default for TableStyle {
     }
 }
 
+/// Extension-dictionary key of the R2008+ named cell styles a pre-R2010 file
+/// keeps for a table style.
+const CELL_STYLE_MAP_KEY: &str = "ACAD_ROUNDTRIP_2008_TABLESTYLE_CELLSTYLEMAP";
+/// Extension-dictionary key of the round-trip record; for a table style it
+/// holds the row data types an R2004 record has no field for.
+const ROUNDTRIP_RECORD_KEY: &str = "ACAD_XREC_ROUNDTRIP";
+const PRE2007_MARKER: &str = "ACAD_ROUNDTRIP_PRE2007_TABLESTYLE";
+
+/// The data, title and header rows in pre-R2010 record order.
+fn legacy_rows_mut(style: &mut TableStyle) -> [&mut RowCellStyle; 3] {
+    [
+        &mut style.data_row_style,
+        &mut style.title_row_style,
+        &mut style.header_row_style,
+    ]
+}
+
+/// Fold the R2008+ named cell styles (and, for R2004, the row data types)
+/// that pre-R2010 files keep in a table style's extension dictionary into
+/// the style, so a save to R2010+ writes them.
+pub(crate) fn restore_table_style_roundtrip(document: &mut crate::document::CadDocument) {
+    use crate::objects::{DataObjectData, ObjectType, XRecordValue};
+    let styles: Vec<_> = document
+        .objects
+        .iter()
+        .filter_map(|(handle, object)| match object {
+            ObjectType::TableStyle(style) if style.modern_overrides.is_empty() => Some(*handle),
+            _ => None,
+        })
+        .collect();
+    for handle in styles {
+        let Some(dictionary) = document.extension_dictionary_handle(handle) else {
+            continue;
+        };
+        let Some(ObjectType::Dictionary(dictionary)) = document.objects.get(&dictionary) else {
+            continue;
+        };
+        let cells = dictionary
+            .get(CELL_STYLE_MAP_KEY)
+            .and_then(|map| match document.objects.get(&map) {
+                Some(ObjectType::DataObject(object)) => match &object.data {
+                    DataObjectData::CellStyleMap(map) => Some(map.cells.clone()),
+                    _ => None,
+                },
+                _ => None,
+            });
+        let mut row_types: [Option<(i32, i32, String)>; 3] = Default::default();
+        if let Some(Some(ObjectType::XRecord(record))) = dictionary
+            .get(ROUNDTRIP_RECORD_KEY)
+            .map(|record| document.objects.get(&record))
+        {
+            let mut entries = record
+                .entries
+                .iter()
+                .skip_while(|entry| entry.value.as_string() != Some(PRE2007_MARKER))
+                .skip(1)
+                .take_while(|entry| entry.code != 102);
+            for slot in &mut row_types {
+                let (Some(data_type), Some(unit_type), Some(format)) =
+                    (entries.next(), entries.next(), entries.next())
+                else {
+                    break;
+                };
+                if let (XRecordValue::Int32(data_type), XRecordValue::Int32(unit_type)) =
+                    (&data_type.value, &unit_type.value)
+                {
+                    *slot = Some((
+                        *data_type,
+                        *unit_type,
+                        format.value.as_string().unwrap_or_default().to_string(),
+                    ));
+                }
+            }
+        }
+        let Some(ObjectType::TableStyle(style)) = document.objects.get_mut(&handle) else {
+            continue;
+        };
+        if let Some(cells) = cells {
+            style.modern_overrides = cells.into_iter().map(|cell| (cell.id, cell)).collect();
+        }
+        for (row, types) in legacy_rows_mut(style).into_iter().zip(row_types) {
+            if let Some((data_type, unit_type, format)) = types {
+                row.data_type = data_type;
+                row.unit_type = unit_type;
+                row.format_string = format;
+            }
+        }
+    }
+}
+
+/// Before a save to a pre-R2010 version, keep each table style's R2008+
+/// named cell styles in its extension dictionary (and, for R2004, the row
+/// data types in the round-trip record), as pre-R2010 files do.
+pub(crate) fn store_table_style_roundtrip(document: &mut crate::document::CadDocument) {
+    use crate::objects::{
+        CellStyleMap, DataObject, DataObjectData, ObjectType, XRecordEntry, XRecordValue,
+    };
+    use crate::types::DxfVersion;
+    if document.version >= DxfVersion::AC1024 {
+        return;
+    }
+    let with_row_types = document.version < DxfVersion::AC1021;
+    let mut styles: Vec<_> = document
+        .objects
+        .iter()
+        .filter_map(|(handle, object)| match object {
+            ObjectType::TableStyle(style) if !style.modern_overrides.is_empty() => Some((
+                *handle,
+                style
+                    .modern_overrides
+                    .iter()
+                    .map(|(_, cell)| cell.clone())
+                    .collect::<Vec<_>>(),
+                [
+                    &style.data_row_style,
+                    &style.title_row_style,
+                    &style.header_row_style,
+                ]
+                .map(|row| (row.data_type, row.unit_type, row.format_string.clone())),
+            )),
+            _ => None,
+        })
+        .collect();
+    // Objects are created in handle order so the output is deterministic.
+    styles.sort_by_key(|style| style.0);
+    for (handle, cells, row_types) in styles {
+        let dictionary = document.ensure_extension_dictionary(handle);
+        let existing = match document.objects.get(&dictionary) {
+            Some(ObjectType::Dictionary(entries)) => entries.get(CELL_STYLE_MAP_KEY),
+            _ => None,
+        };
+        match existing.and_then(|map| document.objects.get_mut(&map)) {
+            Some(ObjectType::DataObject(DataObject {
+                data: DataObjectData::CellStyleMap(map),
+                ..
+            })) => map.cells = cells,
+            _ => {
+                let map = document.allocate_handle();
+                let mut object = DataObject::new(DataObjectData::CellStyleMap(CellStyleMap {
+                    cells,
+                }));
+                object.handle = map;
+                object.owner = dictionary;
+                object.reactors = vec![dictionary];
+                document.objects.insert(map, ObjectType::DataObject(object));
+                if let Some(ObjectType::Dictionary(entries)) =
+                    document.objects.get_mut(&dictionary)
+                {
+                    entries.entries.retain(|(name, _)| name != CELL_STYLE_MAP_KEY);
+                    entries.add_entry(CELL_STYLE_MAP_KEY, map);
+                }
+            }
+        }
+        if !with_row_types {
+            continue;
+        }
+        let record = document.ensure_xrecord(handle, ROUNDTRIP_RECORD_KEY);
+        let Some(ObjectType::XRecord(record)) = document.objects.get_mut(&record) else {
+            continue;
+        };
+        let start = record
+            .entries
+            .iter()
+            .position(|entry| entry.value.as_string() == Some(PRE2007_MARKER));
+        if let Some(start) = start {
+            let end = record.entries[start + 1..]
+                .iter()
+                .position(|entry| entry.code == 102)
+                .map_or(record.entries.len(), |offset| start + 1 + offset);
+            record.entries.drain(start..end);
+        }
+        let mut group = vec![XRecordEntry {
+            code: 102,
+            value: XRecordValue::String(PRE2007_MARKER.to_string()),
+        }];
+        for (index, (data_type, unit_type, format)) in row_types.into_iter().enumerate() {
+            let index = index as i32;
+            group.push(XRecordEntry {
+                code: 90 + 2 * index,
+                value: XRecordValue::Int32(data_type),
+            });
+            group.push(XRecordEntry {
+                code: 91 + 2 * index,
+                value: XRecordValue::Int32(unit_type),
+            });
+            group.push(XRecordEntry {
+                code: 1 + index,
+                value: XRecordValue::String(format),
+            });
+        }
+        let at = start.unwrap_or(record.entries.len());
+        record.entries.splice(at..at, group);
+    }
+}
+
 // ============================================================================
 // Tests
 // ============================================================================

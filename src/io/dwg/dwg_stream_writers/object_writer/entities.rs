@@ -5178,7 +5178,7 @@ impl<'a> DwgObjectWriter<'a> {
                 let binary = (!acis_data.is_binary)
                     .then(|| acis_data.parse_sat())
                     .flatten()
-                    .map(|doc| AcisData::from_sab(crate::entities::acis::SabWriter::write(&doc)));
+                    .map(|doc| AcisData::from_sab(self.sab_from_sat(&doc)));
                 self.write_modeler_block(binary.as_ref().unwrap_or(acis_data));
             }
             return;
@@ -5495,6 +5495,29 @@ impl<'a> DwgObjectWriter<'a> {
         self.queue_sab_entry(acis, entity.common().handle);
     }
 
+    /// SAT text to SAB. A body whose text carries no save date gets the
+    /// drawing's save date (TDUPDATE), as the reference application stamps
+    /// its save time there.
+    fn sab_from_sat(&self, sat: &crate::entities::acis::SatDocument) -> Vec<u8> {
+        let julian = self.document.header.update_date_julian;
+        if !sat.header.date.is_empty() || julian <= 0.0 {
+            return crate::entities::acis::SabWriter::write(sat);
+        }
+        // Drawing dates count the fraction from midnight, not noon.
+        let (year, month, day, hour, minute, second) = crate::fields::julian_parts(julian - 0.5);
+        const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const MONTHS: [&str; 12] = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        ];
+        let weekday = DAYS[(julian.floor() as i64 + 1).rem_euclid(7) as usize];
+        let mut dated = sat.clone();
+        dated.header.date = format!(
+            "{weekday} {} {day:>2} {hour:02}:{minute:02}:{second:02} {year}",
+            MONTHS[(month as usize).clamp(1, 12) - 1]
+        );
+        crate::entities::acis::SabWriter::write(&dated)
+    }
+
     /// Queue SAB data for writing into the AcDsPrototype_1b section.
     ///
     /// Converts SAT text → SAB binary if needed (mirroring the DXF writer's
@@ -5508,7 +5531,7 @@ impl<'a> DwgObjectWriter<'a> {
             // Convert SAT text → SAB binary via SatDocument
             if let Ok(mut sat_doc) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 sat_doc.strip_for_sab();
-                let sab = crate::entities::acis::SabWriter::write(&sat_doc);
+                let sab = self.sab_from_sat(&sat_doc);
                 self.sab_entries.push((entity_handle, sab));
             }
         }
@@ -5541,7 +5564,7 @@ impl<'a> DwgObjectWriter<'a> {
         } else if let Ok(sat) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
             let mut binary = acis.clone();
             binary.is_binary = true;
-            binary.sab_data = crate::entities::acis::SabWriter::write(&sat);
+            binary.sab_data = self.sab_from_sat(&sat);
             converted = binary;
             &converted
         } else {
@@ -5566,7 +5589,7 @@ impl<'a> DwgObjectWriter<'a> {
             if let Ok(sat) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 let mut binary = acis.clone();
                 binary.is_binary = true;
-                binary.sab_data = crate::entities::acis::SabWriter::write(&sat);
+                binary.sab_data = self.sab_from_sat(&sat);
                 return self.write_acis_data_impl(point, &binary, wires, silhouettes, inline);
             }
         }

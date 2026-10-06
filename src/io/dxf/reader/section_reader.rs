@@ -6782,6 +6782,18 @@ impl<'a> SectionReader<'a> {
                         dict.handle = Handle::new(h);
                     }
                 }
+                // The owner of a dictionary is also its reactor; dropping the
+                // reactor leaves the owner unnotified when the dictionary is
+                // erased (the reference application erases the decomposed
+                // AcDs data dictionary on load and reports the stale entry).
+                102 => match pair.value_string.trim() {
+                    "{ACAD_REACTORS" => dict.reactors = self.read_reactor_handles()?,
+                    "{ACAD_XDICTIONARY" => {
+                        dict.xdictionary_handle = self.read_xdictionary_handle()?
+                    }
+                    group if group.starts_with('{') => self.skip_defined_group()?,
+                    _ => {}
+                },
                 330 => {
                     // Owner handle
                     if let Ok(h) = u64::from_str_radix(&pair.value_string, 16) {
@@ -7231,7 +7243,14 @@ impl<'a> SectionReader<'a> {
         let mut extended_seen = false;
         let mut property_count = None;
         let mut pending_property = None;
-        let mut legacy_properties = Vec::new();
+        // Pre-R2010 properties in record order; each group code has one slot
+        // (the file interleaves them with the lighting/edge fields).
+        const LEGACY_CODES: [i32; 24] = [
+            40, 41, 63, 64, 65, 75, 42, 92, 66, 43, 76, 77, 78, 67, 79, 170, 171, 290, 174, 175,
+            93, 44, 173, 45,
+        ];
+        let mut legacy_properties: Vec<VisualStyleProperty> = VisualStyle::new().legacy_properties();
+        let mut legacy_color_slot: Option<usize> = None;
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
                 self.reader.push_back(pair);
@@ -7346,22 +7365,26 @@ impl<'a> SectionReader<'a> {
                     290 => Some(VisualStylePropertyValue::Bool(
                         pair.as_bool().unwrap_or(false),
                     )),
-                    420 => {
-                        if let Some(VisualStyleProperty {
-                            value: VisualStylePropertyValue::Color(value),
-                            ..
-                        }) = legacy_properties.last_mut()
-                        {
-                            *value = Color::from_true_color_value(
-                                pair.as_i32_bits().unwrap_or_default(),
-                            );
+                    // True color of the color just read (42n follows 6n).
+                    420..=427 => {
+                        if let Some(slot) = legacy_color_slot {
+                            legacy_properties[slot].value =
+                                VisualStylePropertyValue::Color(Color::from_true_color_value(
+                                    pair.as_i32_bits().unwrap_or_default(),
+                                ));
                         }
                         None
                     }
                     _ => None,
                 };
-                if let Some(value) = property {
-                    legacy_properties.push(VisualStyleProperty { value, enabled: 1 });
+                if let (Some(value), Some(slot)) = (
+                    property,
+                    LEGACY_CODES.iter().position(|code| *code == pair.code),
+                ) {
+                    if matches!(value, VisualStylePropertyValue::Color(_)) {
+                        legacy_color_slot = Some(slot);
+                    }
+                    legacy_properties[slot] = VisualStyleProperty { value, enabled: 1 };
                 }
             }
             match pair.code {
@@ -9547,11 +9570,32 @@ impl<'a> SectionReader<'a> {
         let mut block_record = BlockRecord::new("*Model_Space");
         let mut reactors = Vec::new();
         let mut group = String::new();
+        // Pre-R2007 files carry the units as ACAD `DesignCenter Data`
+        // xdata `{ <version> <units> }` instead of group 70.
+        let mut units_seen = false;
+        let mut design_center: Option<Vec<i16>> = None;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
                 self.reader.push_back(pair);
                 break;
+            }
+
+            match pair.code {
+                1001 => design_center = None,
+                1000 if pair.value_string == "DesignCenter Data" => {
+                    design_center = Some(Vec::new())
+                }
+                1070 => {
+                    if let (Some(values), Some(value)) = (design_center.as_mut(), pair.as_i16()) {
+                        values.push(value);
+                        if values.len() == 2 && !units_seen {
+                            block_record.units = value;
+                        }
+                    }
+                }
+                70 => units_seen = true,
+                _ => {}
             }
 
             match pair.code {
@@ -9606,6 +9650,8 @@ impl<'a> SectionReader<'a> {
                         block_record.layout = Handle::new(h);
                     }
                 }
+                // Block preview image (BMP), split over several 310 groups.
+                310 => append_hex_bytes(&mut block_record.preview_data, &pair.value_string),
                 _ => {}
             }
         }
@@ -18498,9 +18544,13 @@ impl<'a> SectionReader<'a> {
                         common.line_weight = LineWeight::from_value(v);
                     }
                 }
+                // A SAT line longer than a group comes as group 3 chunks
+                // ended by its group 1.
                 1 | 3 => {
                     acis_data.push_str(&pair.value_string);
-                    acis_data.push('\n');
+                    if pair.code == 1 {
+                        acis_data.push('\n');
+                    }
                 }
                 2 => uid = pair.value_string.clone(),
                 350 => {
@@ -20068,6 +20118,8 @@ impl<'a> SectionReader<'a> {
         let mut xr = XRecord::new();
         let mut group = String::new();
         let mut owner_seen = false;
+        // Only the first 280 is the cloning flag; later ones are record data.
+        let mut cloning_seen = false;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 {
@@ -20099,7 +20151,8 @@ impl<'a> SectionReader<'a> {
                     xr.owner = parse_dxf_handle(&pair.value_string);
                     owner_seen = true;
                 }
-                280 => {
+                280 if !cloning_seen => {
+                    cloning_seen = true;
                     if let Some(v) = pair.as_i16() {
                         xr.cloning_flags = DictionaryCloningFlags::from_value(v);
                     }
@@ -20816,7 +20869,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 280 if saw_name => {
-                    if let Some(v) = pair.as_bool() {
+                    if let Some(v) = pair.as_i16().map(|v| v != 0) {
                         ts.title_suppressed = v;
                     }
                 }
@@ -20826,7 +20879,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 281 => {
-                    if let Some(v) = pair.as_bool() {
+                    if let Some(v) = pair.as_i16().map(|v| v != 0) {
                         ts.header_suppressed = v;
                     }
                 }
@@ -20856,7 +20909,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 283 => {
-                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_bool()) {
+                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_i16().map(|v| v != 0)) {
                         row.fill_enabled = v;
                     }
                 }
@@ -20882,7 +20935,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 284..=289 => {
-                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_bool()) {
+                    if let (Some(row), Some(v)) = (rows.last_mut(), pair.as_i16().map(|v| v != 0)) {
                         border_mut(row, (pair.code - 284) as usize).is_invisible = !v;
                     }
                 }
