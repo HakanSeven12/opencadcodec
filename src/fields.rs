@@ -1397,8 +1397,8 @@ struct Picture {
     printf: Option<usize>,
     pre: String,
     suf: String,
-    /// `%ctN[factor]` conversions in order.
-    conv: Vec<(i64, Option<f64>)>,
+    /// The `%ctN[factor]` conversion (the last one in the picture applies).
+    conv: Option<(i64, Option<f64>)>,
 }
 
 impl Picture {
@@ -1447,7 +1447,7 @@ impl Picture {
                 "pt" => p.pt = Some(n),
                 "bl" => p.bl = Some(n),
                 "lw" => p.lw = Some(n),
-                "ct" => p.conv.push((n, arg.and_then(|a| a.trim().parse().ok()))),
+                "ct" => p.conv = Some((n, arg.and_then(|a| a.trim().parse().ok()))),
                 "ps" => {
                     let a = arg.unwrap_or("");
                     let (x, y) = a.split_once(',').unwrap_or((a, ""));
@@ -1475,22 +1475,22 @@ impl Picture {
         }
     }
 
-    /// The value after the `%ct` conversions: 1 and 5 and 7 reciprocal,
-    /// 2 × 12, 3 1 ÷ (12 × value), 4 ÷ 144, 6 none, 8 and 10 × factor,
-    /// 9 and 11 factor ÷ value (1 without a factor).
-    fn convert(&self, mut v: f64) -> f64 {
-        for &(n, f) in &self.conv {
-            v = match n {
-                1 | 5 | 7 => 1.0 / v,
-                2 => v * 12.0,
-                3 => 1.0 / (12.0 * v),
-                4 => v / 144.0,
-                8 | 10 => v * f.unwrap_or(1.0),
-                9 | 11 => f.unwrap_or(1.0) / v,
-                _ => v,
-            };
+    /// The value after the `%ct` conversion, a bit set: 1 reciprocal; 8 ×
+    /// factor (after the reciprocal; 1 without a factor); without 8, exactly
+    /// 2 × 12, 3 1 ÷ (12 × value) and 4 ÷ 144 — any other bit drops the
+    /// 12 / 144 conversion and keeps only the reciprocal.
+    fn convert(&self, v: f64) -> f64 {
+        let Some((n, f)) = self.conv else { return v };
+        let r = if n & 1 != 0 { 1.0 / v } else { v };
+        if n & 8 != 0 {
+            return r * f.unwrap_or(1.0);
         }
-        v
+        match n {
+            2 => v * 12.0,
+            3 => 1.0 / (12.0 * v),
+            4 => v / 144.0,
+            _ => r,
+        }
     }
 
     /// Place the formatted value into the literal text.
@@ -1573,13 +1573,13 @@ fn number_text(doc: &CadDocument, p: &Picture, v: f64) -> String {
     if let Some(au) = p.au {
         let mode = if au == 5 { doc.header.angular_unit_format as i64 } else { au };
         let prec = p.pr.unwrap_or(doc.header.angular_unit_precision.max(0) as usize);
-        return angle_text(v, mode, prec.min(16), z.trailing, true);
+        return angle_text(v, mode, prec.min(16), z, true);
     }
     let prec = p.pr.unwrap_or(doc.header.linear_unit_precision.max(0) as usize).min(16);
     // `%qf2` / `%qf4`: an angle in radians whose `%lu` number is the angle
     // mode, normalised to one turn with 2, as is with 4.
     if p.qf & 6 != 0 {
-        return angle_text(v, p.lu.unwrap_or(2), prec, z.trailing, p.qf & 2 != 0);
+        return angle_text(v, p.lu.unwrap_or(2), prec, z, p.qf & 2 != 0);
     }
     unit_text(v, p.linear_mode(doc), prec, z, p.ds.unwrap_or('.'), p.th)
 }
@@ -1638,15 +1638,24 @@ fn unit_text(v: f64, mode: i64, prec: usize, z: Zeros, ds: char, th: Option<char
     };
     match mode {
         1 => {
-            let s = format!("{:.*e}", prec, a);
-            let (m, e) = s.split_once('e').unwrap_or((&s, "0"));
-            let e: i32 = e.parse().unwrap_or(0);
-            format!(
-                "{sign}{}E{}{:02}",
-                m.replace('.', &ds.to_string()),
-                if e < 0 { '-' } else { '+' },
-                e.abs()
-            )
+            // The mantissa rounds half away from zero (1234.5 → 1.235E+03 at
+            // three decimals), on the value scaled by an exact power of ten.
+            let mut e = if a > 0.0 { a.log10().floor() as i32 } else { 0 };
+            let scaled = |e: i32| {
+                let k = prec as i32 - e;
+                if k >= 0 { (a * 10f64.powi(k)).round() } else { (a / 10f64.powi(-k)).round() }
+            };
+            let mut n = scaled(e);
+            if n >= 10f64.powi(prec as i32 + 1) {
+                e += 1;
+                n = scaled(e);
+            }
+            let digits = format!("{:01$.0}", n, prec + 1);
+            let m = match prec {
+                0 => digits,
+                _ => format!("{}{ds}{}", &digits[..1], &digits[1..]),
+            };
+            format!("{sign}{m}E{}{:02}", if e < 0 { '-' } else { '+' }, e.abs())
         }
         3 => {
             let m = 10f64.powi(prec as i32);
@@ -1695,16 +1704,21 @@ fn unit_text(v: f64, mode: i64, prec: usize, z: Zeros, ds: char, th: Option<char
 /// degrees, 1–2 minutes, 3–4 seconds, more adds decimals to the seconds),
 /// 2 grads (`33g`), 3 radians (`1r`), 4 surveyor's bearing (`N 60d E`; an
 /// exact east / west bearing shows `E` / `W` when a precision is given).
-fn angle_text(rad: f64, mode: i64, prec: usize, trailing: bool, normalize: bool) -> String {
+/// Trailing and leading zero suppression apply to the decimal modes.
+fn angle_text(rad: f64, mode: i64, prec: usize, z: Zeros, normalize: bool) -> String {
     use std::f64::consts::TAU;
     let a = if normalize { rad.rem_euclid(TAU) } else { rad };
     let fixed = |x: f64| {
-        let s = format!("{x:.prec$}");
-        if trailing && s.contains('.') {
-            s.trim_end_matches('0').trim_end_matches('.').to_string()
-        } else {
-            s
+        let mut s = format!("{x:.prec$}");
+        if z.trailing && s.contains('.') {
+            s = s.trim_end_matches('0').trim_end_matches('.').to_string();
         }
+        if z.leading {
+            if let Some(i) = s.find("0.").filter(|&i| s[..i].chars().all(|c| c == '-')) {
+                s.remove(i);
+            }
+        }
+        s
     };
     let dms = |deg: f64| match prec {
         0 => format!("{}d", deg.round()),
@@ -2041,7 +2055,7 @@ fn rtos(val: f64, prec: Option<usize>) -> String {
 
 /// `$(angtos,value[,mode,prec])` — `value` in radians, `mode` as AUNITS.
 fn angtos(val: f64, mode: i64, prec: Option<usize>) -> String {
-    angle_text(val, mode, prec.unwrap_or(0), false, true)
+    angle_text(val, mode, prec.unwrap_or(0), Zeros::default(), true)
 }
 
 /// Gregorian (Y, M, D, h, m, s) for an astronomical Julian date.
@@ -2964,24 +2978,45 @@ impl CadDocument {
     /// host's ordinary context. Returns the hosts whose text changed.
     pub fn stamp_plot_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
         let plot = Plotting(ctx);
-        self.restamp_fields(&plot, ctx, &|_, f| f.evaluation_option & 4 != 0)
+        self.restamp_fields(&plot, ctx, &|_, f| f.evaluation_option & 4 != 0, None).0
+    }
+
+    /// What the reference application does to fields on an evaluation event:
+    /// `event` is an evaluation option bit — 1 open, 2 save, 16 regen, 32 an
+    /// explicit update (UPDATEFIELD) — and every field whose own evaluation
+    /// option holds it is re-evaluated, its value stored in the field object
+    /// and the host text. A `Date` field (option 32) keeps its value through
+    /// open, save and regen; `PlotDate` only changes when plotting. The caller
+    /// masks `event` with FIELDEVAL. `hosts` limits the update to those host
+    /// entities. Returns the hosts whose text changed and how many fields
+    /// the hosts hold.
+    pub fn update_fields(
+        &mut self,
+        ctx: &dyn FieldContext,
+        event: i32,
+        hosts: Option<&[Handle]>,
+    ) -> (Vec<Handle>, usize) {
+        self.restamp_fields(ctx, ctx, &|_, f| f.evaluation_option & event != 0, hosts)
     }
 
     /// Re-evaluate the sheet set (`AcSm`) fields — after a sheet set changed —
     /// storing their values in the field objects and host texts, as the
     /// reference does when it updates fields. Returns the hosts whose text changed.
     pub fn refresh_sheet_set_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
-        self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator.starts_with("AcSm"))
+        self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator.starts_with("AcSm"), None).0
     }
 
-    /// Re-evaluate (with `eval_ctx`) the fields `pick` selects and store the
-    /// changed values.
+    /// Re-evaluate (with `eval_ctx`) the fields `pick` selects — of the
+    /// `only` hosts when given — and store the changed values. Returns the
+    /// hosts whose text changed and the number of fields the hosts hold.
     fn restamp_fields(
         &mut self,
         eval_ctx: &dyn FieldContext,
         ctx: &dyn FieldContext,
         pick: &dyn Fn(&FieldDef, &Field) -> bool,
-    ) -> Vec<Handle> {
+        only: Option<&[Handle]>,
+    ) -> (Vec<Handle>, usize) {
+        let mut found = 0;
         let plot = eval_ctx;
         let mut values: Vec<(Handle, CellValue)> = Vec::new();
         let mut hosts: Vec<(Handle, Handle, String)> = Vec::new();
@@ -2989,12 +3024,16 @@ impl CadDocument {
             let Some(host) = host_of(self, container) else {
                 continue;
             };
+            if only.is_some_and(|only| !only.contains(&host)) {
+                continue;
+            }
             let mut kids: Vec<&FieldDef> = self
                 .fields
                 .values()
                 .filter(|f| f.owner == container.handle)
                 .collect();
             kids.sort_by_key(|f| u64::from(f.handle));
+            found += kids.len();
             let mut shown = Vec::new();
             let mut changed = false;
             for kid in kids {
@@ -3043,7 +3082,7 @@ impl CadDocument {
                 changed.push(host);
             }
         }
-        changed
+        (changed, found)
     }
 
     /// Owner walk over objects *and* fields (`object_owner` does not know
@@ -3305,6 +3344,80 @@ fn fill_template<S: AsRef<str>>(template: &str, shown: &[S], mtext: bool) -> Opt
     }
     out.push_str(rest);
     Some(out)
+}
+
+/// Byte ranges of each field's shown value in `text`, the stored text of
+/// `host` (its container template filled with the fields' cached values):
+/// where the host draws its field background. `None` when the host holds no
+/// field or `text` no longer matches the template.
+pub fn field_spans(
+    doc: &CadDocument,
+    host: Handle,
+    text: &str,
+) -> Option<Vec<std::ops::Range<usize>>> {
+    let container = container_for_host(doc, host)?;
+    let shown = cached_children(doc, container);
+    let mtext = matches!(doc.get_entity(host), Some(EntityType::MText(_)));
+    let mut out = String::new();
+    let mut spans = Vec::new();
+    let mut rest = container.code.as_str();
+    while let Some(p) = rest.find("%<\\_FldIdx ") {
+        out.push_str(&rest[..p]);
+        let after = &rest[p + 11..];
+        let end = after.find(">%")?;
+        let idx: usize = after[..end].trim().parse().ok()?;
+        let value = shown.get(idx)?;
+        let start = out.len();
+        out.push_str(&if mtext { mtext_escape(value) } else { value.clone() });
+        spans.push(start..out.len());
+        rest = &after[end + 2..];
+    }
+    out.push_str(rest);
+    (out == text).then_some(spans)
+}
+
+/// A field's stored value, as last evaluated (the value, else its string).
+fn cached_value(doc: &CadDocument, field: Handle) -> String {
+    match doc.objects.get(&field) {
+        Some(ObjectType::Field(stored)) => match stored.value.display() {
+            "" => stored.value_string.clone(),
+            shown => shown.to_string(),
+        },
+        _ => String::new(),
+    }
+}
+
+/// The stored values of a container's child fields, in `_FldIdx` order.
+fn cached_children(doc: &CadDocument, container: &FieldDef) -> Vec<String> {
+    let mut kids: Vec<&FieldDef> =
+        doc.fields.values().filter(|f| f.owner == container.handle).collect();
+    kids.sort_by_key(|f| u64::from(f.handle));
+    kids.iter().map(|kid| cached_value(doc, kid.handle)).collect()
+}
+
+/// The text a table cell shows for its field `field`: a formula (`AcExpr`,
+/// which reads other cells) is evaluated live, as the reference recomputes
+/// it when the table changes; any other field shows its stored value, which
+/// only an evaluation event ([`CadDocument::update_fields`]) changes.
+pub fn cell_field_text(
+    doc: &CadDocument,
+    field: Handle,
+    table: Handle,
+    ctx: &dyn FieldContext,
+) -> Option<String> {
+    let def = doc.fields.get(&field)?;
+    if def.evaluator != "_text" {
+        return if def.evaluator == "AcExpr" {
+            resolve_handle(doc, field, table, ctx)
+        } else {
+            Some(cached_value(doc, field))
+        };
+    }
+    let formula = doc.fields.values().any(|f| f.owner == def.handle && f.evaluator == "AcExpr");
+    if formula {
+        return resolve_handle(doc, field, table, ctx);
+    }
+    fill_template(&def.code, &cached_children(doc, def), false)
 }
 
 /// A host context that is plotting.
