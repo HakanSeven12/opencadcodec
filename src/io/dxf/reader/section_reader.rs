@@ -16801,6 +16801,9 @@ impl<'a> SectionReader<'a> {
                         vp.frozen_layers.push(Handle::new(h));
                     }
                 }
+                340 => {
+                    vp.clip_boundary_handle = pair.as_handle().map(Handle::new).unwrap_or(Handle::NULL);
+                }
                 281 => {
                     if let Some(v) = pair.as_i16() {
                         vp.render_mode =
