@@ -2978,24 +2978,45 @@ impl CadDocument {
     /// host's ordinary context. Returns the hosts whose text changed.
     pub fn stamp_plot_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
         let plot = Plotting(ctx);
-        self.restamp_fields(&plot, ctx, &|_, f| f.evaluation_option & 4 != 0)
+        self.restamp_fields(&plot, ctx, &|_, f| f.evaluation_option & 4 != 0, None).0
+    }
+
+    /// What the reference application does to fields on an evaluation event:
+    /// `event` is an evaluation option bit — 1 open, 2 save, 16 regen, 32 an
+    /// explicit update (UPDATEFIELD) — and every field whose own evaluation
+    /// option holds it is re-evaluated, its value stored in the field object
+    /// and the host text. A `Date` field (option 32) keeps its value through
+    /// open, save and regen; `PlotDate` only changes when plotting. The caller
+    /// masks `event` with FIELDEVAL. `hosts` limits the update to those host
+    /// entities. Returns the hosts whose text changed and how many fields
+    /// the hosts hold.
+    pub fn update_fields(
+        &mut self,
+        ctx: &dyn FieldContext,
+        event: i32,
+        hosts: Option<&[Handle]>,
+    ) -> (Vec<Handle>, usize) {
+        self.restamp_fields(ctx, ctx, &|_, f| f.evaluation_option & event != 0, hosts)
     }
 
     /// Re-evaluate the sheet set (`AcSm`) fields — after a sheet set changed —
     /// storing their values in the field objects and host texts, as the
     /// reference does when it updates fields. Returns the hosts whose text changed.
     pub fn refresh_sheet_set_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
-        self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator.starts_with("AcSm"))
+        self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator.starts_with("AcSm"), None).0
     }
 
-    /// Re-evaluate (with `eval_ctx`) the fields `pick` selects and store the
-    /// changed values.
+    /// Re-evaluate (with `eval_ctx`) the fields `pick` selects — of the
+    /// `only` hosts when given — and store the changed values. Returns the
+    /// hosts whose text changed and the number of fields the hosts hold.
     fn restamp_fields(
         &mut self,
         eval_ctx: &dyn FieldContext,
         ctx: &dyn FieldContext,
         pick: &dyn Fn(&FieldDef, &Field) -> bool,
-    ) -> Vec<Handle> {
+        only: Option<&[Handle]>,
+    ) -> (Vec<Handle>, usize) {
+        let mut found = 0;
         let plot = eval_ctx;
         let mut values: Vec<(Handle, CellValue)> = Vec::new();
         let mut hosts: Vec<(Handle, Handle, String)> = Vec::new();
@@ -3003,12 +3024,16 @@ impl CadDocument {
             let Some(host) = host_of(self, container) else {
                 continue;
             };
+            if only.is_some_and(|only| !only.contains(&host)) {
+                continue;
+            }
             let mut kids: Vec<&FieldDef> = self
                 .fields
                 .values()
                 .filter(|f| f.owner == container.handle)
                 .collect();
             kids.sort_by_key(|f| u64::from(f.handle));
+            found += kids.len();
             let mut shown = Vec::new();
             let mut changed = false;
             for kid in kids {
@@ -3057,7 +3082,7 @@ impl CadDocument {
                 changed.push(host);
             }
         }
-        changed
+        (changed, found)
     }
 
     /// Owner walk over objects *and* fields (`object_owner` does not know
@@ -3319,6 +3344,48 @@ fn fill_template<S: AsRef<str>>(template: &str, shown: &[S], mtext: bool) -> Opt
     }
     out.push_str(rest);
     Some(out)
+}
+
+/// Byte ranges of each field's shown value in `text`, the stored text of
+/// `host` (its container template filled with the fields' cached values):
+/// where the host draws its field background. `None` when the host holds no
+/// field or `text` no longer matches the template.
+pub fn field_spans(
+    doc: &CadDocument,
+    host: Handle,
+    text: &str,
+) -> Option<Vec<std::ops::Range<usize>>> {
+    let container = container_for_host(doc, host)?;
+    let mut kids: Vec<&FieldDef> =
+        doc.fields.values().filter(|f| f.owner == container.handle).collect();
+    kids.sort_by_key(|f| u64::from(f.handle));
+    let shown: Vec<String> = kids
+        .iter()
+        .map(|kid| match doc.objects.get(&kid.handle) {
+            Some(ObjectType::Field(stored)) => match stored.value.display() {
+                "" => stored.value_string.clone(),
+                shown => shown.to_string(),
+            },
+            _ => String::new(),
+        })
+        .collect();
+    let mtext = matches!(doc.get_entity(host), Some(EntityType::MText(_)));
+    let mut out = String::new();
+    let mut spans = Vec::new();
+    let mut rest = container.code.as_str();
+    while let Some(p) = rest.find("%<\\_FldIdx ") {
+        out.push_str(&rest[..p]);
+        let after = &rest[p + 11..];
+        let end = after.find(">%")?;
+        let idx: usize = after[..end].trim().parse().ok()?;
+        let value = shown.get(idx)?;
+        let start = out.len();
+        out.push_str(&if mtext { mtext_escape(value) } else { value.clone() });
+        spans.push(start..out.len());
+        rest = &after[end + 2..];
+    }
+    out.push_str(rest);
+    (out == text).then_some(spans)
 }
 
 /// A host context that is plotting.
