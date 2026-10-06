@@ -238,8 +238,10 @@ struct Parser<'a> {
 
 impl Parser<'_> {
     fn skip_ws(&mut self) {
-        while self.s[self.i..].starts_with(|c: char| c.is_whitespace()) {
-            self.i += 1;
+        // Step by the character's width: a multi-byte space (U+00A0) would
+        // otherwise leave `i` inside it and the next slice would panic.
+        while let Some(c) = self.s[self.i..].chars().next().filter(|c| c.is_whitespace()) {
+            self.i += c.len_utf8();
         }
     }
 

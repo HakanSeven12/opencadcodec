@@ -23,7 +23,7 @@
 use crate::document::CadDocument;
 use crate::entities::{EntityType, Insert};
 use crate::types::{Handle, Vector3};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// One block reference taking part in a count.
 #[derive(Debug, Clone, PartialEq)]
@@ -451,7 +451,11 @@ pub fn group_matches(doc: &CadDocument, targets: &[Handle], area: Option<&[[f64;
     }
     let r = |v: f64| (v * 1e6).round() as i64;
     let key = |sig: &str, p: Vector3| (sig.to_string(), [r(p.x), r(p.y), r(p.z)]);
-    let duplicates: Vec<Handle> = block_instances(doc, None).into_iter().filter(|i| i.duplicate_of.is_some()).map(|i| i.handle).collect();
+    let duplicates: HashSet<Handle> = block_instances(doc, None)
+        .into_iter()
+        .filter(|i| i.duplicate_of.is_some())
+        .map(|i| i.handle)
+        .collect();
     let mut index: HashMap<(String, [i64; 3]), Vec<Handle>> = HashMap::new();
     let mut order: Vec<(Handle, String, Vector3)> = Vec::new();
     for e in doc.model_space_entities() {
@@ -477,6 +481,9 @@ pub fn group_matches(doc: &CadDocument, targets: &[Handle], area: Option<&[[f64;
         return Vec::new();
     };
     let mut out: Vec<Vec<Handle>> = Vec::new();
+    // Sorted member sets already in `out`, so a group found from another of
+    // its members is skipped in O(1).
+    let mut seen: HashSet<Vec<u64>> = HashSet::new();
     for (h, sig, anchor) in &order {
         if *sig != sig0 {
             continue;
@@ -500,13 +507,9 @@ pub fn group_matches(doc: &CadDocument, targets: &[Handle], area: Option<&[[f64;
                 continue;
             }
         }
-        let mut sorted = members.clone();
-        sorted.sort_by_key(|h| h.value());
-        if !out.iter().any(|o| {
-            let mut s = o.clone();
-            s.sort_by_key(|h| h.value());
-            s == sorted
-        }) {
+        let mut sorted: Vec<u64> = members.iter().map(|h| h.value()).collect();
+        sorted.sort_unstable();
+        if seen.insert(sorted) {
             out.push(members);
         }
     }

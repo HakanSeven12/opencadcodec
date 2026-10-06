@@ -1808,9 +1808,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         document: &CadDocument,
     ) -> Result<()> {
         self.writer.write_handle(5, handle)?;
-        self.write_table_entry_xdictionary(handle, document)?;
         // Reactors kept from the source (an associative array's dependencies
-        // on its anonymous blocks, for example).
+        // on its anonymous blocks, for example). They precede the extension
+        // dictionary, as on every other object.
         let reactors: Vec<Handle> = document
             .reactors_by_handle
             .get(&handle)
@@ -1829,6 +1829,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             }
             self.writer.write_string(102, "}")?;
         }
+        self.write_table_entry_xdictionary(handle, document)?;
         self.writer.write_handle(330, owner)?;
         Ok(())
     }
