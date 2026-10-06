@@ -1253,6 +1253,14 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             .write_double(42, style.effective_last_height())?;
         self.writer.write_string(3, &style.font_file)?;
         self.writer.write_string(4, &style.big_font_file)?;
+        if !style.true_type_font.trim().is_empty() {
+            self.writer.write_string(1001, "ACAD")?;
+            self.writer.write_string(1000, style.true_type_font.trim())?;
+            self.writer.write_i32(
+                1071,
+                crate::io::dwg::typeface_eed::DEFAULT_FONT_FLAGS,
+            )?;
+        }
         self.write_annotative_xdata(style.annotative)?;
 
         Ok(())

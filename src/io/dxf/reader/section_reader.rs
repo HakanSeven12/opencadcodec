@@ -9473,8 +9473,32 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 1001 => {
-                    if pair.value_string == "AcadAnnotative" {
-                        style.annotative = self.read_annotative_xdata(pair)?;
+                    // Every XDATA block on the record: the annotative flag
+                    // and the TrueType typeface (`ACAD 1000 <face>`).
+                    use crate::xdata::XDataValue;
+                    self.reader.push_back(pair);
+                    let (xdata, next_pair) = self.read_extended_data()?;
+                    if let Some(p) = next_pair {
+                        self.reader.push_back(p);
+                    }
+                    if let Some(record) = xdata.get_record("AcadAnnotative") {
+                        style.annotative = record
+                            .values
+                            .iter()
+                            .filter_map(|v| match v {
+                                XDataValue::Integer16(n) => Some(*n),
+                                _ => None,
+                            })
+                            .last()
+                            .is_some_and(|n| n != 0);
+                    }
+                    if let Some(face) = xdata.get_record("ACAD").and_then(|record| {
+                        record.values.iter().find_map(|v| match v {
+                            XDataValue::String(s) => Some(s.clone()),
+                            _ => None,
+                        })
+                    }) {
+                        style.true_type_font = face;
                     }
                 }
                 _ => {}
