@@ -2566,9 +2566,14 @@ impl CadDocument {
                 let cell = row.cells.get(c);
                 // A cell's own override (text height, style, colour, alignment,
                 // background) wins over its row's style.
-                let own = cell.and_then(|cell| cell.style.as_ref());
-                let overrides = |p: P| own.filter(|s| s.property_flags.contains(p));
-                if let Some(s) = overrides(P::BACKGROUND_COLOR).filter(|s| s.fill_enabled) {
+                // (DXF and binary cells say it differently; the binary layout
+                // keeps text height, style and colour on the content.)
+                let laid = cell.map(|cell| cell.binary_layout());
+                let own = laid.as_deref().and_then(|cell| cell.style.as_ref());
+                let own_content = laid.as_deref().and_then(|cell| cell.contents.first());
+                let style_sets = |p: P| own.filter(|s| s.sets(p));
+                let content_sets = |p: P| own_content.filter(|c| c.sets(p));
+                if let Some(s) = style_sets(P::BACKGROUND_COLOR).filter(|s| s.fill_enabled) {
                     let (w, h) = span[r][c];
                     let (x0, x1, y0, y1) = (xs[c], xs[c + w], -ys[r], -ys[r + h]);
                     let mut solid = Solid::new(
@@ -2588,14 +2593,11 @@ impl CadDocument {
                 }
                 let (mut height, mut align) = row_style(r);
                 // A cell overriding its style brings its own alignment.
-                if let Some(s) = cell
-                    .and_then(|cell| cell.style.as_ref())
-                    .filter(|s| s.override_flags != 0 && (1..=9).contains(&s.alignment))
-                {
+                if let Some(s) = style_sets(P::ALIGNMENT).filter(|s| (1..=9).contains(&s.alignment)) {
                     align = s.alignment;
                 }
-                if let Some(s) = overrides(P::TEXT_HEIGHT).filter(|s| s.text_height > 0.0) {
-                    height = s.text_height;
+                if let Some(c) = content_sets(P::TEXT_HEIGHT).filter(|c| c.text_height > 0.0) {
+                    height = c.text_height;
                 }
                 let (w, h) = span[r][c];
                 let (x0, x1, y0, y1) = (xs[c], xs[c + w], ys[r], ys[r + h]);
@@ -2611,10 +2613,10 @@ impl CadDocument {
                 m.insertion_point = Vector3::new(x, y, 0.0);
                 m.attachment_point = attachment(align);
                 m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
-                if let Some(s) = overrides(P::CONTENT_COLOR) {
-                    m.common.color = s.content_color.clone();
+                if let Some(c) = content_sets(P::CONTENT_COLOR) {
+                    m.common.color = c.color.clone();
                 }
-                if let Some(s) = overrides(P::TEXT_STYLE) {
+                if let Some(s) = content_sets(P::TEXT_STYLE) {
                     let name = if s.text_style_name.is_empty() {
                         s.text_style_handle
                             .and_then(|h| self.text_styles.iter().find(|st| st.handle == h))

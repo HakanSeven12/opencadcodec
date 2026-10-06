@@ -644,6 +644,12 @@ pub struct CellContent {
 }
 
 impl CellContent {
+    /// Whether this content's own format sets `property`.
+    pub fn sets(&self, property: CellStylePropertyFlags) -> bool {
+        let bits = (self.format_property_flags | self.format_override_flags) as u32;
+        bits & property.bits() == property.bits()
+    }
+
     /// Creates empty cell content.
     pub fn new() -> Self {
         Self {
@@ -819,6 +825,23 @@ pub struct CellStyle {
 }
 
 impl CellStyle {
+    /// The properties this style sets: the ones it names, plus its override
+    /// bits — in the binary layout, or the legacy DXF layout a style read
+    /// from DXF keeps (whose meaning `property_flags` already holds).
+    pub fn overridden(&self) -> CellStylePropertyFlags {
+        let legacy = self.override_flags != 0 && legacy_override_properties(self.override_flags) == self.property_flags;
+        if legacy {
+            self.property_flags
+        } else {
+            self.property_flags | CellStylePropertyFlags::from_bits_truncate(self.override_flags as u32)
+        }
+    }
+
+    /// Whether this style sets `property`.
+    pub fn sets(&self, property: CellStylePropertyFlags) -> bool {
+        self.overridden().contains(property)
+    }
+
     /// Creates a default cell style.
     pub fn new() -> Self {
         Self {
@@ -1027,13 +1050,17 @@ impl TableCell {
     /// 4, override bits 1 and 2), an empty content a general value (512).
     pub fn binary_layout(&self) -> std::borrow::Cow<'_, TableCell> {
         use CellStylePropertyFlags as P;
-        let legacy = self
+        const CONTENT: P = P::TEXT_HEIGHT.union(P::TEXT_STYLE).union(P::CONTENT_COLOR);
+        let own = self
             .style
             .as_ref()
-            .filter(|s| s.override_flags != 0 && legacy_override_properties(s.override_flags) == s.property_flags)
+            .filter(|s| {
+                let sets = s.overridden();
+                sets.intersects(CONTENT) || s.override_flags != (sets & !CONTENT).bits() as i32 || !s.property_flags.is_empty()
+            })
             .cloned();
         let untyped = self.contents.iter().any(|c| c.format_value_data_type == 0);
-        if legacy.is_none() && !untyped {
+        if own.is_none() && !untyped {
             return std::borrow::Cow::Borrowed(self);
         }
         let mut cell = self.clone();
@@ -1047,8 +1074,8 @@ impl TableCell {
                 }
             }
         }
-        if let Some(own) = legacy {
-            let p = own.property_flags;
+        if let Some(own) = own {
+            let p = own.overridden();
             for content in &mut cell.contents {
                 if p.contains(P::TEXT_HEIGHT) {
                     content.format_override_flags |= P::TEXT_HEIGHT.bits() as i32;
@@ -1065,7 +1092,7 @@ impl TableCell {
                 }
             }
             if let Some(style) = cell.style.as_mut() {
-                style.override_flags = (p & (P::ALIGNMENT | P::BACKGROUND_COLOR)).bits() as i32;
+                style.override_flags = (p & !CONTENT).bits() as i32;
                 style.property_flags = P::NONE;
             }
         }
