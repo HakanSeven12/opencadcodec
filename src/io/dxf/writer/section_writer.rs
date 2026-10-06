@@ -2730,8 +2730,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_bool(290, value.has_align_start)?;
         self.writer.write_i16(70, value.align_option.into())?;
         self.writer.write_i16(71, value.miter_option.into())?;
-        self.writer.write_bool(292, value.bank)?;
-        self.writer.write_bool(293, value.check_intersections)?;
+        self.writer.write_bool(292, value.align_start)?;
+        self.writer.write_bool(293, value.bank)?;
         self.writer.write_bool(294, value.flags_294_296[0])?;
         self.writer.write_bool(295, value.flags_294_296[1])?;
         self.writer.write_bool(296, value.flags_294_296[2])?;
@@ -2944,6 +2944,13 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         let Some(entity) = entity else {
             return self.writer.write_i32(type_code, 0);
         };
+        if let crate::entities::EmbeddedEntity::Body { type_code: body_type, acis_data } = entity {
+            // A polyline kept as a wire body: SAT version and text, as in
+            // surface records.
+            self.writer.write_i32(type_code, *body_type)?;
+            self.writer.write_i16(70, 1)?;
+            return self.write_acis_data(acis_data);
+        }
         let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
             entity,
             crate::io::dwg::DwgVersion::from_dxf_version(self.dxf_version)

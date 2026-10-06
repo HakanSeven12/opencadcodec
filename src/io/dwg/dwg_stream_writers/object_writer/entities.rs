@@ -5177,7 +5177,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    fn write_surface_embedded_entity(
+    pub(super) fn write_surface_embedded_entity(
         &mut self,
         entity: &crate::entities::EmbeddedEntity,
         byte_aligned: bool,

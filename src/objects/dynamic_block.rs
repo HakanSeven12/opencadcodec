@@ -1154,9 +1154,14 @@ pub struct SolidHistorySweep {
     pub path_entity_transform: [f64; 16],
     pub align_option: u8,
     pub miter_option: u8,
+    /// DXF group 290; the reference application sets it on every solid
+    /// sweep it records.
     pub has_align_start: bool,
+    /// DXF group 292: align the profile at the path start (the sweep
+    /// options' align-start setting, set by default).
+    pub align_start: bool,
+    /// DXF group 293: bank the profile along a non-planar path.
     pub bank: bool,
-    pub check_intersections: bool,
     /// DXF groups 294, 295 and 296. The reference application sets 295 and
     /// 296 on every sweep it records: 295 says `sweep_entity` is already
     /// placed on the path start and aligned to it (the profile is used as
@@ -1196,8 +1201,8 @@ impl Default for SolidHistorySweep {
             align_option: 0,
             miter_option: 0,
             has_align_start: false,
+            align_start: true,
             bank: false,
-            check_intersections: false,
             flags_294_296: [false; 3],
             reference_point: Vector3::ZERO,
             dwg_vector: Vector3::new(1.0, 1.0, 1.0),
