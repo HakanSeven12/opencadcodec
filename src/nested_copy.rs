@@ -152,8 +152,10 @@ impl CadDocument {
                 layer.handle=self.allocate_handle();self.layers.add_or_replace(layer);
             }
             let line_handle=self.line_types.get(&line_name).map(|line|line.handle);
+            let layer_handle=self.layers.get(&layer_name).map(|layer|layer.handle);
             let common=entity.common_mut();
-            common.layer=layer_name;common.linetype=line_name;common.linetype_handle=line_handle;
+            common.layer=layer_name;common.layer_handle=layer_handle;
+            common.linetype=line_name;common.linetype_handle=line_handle;
         }
         retained
     }
@@ -232,6 +234,7 @@ mod tests {
         let common = entities[0].common();
         assert_eq!((common.layer.as_str(), common.linetype.as_str()), ("Detail", "Dash"));
         assert_eq!(common.linetype_handle, document.line_types.get("Dash").map(|line| line.handle));
+        assert_eq!(common.layer_handle, document.layers.get("Detail").map(|layer| layer.handle));
         assert!(document.layers.get("Detail").is_some());
     }
 

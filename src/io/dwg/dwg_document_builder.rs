@@ -1634,7 +1634,8 @@ impl DwgDocumentBuilder {
         // from the canonical entity_handles read from the DWG binary
         // (R2004+).  This is needed because entity_mode=1 only says
         // "paper space" without specifying WHICH paper space.
-        let mut binary_entity_owner: ahash::AHashMap<Handle, Handle> = ahash::AHashMap::new();
+        let mut binary_entity_owner: foldhash::HashMap<Handle, Handle> =
+            foldhash::HashMap::default();
         for entry in &parsed_entries {
             if let ParsedEntry::Block(h, data) = entry {
                 let br_handle = Handle::from(*h);
@@ -2255,7 +2256,7 @@ impl DwgDocumentBuilder {
             record_catalog
                 .iter()
                 .map(|(handle, offset, _, _)| (Handle::from(*handle), *offset))
-                .collect::<ahash::AHashMap<_, _>>()
+                .collect::<foldhash::HashMap<_, _>>()
         });
         Self::rebuild_block_membership(
             document,
@@ -2684,12 +2685,12 @@ impl DwgDocumentBuilder {
         // still emits it verbatim; the writer prefers raw over records per app.
         {
             let wide = self.obj_reader.version().r2007_plus();
-            let app_name_by_handle: ahash::AHashMap<u64, String> = document
+            let app_name_by_handle: foldhash::HashMap<u64, String> = document
                 .app_ids
                 .iter()
                 .map(|a| (a.handle.value(), a.name.clone()))
                 .collect();
-            let layer_name_by_handle: ahash::AHashMap<u64, String> = document
+            let layer_name_by_handle: foldhash::HashMap<u64, String> = document
                 .layers
                 .iter()
                 .map(|l| (l.handle.value(), l.name.clone()))
@@ -3224,10 +3225,10 @@ impl DwgDocumentBuilder {
 
     fn rebuild_block_membership(
         document: &mut CadDocument,
-        binary_entity_owner: Option<&ahash::AHashMap<Handle, Handle>>,
-        source_record_order: Option<&ahash::AHashMap<Handle, usize>>,
+        binary_entity_owner: Option<&foldhash::HashMap<Handle, Handle>>,
+        source_record_order: Option<&foldhash::HashMap<Handle, usize>>,
     ) {
-        let valid_owners: ahash::AHashSet<Handle> = document
+        let valid_owners: foldhash::HashSet<Handle> = document
             .block_records
             .iter()
             .map(|record| record.handle)
@@ -3265,8 +3266,11 @@ impl DwgDocumentBuilder {
                 }
                 valid_owners.contains(&owner).then_some((owner, handle))
             });
-        let mut by_owner: ahash::AHashMap<Handle, Vec<Handle>> =
-            ahash::AHashMap::with_capacity(document.block_records.len());
+        let mut by_owner: foldhash::HashMap<Handle, Vec<Handle>> =
+            foldhash::HashMap::with_capacity_and_hasher(
+                document.block_records.len(),
+                Default::default(),
+            );
         for (owner, handle) in memberships.into_iter().flatten() {
             by_owner.entry(owner).or_default().push(handle);
         }
@@ -3279,7 +3283,7 @@ impl DwgDocumentBuilder {
                 .get(&record.handle)
                 .filter(|canonical| !canonical.is_empty())
             {
-                let order: ahash::AHashMap<Handle, usize> = canonical
+                let order: foldhash::HashMap<Handle, usize> = canonical
                     .iter()
                     .copied()
                     .enumerate()
@@ -3678,6 +3682,7 @@ impl DwgDocumentBuilder {
                     e.knot_parameterization = data.knot_param;
                     e.cv_frame_visible = data.flags1 & 2 != 0;
                     e.dwg_flags1 = data.flags1;
+                    e.dwg_scenario = Some(data.scenario);
                     let _ = document.add_entity(EntityType::Spline(e));
                 }
                 OBJ_HELIX => {
@@ -3705,6 +3710,7 @@ impl DwgDocumentBuilder {
                     e.spline.knot_parameterization = data.knot_param;
                     e.spline.cv_frame_visible = data.flags1 & 2 != 0;
                     e.spline.dwg_flags1 = data.flags1;
+                    e.spline.dwg_scenario = Some(data.scenario);
                     // AcDbHelix parameters follow the spline record.
                     e.major_version = reader.read_bit_long();
                     e.maintenance_version = reader.read_bit_long();
@@ -7640,6 +7646,9 @@ fn map_entity_common(
     common.invisible = data.invisible;
     common.linetype_scale = data.linetype_scale;
     common.layer = maps.layer_name(data.layer_handle);
+    // Keep the source handle: `layer_name` falls back to "0" when it does not
+    // resolve, and the handle is the only way to tell the two apart (#113).
+    common.layer_handle = (data.layer_handle != 0).then(|| Handle::from(data.layer_handle));
     // Line weight (raw DWG index byte → LineWeight)
     common.line_weight = crate::types::LineWeight::from_dwg_index(data.line_weight);
     // Reactors
@@ -7680,6 +7689,71 @@ fn map_entity_common(
     // right modeler entity in object-stream order.
     common.has_ds_data = data.has_ds_data;
     common
+}
+
+#[cfg(test)]
+mod layer_handle_tests {
+    use super::{map_entity_common, HandleMaps};
+    use crate::io::dwg::dwg_stream_readers::object_reader::{EntityCommonData, ObjectCommonData};
+    use crate::types::{Color, Handle, Transparency};
+
+    fn entity_on_layer(layer_handle: u64) -> EntityCommonData {
+        EntityCommonData {
+            common: ObjectCommonData {
+                type_code: 19,
+                handle: 0x100,
+                eed_raw: Vec::new(),
+            },
+            has_graphic: false,
+            graphic_data: None,
+            entity_mode: 2,
+            owner_handle: 0,
+            reactors: Vec::new(),
+            xdictionary_handle: None,
+            color: Color::ByLayer,
+            transparency: Transparency::BY_LAYER,
+            line_weight: 0,
+            linetype_scale: 1.0,
+            invisible: false,
+            layer_handle,
+            linetype_flags: 0,
+            linetype_handle: 0,
+            color_book_handle: None,
+            prev_entity_handle: None,
+            next_entity_handle: None,
+            material_flags: 0,
+            material_handle: None,
+            shadow_flags: 0,
+            plotstyle_flags: 0,
+            plotstyle_handle: None,
+            full_visual_style_handle: None,
+            face_visual_style_handle: None,
+            edge_visual_style_handle: None,
+            has_ds_data: false,
+        }
+    }
+
+    fn map(layer_handle: u64, maps: &HandleMaps) -> crate::entities::EntityCommon {
+        map_entity_common(&entity_on_layer(layer_handle), maps, Handle::new(0x1F), Handle::new(0x1B))
+    }
+
+    #[test]
+    fn unresolved_layer_keeps_its_handle_apart_from_layer_zero() {
+        let mut maps = HandleMaps::new();
+        maps.layers.insert(0x10, "0".to_string());
+
+        let on_zero = map(0x10, &maps);
+        assert_eq!(on_zero.layer, "0");
+        assert_eq!(on_zero.layer_handle, Some(Handle::new(0x10)));
+
+        // Same fallback name, but the handle shows the reference did not resolve.
+        let dangling = map(0x99, &maps);
+        assert_eq!(dangling.layer, "0");
+        assert_eq!(dangling.layer_handle, Some(Handle::new(0x99)));
+        assert!(!maps.layers.contains_key(&dangling.layer_handle.unwrap().value()));
+
+        assert_eq!(map(0, &maps).layer_handle, None);
+    }
 }
 
 #[cfg(test)]

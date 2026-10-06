@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opencadcodec = { version = "0.5.5", features = ["serde", "import"] }
+//! opencadcodec = { version = "0.6.0", features = ["serde", "import"] }
 //! ```
 //!
 //! ## Quick Start — DXF

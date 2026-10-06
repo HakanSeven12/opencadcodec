@@ -209,6 +209,7 @@ pub(crate) fn decode_embedded_entity(
             entity.knot_parameterization = data.knot_param;
             entity.cv_frame_visible = data.flags1 & 2 != 0;
             entity.dwg_flags1 = data.flags1;
+            entity.dwg_scenario = Some(data.scenario);
             Some(EmbeddedEntity::Spline(entity))
         }
         common::OBJ_LWPOLYLINE => {

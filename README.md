@@ -12,7 +12,7 @@ R13 through R2018+.
 
 ```toml
 [dependencies]
-opencadcodec = "0.5.5"
+opencadcodec = "0.6.0"
 ```
 
 ```rust
@@ -41,7 +41,7 @@ Enable optional features as needed:
 
 ```toml
 [dependencies]
-opencadcodec = { version = "0.5.5", features = ["serde", "import"] }
+opencadcodec = { version = "0.6.0", features = ["serde", "import"] }
 ```
 
 ## Features

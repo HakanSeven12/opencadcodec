@@ -1,6 +1,6 @@
 [package]
 name = "opencadcodec"
-version = "0.5.5"
+version = "0.6.0"
 edition = "2021"
 authors = ["Hakan AK"]
 description = "A pure Rust library for reading and writing CAD files in DXF format (ASCII and Binary) and DWG format (Binary)."
@@ -18,7 +18,7 @@ import = ["dep:quick-xml"]
 
 [dependencies]
 # Error handling
-thiserror = "1.0"
+thiserror = "2"
 anyhow = "1.0"
 
 # Binary parsing
@@ -30,7 +30,7 @@ flate2 = "1.0"
 
 # Collections
 indexmap = "2.0"
-ahash = { version = "0.8", features = ["serde"] }
+foldhash = "0.2"
 
 # Encoding
 encoding_rs = "0.8"

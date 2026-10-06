@@ -185,7 +185,7 @@ fn transcode_xrecord_xdata(
                 .0
                 .into_owned();
             p += len;
-            crate::io::dxf::code_page::decode_mif_escapes(&s)
+            crate::io::dxf::code_page::decode_legacy_escapes(&s)
         };
         if tgt_unicode {
             let utf16: Vec<u16> = text.encode_utf16().take(u16::MAX as usize).collect();
@@ -282,11 +282,93 @@ fn matrix_to_column_major(m: &crate::types::Matrix4) -> [f64; 12] {
     out
 }
 
+/// The class names a class-registered object takes its type code from, in
+/// lookup order. Empty for objects written under a fixed type code.
+pub(crate) fn object_class_names(object: &ObjectType) -> Vec<std::borrow::Cow<'_, str>> {
+    use std::borrow::Cow;
+
+    let name: &str = match object {
+        ObjectType::MultiLeaderStyle(_) => "MLEADERSTYLE",
+        ObjectType::ImageDefinition(_) => "IMAGEDEF",
+        ObjectType::UnderlayDefinition(value) => value.entity_name(),
+        ObjectType::ImageDefinitionReactor(_) => "IMAGEDEF_REACTOR",
+        ObjectType::PlotSettings(_) => "PLOTSETTINGS",
+        ObjectType::Scale(_) => "SCALE",
+        ObjectType::ObjectContextData(value) => value.class_name(),
+        ObjectType::SortEntitiesTable(_) => "SORTENTSTABLE",
+        ObjectType::DictionaryVariable(_) => "DICTIONARYVAR",
+        ObjectType::RasterVariables(_) => "RASTERVARIABLES",
+        ObjectType::DictionaryWithDefault(_) => "ACDBDICTIONARYWDFLT",
+        ObjectType::BookColor(_) => "DBCOLOR",
+        ObjectType::WipeoutVariables(_) => "WIPEOUTVARIABLES",
+        ObjectType::SpatialFilter(_) => "SPATIAL_FILTER",
+        ObjectType::GeoData(_) => "GEODATA",
+        ObjectType::BlockVisibilityParameter(_) => "BLOCKVISIBILITYPARAMETER",
+        ObjectType::TableContent(_) => "TABLECONTENT",
+        ObjectType::VisualStyle(_) => "VISUALSTYLE",
+        ObjectType::Material(_) => "MATERIAL",
+        ObjectType::TableStyle(_) => "TABLESTYLE",
+        ObjectType::Field(_) => "FIELD",
+        ObjectType::FieldList(_) => "FIELDLIST",
+        ObjectType::DynamicBlock(value) => &value.dxf_name,
+        ObjectType::DgnLineStyle(value) => value.dxf_name(),
+        ObjectType::ClassObject(value)
+            if !matches!(value.data, ClassObjectData::VbaProject(_)) =>
+        {
+            value.dxf_name()
+        }
+        ObjectType::DataObject(value)
+            if !matches!(
+                value.data,
+                DataObjectData::Dummy | DataObjectData::LongTransaction
+            ) =>
+        {
+            value.dxf_name()
+        }
+        ObjectType::RegisteredClass(value) if value.properties.is_empty() => &value.dxf_name,
+        ObjectType::Associative(value) => {
+            let canonical = associative_canonical_name(&value.dxf_name);
+            return vec![
+                Cow::Borrowed(value.dxf_name.as_str()),
+                Cow::Owned(format!("ACDB{canonical}")),
+            ];
+        }
+        _ => return Vec::new(),
+    };
+    vec![Cow::Borrowed(name)]
+}
+
 impl<'a> DwgObjectWriter<'a> {
     // ── Object dispatch ─────────────────────────────────────────────
 
+    /// Whether an object has no class to take its type code from and no
+    /// fixed code to fall back on. Its writer would emit 500 (the first
+    /// class, whatever that is) or 0, so readers resolve it to another class
+    /// or drop it: it is left out instead.
+    pub(super) fn lacks_object_class(&self, object: &ObjectType) -> bool {
+        let class_only = matches!(
+            object,
+            ObjectType::ObjectContextData(_)
+                | ObjectType::DynamicBlock(_)
+                | ObjectType::Associative(_)
+                | ObjectType::DgnLineStyle(_)
+                | ObjectType::Field(_)
+                | ObjectType::FieldList(_)
+                | ObjectType::ClassObject(_)
+                | ObjectType::DataObject(_)
+                | ObjectType::RegisteredClass(_)
+        );
+        let names = object_class_names(object);
+        class_only
+            && !names.is_empty()
+            && !names.iter().any(|name| self.document.classes.contains(name))
+    }
+
     /// Write a single non-graphical object record.
     pub(super) fn write_object(&mut self, obj: &ObjectType) {
+        if self.lacks_object_class(obj) {
+            return;
+        }
         let preserved_handle = match obj {
             ObjectType::DynamicBlock(value) => Some(value.handle),
             ObjectType::Associative(value) => Some(value.handle),
@@ -1401,6 +1483,7 @@ impl<'a> DwgObjectWriter<'a> {
                 Some(_) => true,
                 None => false,
             },
+            Some(obj) if self.lacks_object_class(obj) => false,
             Some(obj) => match obj {
                 ObjectType::VisualStyle(_) => {
                     (self.version.r2007_plus()
@@ -2599,12 +2682,10 @@ impl<'a> DwgObjectWriter<'a> {
         let xrecord_entries = advanced_material_entries
             .as_deref()
             .unwrap_or(&xrec.entries);
-        let encoding =
-            crate::io::dxf::code_page::encoding_from_code_page(&self.document.header.code_page)
-                .unwrap_or(encoding_rs::WINDOWS_1252);
         let code_page =
             crate::io::dxf::code_page::dwg_code_page_index(&self.document.header.code_page)
                 .min(u8::MAX as u16) as u8;
+        let encoding = crate::io::dxf::code_page::encoding_from_dwg_code_page(code_page as u16);
 
         // Write xdata bytes first (per spec: data before cloning flags). The
         // blob is captured verbatim from the source version; when saving to a

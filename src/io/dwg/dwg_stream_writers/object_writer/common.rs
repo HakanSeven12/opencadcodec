@@ -892,9 +892,9 @@ impl<'a> DwgObjectWriter<'a> {
         let app = self.document.app_ids.get(&rec.application_name)?;
         let code_page =
             crate::io::dxf::code_page::dwg_code_page_index(&self.document.header.code_page);
-        let encoding =
-            crate::io::dxf::code_page::encoding_from_code_page(&self.document.header.code_page)
-                .unwrap_or(encoding_rs::WINDOWS_1252);
+        // The declared DWG page decides the bytes, including its fallback for
+        // pages without a decoder here.
+        let encoding = crate::io::dxf::code_page::encoding_from_dwg_code_page(code_page);
         let bytes = crate::io::dwg::eed_codec::encode_values_with_encoding(
             self.version.r2007_plus(),
             &rec.values,
