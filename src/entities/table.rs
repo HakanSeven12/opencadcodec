@@ -1020,8 +1020,19 @@ impl TableCell {
 
     /// Sets the text value.
     pub fn set_text(&mut self, s: &str) {
+        // Typed text keeps the content's format and is stored as a string
+        // value with the flags the reference writes for typed text (6).
+        let mut content = self
+            .contents
+            .first()
+            .filter(|c| c.content_type == TableCellContentType::Value)
+            .cloned()
+            .unwrap_or_else(|| CellContent::text(s));
+        content.value = CellValue::text(s);
+        content.value.flags = 6;
+        content.field_handle = None;
         self.contents.clear();
-        self.contents.push(CellContent::text(s));
+        self.contents.push(content);
         self.cell_type = CellType::Text;
     }
 
