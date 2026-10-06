@@ -19,7 +19,7 @@ import = ["dep:quick-xml"]
 
 [dependencies]
 # Error handling
-thiserror = "1.0"
+thiserror = "2"
 anyhow = "1.0"
 
 # Binary parsing
