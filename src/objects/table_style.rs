@@ -842,6 +842,16 @@ pub(crate) fn store_table_style_roundtrip(document: &mut crate::document::CadDoc
                 ..
             })) => map.cells = cells,
             _ => {
+                // The map takes its type code from the CELLSTYLEMAP class;
+                // without it the writer leaves the map out.
+                if !document.classes.contains("CELLSTYLEMAP") {
+                    if let Some(class) = crate::classes::default_classes()
+                        .into_iter()
+                        .find(|class| class.dxf_name == "CELLSTYLEMAP")
+                    {
+                        document.classes.add_or_update(class);
+                    }
+                }
                 let map = document.allocate_handle();
                 let mut object = DataObject::new(DataObjectData::CellStyleMap(CellStyleMap {
                     cells,

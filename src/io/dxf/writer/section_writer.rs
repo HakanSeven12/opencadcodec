@@ -6954,15 +6954,6 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             !handle.is_null()
                 && (self.valid_handles.is_empty() || self.valid_handles.contains(handle))
         };
-        if let Some(xdictionary) = dict
-            .xdictionary_handle
-            .or_else(|| document.extension_dictionary_handle(dict.handle))
-            .filter(valid)
-        {
-            self.writer.write_string(102, "{ACAD_XDICTIONARY")?;
-            self.writer.write_handle(360, xdictionary)?;
-            self.writer.write_string(102, "}")?;
-        }
         // A DWG read keeps the reactors aside when the record has none.
         let reactors: Vec<Handle> = if dict.reactors.is_empty() {
             document.reactors_by_handle.get(&dict.handle).cloned().unwrap_or_default()
@@ -6975,6 +6966,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             for reactor in reactors {
                 self.writer.write_handle(330, reactor)?;
             }
+            self.writer.write_string(102, "}")?;
+        }
+        if let Some(xdictionary) = dict
+            .xdictionary_handle
+            .or_else(|| document.extension_dictionary_handle(dict.handle))
+            .filter(valid)
+        {
+            self.writer.write_string(102, "{ACAD_XDICTIONARY")?;
+            self.writer.write_handle(360, xdictionary)?;
             self.writer.write_string(102, "}")?;
         }
         let dict_owner = if dict.owner == Handle::NULL
@@ -10114,16 +10114,17 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_string(1, line)?;
             } else {
                 // Split into 2049-byte sub-chunks without breaking UTF-8:
-                // leading sub-chunks → gc 3, the last one → gc 1
+                // the first sub-chunk → gc 1, continuations → gc 3
                 let mut remaining = line;
+                let mut code = 1;
                 while !remaining.is_empty() {
                     let mut end = remaining.len().min(2049);
                     while !remaining.is_char_boundary(end) {
                         end -= 1;
                     }
                     let (chunk, rest) = remaining.split_at(end);
-                    self.writer
-                        .write_string(if rest.is_empty() { 1 } else { 3 }, chunk)?;
+                    self.writer.write_string(code, chunk)?;
+                    code = 3;
                     remaining = rest;
                 }
             }

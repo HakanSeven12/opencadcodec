@@ -5509,7 +5509,7 @@ impl<'a> DwgObjectWriter<'a> {
         const MONTHS: [&str; 12] = [
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
         ];
-        let weekday = DAYS[(julian.floor() as i64 + 1).rem_euclid(7) as usize];
+        let weekday = DAYS[crate::fields::weekday(julian - 0.5) as usize % 7];
         let mut dated = sat.clone();
         dated.header.date = format!(
             "{weekday} {} {day:>2} {hour:02}:{minute:02}:{second:02} {year}",

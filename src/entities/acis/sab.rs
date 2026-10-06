@@ -1790,9 +1790,13 @@ mod tests {
         // Check version
         let ver = u32::from_le_bytes([sab[15], sab[16], sab[17], sab[18]]);
         assert_eq!(ver, 700);
-        // Check End-of-ACIS-data is present
-        let end_str = b"End-of-ACIS-data";
-        assert!(sab.windows(end_str.len()).any(|w| w == end_str));
+        // The End-of-ACIS-data marker closes the body as tagged components.
+        let mut end = Vec::new();
+        for part in ["End", "of", "ACIS"] {
+            SabWriter::write_subtype(&mut end, part);
+        }
+        SabWriter::write_entity_type(&mut end, "data");
+        assert!(sab.ends_with(&end));
     }
 
     #[test]
@@ -1981,13 +1985,7 @@ mod tests {
             }
         ));
         assert_eq!(tokens[block + 3].as_ident(), Some("both"));
-        assert!(matches!(
-            tokens[block + 4],
-            SatToken::Sab {
-                tag: tags::ENUM,
-                ..
-            }
-        ));
+        assert_eq!(tokens[block + 4], SatToken::Enum("open".to_string()));
         assert!(matches!(
             tokens[block + 10],
             SatToken::Sab {

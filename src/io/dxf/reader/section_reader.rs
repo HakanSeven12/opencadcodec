@@ -18544,13 +18544,13 @@ impl<'a> SectionReader<'a> {
                         common.line_weight = LineWeight::from_value(v);
                     }
                 }
-                // A SAT line longer than a group comes as group 3 chunks
-                // ended by its group 1.
+                // A group 1 starts a SAT line; group 3 chunks continue it.
                 1 | 3 => {
-                    acis_data.push_str(&pair.value_string);
-                    if pair.code == 1 {
-                        acis_data.push('\n');
+                    if pair.code == 3 && acis_data.ends_with('\n') {
+                        acis_data.pop();
                     }
+                    acis_data.push_str(&pair.value_string);
+                    acis_data.push('\n');
                 }
                 2 => uid = pair.value_string.clone(),
                 350 => {
