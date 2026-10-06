@@ -220,7 +220,9 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
 }
 
 /// Embedded construction entity of a history node: type, then (unless the
-/// type is 0) its body length in bits and the body itself.
+/// type is 0) its body length in bits and the body itself. A polyline the
+/// modeler keeps as a wire body carries, as in surface records, a presence
+/// bit (set when there is no body) and a modeler block instead.
 fn read_history_entity(
     reader: &mut DwgMergedReader,
     version: DwgVersion,
@@ -229,6 +231,14 @@ fn read_history_entity(
     let type_code = reader.read_bit_long();
     if type_code == 0 {
         return None;
+    }
+    if crate::io::dwg::embedded_entity::is_body_profile(type_code) {
+        let acis_data = if reader.read_bit() {
+            crate::entities::solid3d::AcisData::default()
+        } else {
+            super::entities::read_extra_acis_data(reader, None).unwrap_or_default()
+        };
+        return Some(crate::entities::EmbeddedEntity::Body { type_code, acis_data });
     }
     let bit_length = safe_count(reader.read_bit_long()) as usize;
     crate::io::dwg::embedded_entity::read_embedded_entity_bits(
@@ -261,8 +271,8 @@ fn read_history_sweep(
     let has_align_start = reader.read_bit();
     let align_option = reader.read_bit_short().clamp(0, 255) as u8;
     let miter_option = reader.read_bit_short().clamp(0, 255) as u8;
+    let align_start = reader.read_bit();
     let bank = reader.read_bit();
-    let check_intersections = reader.read_bit();
     let flag_294 = reader.read_bit();
     let flag_295 = reader.read_bit();
     let dwg_vector = reader.read_3bit_double();
@@ -295,8 +305,8 @@ fn read_history_sweep(
         align_option,
         miter_option,
         has_align_start,
+        align_start,
         bank,
-        check_intersections,
         flags_294_296: [flag_294, flag_295, flag_296],
         dwg_vector,
         ..SolidHistorySweep::default()

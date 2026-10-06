@@ -5081,7 +5081,7 @@ pub struct SurfaceEntityData {
 /// This reads both `DECODE_3DSOLID` (acis data) and the wireframe +
 /// `acis_empty_bit` + R2007+ trailing fields from `COMMON_3DSOLID`.
 /// The caller must still read the 3DSOLID-specific history_id handle.
-fn read_extra_acis_data(
+pub(super) fn read_extra_acis_data(
     reader: &mut DwgMergedReader,
     inline_end: Option<i64>,
 ) -> Option<crate::entities::solid3d::AcisData> {
