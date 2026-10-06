@@ -2469,8 +2469,13 @@ impl CadDocument {
     /// lines top to bottom, the column lines left to right (both broken where
     /// they would cross a merged region) and a hidden point
     /// on `Defpoints`. `extra` cells get an MTEXT even when empty (fields).
-    fn table_block_plan(&self, t: &Table, extra: &[(usize, usize)]) -> (Vec<((usize, usize), crate::entities::MText)>, Vec<crate::entities::Line>) {
-        use crate::entities::{Line, MText};
+    fn table_block_plan(
+        &self,
+        t: &Table,
+        extra: &[(usize, usize)],
+    ) -> (Vec<((usize, usize), crate::entities::MText)>, Vec<crate::entities::Line>, Vec<crate::entities::Solid>) {
+        use crate::entities::table::CellStylePropertyFlags as P;
+        use crate::entities::{Line, MText, Solid};
         use crate::types::{Color, LineWeight, Transparency, Vector3};
         let style = t.table_style_handle.and_then(|h| match self.objects.get(&h) {
             Some(ObjectType::TableStyle(s)) => Some(s.clone()),
@@ -2552,24 +2557,45 @@ impl CadDocument {
         }
         let vmargin = style.as_ref().map_or(0.06, |s| s.vertical_margin);
         let mut texts = Vec::new();
+        let mut fills = Vec::new();
         for (r, row) in t.rows.iter().enumerate() {
             for c in 0..nc {
                 if owner[r][c] != (r, c) {
                     continue;
                 }
                 let cell = row.cells.get(c);
+                // A cell's own override (text height, style, colour, alignment,
+                // background) wins over its row's style.
+                let own = cell.and_then(|cell| cell.style.as_ref());
+                let overrides = |p: P| own.filter(|s| s.property_flags.contains(p));
+                if let Some(s) = overrides(P::BACKGROUND_COLOR).filter(|s| s.fill_enabled) {
+                    let (w, h) = span[r][c];
+                    let (x0, x1, y0, y1) = (xs[c], xs[c + w], -ys[r], -ys[r + h]);
+                    let mut solid = Solid::new(
+                        Vector3::new(x0, y0, 0.0),
+                        Vector3::new(x1, y0, 0.0),
+                        Vector3::new(x0, y1, 0.0),
+                        Vector3::new(x1, y1, 0.0),
+                    );
+                    by_block(&mut solid.common);
+                    solid.common.color = s.background_color.clone();
+                    fills.push(solid);
+                }
                 let text = cell.and_then(|cell| cell.contents.first()).map(|ct| ct.value.text.clone()).unwrap_or_default();
                 let has_field = cell.and_then(|cell| cell.contents.first()).is_some_and(|ct| ct.field_handle.is_some());
                 if text.is_empty() && !has_field && !extra.contains(&(r, c)) {
                     continue;
                 }
-                let (height, mut align) = row_style(r);
+                let (mut height, mut align) = row_style(r);
                 // A cell overriding its style brings its own alignment.
                 if let Some(s) = cell
                     .and_then(|cell| cell.style.as_ref())
                     .filter(|s| s.override_flags != 0 && (1..=9).contains(&s.alignment))
                 {
                     align = s.alignment;
+                }
+                if let Some(s) = overrides(P::TEXT_HEIGHT).filter(|s| s.text_height > 0.0) {
+                    height = s.text_height;
                 }
                 let (w, h) = span[r][c];
                 let (x0, x1, y0, y1) = (xs[c], xs[c + w], ys[r], ys[r + h]);
@@ -2585,6 +2611,22 @@ impl CadDocument {
                 m.insertion_point = Vector3::new(x, y, 0.0);
                 m.attachment_point = attachment(align);
                 m.drawing_direction = crate::entities::DrawingDirection::ByStyle;
+                if let Some(s) = overrides(P::CONTENT_COLOR) {
+                    m.common.color = s.content_color.clone();
+                }
+                if let Some(s) = overrides(P::TEXT_STYLE) {
+                    let name = if s.text_style_name.is_empty() {
+                        s.text_style_handle
+                            .and_then(|h| self.text_styles.iter().find(|st| st.handle == h))
+                            .map(|st| st.name.clone())
+                            .unwrap_or_default()
+                    } else {
+                        s.text_style_name.clone()
+                    };
+                    if !name.is_empty() {
+                        m.style = name;
+                    }
+                }
                 texts.push(((r, c), m));
             }
         }
@@ -2636,7 +2678,7 @@ impl CadDocument {
         point.common.transparency = Transparency::ByBlock;
         point.common.line_weight = LineWeight::from_value(0);
         lines.push(point);
-        (texts, lines)
+        (texts, lines, fills)
     }
 
     /// Draw a table into its anonymous `*T` block the way the reference keeps
@@ -2682,7 +2724,7 @@ impl CadDocument {
             return None;
         };
         let t = (**t).clone();
-        let (texts, lines) = self.table_block_plan(&t, extra);
+        let (texts, lines, fills) = self.table_block_plan(&t, extra);
         let record = t
             .block_record_handle
             .and_then(|h| self.block_records.iter().find(|r| r.handle == h))
@@ -2703,6 +2745,7 @@ impl CadDocument {
                     if m.common.xdictionary_handle.is_some() { "" } else { m.value.as_str() }
                 )),
                 EntityType::Line(l) => Some(format!("L {} {} {} {} {}", r(l.start.x), r(l.start.y), r(l.end.x), r(l.end.y), l.common.layer)),
+                EntityType::Solid(f) => Some(format!("S {} {} {} {} {:?}", r(f.first_corner.x), r(f.first_corner.y), r(f.fourth_corner.x), r(f.fourth_corner.y), f.common.color)),
                 _ => None,
             }
         };
@@ -2730,6 +2773,7 @@ impl CadDocument {
                     key(&EntityType::MText(m)).unwrap_or_default()
                 })
                 .chain(lines.iter().filter_map(|l| key(&EntityType::Line(l.clone()))))
+                .chain(fills.iter().filter_map(|f| key(&EntityType::Solid(f.clone()))))
                 .collect();
             now.sort();
             want.sort();
@@ -2793,6 +2837,11 @@ impl CadDocument {
             self.layers.add_or_replace(layer);
         }
         let mut handles = std::collections::HashMap::new();
+        // Cell backgrounds first, under the texts and the grid.
+        for mut f in fills {
+            f.common.owner_handle = owner;
+            let _ = self.add_entity(EntityType::Solid(f));
+        }
         for (cell, mut m) in texts {
             m.common.owner_handle = owner;
             if let Some((xdict, value)) = carried.get(&cell) {
