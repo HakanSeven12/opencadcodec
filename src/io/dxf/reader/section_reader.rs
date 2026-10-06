@@ -19393,7 +19393,12 @@ impl<'a> SectionReader<'a> {
             // writes back only what it overrides.
             if let (Some(c), false) = (cur.as_mut(), in_value) {
                 if let Some(bit) = crate::entities::table::cell_override_bit(pair.code) {
-                    c.style.get_or_insert_with(crate::entities::CellStyle::new).override_flags |= bit;
+                    let style = c.style.get_or_insert_with(crate::entities::CellStyle::new);
+                    style.override_flags |= bit;
+                    style.legacy_override_bits = true;
+                    // The overridden properties, so the cell's own values win
+                    // over the row, column and table styles.
+                    style.property_flags |= crate::entities::table::legacy_override_properties(bit);
                 }
             }
             match pair.code {
@@ -19926,10 +19931,11 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 283 => {
-                    if let (Some(c), Some(value)) = (cur.as_mut(), pair.as_bool()) {
+                    let value = pair.as_bool().or_else(|| pair.as_i16().map(|v| v != 0));
+                    if let (Some(c), Some(value)) = (cur.as_mut(), value) {
                         c.style
                             .get_or_insert_with(crate::entities::CellStyle::new)
-                            .fill_enabled = value;
+                            .fill_enabled = !value; // 283: background colour none
                     }
                 }
                 284..=289 if cur.is_none() => {
