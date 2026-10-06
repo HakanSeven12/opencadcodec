@@ -17090,7 +17090,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 // Multiline attribute's embedded MTEXT (R2018+) — carries the
-                // real text; the entity's own code 1 is empty in that case.
+                // real text, whatever the entity's own code 1 holds.
                 101 => {
                     let mtext = self.read_attrib_embedded_mtext()?;
                     if !mtext.value.is_empty() {

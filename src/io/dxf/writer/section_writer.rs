@@ -5086,7 +5086,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
         // Default value (a multiline one also lives in the embedded MTEXT;
         // the reference application reads it from here too)
-        self.write_attribute_text_value(multiline, &attdef.default_value, attdef.embedded_mtext.as_deref())?;
+        self.write_attribute_text_value(
+            multiline,
+            &attdef.default_value,
+            attdef.embedded_mtext.as_deref(),
+        )?;
 
         // Rotation
         self.writer.write_double(50, attdef.rotation.to_degrees())?;
@@ -5231,11 +5235,21 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
     /// Group 1 of an attribute's text part: its value, or for a multiline
     /// attribute the embedded MTEXT's value.
-    fn write_attribute_text_value(&mut self, multiline: bool, value: &str, embedded: Option<&MText>) -> Result<()> {
+    fn write_attribute_text_value(
+        &mut self,
+        multiline: bool,
+        value: &str,
+        embedded: Option<&MText>,
+    ) -> Result<()> {
         let value = match embedded {
             Some(mtext) if multiline => mtext.value.as_str(),
             _ => value,
         };
+        // DXF is line based: a line break in the value would end the group.
+        if value.contains(['\n', '\r']) {
+            let value = value.replace("\r\n", "\\P").replace(['\r', '\n'], "\\P");
+            return self.writer.write_string(1, &value);
+        }
         self.writer.write_string(1, value)
     }
 
@@ -5255,7 +5269,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
 
         // Value (a multiline one also lives in the embedded MTEXT; the
         // reference application reads it from here too)
-        self.write_attribute_text_value(multiline, &attrib.value, attrib.embedded_mtext.as_deref())?;
+        self.write_attribute_text_value(
+            multiline,
+            &attrib.value,
+            attrib.embedded_mtext.as_deref(),
+        )?;
 
         // Rotation
         self.writer.write_double(50, attrib.rotation.to_degrees())?;

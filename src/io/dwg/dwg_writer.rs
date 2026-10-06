@@ -1608,8 +1608,8 @@ fn summary_encoding(document: &CadDocument) -> &'static encoding_rs::Encoding {
     )
 }
 
-/// Build SummaryInfo section data (AC18+ only): the drawing properties that
-/// AutoCAD's DWGPROPS dialog edits.
+/// Build SummaryInfo section data (AC18+ only): the drawing properties
+/// (DWGPROPS).
 ///
 /// Writes the eight document strings (Title, Subject, Author, Keywords,
 /// Comments, LastSavedBy, RevisionNumber, HyperlinkBase) and the custom
