@@ -3046,8 +3046,11 @@ impl CadDocument {
                     shown => shown.to_string(),
                 };
                 let fresh = pick(kid, stored).then(|| eval_field(self, kid, plot, host)).flatten();
+                // A sheet set field with no set open to answer it keeps the
+                // value it was saved with rather than `####`.
+                let unanswered = |text: &str| kid.evaluator.starts_with("AcSm") && text == "####";
                 match fresh {
-                    Some(text) if text != cached => {
+                    Some(text) if text != cached && !unanswered(&text) => {
                         changed = true;
                         values.push((kid.handle, plot_value(kid, &text, ctx.now_julian())));
                         shown.push(text);
@@ -3447,6 +3450,12 @@ impl FieldContext for Plotting<'_> {
     }
     fn date_locale(&self) -> DateLocale {
         self.0.date_locale()
+    }
+    fn sheet_sets(
+        &self,
+        f: &mut dyn FnMut(&crate::sheet_set::SheetSetDatabase) -> Option<String>,
+    ) -> Option<String> {
+        self.0.sheet_sets(f)
     }
 }
 
