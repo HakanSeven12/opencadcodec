@@ -2732,10 +2732,10 @@ impl CadDocument {
             .and_then(|h| self.block_records.iter().find(|r| r.handle == h))
             .or_else(|| self.block_records.get(&t.block_name).filter(|_| !t.block_name.is_empty()))
             .map(|r| (r.handle, r.name.clone(), r.entity_handles.clone()));
-        // An edited table that let go of its block (found by name) gets it back.
-        if let (Some((handle, _, _)), Some(EntityType::Table(t))) = (record.as_ref(), self.get_entity_mut(table)) {
-            t.block_record_handle = Some(*handle);
-        }
+        // A table that let go of its block (found by name) keeps drawing from
+        // its own data, which shows more than the block plan does (borders,
+        // block cells, row and table backgrounds); only the block is brought
+        // up to date for readers that draw it.
 
         // What the block shows now, against what it should show.
         let key = |e: &EntityType| -> Option<String> {

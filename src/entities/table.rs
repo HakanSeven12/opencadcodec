@@ -1045,24 +1045,24 @@ impl TableCell {
             .unwrap_or("")
     }
 
-    /// Sets the text value.
     /// The cell as the binary format keeps it. A cell read from DXF carries
     /// its own overrides as legacy bits on its style; the binary format keeps
     /// the text height, text style and content colour on the content (format
     /// override bits 128, 64, 32) and the alignment and background on the
     /// style (16, 512), and types a content: a value is a string (data type
     /// 4, override bits 1 and 2), an empty content a general value (512).
+    ///
+    /// A cell already in the binary layout — read from a binary file, or
+    /// written by this crate — is returned as it is, so saving a drawing
+    /// nobody edited does not rewrite its cells.
     pub fn binary_layout(&self) -> std::borrow::Cow<'_, TableCell> {
         use CellStylePropertyFlags as P;
         const CONTENT: P = P::TEXT_HEIGHT.union(P::TEXT_STYLE).union(P::CONTENT_COLOR);
-        let own = self
-            .style
-            .as_ref()
-            .filter(|s| {
-                let sets = s.overridden();
-                sets.intersects(CONTENT) || s.override_flags != (sets & !CONTENT).bits() as i32 || !s.property_flags.is_empty()
-            })
-            .cloned();
+        let legacy = self.style.as_ref().is_some_and(|s| s.legacy_override_bits);
+        if !legacy {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let own = self.style.clone();
         let untyped = self.contents.iter().any(|c| c.format_value_data_type == 0);
         if own.is_none() && !untyped {
             return std::borrow::Cow::Borrowed(self);
@@ -2370,7 +2370,7 @@ mod tests {
     }
 }
 
-/// The cell style properties a binary cell override bit set covers
+/// The cell style properties a legacy cell override bit set covers
 /// (`CellStyle::override_flags`): 0x01 alignment, 0x02 / 0x04 background,
 /// 0x08 content colour, 0x10 text style, 0x20 text height.
 pub fn legacy_override_properties(flags: i32) -> CellStylePropertyFlags {

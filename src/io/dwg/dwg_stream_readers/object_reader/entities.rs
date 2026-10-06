@@ -3794,6 +3794,8 @@ fn read_table_cell_data(
         let flags = reader.read_bit_long();
         let mut style = CellStyle::new();
         style.override_flags = flags;
+        // The legacy layout's bits, as a cell read from DXF keeps them.
+        style.legacy_override_bits = true;
         style.property_flags |= crate::entities::table::legacy_override_properties(flags);
         cell.virtual_edge = reader.read_byte() as i16;
         if flags & 0x01 != 0 {
