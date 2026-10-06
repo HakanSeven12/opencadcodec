@@ -2274,6 +2274,26 @@ mod tests {
     }
 }
 
+/// The cell style properties a binary cell override bit set covers
+/// (`CellStyle::override_flags`): 0x01 alignment, 0x02 / 0x04 background,
+/// 0x08 content colour, 0x10 text style, 0x20 text height.
+pub fn legacy_override_properties(flags: i32) -> CellStylePropertyFlags {
+    let mut properties = CellStylePropertyFlags::NONE;
+    for (bit, property) in [
+        (0x01, CellStylePropertyFlags::ALIGNMENT),
+        (0x02, CellStylePropertyFlags::BACKGROUND_COLOR),
+        (0x04, CellStylePropertyFlags::BACKGROUND_COLOR),
+        (0x08, CellStylePropertyFlags::CONTENT_COLOR),
+        (0x10, CellStylePropertyFlags::TEXT_STYLE),
+        (0x20, CellStylePropertyFlags::TEXT_HEIGHT),
+    ] {
+        if flags & bit != 0 {
+            properties |= property;
+        }
+    }
+    properties
+}
+
 /// The cell style override bit a DXF group code of a table cell sets (the
 /// bit layout the binary format stores in `CellStyle::override_flags`).
 pub fn cell_override_bit(code: i32) -> Option<i32> {

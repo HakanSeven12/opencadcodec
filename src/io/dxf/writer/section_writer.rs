@@ -10968,7 +10968,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_i16(170, style.alignment as i16)?;
             }
             if f & 0x02 != 0 {
-                self.writer.write_bool(283, style.fill_enabled)?;
+                self.writer.write_bool(283, !style.fill_enabled)?;
             }
             if f & 0x04 != 0 {
                 self.writer.write_color(63, style.background_color)?;
@@ -11004,7 +11004,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             self.writer.write_i16(170, style.alignment as i16)?;
             self.writer.write_color(64, style.content_color)?;
             self.writer.write_color(63, style.background_color)?;
-            self.writer.write_bool(283, style.fill_enabled)?;
+            self.writer.write_bool(283, !style.fill_enabled)?;
 
             for (color_code, weight_code, visibility_code, border) in [
                 (69, 279, 289, &style.top_border),
