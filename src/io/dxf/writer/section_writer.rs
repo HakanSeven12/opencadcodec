@@ -3986,6 +3986,36 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_i32(441, mtext.background_transparency)?;
             }
         }
+        // R2018+ keeps the column layout in the MTEXT's embedded object, as
+        // the reference application writes it (it misreads the standard
+        // column codes in an R2018 file and lays every line out at once).
+        if mtext.column_data.column_type != 0 && self.dxf_version >= DxfVersion::AC1032 {
+            self.write_normal(mtext.normal)?;
+            let columns = &mtext.column_data;
+            let manual_heights = columns.column_type == 2 && !columns.auto_height;
+            self.writer.write_string(101, "Embedded Object")?;
+            self.writer.write_i16(70, 1)?;
+            self.writer
+                .write_point3d(10, Vector3::new(mtext.rotation.cos(), mtext.rotation.sin(), 0.0))?;
+            self.writer.write_point3d(11, mtext.insertion_point)?;
+            self.writer.write_double(40, mtext.rectangle_width)?;
+            self.writer.write_double(41, mtext.rectangle_height.unwrap_or(0.0))?;
+            self.writer.write_double(42, mtext.extents_width)?;
+            self.writer.write_double(43, mtext.extents_height)?;
+            self.writer.write_i16(71, columns.column_type)?;
+            let count = if manual_heights { columns.heights.len() as i32 } else { columns.column_count };
+            self.writer.write_i16(72, count.clamp(0, i16::MAX as i32) as i16)?;
+            self.writer.write_double(44, columns.width)?;
+            self.writer.write_double(45, columns.gutter)?;
+            self.writer.write_i16(73, i16::from(columns.auto_height))?;
+            self.writer.write_i16(74, i16::from(columns.flow_reversed))?;
+            if manual_heights {
+                for height in &columns.heights {
+                    self.writer.write_double(46, *height)?;
+                }
+            }
+            return Ok(());
+        }
         // Standard DXF MTEXT column layout. Rotation is emitted above before
         // the first column marker because code 50 is reused for column heights.
         if mtext.column_data.column_type != 0 {
