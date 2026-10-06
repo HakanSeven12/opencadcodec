@@ -31,7 +31,7 @@ flate2 = "1.0"
 
 # Collections
 indexmap = "2.0"
-ahash = { version = "0.8", features = ["serde"] }
+foldhash = "0.2"
 
 # Encoding
 encoding_rs = "0.8"

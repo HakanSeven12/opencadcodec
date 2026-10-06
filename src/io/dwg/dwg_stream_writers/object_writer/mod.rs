@@ -1912,7 +1912,7 @@ impl<'a> DwgObjectWriter<'a> {
                             i += 1;
                         }
                         let run = &handles[start..i];
-                        let mut unique = ahash::AHashSet::new();
+                        let mut unique = foldhash::HashSet::default();
                         let safe_to_batch = run.len() >= 1_024
                             && run.iter().all(|handle| {
                                 !self.registered_handles.contains(&handle.value())

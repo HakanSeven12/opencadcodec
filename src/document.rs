@@ -1144,7 +1144,7 @@ pub struct CadDocument {
     pub(crate) entities: Vec<Arc<EntityType>>,
 
     /// Handle → index mapping for O(1) entity lookup by handle.
-    pub(crate) entity_index: ahash::AHashMap<Handle, usize>,
+    pub(crate) entity_index: foldhash::HashMap<Handle, usize>,
 
     /// All objects in the document (indexed by handle)
     pub objects: HashMap<Handle, ObjectType>,
@@ -1414,7 +1414,7 @@ impl CadDocument {
             classes: DxfClassCollection::new(),
             notifications: crate::notification::NotificationCollection::new(),
             entities: Vec::new(),
-            entity_index: ahash::AHashMap::new(),
+            entity_index: foldhash::HashMap::default(),
             objects: HashMap::new(),
             block_visibility_params: HashMap::new(),
             context_scales: HashMap::new(),

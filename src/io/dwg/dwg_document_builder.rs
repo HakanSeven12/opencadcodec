@@ -1550,7 +1550,8 @@ impl DwgDocumentBuilder {
         // from the canonical entity_handles read from the DWG binary
         // (R2004+).  This is needed because entity_mode=1 only says
         // "paper space" without specifying WHICH paper space.
-        let mut binary_entity_owner: ahash::AHashMap<Handle, Handle> = ahash::AHashMap::new();
+        let mut binary_entity_owner: foldhash::HashMap<Handle, Handle> =
+            foldhash::HashMap::default();
         for entry in &parsed_entries {
             if let ParsedEntry::Block(h, data) = entry {
                 let br_handle = Handle::from(*h);
@@ -2166,7 +2167,7 @@ impl DwgDocumentBuilder {
             record_catalog
                 .iter()
                 .map(|(handle, offset, _, _)| (Handle::from(*handle), *offset))
-                .collect::<ahash::AHashMap<_, _>>()
+                .collect::<foldhash::HashMap<_, _>>()
         });
         Self::rebuild_block_membership(
             document,
@@ -2557,12 +2558,12 @@ impl DwgDocumentBuilder {
         // still emits it verbatim; the writer prefers raw over records per app.
         {
             let wide = self.obj_reader.version().r2007_plus();
-            let app_name_by_handle: ahash::AHashMap<u64, String> = document
+            let app_name_by_handle: foldhash::HashMap<u64, String> = document
                 .app_ids
                 .iter()
                 .map(|a| (a.handle.value(), a.name.clone()))
                 .collect();
-            let layer_name_by_handle: ahash::AHashMap<u64, String> = document
+            let layer_name_by_handle: foldhash::HashMap<u64, String> = document
                 .layers
                 .iter()
                 .map(|l| (l.handle.value(), l.name.clone()))
@@ -3052,10 +3053,10 @@ impl DwgDocumentBuilder {
 
     fn rebuild_block_membership(
         document: &mut CadDocument,
-        binary_entity_owner: Option<&ahash::AHashMap<Handle, Handle>>,
-        source_record_order: Option<&ahash::AHashMap<Handle, usize>>,
+        binary_entity_owner: Option<&foldhash::HashMap<Handle, Handle>>,
+        source_record_order: Option<&foldhash::HashMap<Handle, usize>>,
     ) {
-        let valid_owners: ahash::AHashSet<Handle> = document
+        let valid_owners: foldhash::HashSet<Handle> = document
             .block_records
             .iter()
             .map(|record| record.handle)
@@ -3093,8 +3094,11 @@ impl DwgDocumentBuilder {
                 }
                 valid_owners.contains(&owner).then_some((owner, handle))
             });
-        let mut by_owner: ahash::AHashMap<Handle, Vec<Handle>> =
-            ahash::AHashMap::with_capacity(document.block_records.len());
+        let mut by_owner: foldhash::HashMap<Handle, Vec<Handle>> =
+            foldhash::HashMap::with_capacity_and_hasher(
+                document.block_records.len(),
+                Default::default(),
+            );
         for (owner, handle) in memberships.into_iter().flatten() {
             by_owner.entry(owner).or_default().push(handle);
         }
@@ -3107,7 +3111,7 @@ impl DwgDocumentBuilder {
                 .get(&record.handle)
                 .filter(|canonical| !canonical.is_empty())
             {
-                let order: ahash::AHashMap<Handle, usize> = canonical
+                let order: foldhash::HashMap<Handle, usize> = canonical
                     .iter()
                     .copied()
                     .enumerate()
