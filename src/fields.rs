@@ -1397,8 +1397,8 @@ struct Picture {
     printf: Option<usize>,
     pre: String,
     suf: String,
-    /// `%ctN[factor]` conversions in order.
-    conv: Vec<(i64, Option<f64>)>,
+    /// The `%ctN[factor]` conversion (the last one in the picture applies).
+    conv: Option<(i64, Option<f64>)>,
 }
 
 impl Picture {
@@ -1447,7 +1447,7 @@ impl Picture {
                 "pt" => p.pt = Some(n),
                 "bl" => p.bl = Some(n),
                 "lw" => p.lw = Some(n),
-                "ct" => p.conv.push((n, arg.and_then(|a| a.trim().parse().ok()))),
+                "ct" => p.conv = Some((n, arg.and_then(|a| a.trim().parse().ok()))),
                 "ps" => {
                     let a = arg.unwrap_or("");
                     let (x, y) = a.split_once(',').unwrap_or((a, ""));
@@ -1475,22 +1475,22 @@ impl Picture {
         }
     }
 
-    /// The value after the `%ct` conversions: 1 and 5 and 7 reciprocal,
-    /// 2 × 12, 3 1 ÷ (12 × value), 4 ÷ 144, 6 none, 8 and 10 × factor,
-    /// 9 and 11 factor ÷ value (1 without a factor).
-    fn convert(&self, mut v: f64) -> f64 {
-        for &(n, f) in &self.conv {
-            v = match n {
-                1 | 5 | 7 => 1.0 / v,
-                2 => v * 12.0,
-                3 => 1.0 / (12.0 * v),
-                4 => v / 144.0,
-                8 | 10 => v * f.unwrap_or(1.0),
-                9 | 11 => f.unwrap_or(1.0) / v,
-                _ => v,
-            };
+    /// The value after the `%ct` conversion, a bit set: 1 reciprocal; 8 ×
+    /// factor (after the reciprocal; 1 without a factor); without 8, exactly
+    /// 2 × 12, 3 1 ÷ (12 × value) and 4 ÷ 144 — any other bit drops the
+    /// 12 / 144 conversion and keeps only the reciprocal.
+    fn convert(&self, v: f64) -> f64 {
+        let Some((n, f)) = self.conv else { return v };
+        let r = if n & 1 != 0 { 1.0 / v } else { v };
+        if n & 8 != 0 {
+            return r * f.unwrap_or(1.0);
         }
-        v
+        match n {
+            2 => v * 12.0,
+            3 => 1.0 / (12.0 * v),
+            4 => v / 144.0,
+            _ => r,
+        }
     }
 
     /// Place the formatted value into the literal text.
@@ -1573,13 +1573,13 @@ fn number_text(doc: &CadDocument, p: &Picture, v: f64) -> String {
     if let Some(au) = p.au {
         let mode = if au == 5 { doc.header.angular_unit_format as i64 } else { au };
         let prec = p.pr.unwrap_or(doc.header.angular_unit_precision.max(0) as usize);
-        return angle_text(v, mode, prec.min(16), z.trailing, true);
+        return angle_text(v, mode, prec.min(16), z, true);
     }
     let prec = p.pr.unwrap_or(doc.header.linear_unit_precision.max(0) as usize).min(16);
     // `%qf2` / `%qf4`: an angle in radians whose `%lu` number is the angle
     // mode, normalised to one turn with 2, as is with 4.
     if p.qf & 6 != 0 {
-        return angle_text(v, p.lu.unwrap_or(2), prec, z.trailing, p.qf & 2 != 0);
+        return angle_text(v, p.lu.unwrap_or(2), prec, z, p.qf & 2 != 0);
     }
     unit_text(v, p.linear_mode(doc), prec, z, p.ds.unwrap_or('.'), p.th)
 }
@@ -1638,15 +1638,24 @@ fn unit_text(v: f64, mode: i64, prec: usize, z: Zeros, ds: char, th: Option<char
     };
     match mode {
         1 => {
-            let s = format!("{:.*e}", prec, a);
-            let (m, e) = s.split_once('e').unwrap_or((&s, "0"));
-            let e: i32 = e.parse().unwrap_or(0);
-            format!(
-                "{sign}{}E{}{:02}",
-                m.replace('.', &ds.to_string()),
-                if e < 0 { '-' } else { '+' },
-                e.abs()
-            )
+            // The mantissa rounds half away from zero (1234.5 → 1.235E+03 at
+            // three decimals), on the value scaled by an exact power of ten.
+            let mut e = if a > 0.0 { a.log10().floor() as i32 } else { 0 };
+            let scaled = |e: i32| {
+                let k = prec as i32 - e;
+                if k >= 0 { (a * 10f64.powi(k)).round() } else { (a / 10f64.powi(-k)).round() }
+            };
+            let mut n = scaled(e);
+            if n >= 10f64.powi(prec as i32 + 1) {
+                e += 1;
+                n = scaled(e);
+            }
+            let digits = format!("{:01$.0}", n, prec + 1);
+            let m = match prec {
+                0 => digits,
+                _ => format!("{}{ds}{}", &digits[..1], &digits[1..]),
+            };
+            format!("{sign}{m}E{}{:02}", if e < 0 { '-' } else { '+' }, e.abs())
         }
         3 => {
             let m = 10f64.powi(prec as i32);
@@ -1695,16 +1704,21 @@ fn unit_text(v: f64, mode: i64, prec: usize, z: Zeros, ds: char, th: Option<char
 /// degrees, 1–2 minutes, 3–4 seconds, more adds decimals to the seconds),
 /// 2 grads (`33g`), 3 radians (`1r`), 4 surveyor's bearing (`N 60d E`; an
 /// exact east / west bearing shows `E` / `W` when a precision is given).
-fn angle_text(rad: f64, mode: i64, prec: usize, trailing: bool, normalize: bool) -> String {
+/// Trailing and leading zero suppression apply to the decimal modes.
+fn angle_text(rad: f64, mode: i64, prec: usize, z: Zeros, normalize: bool) -> String {
     use std::f64::consts::TAU;
     let a = if normalize { rad.rem_euclid(TAU) } else { rad };
     let fixed = |x: f64| {
-        let s = format!("{x:.prec$}");
-        if trailing && s.contains('.') {
-            s.trim_end_matches('0').trim_end_matches('.').to_string()
-        } else {
-            s
+        let mut s = format!("{x:.prec$}");
+        if z.trailing && s.contains('.') {
+            s = s.trim_end_matches('0').trim_end_matches('.').to_string();
         }
+        if z.leading {
+            if let Some(i) = s.find("0.").filter(|&i| s[..i].chars().all(|c| c == '-')) {
+                s.remove(i);
+            }
+        }
+        s
     };
     let dms = |deg: f64| match prec {
         0 => format!("{}d", deg.round()),
@@ -2041,7 +2055,7 @@ fn rtos(val: f64, prec: Option<usize>) -> String {
 
 /// `$(angtos,value[,mode,prec])` — `value` in radians, `mode` as AUNITS.
 fn angtos(val: f64, mode: i64, prec: Option<usize>) -> String {
-    angle_text(val, mode, prec.unwrap_or(0), false, true)
+    angle_text(val, mode, prec.unwrap_or(0), Zeros::default(), true)
 }
 
 /// Gregorian (Y, M, D, h, m, s) for an astronomical Julian date.
