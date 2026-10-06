@@ -343,7 +343,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             w.write_string(1, declared_version.to_dxf_string())
         })?;
         if self.dxf_version >= DxfVersion::AC1032 {
-            self.write_header_variable("$ACADMAINTVER", |w| w.write_i32(90, 0))?;
+            // The reference application writes 377 here and reads the
+            // multiline text of an ATTRIB / ATTDEF only from a file whose
+            // maintenance version is that recent (0, 4, 100 and 200 show the
+            // value on one line with a literal `\P`).
+            self.write_header_variable("$ACADMAINTVER", |w| w.write_i32(90, 377))?;
         } else if self.dxf_version >= DxfVersion::AC1015 {
             self.write_header_variable("$ACADMAINTVER", |w| w.write_i16(70, 0))?;
         }
@@ -3994,6 +3998,36 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_i32(441, mtext.background_transparency)?;
             }
         }
+        // R2018+ keeps the column layout in the MTEXT's embedded object, as
+        // the reference application writes it (it misreads the standard
+        // column codes in an R2018 file and lays every line out at once).
+        if mtext.column_data.column_type != 0 && self.dxf_version >= DxfVersion::AC1032 {
+            self.write_normal(mtext.normal)?;
+            let columns = &mtext.column_data;
+            let manual_heights = columns.column_type == 2 && !columns.auto_height;
+            self.writer.write_string(101, "Embedded Object")?;
+            self.writer.write_i16(70, mtext.attachment_point as i16)?;
+            self.writer
+                .write_point3d(10, Vector3::new(mtext.rotation.cos(), mtext.rotation.sin(), 0.0))?;
+            self.writer.write_point3d(11, mtext.insertion_point)?;
+            self.writer.write_double(40, mtext.rectangle_width)?;
+            self.writer.write_double(41, mtext.rectangle_height.unwrap_or(0.0))?;
+            self.writer.write_double(42, mtext.extents_width)?;
+            self.writer.write_double(43, mtext.extents_height)?;
+            self.writer.write_i16(71, columns.column_type)?;
+            let count = if manual_heights { columns.heights.len() as i32 } else { columns.column_count };
+            self.writer.write_i16(72, count.clamp(0, i16::MAX as i32) as i16)?;
+            self.writer.write_double(44, columns.width)?;
+            self.writer.write_double(45, columns.gutter)?;
+            self.writer.write_i16(73, i16::from(columns.auto_height))?;
+            self.writer.write_i16(74, i16::from(columns.flow_reversed))?;
+            if manual_heights {
+                for height in &columns.heights {
+                    self.writer.write_double(46, *height)?;
+                }
+            }
+            return Ok(());
+        }
         // Standard DXF MTEXT column layout. Rotation is emitted above before
         // the first column marker because code 50 is reused for column heights.
         if mtext.column_data.column_type != 0 {
@@ -5050,9 +5084,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Text height
         self.writer.write_double(40, attdef.height)?;
 
-        // Default value (a multiline value lives in the embedded MTEXT)
-        let value = if multiline { "" } else { &attdef.default_value };
-        self.writer.write_string(1, value)?;
+        // Default value (a multiline one also lives in the embedded MTEXT;
+        // the reference application reads it from here too)
+        self.write_attribute_text_value(multiline, &attdef.default_value, attdef.embedded_mtext.as_deref())?;
 
         // Rotation
         self.writer.write_double(50, attdef.rotation.to_degrees())?;
@@ -5168,18 +5202,41 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i16(72, mtext.drawing_direction as i16)?;
         self.write_mtext_value(&mtext.value)?;
         self.writer.write_string(7, &mtext.style)?;
-        self.writer.write_point3d(210, mtext.normal)?;
-        let x_direction = mtext
-            .dwg_x_direction
-            .filter(|direction| direction.y.atan2(direction.x) == mtext.rotation)
-            .unwrap_or_else(|| Vector3::new(mtext.rotation.cos(), mtext.rotation.sin(), 0.0));
-        self.writer.write_point3d(11, x_direction)?;
-        self.writer.write_double(42, mtext.extents_width)?;
-        self.writer.write_double(43, mtext.extents_height)?;
-        self.writer.write_double(50, mtext.rotation.to_degrees())?;
+        // Only what differs from an unrotated text in the XY plane: the
+        // reference application drops an attribute whose embedded object
+        // carries the default normal, direction and extents.
+        if mtext.normal != Vector3::new(0.0, 0.0, 1.0) {
+            self.writer.write_point3d(210, mtext.normal)?;
+        }
+        if mtext.rotation != 0.0 {
+            let x_direction = mtext
+                .dwg_x_direction
+                .filter(|direction| direction.y.atan2(direction.x) == mtext.rotation)
+                .unwrap_or_else(|| Vector3::new(mtext.rotation.cos(), mtext.rotation.sin(), 0.0));
+            self.writer.write_point3d(11, x_direction)?;
+        }
+        if mtext.extents_width > 0.0 {
+            self.writer.write_double(42, mtext.extents_width)?;
+        }
+        if mtext.extents_height > 0.0 {
+            self.writer.write_double(43, mtext.extents_height)?;
+        }
+        if mtext.rotation != 0.0 {
+            self.writer.write_double(50, mtext.rotation.to_degrees())?;
+        }
         self.writer.write_i16(73, mtext.line_spacing_style as i16)?;
         self.writer.write_double(44, mtext.line_spacing_factor)?;
         Ok(())
+    }
+
+    /// Group 1 of an attribute's text part: its value, or for a multiline
+    /// attribute the embedded MTEXT's value.
+    fn write_attribute_text_value(&mut self, multiline: bool, value: &str, embedded: Option<&MText>) -> Result<()> {
+        let value = match embedded {
+            Some(mtext) if multiline => mtext.value.as_str(),
+            _ => value,
+        };
+        self.writer.write_string(1, value)
     }
 
     /// Write ATTRIB entity
@@ -5196,9 +5253,9 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Text height
         self.writer.write_double(40, attrib.height)?;
 
-        // Value (a multiline value lives in the embedded MTEXT)
-        let value = if multiline { "" } else { &attrib.value };
-        self.writer.write_string(1, value)?;
+        // Value (a multiline one also lives in the embedded MTEXT; the
+        // reference application reads it from here too)
+        self.write_attribute_text_value(multiline, &attrib.value, attrib.embedded_mtext.as_deref())?;
 
         // Rotation
         self.writer.write_double(50, attrib.rotation.to_degrees())?;
