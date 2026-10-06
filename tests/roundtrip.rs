@@ -922,7 +922,9 @@ fn dxf_acis_preserves_tokens_and_splits_at_utf8_boundaries() {
     doc.add_entity(EntityType::Solid3D(solid)).unwrap();
 
     let output = String::from_utf8(DxfWriter::new(&doc).write_to_vec().unwrap()).unwrap();
-    let expected = format!("  1\r\n{first_chunk}\r\n  3\r\n{remainder}\r\n");
+    // The long line wraps at its first space; the 2050-byte head is then
+    // split before the two-byte `é`.
+    let expected = format!("  1\r\n{first_chunk}\r\n  3\r\né\r\n  1\r\n compact_bool F\r\n");
     assert!(output.contains(&expected));
 }
 

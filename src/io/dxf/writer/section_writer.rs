@@ -1746,11 +1746,24 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             }
             self.writer.write_string(102, "}")?;
         }
-        self.writer.write_i16(70, block_record.units)?;
-        self.writer
-            .write_byte(280, if block_record.explodable { 1 } else { 0 })?;
-        self.writer
-            .write_i16(281, if block_record.scale_uniformly { 1 } else { 0 })?;
+        for chunk in block_record.preview_data.chunks(127) {
+            self.writer.write_binary(310, chunk)?;
+        }
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.writer.write_i16(70, block_record.units)?;
+            self.writer
+                .write_byte(280, if block_record.explodable { 1 } else { 0 })?;
+            self.writer
+                .write_i16(281, if block_record.scale_uniformly { 1 } else { 0 })?;
+        }
+        if self.dxf_version < DxfVersion::AC1021 && block_record.units != 0 {
+            // Older files keep the units in ACAD `DesignCenter Data` xdata.
+            let mut units = crate::xdata::ExtendedDataRecord::new("ACAD");
+            units.values = crate::tables::block_record::design_center_units_values(block_record.units);
+            let mut xdata = ExtendedData::new();
+            xdata.add_record(units);
+            self.write_xdata(&xdata)?;
+        }
 
         Ok(())
     }
@@ -5485,7 +5498,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             root_handle = Self::find_root_dict_handle(&document.objects);
         }
         if let Some(object @ ObjectType::Dictionary(root_dict)) = document.objects.get(&root_handle) {
-            self.write_dictionary(root_dict, &document.objects)?;
+            self.write_dictionary(root_dict, document)?;
             self.write_object_xdata(document, root_handle, object)?;
         }
 
@@ -5500,7 +5513,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             }
             let object = object;
             match object {
-                ObjectType::Dictionary(dict) => self.write_dictionary(dict, &document.objects)?,
+                ObjectType::Dictionary(dict) => self.write_dictionary(dict, document)?,
                 ObjectType::Layout(layout) => self.write_layout(layout)?,
                 ObjectType::XRecord(xrecord) => self.write_xrecord(xrecord, document)?,
                 ObjectType::Group(group) => self.write_group(group)?,
@@ -6763,7 +6776,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer
                     .write_bool(290, value.base.modified_for_recompute)?;
                 if self.dxf_version >= DxfVersion::AC1032 {
-                    self.writer.write_string(300, &value.base.display_name)?;
+                    self.writer
+                        .write_string(300, value.base.display_name_or_description())?;
                     self.writer.write_i32(90, value.base.flags)?;
                 }
                 self.writer.write_subclass("AcDbDetailViewStyle")?;
@@ -6810,7 +6824,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer
                     .write_bool(290, value.base.modified_for_recompute)?;
                 if self.dxf_version >= DxfVersion::AC1032 {
-                    self.writer.write_string(300, &value.base.display_name)?;
+                    self.writer
+                        .write_string(300, value.base.display_name_or_description())?;
                     self.writer.write_i32(90, value.base.flags)?;
                 }
                 self.writer.write_subclass("AcDbSectionViewStyle")?;
@@ -6935,13 +6950,37 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         best
     }
 
-    fn write_dictionary(
-        &mut self,
-        dict: &Dictionary,
-        objects: &std::collections::HashMap<Handle, ObjectType>,
-    ) -> Result<()> {
+    fn write_dictionary(&mut self, dict: &Dictionary, document: &CadDocument) -> Result<()> {
+        let objects = &document.objects;
         self.writer.write_string(0, "DICTIONARY")?;
         self.writer.write_handle(5, dict.handle)?;
+        let valid = |handle: &Handle| {
+            !handle.is_null()
+                && (self.valid_handles.is_empty() || self.valid_handles.contains(handle))
+        };
+        // A DWG read keeps the reactors aside when the record has none.
+        let reactors: Vec<Handle> = if dict.reactors.is_empty() {
+            document.reactors_by_handle.get(&dict.handle).cloned().unwrap_or_default()
+        } else {
+            dict.reactors.clone()
+        };
+        let reactors: Vec<Handle> = reactors.into_iter().filter(valid).collect();
+        if !reactors.is_empty() {
+            self.writer.write_string(102, "{ACAD_REACTORS")?;
+            for reactor in reactors {
+                self.writer.write_handle(330, reactor)?;
+            }
+            self.writer.write_string(102, "}")?;
+        }
+        if let Some(xdictionary) = dict
+            .xdictionary_handle
+            .or_else(|| document.extension_dictionary_handle(dict.handle))
+            .filter(valid)
+        {
+            self.writer.write_string(102, "{ACAD_XDICTIONARY")?;
+            self.writer.write_handle(360, xdictionary)?;
+            self.writer.write_string(102, "}")?;
+        }
         let dict_owner = if dict.owner == Handle::NULL
             || self.valid_handles.is_empty()
             || self.valid_handles.contains(&dict.owner)
@@ -8058,195 +8097,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
     }
 
     fn visual_style_core_properties(obj: &VisualStyle) -> Vec<VisualStyleProperty> {
-        let long = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Long(value),
-            enabled: 1,
-        };
-        let double = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Double(value),
-            enabled: 1,
-        };
-        let bool_value = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Bool(value),
-            enabled: 1,
-        };
-        let color = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Color(value),
-            enabled: 1,
-        };
-        let mut values = vec![
-            long(obj.face_lighting_model as i32),
-            long(obj.face_lighting_quality as i32),
-            long(obj.face_color_mode as i32),
-            long(obj.face_modifier),
-            double(0.6),
-            double(30.0),
-            color(Color::Index(7)),
-            long(obj.edge_model),
-            long(obj.edge_style),
-            color(Color::ByLayer),
-            color(Color::ByBlock),
-            long(1),
-            long(1),
-            double(1.0),
-            long(0),
-            color(Color::ByLayer),
-            double(1.0),
-            long(1),
-            long(6),
-            long(2),
-            color(Color::ByLayer),
-            long(5),
-            long(0),
-            long(0),
-            bool_value(false),
-            long(1),
-            double(0.0),
-            long(0),
-        ];
-        if obj.properties.len() >= 28 {
-            values.clone_from_slice(&obj.properties[..28]);
-        } else if obj.properties.len() == 24 {
-            for (legacy, modern) in [
-                (0, 4),
-                (1, 5),
-                (2, 6),
-                (3, 9),
-                (4, 10),
-                (5, 11),
-                (6, 13),
-                (7, 14),
-                (8, 15),
-                (9, 16),
-                (10, 17),
-                (11, 18),
-                (12, 19),
-                (13, 20),
-                (14, 21),
-                (15, 22),
-                (16, 23),
-                (17, 24),
-                (19, 12),
-                (20, 25),
-                (21, 26),
-                (22, 27),
-            ] {
-                values[modern] = obj.properties[legacy].clone();
-            }
-        } else {
-            for (index, property) in obj.properties.iter().take(28).enumerate() {
-                values[index] = property.clone();
-            }
-        }
-        values[0].value = VisualStylePropertyValue::Long(obj.face_lighting_model as i32);
-        values[1].value = VisualStylePropertyValue::Long(obj.face_lighting_quality as i32);
-        values[2].value = VisualStylePropertyValue::Long(obj.face_color_mode as i32);
-        values[3].value = VisualStylePropertyValue::Long(obj.face_modifier);
-        values[7].value = VisualStylePropertyValue::Long(obj.edge_model);
-        values[8].value = VisualStylePropertyValue::Long(obj.edge_style);
-        values
+        obj.core_properties()
     }
 
     fn visual_style_extended_properties(obj: &VisualStyle) -> Vec<VisualStyleProperty> {
-        if obj.properties.len() >= 58 {
-            return obj.properties[28..58].to_vec();
-        }
-        let long = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Long(value),
-            enabled: 1,
-        };
-        let double = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Double(value),
-            enabled: 1,
-        };
-        let bool_value = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Bool(value),
-            enabled: 1,
-        };
-        let color = |value, enabled| VisualStyleProperty {
-            value: VisualStylePropertyValue::Color(value),
-            enabled,
-        };
-        let text = |value: &str| VisualStyleProperty {
-            value: VisualStylePropertyValue::Text(value.to_string()),
-            enabled: 1,
-        };
-        vec![
-            bool_value(false),
-            bool_value(true),
-            bool_value(true),
-            bool_value(false),
-            bool_value(false),
-            bool_value(false),
-            bool_value(false),
-            bool_value(false),
-            bool_value(false),
-            long(50),
-            double(0.0),
-            double(1.0),
-            long(0),
-            color(Color::Rgb { r: 0, g: 0, b: 0 }, 1),
-            long(50),
-            long(3),
-            color(Color::Index(5), 1),
-            bool_value(false),
-            long(50),
-            long(50),
-            long(50),
-            bool_value(false),
-            long(50),
-            color(Color::ByLayer, 0),
-            VisualStyleProperty {
-                value: VisualStylePropertyValue::Double(1.0),
-                enabled: 0,
-            },
-            long(2),
-            text("strokes_ogs.tif"),
-            bool_value(false),
-            double(1.0),
-            double(1.0),
-        ]
+        obj.extended_properties()
     }
 
     fn visual_style_legacy_properties(obj: &VisualStyle) -> Vec<VisualStyleProperty> {
-        if obj.properties.len() == 24 {
-            return obj.properties.clone();
-        }
-        let core = Self::visual_style_core_properties(obj);
-        let short = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Short(value),
-            enabled: 1,
-        };
-        let double = |value| VisualStyleProperty {
-            value: VisualStylePropertyValue::Double(value),
-            enabled: 1,
-        };
-        vec![
-            core[4].clone(),
-            core[5].clone(),
-            core[6].clone(),
-            core[9].clone(),
-            core[10].clone(),
-            core[11].clone(),
-            core[13].clone(),
-            core[14].clone(),
-            core[15].clone(),
-            core[16].clone(),
-            core[17].clone(),
-            core[18].clone(),
-            core[19].clone(),
-            core[20].clone(),
-            core[21].clone(),
-            core[22].clone(),
-            core[23].clone(),
-            core[24].clone(),
-            short(0),
-            core[12].clone(),
-            core[25].clone(),
-            core[26].clone(),
-            core[27].clone(),
-            double(0.0),
-        ]
+        obj.legacy_properties()
     }
 
     /// Write a VISUALSTYLE object
@@ -10224,6 +10083,19 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Append the terminator — internal sat_data never contains it.
         let mut full = AcisData::strip_sat_terminator(data);
         full.push_str("End-of-ACIS-data\n");
+        // SAT text from a binary body has one line per record; the reference
+        // application only reads lines of up to 255 characters, so long
+        // records are wrapped between tokens as ACIS itself writes them.
+        if full.lines().any(|line| line.len() > 255) {
+            full = full
+                .lines()
+                .flat_map(wrap_sat_line)
+                .fold(String::new(), |mut text, line| {
+                    text.push_str(line);
+                    text.push('\n');
+                    text
+                });
+        }
 
         // Version 1: apply the DXF character cipher to SAT text.
         // SAB-converted data is always treated as Version1 for DXF output.
@@ -10246,21 +10118,17 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_string(1, line)?;
             } else {
                 // Split into 2049-byte sub-chunks without breaking UTF-8:
-                // first sub-chunk → gc 1, continuations → gc 3
+                // the first sub-chunk → gc 1, continuations → gc 3
                 let mut remaining = line;
-                let mut first = true;
+                let mut code = 1;
                 while !remaining.is_empty() {
                     let mut end = remaining.len().min(2049);
                     while !remaining.is_char_boundary(end) {
                         end -= 1;
                     }
                     let (chunk, rest) = remaining.split_at(end);
-                    if first {
-                        self.writer.write_string(1, chunk)?;
-                        first = false;
-                    } else {
-                        self.writer.write_string(3, chunk)?;
-                    }
+                    self.writer.write_string(code, chunk)?;
+                    code = 3;
                     remaining = rest;
                 }
             }
@@ -11645,4 +11513,36 @@ fn get_invisible_edge_bits(flags: &InvisibleEdgeFlags) -> u8 {
 /// Helper to extract boundary path flag bits
 fn get_boundary_path_bits(flags: &BoundaryPathFlags) -> u32 {
     flags.bits()
+}
+
+/// Split a SAT text line into pieces of at most 255 characters at token
+/// boundaries; a counted string (`@<n> <text>`) is never split.
+fn wrap_sat_line(line: &str) -> Vec<&str> {
+    const LIMIT: usize = 240;
+    let bytes = line.as_bytes();
+    let mut pieces = Vec::new();
+    let (mut start, mut split, mut index) = (0, None, 0);
+    while index < bytes.len() {
+        let token_start = index == 0 || bytes[index - 1] == b' ';
+        if bytes[index] == b'@' && token_start {
+            // Skip the count, the separating space and the counted text.
+            let digits = bytes[index + 1..].iter().take_while(|b| b.is_ascii_digit()).count();
+            let count: usize = line[index + 1..index + 1 + digits].parse().unwrap_or(0);
+            index = (index + 2 + digits + count).min(bytes.len());
+            continue;
+        }
+        if bytes[index] == b' ' {
+            split = Some(index);
+        }
+        if index - start >= LIMIT {
+            if let Some(at) = split.filter(|&at| at > start) {
+                pieces.push(&line[start..at]);
+                start = at;
+                split = None;
+            }
+        }
+        index += 1;
+    }
+    pieces.push(&line[start..]);
+    pieces
 }

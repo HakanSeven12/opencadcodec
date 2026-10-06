@@ -2082,7 +2082,7 @@ pub fn julian_parts(jd: f64) -> (i64, u32, u32, u32, u32, u32) {
 }
 
 /// Day of week for a Julian date: 0 = Sunday … 6 = Saturday.
-fn weekday(jd: f64) -> u32 {
+pub(crate) fn weekday(jd: f64) -> u32 {
     let secs = ((jd - 2_440_587.5) * 86_400.0).round() as i64;
     let days = secs.div_euclid(86_400);
     (days + 4).rem_euclid(7) as u32

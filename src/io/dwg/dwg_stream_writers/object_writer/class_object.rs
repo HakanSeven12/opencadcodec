@@ -811,7 +811,8 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_variable_text(&value.base.description);
                 self.writer.write_bit(value.base.modified_for_recompute);
                 if self.version.r2018_plus(self.dxf_version) {
-                    self.writer.write_variable_text(&value.base.display_name);
+                    self.writer
+                        .write_variable_text(value.base.display_name_or_description());
                     self.writer.write_bit_long(value.base.flags);
                 }
                 self.writer.write_bit_short(value.class_version);
@@ -863,7 +864,8 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_variable_text(&value.base.description);
                 self.writer.write_bit(value.base.modified_for_recompute);
                 if self.version.r2018_plus(self.dxf_version) {
-                    self.writer.write_variable_text(&value.base.display_name);
+                    self.writer
+                        .write_variable_text(value.base.display_name_or_description());
                     self.writer.write_bit_long(value.base.flags);
                 }
                 self.writer.write_bit_short(value.class_version);

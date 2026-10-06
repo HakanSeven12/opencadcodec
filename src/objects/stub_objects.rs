@@ -171,7 +171,39 @@ impl VisualStyle {
                 (21, 26),
                 (22, 27),
             ] {
-                values[modern] = self.properties[legacy].clone();
+                // The R2010+ record writes each property by its own type, so
+                // a legacy value takes the modern slot's type (the legacy
+                // brightness is a long, the modern one a double).
+                let source = &self.properties[legacy];
+                let number = match &source.value {
+                    VisualStylePropertyValue::Short(v) => Some(*v as f64),
+                    VisualStylePropertyValue::Long(v) => Some(*v as f64),
+                    VisualStylePropertyValue::Double(v) => Some(*v),
+                    VisualStylePropertyValue::Bool(v) => Some(*v as u8 as f64),
+                    _ => None,
+                };
+                let value = match (&values[modern].value, number) {
+                    (VisualStylePropertyValue::Long(_), Some(n)) => {
+                        VisualStylePropertyValue::Long(n as i32)
+                    }
+                    // The legacy face opacity and specular are negative while
+                    // the face modifier leaves them off; the R2010+ values
+                    // are magnitudes and the modifier alone says so.
+                    (VisualStylePropertyValue::Double(_), Some(n)) if modern == 4 || modern == 5 => {
+                        VisualStylePropertyValue::Double(n.abs())
+                    }
+                    (VisualStylePropertyValue::Double(_), Some(n)) => {
+                        VisualStylePropertyValue::Double(n)
+                    }
+                    (VisualStylePropertyValue::Bool(_), Some(n)) => {
+                        VisualStylePropertyValue::Bool(n != 0.0)
+                    }
+                    _ => source.value.clone(),
+                };
+                values[modern] = VisualStyleProperty {
+                    value,
+                    enabled: source.enabled,
+                };
             }
         } else {
             for (index, property) in self.properties.iter().take(28).enumerate() {
@@ -228,7 +260,7 @@ impl VisualStyle {
             color(Color::Rgb { r: 0, g: 0, b: 0 }, 1),
             long(50),
             long(3),
-            color(Color::Index(5), 1),
+            color(Color::Rgb { r: 0, g: 0, b: 255 }, 1),
             bool_value(false),
             long(50),
             long(50),
@@ -261,9 +293,22 @@ impl VisualStyle {
             value: VisualStylePropertyValue::Double(value),
             enabled: 1,
         };
+        // Opacity (modifier bit 1) and specular (bit 2) are stored negative
+        // while the modifier leaves them off.
+        let signed = |property: &VisualStyleProperty, bit: i32| {
+            let mut property = property.clone();
+            if let VisualStylePropertyValue::Double(value) = &mut property.value {
+                *value = if self.face_modifier & bit != 0 {
+                    value.abs()
+                } else {
+                    -value.abs()
+                };
+            }
+            property
+        };
         vec![
-            core[4].clone(),
-            core[5].clone(),
+            signed(&core[4], 1),
+            signed(&core[5], 2),
             core[6].clone(),
             core[9].clone(),
             core[10].clone(),
@@ -287,6 +332,257 @@ impl VisualStyle {
             core[27].clone(),
             double(0.0),
         ]
+    }
+
+    /// Complete a style read from a pre-R2010 record with the R2010+
+    /// properties a pre-R2010 file keeps in the style's `ACAD_XREC_ROUNDTRIP`
+    /// record: `RTVSPost2010Prop<n>` values (colors as `…ColorIndex` and
+    /// `…ColorRGB`) with their `RTVSPost2010PropOp<n>` flags, and
+    /// `RTVSPropertyOp<n>` flags for every property. Returns whether the
+    /// record held any of them.
+    pub(crate) fn restore_post_2010_properties(
+        &mut self,
+        entries: &[crate::objects::XRecordEntry],
+    ) -> bool {
+        use crate::objects::XRecordValue;
+        if self.properties.len() != 24 {
+            return false;
+        }
+        let mut properties = self.core_properties();
+        properties.extend(self.extended_properties());
+        let mut color_index = None;
+        let mut found = false;
+        for pair in entries.windows(2) {
+            let (Some(key), value) = (pair[0].value.as_string(), &pair[1].value) else {
+                continue;
+            };
+            let flag = match value {
+                XRecordValue::Int16(v) => Some(*v),
+                _ => None,
+            };
+            if let Some(index) = key.strip_prefix("RTVSPropertyOp") {
+                if let (Ok(index), Some(flag)) = (index.parse::<usize>(), flag) {
+                    if let Some(property) = properties.get_mut(index) {
+                        property.enabled = flag;
+                        found = true;
+                    }
+                }
+                continue;
+            }
+            if let Some(index) = key.strip_prefix("RTVSPost2010PropOp") {
+                if let (Ok(index), Some(flag)) = (index.parse::<usize>(), flag) {
+                    if let Some(property) = properties.get_mut(index) {
+                        property.enabled = flag;
+                        found = true;
+                    }
+                }
+                continue;
+            }
+            let Some(rest) = key.strip_prefix("RTVSPost2010Prop") else {
+                continue;
+            };
+            let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+            let Ok(index) = rest[..digits].parse::<usize>() else {
+                continue;
+            };
+            let Some(property) = properties.get_mut(index) else {
+                continue;
+            };
+            let number = match value {
+                XRecordValue::Byte(v) => Some(*v as f64),
+                XRecordValue::Int16(v) => Some(*v as f64),
+                XRecordValue::Int32(v) => Some(*v as f64),
+                XRecordValue::Double(v) => Some(*v),
+                XRecordValue::Bool(v) => Some(*v as u8 as f64),
+                _ => None,
+            };
+            let new_value = match (&rest[digits..], &property.value, number) {
+                ("ColorIndex", _, Some(n)) => {
+                    color_index = Some(n as i16);
+                    continue;
+                }
+                ("ColorRGB", _, Some(n)) => {
+                    let raw = n as i64 as i32;
+                    let index = color_index.take().unwrap_or(256);
+                    VisualStylePropertyValue::Color(match index {
+                        0 | 256 | 257 => Color::from_index(index),
+                        _ if (raw as u32) >> 24 == 0 => Color::from_true_color_value(raw),
+                        _ => Color::from_index(index),
+                    })
+                }
+                ("", VisualStylePropertyValue::Bool(_), Some(n)) => {
+                    VisualStylePropertyValue::Bool(n != 0.0)
+                }
+                ("", VisualStylePropertyValue::Long(_), Some(n)) => {
+                    VisualStylePropertyValue::Long(n as i32)
+                }
+                ("", VisualStylePropertyValue::Double(_), Some(n)) => {
+                    VisualStylePropertyValue::Double(n)
+                }
+                ("", VisualStylePropertyValue::Text(_), _) => match value.as_string() {
+                    Some(text) => VisualStylePropertyValue::Text(text.to_string()),
+                    None => continue,
+                },
+                _ => continue,
+            };
+            property.value = new_value;
+            found = true;
+        }
+        if found {
+            self.properties = properties;
+        }
+        found
+    }
+}
+
+/// Before an R2004 or R2007 save, keep each visual style's R2010+ properties
+/// in its `ACAD_XREC_ROUNDTRIP` extension record, as pre-R2010 files do.
+/// A color is stored as an ACI index and an RGB value: true colors as their
+/// nearest ACI and 24-bit RGB, other colors as their index and `0xFF000000`.
+pub(crate) fn store_visual_style_roundtrip(document: &mut crate::document::CadDocument) {
+    use crate::objects::{ObjectType, XRecordEntry, XRecordValue};
+    use crate::types::DxfVersion;
+    if !(DxfVersion::AC1018..DxfVersion::AC1024).contains(&document.version) {
+        return;
+    }
+    let mut styles: Vec<_> = document
+        .objects
+        .iter()
+        .filter_map(|(handle, object)| match object {
+            ObjectType::VisualStyle(style) if style.properties.len() >= 58 => {
+                Some((*handle, style.properties.clone()))
+            }
+            _ => None,
+        })
+        .collect();
+    // Objects are created in handle order so the output is deterministic.
+    styles.sort_by_key(|style| style.0);
+    let key = |text: String| XRecordEntry {
+        code: 102,
+        value: XRecordValue::String(text),
+    };
+    for (handle, properties) in styles {
+        let mut group = Vec::new();
+        for (index, property) in properties.iter().enumerate().take(58).skip(28) {
+            let name = format!("RTVSPost2010Prop{index}");
+            match &property.value {
+                VisualStylePropertyValue::Color(color) => {
+                    let (aci, rgb) = match color {
+                        Color::Rgb { .. } => (
+                            color.approximate_index() as i32,
+                            color.to_true_color_value().unwrap_or_default(),
+                        ),
+                        _ => (color.approximate_index() as i32, 0xFF00_0000_u32 as i32),
+                    };
+                    group.push(key(format!("{name}ColorIndex")));
+                    group.push(XRecordEntry {
+                        code: 90,
+                        value: XRecordValue::Int32(aci),
+                    });
+                    group.push(key(format!("{name}ColorRGB")));
+                    group.push(XRecordEntry {
+                        code: 90,
+                        value: XRecordValue::Int32(rgb),
+                    });
+                }
+                value => {
+                    group.push(key(name));
+                    group.push(match value {
+                        VisualStylePropertyValue::Bool(v) => XRecordEntry {
+                            code: 280,
+                            value: XRecordValue::Byte(*v as u8),
+                        },
+                        VisualStylePropertyValue::Short(v) => XRecordEntry {
+                            code: 90,
+                            value: XRecordValue::Int32(*v as i32),
+                        },
+                        VisualStylePropertyValue::Long(v) => XRecordEntry {
+                            code: 90,
+                            value: XRecordValue::Int32(*v),
+                        },
+                        VisualStylePropertyValue::Double(v) => XRecordEntry {
+                            code: 140,
+                            value: XRecordValue::Double(*v),
+                        },
+                        VisualStylePropertyValue::Text(v) => XRecordEntry {
+                            code: 1,
+                            value: XRecordValue::String(v.clone()),
+                        },
+                        VisualStylePropertyValue::Color(_) => unreachable!(),
+                    });
+                }
+            }
+            group.push(key(format!("RTVSPost2010PropOp{index}")));
+            group.push(XRecordEntry {
+                code: 70,
+                value: XRecordValue::Int16(property.enabled),
+            });
+        }
+        // One flag per property id; the ids after the 58 properties are on.
+        for index in 0..63 {
+            group.push(key(format!("RTVSPropertyOp{index}")));
+            group.push(XRecordEntry {
+                code: 70,
+                value: XRecordValue::Int16(properties.get(index).map_or(1, |p| p.enabled)),
+            });
+        }
+        let record = document.ensure_xrecord(handle, "ACAD_XREC_ROUNDTRIP");
+        let Some(ObjectType::XRecord(record)) = document.objects.get_mut(&record) else {
+            continue;
+        };
+        // Replace an earlier copy of these groups, keep anything else.
+        let mut kept = Vec::with_capacity(record.entries.len());
+        let mut entries = std::mem::take(&mut record.entries).into_iter();
+        while let Some(entry) = entries.next() {
+            if entry.code == 102
+                && entry
+                    .value
+                    .as_string()
+                    .is_some_and(|text| text.starts_with("RTVS"))
+            {
+                entries.next();
+                continue;
+            }
+            kept.push(entry);
+        }
+        kept.extend(group);
+        record.entries = kept;
+    }
+}
+
+/// Fold the R2010+ properties that pre-R2010 files keep in each visual
+/// style's `ACAD_XREC_ROUNDTRIP` extension record into the style.
+pub(crate) fn restore_visual_style_roundtrip(document: &mut crate::document::CadDocument) {
+    use crate::objects::ObjectType;
+    let records: Vec<_> = document
+        .objects
+        .iter()
+        .filter_map(|(handle, object)| {
+            let ObjectType::VisualStyle(style) = object else {
+                return None;
+            };
+            if style.properties.len() != 24 {
+                return None;
+            }
+            let Some(ObjectType::Dictionary(dictionary)) =
+                document.objects.get(&style.xdictionary_handle?)
+            else {
+                return None;
+            };
+            let (_, record) = dictionary
+                .entries
+                .iter()
+                .find(|(name, _)| name == "ACAD_XREC_ROUNDTRIP")?;
+            let Some(ObjectType::XRecord(record)) = document.objects.get(record) else {
+                return None;
+            };
+            Some((*handle, record.entries.clone()))
+        })
+        .collect();
+    for (handle, entries) in records {
+        if let Some(ObjectType::VisualStyle(style)) = document.objects.get_mut(&handle) {
+            style.restore_post_2010_properties(&entries);
+        }
     }
 }
 

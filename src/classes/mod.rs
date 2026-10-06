@@ -300,7 +300,7 @@ impl<'a> IntoIterator for &'a DxfClassCollection {
 ///
 /// DXF names, proxy flags, and application names match AutoCAD R2013 (AC1027)
 /// reference output.
-fn default_classes() -> Vec<DxfClass> {
+pub(crate) fn default_classes() -> Vec<DxfClass> {
     // (dxf_name, cpp_class_name, proxy_flags, app_name, is_entity)
     let defs: &[(&str, &str, u16, &str, bool)] = &[
         // ── Entity classes ──────────────────────────────────────────

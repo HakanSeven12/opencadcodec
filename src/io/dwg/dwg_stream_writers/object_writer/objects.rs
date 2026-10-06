@@ -338,6 +338,10 @@ pub(crate) fn object_class_names(object: &ObjectType) -> Vec<std::borrow::Cow<'_
     vec![Cow::Borrowed(name)]
 }
 
+/// Table style flag bit 8 is found in older files but never written back:
+/// a re-save of such a style stores the flags without it.
+const STALE_TABLE_STYLE_FLAG: i16 = 8;
+
 impl<'a> DwgObjectWriter<'a> {
     // ── Object dispatch ─────────────────────────────────────────────
 
@@ -925,8 +929,12 @@ impl<'a> DwgObjectWriter<'a> {
                 .write_bit_long(Self::visual_style_long(&properties[21]));
             self.writer
                 .write_bit_long(Self::visual_style_long(&properties[22]));
-            // properties[23] is the DXF-only group 45; the binary record ends
-            // with the internal-use flag.
+            // properties[23] (DXF group 45) is part of the binary record
+            // only from R2007 on; R2004 ends with the internal-use flag.
+            if self.version.r2007_plus() {
+                self.writer
+                    .write_bit_double(Self::visual_style_double(&properties[23]));
+            }
             self.writer.write_bit(value.internal_use_only);
         } else {
             self.writer.write_bit_short(value.extended_lighting_model);
@@ -1149,7 +1157,7 @@ impl<'a> DwgObjectWriter<'a> {
         if !self.version.r2010_plus() {
             self.writer.write_variable_text(&value.name);
             self.writer.write_bit_short(value.flow_direction as i16);
-            self.writer.write_bit_short(value.flags.bits());
+            self.writer.write_bit_short(value.flags.bits() & !STALE_TABLE_STYLE_FLAG);
             self.writer.write_bit_double(value.horizontal_margin);
             self.writer.write_bit_double(value.vertical_margin);
             self.writer.write_bit(value.title_suppressed);
@@ -1160,14 +1168,21 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.writer.write_byte(value.modern_unknown_byte);
             self.writer.write_variable_text(&value.name);
-            self.writer.write_bit_long(value.modern_unknown_long1);
+            // The R2010+ flags field carries the table style flags.
+            self.writer.write_bit_long((value.flags.bits() & !STALE_TABLE_STYLE_FLAG) as i32);
             self.writer.write_bit_long(value.modern_unknown_long2);
             self.writer.write_handle(
                 DwgReferenceType::HardOwnership,
                 value.modern_cell_style_handle.value(),
             );
             if let Some(style) = &value.modern_style {
-                self.write_table_style_named_cell_style(style);
+                // The base "Table" style normally has no text style and keeps
+                // none; only a dangling one is resolved.
+                if style.cell_style.content_format.text_style.is_null() {
+                    self.write_named_table_cell_style(style);
+                } else {
+                    self.write_table_style_named_cell_style(style);
+                }
             } else {
                 self.write_default_modern_table_cell_style(value);
             }
@@ -1294,22 +1309,23 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_named_table_cell_style(&value);
     }
 
+    /// The base "Table" cell style of a style without one: only the margins
+    /// come from the style; content, fill and borders are left to the named
+    /// cell styles.
     fn write_default_modern_table_cell_style(&mut self, value: &TableStyle) {
-        let row = &value.data_row_style;
         let cell_style = TableCellStyleData {
             style_type: 5,
             data_flags: 1,
-            background_color: row.fill_color,
+            background_color: Color::None,
             content_layout: 1,
             content_format: TableContentFormat {
-                value_data_type: row.data_type,
-                value_unit_type: row.unit_type,
-                value_format_string: row.format_string.clone(),
+                value_data_type: 512,
                 block_scale: 1.0,
-                cell_alignment: row.alignment as i32,
-                content_color: row.text_color,
-                text_style: self.resolve_table_row_text_style(row),
-                text_height: row.text_height,
+                cell_alignment: 1,
+                content_color: Color::ByBlock,
+                // Not the data row height, in imperial and metric drawings alike
+                // (data text of 0.4 or 4.5 still carries 0.18 here; so do the spacings).
+                text_height: 0.18,
                 ..TableContentFormat::default()
             },
             margin_override_flags: 1,
@@ -1317,23 +1333,8 @@ impl<'a> DwgObjectWriter<'a> {
             horizontal_margin: value.horizontal_margin,
             bottom_margin: value.vertical_margin,
             right_margin: value.horizontal_margin,
-            horizontal_spacing: value.horizontal_margin * 3.0,
-            vertical_spacing: value.vertical_margin * 3.0,
-            borders: [
-                (1, &row.top_border),
-                (2, &row.right_border),
-                (4, &row.bottom_border),
-                (8, &row.left_border),
-                (16, &row.horizontal_inside_border),
-                (32, &row.vertical_inside_border),
-            ]
-            .into_iter()
-            .map(|(index_mask, border)| TableGridFormat {
-                index_mask,
-                border: border.clone(),
-                line_type: Handle::NULL,
-            })
-            .collect(),
+            horizontal_spacing: 0.18,
+            vertical_spacing: 0.18,
             ..TableCellStyleData::default()
         };
         self.write_named_table_cell_style(&NamedTableCellStyle {
@@ -1366,18 +1367,23 @@ impl<'a> DwgObjectWriter<'a> {
         name: &str,
         merge_flags: i32,
     ) {
+        // R2010+ edge order; the grid flag is set for a hidden edge, the
+        // reverse of the row border's `is_invisible`.
         let borders = [
             (1, &row.top_border),
-            (2, &row.right_border),
+            (2, &row.horizontal_inside_border),
             (4, &row.bottom_border),
             (8, &row.left_border),
-            (16, &row.horizontal_inside_border),
-            (32, &row.vertical_inside_border),
+            (16, &row.vertical_inside_border),
+            (32, &row.right_border),
         ]
         .into_iter()
         .map(|(index_mask, border)| TableGridFormat {
             index_mask,
-            border: border.clone(),
+            border: TableCellBorder {
+                is_invisible: !border.is_invisible,
+                ..border.clone()
+            },
             line_type: Handle::NULL,
         })
         .collect();
@@ -1394,7 +1400,7 @@ impl<'a> DwgObjectWriter<'a> {
                 },
                 content_layout: 1,
                 content_format: TableContentFormat {
-                    value_data_type: 4,
+                    value_data_type: row.data_type,
                     value_unit_type: row.unit_type,
                     value_format_string: row.format_string.clone(),
                     block_scale: 1.0,

@@ -105,17 +105,15 @@ impl SabWriter {
             Self::write_record(&mut buf, record);
         }
 
-        // End marker, with no end-of-record tag. ShapeManager bodies end with
-        // the tagged `End-of-ASM-data` components; the reference application
-        // rejects a 22300 body closed with the classic single-string marker.
-        if Self::is_asm(&doc.header) {
-            for part in ["End", "of", "ASM"] {
-                Self::write_subtype(&mut buf, part);
-            }
-            Self::write_entity_type(&mut buf, "data");
-        } else {
-            Self::write_entity_type(&mut buf, "End-of-ACIS-data");
+        // End marker, with no end-of-record tag, written as tagged components
+        // (`End-of-ASM-data` for ShapeManager bodies, `End-of-ACIS-data`
+        // before); the reference application rejects a 22300 body closed with
+        // a single-string marker.
+        let kernel = if Self::is_asm(&doc.header) { "ASM" } else { "ACIS" };
+        for part in ["End", "of", kernel] {
+            Self::write_subtype(&mut buf, part);
         }
+        Self::write_entity_type(&mut buf, "data");
 
         buf
     }
@@ -229,7 +227,7 @@ impl SabWriter {
         // composite position(0x13)/direction(0x14) tags for coordinate triplets.
         let layout = CoordLayout::for_entity(&record.entity_type);
         let ints_as_doubles = Self::integers_are_doubles(&record.entity_type);
-        let contextual;
+        let mut contextual;
         let tokens = if base_entity_type(&record.entity_type) == "face" {
             contextual = Self::encode_face_boolean_roles(&record.tokens);
             &contextual
@@ -250,6 +248,25 @@ impl SabWriter {
             "intcurve-curve" | "spline-surface" | "pcurve"
         ) {
             contextual = Self::encode_spline_numeric_roles(&record.entity_type, &record.tokens);
+            &contextual
+        } else if record.entity_type == "eye_refinement" {
+            // Labelled fields: the tolerances are doubles even when SAT
+            // writes them as whole numbers; the grid counts stay integers.
+            contextual = record.tokens.clone();
+            for index in 1..contextual.len() {
+                let label = match &contextual[index - 1] {
+                    SatToken::String(label) | SatToken::Ident(label) => label.as_str(),
+                    _ => continue,
+                };
+                if matches!(
+                    label,
+                    "stol" | "ntol" | "dsil" | "flatness" | "pixarea" | "hmax" | "gridar"
+                ) {
+                    if let SatToken::Integer(value) = contextual[index] {
+                        contextual[index] = SatToken::Float(value as f64);
+                    }
+                }
+            }
             &contextual
         } else {
             &record.tokens
@@ -440,9 +457,9 @@ impl SabWriter {
     fn string_to_boolean(s: &str) -> Option<bool> {
         match s {
             "forward_v" | "I" | "forward" | "single" | "in" | "no_rotate" | "no_reflect"
-            | "no_shear" => Some(true),
+            | "no_shear" | "surf2" => Some(true),
             "reverse_v" | "reversed_v" | "reversed" | "double" | "out" | "F" | "rotate"
-            | "reflect" | "shear" => Some(false),
+            | "reflect" | "shear" | "surf1" => Some(false),
             _ => None,
         }
     }
@@ -529,32 +546,70 @@ impl SabWriter {
         let mut doubles = Vec::new();
         let mut enums = Vec::new();
         let mut subtypes = Vec::new();
+        // Per open subtype block: where an interpolated curve's pcurves end.
+        let mut pcurve_ends: Vec<Option<usize>> = Vec::new();
+        let in_int_cur =
+            |subtypes: &[Option<&str>]| matches!(subtypes.last(), Some(Some(name)) if name.ends_with("cur"));
         for (index, token) in tokens.iter().enumerate() {
             match token.as_ident() {
-                Some("{") => subtypes.push(tokens.get(index + 1).and_then(SatToken::as_ident)),
+                Some("{") => {
+                    subtypes.push(tokens.get(index + 1).and_then(SatToken::as_ident));
+                    pcurve_ends.push(None);
+                }
                 Some("}") => {
+                    // The pcurves are followed by two logicals and the
+                    // curve's discontinuity lists.
+                    if let (true, Some(Some(end))) = (in_int_cur(&subtypes), pcurve_ends.last()) {
+                        if tokens.get(*end).is_some_and(Self::is_logical)
+                            && tokens.get(end + 1).is_some_and(Self::is_logical)
+                        {
+                            doubles.extend(Self::discontinuity_doubles(tokens, end + 2, 3));
+                        }
+                    }
                     subtypes.pop();
+                    pcurve_ends.pop();
+                }
+                Some("nullbs") if in_int_cur(&subtypes) => {
+                    if let Some(end) = pcurve_ends.last_mut() {
+                        *end = Some(index + 1);
+                    }
                 }
                 _ => {}
             }
             if matches!(token.as_ident(), Some("nurbs" | "nubs")) {
                 let previous = index.checked_sub(1).and_then(|i| tokens[i].as_ident());
                 let parent = index.checked_sub(2).and_then(|i| tokens[i].as_ident());
-                // ShapeManager curves write `exact_int_cur <version> full`.
+                // ShapeManager curves write `exact_int_cur <version> full`;
+                // the other interpolated curves (`surfintcur`, ...) open with
+                // the same approximating `full nubs` spline.
                 let parent = match subtypes.last() {
-                    Some(Some("exact_int_cur")) => Some("exactcur"),
+                    Some(Some(name)) if name.ends_with("cur") => Some("exactcur"),
                     _ => parent,
                 };
+                let pcurve = in_int_cur(&subtypes) && previous != Some("full");
                 let dimensions = match (parent, previous) {
                     (Some("exactcur"), Some("full")) => Some((3, false)),
                     (Some("exactsur"), Some("full")) => Some((3, true)),
                     (_, Some("exppc")) => Some((2, false)),
+                    // A 2D pcurve of an interpolated curve: no fit tolerance.
+                    _ if pcurve => Some((2, false)),
                     _ => None,
                 };
                 if let Some((dimensions, surface)) = dimensions {
                     if let Some(fields) =
-                        Self::nurbs_double_fields(tokens, index, dimensions, surface)
+                        Self::nurbs_double_fields(tokens, index, dimensions, surface, !pcurve)
                     {
+                        let end = fields.iter().max().map(|last| last + 1);
+                        if pcurve {
+                            if let Some(slot) = pcurve_ends.last_mut() {
+                                *slot = end;
+                            }
+                        } else if surface {
+                            // u and v discontinuity lists follow the fit tolerance.
+                            if let Some(end) = end {
+                                doubles.extend(Self::discontinuity_doubles(tokens, end, 6));
+                            }
+                        }
                         doubles.extend(fields);
                         if previous == Some("full") {
                             enums.push(index - 1);
@@ -571,10 +626,10 @@ impl SabWriter {
             }
             if (token.as_ident() == Some("F") || matches!(token, SatToken::False))
                 && index + 1 < tokens.len()
-                && matches!(
+                && (matches!(
                     subtypes.last(),
                     None | Some(Some("exactcur" | "exact_int_cur" | "exactsur" | "exppc"))
-                )
+                ) || in_int_cur(&subtypes))
             {
                 doubles.push(index + 1);
             }
@@ -593,6 +648,26 @@ impl SabWriter {
                 doubles.extend(
                     (index + 1..tokens.len()).take_while(|&i| tokens[i].as_ident() != Some("}")),
                 );
+            }
+            // An interpolated curve stores its analytic support surfaces
+            // inline after the spline; their numbers are doubles, while the
+            // trailing fields after the `nullbs` pcurves stay integers.
+            if entity_type == "intcurve-curve"
+                && matches!(subtypes.last(), Some(Some(name)) if name.ends_with("cur"))
+                && matches!(
+                    token.as_ident(),
+                    Some("plane" | "cone" | "sphere" | "torus")
+                )
+            {
+                doubles.extend((index + 1..tokens.len()).take_while(|&i| {
+                    !matches!(
+                        tokens[i].as_ident(),
+                        Some(
+                            "plane" | "cone" | "sphere" | "torus" | "spline" | "nullbs" | "nubs"
+                                | "nurbs" | "{" | "}"
+                        )
+                    )
+                }));
             }
         }
         if entity_type == "pcurve" && tokens.len() >= 2 {
@@ -621,6 +696,7 @@ impl SabWriter {
         start: usize,
         dimensions: usize,
         surface: bool,
+        fit_tolerance: bool,
     ) -> Option<Vec<usize>> {
         let integer = |index: usize| usize::try_from(tokens.get(index)?.as_integer()?).ok();
         let rational = tokens.get(start)?.as_ident()? == "nurbs";
@@ -655,13 +731,45 @@ impl SabWriter {
         }
         let values = controls
             .checked_mul(dimensions + usize::from(rational))?
-            .checked_add(1)?;
+            .checked_add(usize::from(fit_tolerance))?;
         let end = position.checked_add(values)?;
         for (offset, token) in tokens.get(position..end)?.iter().enumerate() {
             token.as_float()?;
             doubles.push(position + offset);
         }
         Some(doubles)
+    }
+
+    /// A logical written as a keyword (`I`, `F`, `T`) or a boolean literal.
+    fn is_logical(token: &SatToken) -> bool {
+        matches!(token, SatToken::True | SatToken::False)
+            || matches!(token.as_ident(), Some("I" | "F" | "T"))
+    }
+
+    /// `groups` discontinuity lists from `start`: each an integer count
+    /// followed by that many parameter values, which are doubles. Nothing
+    /// when the tokens do not have that shape.
+    fn discontinuity_doubles(tokens: &[SatToken], start: usize, groups: usize) -> Vec<usize> {
+        let mut doubles = Vec::new();
+        let mut position = start;
+        for _ in 0..groups {
+            let Some(count) = tokens
+                .get(position)
+                .and_then(SatToken::as_integer)
+                .and_then(|count| usize::try_from(count).ok())
+            else {
+                return Vec::new();
+            };
+            let values = position + 1..position + 1 + count;
+            if tokens.get(values.clone()).map_or(true, |values| {
+                values.iter().any(|value| value.as_float().is_none())
+            }) {
+                return Vec::new();
+            }
+            doubles.extend(values);
+            position += 1 + count;
+        }
+        doubles
     }
 
     /// Determine whether direct geometry integer literals are scalar doubles.
@@ -681,6 +789,9 @@ impl SabWriter {
                 | "sphere-surface"
                 | "torus-surface"
                 | "edge"
+                // Tolerant edges and coedges keep their parameter range.
+                | "tedge-edge"
+                | "tcoedge-coedge"
         )
     }
 
@@ -977,6 +1088,7 @@ impl SabReader {
         for record in &mut records {
             convert_sab_booleans(&record.entity_type, &mut record.tokens);
             name_curve_enums(&mut record.tokens);
+            name_spline_keywords(&record.entity_type, &mut record.tokens);
         }
 
         Ok((SatDocument { header, records }, pos))
@@ -1190,27 +1302,46 @@ impl SabReader {
 fn name_curve_enums(tokens: &mut [SatToken]) {
     let mut depth = 0usize;
     let mut role = None;
+    let mut parcur = false;
     for index in 0..tokens.len() {
         match tokens[index].as_ident() {
             Some("{") => {
                 depth += 1;
-                if matches!(
-                    tokens.get(index + 1).and_then(SatToken::as_ident),
-                    Some("exactcur" | "exact_int_cur")
-                ) && depth == 1
+                if depth == 1 {
+                    parcur = tokens.get(index + 1).and_then(SatToken::as_ident) == Some("parcur");
+                }
+                // Every interpolated curve (`exactcur`, `surfintcur`,
+                // `parcur`, ...) opens with the same `full nubs` spline.
+                if tokens
+                    .get(index + 1)
+                    .and_then(SatToken::as_ident)
+                    .is_some_and(|name| name.ends_with("cur"))
+                    && depth == 1
                 {
                     role = Some(0);
                 }
                 continue;
             }
             Some("}") => {
+                // A `parcur` ends with the logical naming its surface.
+                if depth == 1 && role.is_some() && index > 0 {
+                    let surface = match &tokens[index - 1] {
+                        SatToken::Enum(value) if value == "F" => Some("surf1"),
+                        SatToken::Enum(value) if value == "I" => Some("surf2"),
+                        _ => None,
+                    };
+                    if let (true, Some(surface)) = (parcur, surface) {
+                        tokens[index - 1] = SatToken::Ident(surface.to_string());
+                    }
+                }
                 depth = depth.saturating_sub(1);
                 if depth == 0 {
                     role = None;
                 }
                 continue;
             }
-            Some("nubs" | "nurbs") if role == Some(1) => {
+            // The curve spline, then any 2D pcurve spline: closure follows.
+            Some("nubs" | "nurbs") if role.is_some_and(|role| role >= 1) => {
                 role = Some(2);
                 continue;
             }
@@ -1238,6 +1369,105 @@ fn name_curve_enums(tokens: &mut [SatToken]) {
             tokens[index] = SatToken::Enum(name.to_string());
         }
         role = Some(current + 1);
+    }
+}
+
+/// Name the senses and enumerations of spline records the way SAT text
+/// writes them: the sense of a spline surface or pcurve and of the support
+/// surfaces stored inline in an interpolated curve (`forward_v` for plane,
+/// sphere and torus, `forward` for cone and spline), and the `exactsur` /
+/// `exppc` spline enumerations (completeness, closures, singularities).
+fn name_spline_keywords(entity_type: &str, tokens: &mut [SatToken]) {
+    if !matches!(entity_type, "intcurve-curve" | "spline-surface" | "pcurve") {
+        return;
+    }
+    let logical = |token: &SatToken| match token {
+        SatToken::True => Some(true),
+        SatToken::False => Some(false),
+        SatToken::Enum(name) => match name.as_str() {
+            "I" | "forward_v" | "forward" => Some(true),
+            "F" | "reverse_v" | "reversed" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    };
+    // (forward name, reversed name, logicals to skip before the sense)
+    let mut sense: Option<(&str, &str, usize)> = (entity_type != "intcurve-curve")
+        .then_some(("forward", "reversed", 0));
+    // Per open block: (subtype, enumeration role).
+    let mut blocks: Vec<(String, usize)> = Vec::new();
+    for index in 0..tokens.len() {
+        match tokens[index].as_ident() {
+            Some("{") => {
+                let name = tokens.get(index + 1).and_then(SatToken::as_ident).unwrap_or("");
+                blocks.push((name.to_string(), 0));
+                continue;
+            }
+            Some("}") => {
+                blocks.pop();
+                continue;
+            }
+            Some("nubs" | "nurbs") => {
+                if let Some((_, role)) = blocks.last_mut() {
+                    *role = 1;
+                }
+                continue;
+            }
+            Some("plane" | "sphere" | "torus") if !blocks.is_empty() => {
+                sense = Some(("forward_v", "reverse_v", 0));
+                continue;
+            }
+            Some("cone") if !blocks.is_empty() => {
+                sense = Some(("forward", "reversed", 2));
+                continue;
+            }
+            Some("spline") if !blocks.is_empty() => {
+                sense = Some(("forward", "reversed", 0));
+                continue;
+            }
+            _ => {}
+        }
+        if let (Some((forward, reversed, skip)), Some(value)) = (sense, logical(&tokens[index])) {
+            if skip > 0 {
+                sense = Some((forward, reversed, skip - 1));
+            } else {
+                tokens[index] = SatToken::Enum(if value { forward } else { reversed }.to_string());
+                sense = None;
+            }
+            continue;
+        }
+        let Some((block, role)) = blocks.last_mut() else { continue };
+        let SatToken::Sab { tag: 0x15, data } = &tokens[index] else { continue };
+        let value = data
+            .get(..4)
+            .map(|bytes| i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
+        let name = match (block.as_str(), *role, value) {
+            ("exactsur", 0, Some(0)) => Some("full"),
+            ("exactsur", 1..=2, Some(0)) | ("exppc", 1, Some(0)) => Some("open"),
+            ("exactsur", 1..=2, Some(1)) | ("exppc", 1, Some(1)) => Some("closed"),
+            ("exactsur", 1..=2, Some(2)) | ("exppc", 1, Some(2)) => Some("periodic"),
+            ("exactsur", 3..=4, Some(0)) => Some("none"),
+            _ => None,
+        };
+        if let Some(name) = name {
+            tokens[index] = SatToken::Enum(name.to_string());
+        }
+        if *role > 0 {
+            *role += 1;
+        }
+    }
+    // The remaining logicals of a pcurve (its inline surface's bounds) are
+    // infinite/finite flags.
+    if entity_type == "pcurve" {
+        for token in tokens.iter_mut() {
+            if let Some(infinite) = match token {
+                SatToken::True => Some(true),
+                SatToken::False => Some(false),
+                _ => None,
+            } {
+                *token = SatToken::Enum(if infinite { "I" } else { "F" }.to_string());
+            }
+        }
     }
 }
 
@@ -1560,9 +1790,13 @@ mod tests {
         // Check version
         let ver = u32::from_le_bytes([sab[15], sab[16], sab[17], sab[18]]);
         assert_eq!(ver, 700);
-        // Check End-of-ACIS-data is present
-        let end_str = b"End-of-ACIS-data";
-        assert!(sab.windows(end_str.len()).any(|w| w == end_str));
+        // The End-of-ACIS-data marker closes the body as tagged components.
+        let mut end = Vec::new();
+        for part in ["End", "of", "ACIS"] {
+            SabWriter::write_subtype(&mut end, part);
+        }
+        SabWriter::write_entity_type(&mut end, "data");
+        assert!(sab.ends_with(&end));
     }
 
     #[test]
@@ -1751,13 +1985,7 @@ mod tests {
             }
         ));
         assert_eq!(tokens[block + 3].as_ident(), Some("both"));
-        assert!(matches!(
-            tokens[block + 4],
-            SatToken::Sab {
-                tag: tags::ENUM,
-                ..
-            }
-        ));
+        assert_eq!(tokens[block + 4], SatToken::Enum("open".to_string()));
         assert!(matches!(
             tokens[block + 10],
             SatToken::Sab {

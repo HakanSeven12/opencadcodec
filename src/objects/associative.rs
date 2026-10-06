@@ -839,10 +839,10 @@ pub struct AssocAnnotationActionBody {
 pub struct AssocPersSubentManager {
     pub class_version: i32,
     pub markers: [i32; 3],
-    pub steps: Vec<i32>,
-    pub subent_count: i32,
-    /// Fixed semantic tail currently documented as 34 integer slots.
-    pub subent_data: Vec<i32>,
+    /// The integers after the markers, in file order. Their grouping
+    /// depends on the class version: version 1 records hold
+    /// `next id, 0, 0, 0`, version 2 records add count-prefixed id lists.
+    pub values: Vec<i32>,
     pub final_flag: bool,
 }
 
@@ -1365,8 +1365,9 @@ pub struct PersSubentManager {
     pub marker_two: i32,
     pub associative_step_count: i32,
     pub associative_subent_count: i32,
-    pub steps: Vec<i32>,
-    pub subents: Vec<i32>,
+    /// Every integer after the five header fields, in file order (the
+    /// persistent subentity records, then the step list).
+    pub values: Vec<i32>,
 }
 
 pub fn associative_canonical_name(name: &str) -> String {

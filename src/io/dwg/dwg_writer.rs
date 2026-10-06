@@ -65,6 +65,7 @@ impl DwgWriter {
         prepare_surface_classes(&mut prepared);
         prepare_database_references(&mut prepared);
         prepare_table_keys(&mut prepared);
+        prepare_roundtrip_records(&mut prepared);
         let document = prepared.as_ref();
         let perf = std::env::var_os("PERF").is_some();
         let started = web_time::Instant::now();
@@ -96,6 +97,8 @@ impl DwgWriter {
             }
             if owned.version < DxfVersion::AC1027 {
                 prepare_legacy_document(&mut owned);
+                crate::objects::store_table_style_roundtrip(&mut owned);
+                crate::objects::store_visual_style_roundtrip(&mut owned);
             }
             &owned
         } else {
@@ -142,6 +145,7 @@ impl DwgWriter {
         prepare_surface_classes(&mut prepared);
         prepare_database_references(&mut prepared);
         prepare_table_keys(&mut prepared);
+        prepare_roundtrip_records(&mut prepared);
         write_ac21_impl(&mut output, prepared.as_ref(), document.version, true)
     }
 
@@ -499,6 +503,87 @@ pub(crate) fn prepare_table_keys(document: &mut std::borrow::Cow<'_, CadDocument
     document.to_mut().resync_table_keys();
 }
 
+/// An R2010+ record carries the visual style and table style data that
+/// pre-R2010 files keep in round-trip extension records, so an R2010+ save
+/// drops those records: a visual style's `ACAD_XREC_ROUNDTRIP` (and its
+/// extension dictionary when nothing else is in it), and a table style's
+/// cell style map and data-type group (its extension dictionary stays).
+fn prepare_roundtrip_records(document: &mut std::borrow::Cow<'_, CadDocument>) {
+    use crate::objects::{ObjectType, XRecordValue};
+    if document.version < DxfVersion::AC1024 {
+        return;
+    }
+    let key_of = |value: &XRecordValue| value.as_string().map(str::to_string);
+    let mut drops: Vec<(Handle, Handle, String, bool)> = Vec::new();
+    for (handle, object) in &document.objects {
+        let roundtrip_owner = match object {
+            ObjectType::VisualStyle(style) => style.properties.len() >= 58,
+            ObjectType::TableStyle(style) => !style.modern_overrides.is_empty(),
+            _ => false,
+        };
+        if !roundtrip_owner {
+            continue;
+        }
+        let Some(dictionary) = document.extension_dictionary_handle(*handle) else {
+            continue;
+        };
+        let Some(ObjectType::Dictionary(entries)) = document.objects.get(&dictionary) else {
+            continue;
+        };
+        let is_visual_style = matches!(object, ObjectType::VisualStyle(_));
+        for (name, child) in &entries.entries {
+            let drop = match (name.as_str(), document.objects.get(child)) {
+                ("ACAD_ROUNDTRIP_2008_TABLESTYLE_CELLSTYLEMAP", Some(ObjectType::DataObject(_))) => {
+                    !is_visual_style
+                }
+                ("ACAD_XREC_ROUNDTRIP", Some(ObjectType::XRecord(record))) => {
+                    let prefix = if is_visual_style {
+                        "RTVS"
+                    } else {
+                        "ACAD_ROUNDTRIP_PRE2007_TABLESTYLE"
+                    };
+                    record
+                        .entries
+                        .iter()
+                        .filter(|entry| entry.code == 102)
+                        .filter_map(|entry| key_of(&entry.value))
+                        .all(|key| {
+                            key.starts_with(prefix)
+                                || (!is_visual_style && key.is_empty())
+                        })
+                        && record.entries.iter().any(|entry| entry.code == 102)
+                }
+                _ => false,
+            };
+            if drop {
+                drops.push((*handle, dictionary, name.clone(), is_visual_style));
+            }
+        }
+    }
+    if drops.is_empty() {
+        return;
+    }
+    let document = document.to_mut();
+    for (owner, dictionary, name, is_visual_style) in drops {
+        let mut now_empty = false;
+        if let Some(ObjectType::Dictionary(entries)) = document.objects.get_mut(&dictionary) {
+            if let Some(child) = entries.get(&name) {
+                entries.entries.retain(|(entry, _)| *entry != name);
+                entries.hard_owner_entries.retain(|entry| *entry != name);
+                now_empty = entries.entries.is_empty();
+                document.objects.remove(&child);
+            }
+        }
+        if is_visual_style && now_empty {
+            document.objects.remove(&dictionary);
+            document.xdic_by_handle.remove(&owner);
+            if let Some(ObjectType::VisualStyle(style)) = document.objects.get_mut(&owner) {
+                style.xdictionary_handle = None;
+            }
+        }
+    }
+}
+
 /// The DXF class name an entity is declared under in the CLASSES section.
 fn entity_class_name(entity: &crate::entities::EntityType) -> &str {
     match entity {
@@ -590,14 +675,10 @@ fn prepare_legacy_document(document: &mut CadDocument) {
         }
     }
 
-    // A document read from an R2004 (AC1018) DWG that already carried
-    // ACAD_MLEADERSTYLE (AutoCAD writes it there when saving as 2004, with
-    // the MLEADERSTYLE class declared) must keep it: the reader parsed those
-    // records with the same pre-R2010 layout the writer emits, and dropping
-    // them silently loses every multileader style in the file.  Only a
-    // document that did not come from such a file gets the legacy cleanup.
-    let keep_mleader_style = document.dwg_source_version == Some(document.version)
-        && document.version >= DxfVersion::AC1018
+    // R2004 saves keep ACAD_MLEADERSTYLE (with the MLEADERSTYLE class
+    // declared), written in the pre-R2010 record layout, as the reference
+    // application does; only older versions drop it.
+    let keep_mleader_style = document.version >= DxfVersion::AC1018
         && document.classes.get_by_name("MLEADERSTYLE").is_some();
     let root_handle = document.header.named_objects_dict_handle;
     let mut obsolete = Vec::new();
