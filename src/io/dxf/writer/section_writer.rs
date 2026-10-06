@@ -343,7 +343,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             w.write_string(1, declared_version.to_dxf_string())
         })?;
         if self.dxf_version >= DxfVersion::AC1032 {
-            self.write_header_variable("$ACADMAINTVER", |w| w.write_i32(90, 0))?;
+            // The reference application writes 377 here and reads the
+            // multiline text of an ATTRIB / ATTDEF only from a file whose
+            // maintenance version is that recent (0, 4, 100 and 200 show the
+            // value on one line with a literal `\P`).
+            self.write_header_variable("$ACADMAINTVER", |w| w.write_i32(90, 377))?;
         } else if self.dxf_version >= DxfVersion::AC1015 {
             self.write_header_variable("$ACADMAINTVER", |w| w.write_i16(70, 0))?;
         }
