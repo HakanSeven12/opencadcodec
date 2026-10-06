@@ -65,6 +65,15 @@ pub trait FieldContext {
     fn date_locale(&self) -> DateLocale {
         DateLocale::default()
     }
+    /// The open sheet sets, for `\AcSm` fields: call `f` on each in turn and
+    /// return its first answer. A host without sheet sets answers `None`
+    /// (sheet set fields then show `####`).
+    fn sheet_sets(
+        &self,
+        _f: &mut dyn FnMut(&crate::sheet_set::SheetSetDatabase) -> Option<String>,
+    ) -> Option<String> {
+        None
+    }
 }
 
 /// Names and regional pictures used by date-field formats.
@@ -198,6 +207,11 @@ fn eval_field(
         "AcExpr" => eval_acexpr(doc, field, host),
         // AcObjProp[.ver] — a property of a referenced object.
         e if e.starts_with("AcObjProp") => eval_acobjprop(doc, field, host),
+        // AcSm[.16.2] — a property of the drawing's sheet in its sheet set.
+        e if e.starts_with("AcSm") => {
+            let layout = host_layout(doc, host, ctx).map(|l| l.name.as_str());
+            crate::sheet_set::eval_acsm(doc, &field.code, ctx, layout, text_case)
+        }
         _ => None,
     }
 }
@@ -1312,6 +1326,8 @@ fn host_layout<'a>(
             _ => None,
         })
     };
+    // An attribute sits on its block reference's layout.
+    let host = attribute_insert(doc, host).unwrap_or(host);
     let owner = doc.get_entity(host).map(|e| e.common().owner_handle);
     let ctab = ctx.getvar("ctab");
     layouts()
@@ -1323,7 +1339,7 @@ fn host_layout<'a>(
 /// `PlotScale`: plain six decimals; `%sn` the name of the first entry of the
 /// drawing's scale list with the same ratio (six decimals when none); any
 /// other picture formats the ratio as a number.
-fn plot_scale_text(doc: &CadDocument, scale: f64, fmt: &str) -> String {
+pub(crate) fn plot_scale_text(doc: &CadDocument, scale: f64, fmt: &str) -> String {
     if fmt.is_empty() {
         return format!("{:.6}", scale);
     }
@@ -2489,8 +2505,36 @@ impl CadDocument {
                     });
                 }
             }
+            // A sheet set field names its component and property; in a
+            // drawing that is no sheet it is left unevaluated (`####`).
+            let mut unevaluated = false;
+            if child.evaluator.starts_with("AcSm") {
+                for (key, text) in crate::sheet_set::field_child_values(&child.code) {
+                    let mut v = CellValue::text(&text);
+                    v.flags = 2;
+                    v.formatted_value.clear();
+                    child_values.push(FieldChildValue { key: key.into(), value: v });
+                }
+                unevaluated = child.value.display() == "####";
+            }
             let shown = child.value.display().to_string();
             let xdata = hyperlink_xdata(&child.code).unwrap_or_default();
+            let value = if unevaluated {
+                let mut v = CellValue::new();
+                v.flags = 1;
+                v.format = child.value.format.clone();
+                v
+            } else if shown == "----" && child.evaluator.starts_with("AcSm") {
+                // A property without a value keeps an empty string; only the
+                // shown text is `----`.
+                let mut v = CellValue::text("");
+                v.format = child.value.format.clone();
+                v
+            } else {
+                child.value.clone()
+            };
+            let (state, evaluation_status, evaluation_error_code) =
+                if unevaluated { (43, 32, 22) } else { (59, 2, 0) };
             all.push(Field {
                 handle: *handle,
                 owner: container,
@@ -2500,9 +2544,10 @@ impl CadDocument {
                 code: child.code,
                 referenced_objects: child.objects,
                 evaluation_option: child.evaluation_option,
-                state: 59,
-                evaluation_status: 2,
-                value: child.value,
+                state,
+                evaluation_status,
+                evaluation_error_code,
+                value,
                 value_string_length: shown.encode_utf16().count() as i32,
                 value_string: shown,
                 xdata,
@@ -2591,6 +2636,18 @@ impl CadDocument {
         insert: Handle,
         ctx: &dyn FieldContext,
     ) -> Vec<Handle> {
+        self.attach_attribute_fields_mapped(insert, ctx, &|code: &str| code.to_string())
+    }
+
+    /// [`Self::attach_attribute_fields`] with each field code passed through
+    /// `map` first — a sheet set view label turns its `?View.` / `?Sheet.`
+    /// placeholders into the placed view's and sheet's navigation fields.
+    pub fn attach_attribute_fields_mapped(
+        &mut self,
+        insert: Handle,
+        ctx: &dyn FieldContext,
+        map: &dyn Fn(&str) -> String,
+    ) -> Vec<Handle> {
         // ATTRIBs need handles to host fields.
         let unset = match self.get_entity(insert) {
             Some(EntityType::Insert(i)) => i.attributes.iter().filter(|a| a.common.handle.is_null()).count(),
@@ -2631,7 +2688,7 @@ impl CadDocument {
                 .iter()
                 .map(|k| {
                     let placeholder = k.code.contains("?BlockRefId");
-                    let code = k.code.replace("?BlockRefId", "%<\\_ObjIdx 0>%");
+                    let code = map(&k.code.replace("?BlockRefId", "%<\\_ObjIdx 0>%"));
                     let objects = if placeholder { vec![insert] } else { k.objects.clone() };
                     let stored = match self.objects.get(&k.handle) {
                         Some(ObjectType::Field(f)) => Some(f),
@@ -2666,6 +2723,25 @@ impl CadDocument {
     /// host's ordinary context. Returns the hosts whose text changed.
     pub fn stamp_plot_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
         let plot = Plotting(ctx);
+        self.restamp_fields(&plot, ctx, &|_, f| f.evaluation_option & 4 != 0)
+    }
+
+    /// Re-evaluate the sheet set (`AcSm`) fields — after a sheet set changed —
+    /// storing their values in the field objects and host texts, as the
+    /// reference does when it updates fields. Returns the hosts whose text changed.
+    pub fn refresh_sheet_set_fields(&mut self, ctx: &dyn FieldContext) -> Vec<Handle> {
+        self.restamp_fields(ctx, ctx, &|kid, _| kid.evaluator.starts_with("AcSm"))
+    }
+
+    /// Re-evaluate (with `eval_ctx`) the fields `pick` selects and store the
+    /// changed values.
+    fn restamp_fields(
+        &mut self,
+        eval_ctx: &dyn FieldContext,
+        ctx: &dyn FieldContext,
+        pick: &dyn Fn(&FieldDef, &Field) -> bool,
+    ) -> Vec<Handle> {
+        let plot = eval_ctx;
         let mut values: Vec<(Handle, CellValue)> = Vec::new();
         let mut hosts: Vec<(Handle, Handle, String)> = Vec::new();
         for container in self.fields.values().filter(|f| f.evaluator == "_text") {
@@ -2689,9 +2765,7 @@ impl CadDocument {
                     "" => stored.value_string.clone(),
                     shown => shown.to_string(),
                 };
-                let fresh = (stored.evaluation_option & 4 != 0)
-                    .then(|| eval_field(self, kid, &plot, host))
-                    .flatten();
+                let fresh = pick(kid, stored).then(|| eval_field(self, kid, plot, host)).flatten();
                 match fresh {
                     Some(text) if text != cached => {
                         changed = true;
