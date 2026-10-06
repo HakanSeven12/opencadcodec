@@ -3356,19 +3356,7 @@ pub fn field_spans(
     text: &str,
 ) -> Option<Vec<std::ops::Range<usize>>> {
     let container = container_for_host(doc, host)?;
-    let mut kids: Vec<&FieldDef> =
-        doc.fields.values().filter(|f| f.owner == container.handle).collect();
-    kids.sort_by_key(|f| u64::from(f.handle));
-    let shown: Vec<String> = kids
-        .iter()
-        .map(|kid| match doc.objects.get(&kid.handle) {
-            Some(ObjectType::Field(stored)) => match stored.value.display() {
-                "" => stored.value_string.clone(),
-                shown => shown.to_string(),
-            },
-            _ => String::new(),
-        })
-        .collect();
+    let shown = cached_children(doc, container);
     let mtext = matches!(doc.get_entity(host), Some(EntityType::MText(_)));
     let mut out = String::new();
     let mut spans = Vec::new();
@@ -3386,6 +3374,50 @@ pub fn field_spans(
     }
     out.push_str(rest);
     (out == text).then_some(spans)
+}
+
+/// A field's stored value, as last evaluated (the value, else its string).
+fn cached_value(doc: &CadDocument, field: Handle) -> String {
+    match doc.objects.get(&field) {
+        Some(ObjectType::Field(stored)) => match stored.value.display() {
+            "" => stored.value_string.clone(),
+            shown => shown.to_string(),
+        },
+        _ => String::new(),
+    }
+}
+
+/// The stored values of a container's child fields, in `_FldIdx` order.
+fn cached_children(doc: &CadDocument, container: &FieldDef) -> Vec<String> {
+    let mut kids: Vec<&FieldDef> =
+        doc.fields.values().filter(|f| f.owner == container.handle).collect();
+    kids.sort_by_key(|f| u64::from(f.handle));
+    kids.iter().map(|kid| cached_value(doc, kid.handle)).collect()
+}
+
+/// The text a table cell shows for its field `field`: a formula (`AcExpr`,
+/// which reads other cells) is evaluated live, as the reference recomputes
+/// it when the table changes; any other field shows its stored value, which
+/// only an evaluation event ([`CadDocument::update_fields`]) changes.
+pub fn cell_field_text(
+    doc: &CadDocument,
+    field: Handle,
+    table: Handle,
+    ctx: &dyn FieldContext,
+) -> Option<String> {
+    let def = doc.fields.get(&field)?;
+    if def.evaluator != "_text" {
+        return if def.evaluator == "AcExpr" {
+            resolve_handle(doc, field, table, ctx)
+        } else {
+            Some(cached_value(doc, field))
+        };
+    }
+    let formula = doc.fields.values().any(|f| f.owner == def.handle && f.evaluator == "AcExpr");
+    if formula {
+        return resolve_handle(doc, field, table, ctx);
+    }
+    fill_template(&def.code, &cached_children(doc, def), false)
 }
 
 /// A host context that is plotting.
