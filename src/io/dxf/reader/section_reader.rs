@@ -16783,12 +16783,12 @@ impl<'a> SectionReader<'a> {
                 }
                 50 => {
                     if let Some(v) = pair.as_double() {
-                        vp.snap_angle = v;
+                        vp.snap_angle = v.to_radians();
                     }
                 }
                 51 => {
                     if let Some(v) = pair.as_double() {
-                        vp.twist_angle = v;
+                        vp.twist_angle = v.to_radians();
                     }
                 }
                 72 => {

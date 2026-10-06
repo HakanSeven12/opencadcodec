@@ -274,9 +274,9 @@ pub struct Viewport {
     pub back_clip_z: f64,
     /// View height (in model space units)
     pub view_height: f64,
-    /// Snap angle
+    /// Snap angle in radians (DXF group 50 stores degrees).
     pub snap_angle: f64,
-    /// View twist angle
+    /// View twist angle in radians (DXF group 51 stores degrees).
     pub twist_angle: f64,
     /// Circle zoom percent (1-20000)
     pub circle_sides: i16,

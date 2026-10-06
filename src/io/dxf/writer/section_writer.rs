@@ -4959,8 +4959,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(45, viewport.view_height)?;
 
         // Snap and twist angles
-        self.writer.write_double(50, viewport.snap_angle)?;
-        self.writer.write_double(51, viewport.twist_angle)?;
+        self.writer.write_double(50, viewport.snap_angle.to_degrees())?;
+        self.writer.write_double(51, viewport.twist_angle.to_degrees())?;
 
         // Circle sides
         self.writer.write_i16(72, viewport.circle_sides)?;
