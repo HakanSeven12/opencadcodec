@@ -13026,13 +13026,7 @@ impl<'a> SectionReader<'a> {
                 }
                 70 => {
                     if let Some(flags_val) = pair.as_i16() {
-                        spline.dxf_flags = flags_val;
-                        if flags_val & 32 != 0 { spline.dwg_flags1 |= 1; }
-                        spline.flags.closed = (flags_val & 1) != 0;
-                        spline.flags.periodic = (flags_val & 2) != 0;
-                        spline.flags.rational = (flags_val & 4) != 0;
-                        spline.flags.planar = (flags_val & 8) != 0;
-                        spline.flags.linear = (flags_val & 16) != 0;
+                        crate::io::dxf::spline_flags::read(&mut spline, flags_val);
                     }
                 }
                 71 => {
@@ -13226,13 +13220,7 @@ impl<'a> SectionReader<'a> {
                 // ── AcDbSpline geometry ──
                 70 => {
                     if let Some(f) = pair.as_i16() {
-                        helix.spline.dxf_flags = f;
-                        if f & 32 != 0 { helix.spline.dwg_flags1 |= 1; }
-                        helix.spline.flags.closed = (f & 1) != 0;
-                        helix.spline.flags.periodic = (f & 2) != 0;
-                        helix.spline.flags.rational = (f & 4) != 0;
-                        helix.spline.flags.planar = (f & 8) != 0;
-                        helix.spline.flags.linear = (f & 16) != 0;
+                        crate::io::dxf::spline_flags::read(&mut helix.spline, f);
                     }
                 }
                 71 => {

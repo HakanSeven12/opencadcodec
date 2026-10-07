@@ -4117,23 +4117,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.write_normal(spline.normal)?;
 
         // Flags
-        let mut flags: i16 = spline.dxf_flags & !31;
-        if spline.dwg_flags1 & 1 != 0 { flags |= 32; }
-        if spline.flags.closed {
-            flags |= 1;
-        }
-        if spline.flags.periodic {
-            flags |= 2;
-        }
-        if spline.flags.rational {
-            flags |= 4;
-        }
-        if spline.flags.planar {
-            flags |= 8;
-        }
-        if spline.flags.linear {
-            flags |= 16;
-        }
+        let flags = crate::io::dxf::spline_flags::write(spline);
         self.writer.write_i16(70, flags)?;
 
         self.writer.write_i16(71, spline.degree as i16)?;
