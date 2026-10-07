@@ -644,6 +644,12 @@ pub struct CellContent {
 }
 
 impl CellContent {
+    /// Whether this content's own format sets `property`.
+    pub fn sets(&self, property: CellStylePropertyFlags) -> bool {
+        let bits = (self.format_property_flags | self.format_override_flags) as u32;
+        bits & property.bits() == property.bits()
+    }
+
     /// Creates empty cell content.
     pub fn new() -> Self {
         Self {
@@ -767,6 +773,10 @@ pub struct CellStyle {
     pub property_flags: CellStylePropertyFlags,
     /// Complete style override flag word.
     pub override_flags: i32,
+    /// `override_flags` holds the legacy DXF cell bits (a cell read from
+    /// DXF) rather than the binary layout's property bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub legacy_override_bits: bool,
     /// Nested content-format metadata.
     pub content_format_override_flags: i32,
     pub content_property_flags: i32,
@@ -819,12 +829,29 @@ pub struct CellStyle {
 }
 
 impl CellStyle {
+    /// The properties this style sets: the ones it names, plus its override
+    /// bits — in the binary layout, or the legacy DXF layout a style read
+    /// from DXF keeps (whose meaning `property_flags` already holds).
+    pub fn overridden(&self) -> CellStylePropertyFlags {
+        if self.legacy_override_bits {
+            self.property_flags
+        } else {
+            self.property_flags | CellStylePropertyFlags::from_bits_truncate(self.override_flags as u32)
+        }
+    }
+
+    /// Whether this style sets `property`.
+    pub fn sets(&self, property: CellStylePropertyFlags) -> bool {
+        self.overridden().contains(property)
+    }
+
     /// Creates a default cell style.
     pub fn new() -> Self {
         Self {
             style_type: CellStyleType::Cell,
             property_flags: CellStylePropertyFlags::NONE,
             override_flags: 0,
+            legacy_override_bits: false,
             content_format_override_flags: 0,
             content_property_flags: 0,
             value_data_type: 0,
@@ -1018,10 +1045,79 @@ impl TableCell {
             .unwrap_or("")
     }
 
-    /// Sets the text value.
+    /// The cell as the binary format keeps it. A cell read from DXF carries
+    /// its own overrides as legacy bits on its style; the binary format keeps
+    /// the text height, text style and content colour on the content (format
+    /// override bits 128, 64, 32) and the alignment and background on the
+    /// style (16, 512), and types a content: a value is a string (data type
+    /// 4, override bits 1 and 2), an empty content a general value (512).
+    ///
+    /// A cell already in the binary layout — read from a binary file, or
+    /// written by this crate — is returned as it is, so saving a drawing
+    /// nobody edited does not rewrite its cells.
+    pub fn binary_layout(&self) -> std::borrow::Cow<'_, TableCell> {
+        use CellStylePropertyFlags as P;
+        const CONTENT: P = P::TEXT_HEIGHT.union(P::TEXT_STYLE).union(P::CONTENT_COLOR);
+        let legacy = self.style.as_ref().is_some_and(|s| s.legacy_override_bits);
+        if !legacy {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let own = self.style.clone();
+        let untyped = self.contents.iter().any(|c| c.format_value_data_type == 0);
+        if own.is_none() && !untyped {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let mut cell = self.clone();
+        for content in &mut cell.contents {
+            if content.format_value_data_type == 0 {
+                if content.value.text.is_empty() && content.field_handle.is_none() {
+                    content.format_value_data_type = 512;
+                } else {
+                    content.format_value_data_type = 4;
+                    content.format_override_flags |= 3;
+                }
+            }
+        }
+        if let Some(own) = own {
+            let p = own.overridden();
+            for content in &mut cell.contents {
+                if p.contains(P::TEXT_HEIGHT) {
+                    content.format_override_flags |= P::TEXT_HEIGHT.bits() as i32;
+                    content.text_height = own.text_height;
+                }
+                if p.contains(P::TEXT_STYLE) {
+                    content.format_override_flags |= P::TEXT_STYLE.bits() as i32;
+                    content.text_style_handle = own.text_style_handle;
+                    content.text_style_name = own.text_style_name.clone();
+                }
+                if p.contains(P::CONTENT_COLOR) {
+                    content.format_override_flags |= P::CONTENT_COLOR.bits() as i32;
+                    content.color = own.content_color;
+                }
+            }
+            if let Some(style) = cell.style.as_mut() {
+                style.override_flags = (p & !CONTENT).bits() as i32;
+                style.property_flags = P::NONE;
+                style.legacy_override_bits = false;
+            }
+        }
+        std::borrow::Cow::Owned(cell)
+    }
+
     pub fn set_text(&mut self, s: &str) {
+        // Typed text keeps the content's format and is stored as a string
+        // value with the flags the reference writes for typed text (6).
+        let mut content = self
+            .contents
+            .first()
+            .filter(|c| c.content_type == TableCellContentType::Value)
+            .cloned()
+            .unwrap_or_else(|| CellContent::text(s));
+        content.value = CellValue::text(s);
+        content.value.flags = 6;
+        content.field_handle = None;
         self.contents.clear();
-        self.contents.push(CellContent::text(s));
+        self.contents.push(content);
         self.cell_type = CellType::Text;
     }
 
@@ -2320,8 +2416,28 @@ mod tests {
     }
 }
 
+/// The cell style properties a legacy cell override bit set covers
+/// (`CellStyle::override_flags`): 0x01 alignment, 0x02 / 0x04 background,
+/// 0x08 content colour, 0x10 text style, 0x20 text height.
+pub fn legacy_override_properties(flags: i32) -> CellStylePropertyFlags {
+    let mut properties = CellStylePropertyFlags::NONE;
+    for (bit, property) in [
+        (0x01, CellStylePropertyFlags::ALIGNMENT),
+        (0x02, CellStylePropertyFlags::BACKGROUND_COLOR),
+        (0x04, CellStylePropertyFlags::BACKGROUND_COLOR),
+        (0x08, CellStylePropertyFlags::CONTENT_COLOR),
+        (0x10, CellStylePropertyFlags::TEXT_STYLE),
+        (0x20, CellStylePropertyFlags::TEXT_HEIGHT),
+    ] {
+        if flags & bit != 0 {
+            properties |= property;
+        }
+    }
+    properties
+}
+
 /// The cell style override bit a DXF group code of a table cell sets (the
-/// bit layout the binary format stores in `CellStyle::override_flags`).
+/// legacy layout DXF table cells use in `CellStyle::override_flags`).
 pub fn cell_override_bit(code: i32) -> Option<i32> {
     Some(match code {
         170 => 0x01,

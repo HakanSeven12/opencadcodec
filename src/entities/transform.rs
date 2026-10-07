@@ -447,14 +447,20 @@ pub(crate) fn transform_dimension(e: &mut Dimension, transform: &Transform) {
 
     let old_normal = e.base().normal;
     let new_normal = transform_normal(transform, old_normal);
-    let text_rotation =
-        transform_dimension_angle(old_normal, new_normal, e.base().text_rotation, transform);
-    let horizontal_direction = transform_dimension_angle(
-        old_normal,
-        new_normal,
-        e.base().horizontal_direction,
-        transform,
-    );
+    // A mirror moves a dimension but never mirrors its text: the text keeps
+    // the direction it reads in (0 still meaning along the dimension line),
+    // as mirrored text does with MIRRTEXT off.
+    let keep_text = is_reflecting(transform);
+    let text_rotation = if keep_text {
+        e.base().text_rotation
+    } else {
+        transform_dimension_angle(old_normal, new_normal, e.base().text_rotation, transform)
+    };
+    let horizontal_direction = if keep_text {
+        e.base().horizontal_direction
+    } else {
+        transform_dimension_angle(old_normal, new_normal, e.base().horizontal_direction, transform)
+    };
     let insertion_rotation = transform_dimension_angle(
         old_normal,
         new_normal,
