@@ -2625,8 +2625,12 @@ era specimens (the era censuses all-zero).
   additional output. **The queue's PENDING axis is ZERO; the counts
   that remain are the adjudicated rows' recorded state
   (§20.4).**
-- The generation identity is `f21875659e7501b099f91f88b37d20c3`,
-  25,728 bytes (moved at the 2026-09-30 seven-packet session chain —
+- The generation identity is `07af0cc54ffc62ba428341617d7dc262`,
+  25,761 bytes (moved at the 2026-10-07 upstream merge — the
+  constructed TESTBLOCK insert list, the `ACDBPOINTCLOUDDEF_EX`
+  class-registry corrections, the viewport status fields; the
+  app-info strings stay acadrust; the pre-merge chain: the
+  2026-09-30 seven-packet session chain —
   the search segment's her-grammar rewrite, the `_data_` row
   locators, the thumbnail record with its +1 shifts, the
   era-coded segmented terminator, the MLeader style
@@ -2644,10 +2648,11 @@ era specimens (the era censuses all-zero).
   `751a1a81…` at the datidx fix → `1dfaff0a…` at the search-only
   rewrite → `a4a9240d…` at the row locator → `5ac4ef34…` at the
   thumbnail row → `fc8be96c…` at the terminator → `c09dd7cc…`
-  at the MLeader style repair → `36279922…` at the MText
+  at the MLeader style repair →   `36279922…` at the MText
   attachment repeat → `f2187565…` at the MLine segment
-  cache). The generator
-  builds and runs identically WITH or WITHOUT `--features serde`.
+  cache → `07af0cc5…` at the 2026-10-07 upstream merge). The
+  generator builds and runs identically WITH or WITHOUT
+  `--features serde`.
 - The genus expectations pin
   (`tests/gold_harness/genus_expectations.json`) is FIXTURES-ONLY:
   regenerate with `python3 tests/gold_harness/genus_extract.py` and

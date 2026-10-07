@@ -368,17 +368,19 @@ md5sum gen_all_entities_all_versions.dwg
 ```
 
 **Expected:** both runs identical (the current zero-file identity is
-`f21875659e7501b099f91f88b37d20c3`, 25728 bytes — the MLine-verts
-packet's intended content change (the canonical's MLine records carry
-the computed cache); identical without `--features serde`; verified
-unmoved through the 2026-10-01 A1/A2/A5 and the 2026-10-04 BREP
-raw-remainder packets (stash-A/B on A1;
-every capture twin defaults for constructed content). The history:
-`0217fbac…`/24986 → `40ab5d35…`/25344 at the H5–H7 landing →
-`36279922…` at the MText repair → `f2187565…` here. LEADER 0x41 /
-MULTILEADER 0x51 — recompute and re-record the identity here AND in
-`NEXT_SESSION.md` when an intended content change moves it, never to
-paper over a regression). Spot-verify the mleader's metafile survives
+`07af0cc54ffc62ba428341617d7dc262`, 25761 bytes — the 2026-10-07
+upstream merge's intended content changes: the constructed TESTBLOCK
+block record now carries its INSERT in the insert list (upstream's
+consistent block-record insert lists), the class registry's
+`ACDBPOINTCLOUDDEF_EX` dxf-name and proxy-flag corrections, and the
+viewport status fields; the app-info product strings stay acadrust —
+the upstream crate-rename strings were reverted). Identical without
+`--features serde`. The history: `0217fbac…`/24986 → `40ab5d35…`/25344
+at the H5–H7 landing → `36279922…` at the MText repair →
+`f2187565…` at the MLine-verts cache → `07af0cc5…` at the upstream
+merge. LEADER 0x41 / MULTILEADER 0x51 — recompute and re-record the
+identity here AND in `NEXT_SESSION.md` when an intended content
+change moves it, never to paper over a regression). Spot-verify the mleader's metafile survives
 the writer:
 
 ```bash

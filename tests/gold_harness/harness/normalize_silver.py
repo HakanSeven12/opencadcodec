@@ -3284,6 +3284,11 @@ def normalize_silver(
             _VP_R2007 = {"grid_major", "use_default_lights", "default_lighting_type",
                          "brightness", "contrast", "ambient_color",
                          "background", "visualstyle", "shadeplot", "sun"}
+            # off_screen: silver-model storage upstream added; nothing
+            # reads or writes it on the DWG path (always false) and
+            # gold's binary VIEWPORT record has no such field — a
+            # faithful storage-only projection, not data-hiding.
+            payload.pop("off_screen", None)
             if r13_14:
                 # gold R13/R14 VIEWPORT: no circle_zoom (R2000b+), no
                 # status flag, no view_target on the wire — silver's
@@ -6569,6 +6574,14 @@ def normalize_silver(
             if gold_type == "GEODATA" and k == "host_block":
                 fields[k] = normalize_handle_value(v)
                 continue
+            # silver's underlay-definition model carries an `unloaded`
+            # flag upstream added (storage-only on the DWG path —
+            # always false; gold's binary underlay-definition records
+            # have no such slot) — a faithful storage-only projection.
+            if gold_type in ("PDFDEFINITION", "DWFDEFINITION",
+                             "DGNDEFINITION", "PNGDEFINITION",
+                             "JPGDEFINITION") and k == "unloaded":
+                continue
             if is_ignored(k, ignore_set, ignore_patterns):
                 continue
             fields[k] = normalize_value(v)
@@ -7278,6 +7291,20 @@ def normalize_silver(
                 # Drop silver's xref bookkeeping duplicates (already emitted
                 # as is_xref_* above) and the text-style name duplicate.
                 if record_gold_type in ("DIMSTYLE", "LTYPE") and k in ("xref_reference", "xref_resolved", "xref_dependent", "xref_handle", "annotative"):
+                    continue
+                # silver retains a style's xref source block record for a
+                # same-version rewrite (always NULL on local styles); gold's
+                # binary STYLE record never carries the slot — a faithful
+                # provenance projection, not data-hiding.
+                if record_gold_type == "STYLE" and k == "xref_block_record_handle":
+                    continue
+                # silver's underlay-definition model carries an `unloaded`
+                # flag upstream added (storage-only on the DWG path —
+                # always false; gold's binary underlay-definition records
+                # have no such slot) — a faithful storage-only projection.
+                if record_gold_type in ("PDFDEFINITION", "DWFDEFINITION",
+                                        "DGNDEFINITION", "PNGDEFINITION",
+                                        "JPGDEFINITION") and k == "unloaded":
                     continue
                 # LAYER.linewt: gold stores the raw lweights[] index; silver
                 # stores the enum string. Map it.
