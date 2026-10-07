@@ -165,9 +165,9 @@ pub struct HatchViewContext {
 pub struct MTextContext {
     /// Attachment point (DXF 70) — `BL` (bit-long), not `BS`.
     pub attachment: i32,
-    /// Text X-axis direction (DXF 11/21/31 in DXF; stored *first* in binary).
+    /// Text X-axis direction (DXF 10/20/30, as AutoCAD writes it; stored first in binary).
     pub x_axis_dir: Vector3,
-    /// Insertion point (DXF 10/20/30 in DXF; stored *second* in binary).
+    /// Insertion point (DXF 11/21/31, as AutoCAD writes it; stored second in binary).
     pub insertion: Vector3,
     /// Reference rectangle width (DXF 40).
     pub rect_width: f64,

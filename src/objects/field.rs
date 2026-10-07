@@ -30,6 +30,10 @@ pub struct Field {
     pub value_string: String,
     pub value_string_length: i32,
     pub child_values: Vec<FieldChildValue>,
+    /// XDATA of the field object. A hyperlink field carries its address,
+    /// text and location under `PE_URL`; the reference application shows
+    /// `####` for a hyperlink field without it.
+    pub xdata: crate::xdata::ExtendedData,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -42,6 +46,16 @@ pub struct FieldList {
 }
 
 impl Field {
+    /// The format pre-R2007 files keep on the field itself; a field read from a
+    /// newer file has it only on its value.
+    pub fn pre2007_format(&self) -> &str {
+        if self.format.is_empty() {
+            &self.value.format
+        } else {
+            &self.format
+        }
+    }
+
     pub(crate) fn visit_handles_mut(&mut self, visit: &mut impl FnMut(&mut Handle)) {
         visit(&mut self.owner);
         for handle in &mut self.child_fields {

@@ -17,6 +17,8 @@ pub struct BlockFlags {
     pub is_xref_overlay: bool,
     /// Block is from external reference
     pub is_external: bool,
+    /// Xref is currently unloaded (R2000+ "loaded" bit set).
+    pub is_xref_unloaded: bool,
 }
 
 impl BlockFlags {
@@ -28,6 +30,7 @@ impl BlockFlags {
             is_xref: false,
             is_xref_overlay: false,
             is_external: false,
+            is_xref_unloaded: false,
         }
     }
 }
@@ -173,6 +176,35 @@ impl BlockRecord {
     /// Check if this block is anonymous
     pub fn is_anonymous(&self) -> bool {
         self.flags.anonymous || self.name.starts_with('*')
+    }
+}
+
+/// Name of the ACAD xdata record that carries a block's insertion units in
+/// files older than R2007, which have no units field in the block record.
+const DESIGN_CENTER_DATA: &str = "DesignCenter Data";
+
+/// ACAD xdata values `DesignCenter Data { 1 <units> }`.
+pub(crate) fn design_center_units_values(units: i16) -> Vec<crate::xdata::XDataValue> {
+    use crate::xdata::XDataValue;
+    vec![
+        XDataValue::String(DESIGN_CENTER_DATA.to_string()),
+        XDataValue::ControlString("{".to_string()),
+        XDataValue::Integer16(1),
+        XDataValue::Integer16(units),
+        XDataValue::ControlString("}".to_string()),
+    ]
+}
+
+/// The insertion units stored in ACAD `DesignCenter Data` xdata values.
+pub(crate) fn design_center_units(values: &[crate::xdata::XDataValue]) -> Option<i16> {
+    use crate::xdata::XDataValue;
+    match values {
+        [XDataValue::String(name), XDataValue::ControlString(_), XDataValue::Integer16(_), XDataValue::Integer16(units), ..]
+            if name == DESIGN_CENTER_DATA =>
+        {
+            Some(*units)
+        }
+        _ => None,
     }
 }
 

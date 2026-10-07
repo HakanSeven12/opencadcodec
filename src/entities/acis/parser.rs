@@ -162,7 +162,8 @@ impl SatParser {
         Ok((product_id, product_version, date))
     }
 
-    /// Parse the tolerance line: `<spatial_resolution> <normal_tolerance> [<resfit_tolerance>]`
+    /// Parse the tolerance line: `<mm per unit> <resabs> [<resnor>]`, kept in
+    /// `spatial_resolution`, `normal_tolerance` and `resfit_tolerance`.
     fn parse_tolerance_line(line: &str) -> Result<(f64, f64, Option<f64>), SatParseError> {
         let parts: Vec<&str> = line.split_whitespace().collect();
         let spatial = parts.first().and_then(|s| s.parse().ok()).unwrap_or(1e-06);
@@ -561,8 +562,12 @@ impl<'a> SatTokenizer<'a> {
         // Number or negative index or identifier
         let raw = self.next_raw_token()?;
 
-        // Try integer
+        // Try integer. A signed zero (`-0`) is a double whose sign the binary
+        // form keeps, so it must not collapse into the integer 0.
         if let Ok(v) = raw.parse::<i64>() {
+            if v == 0 && raw.starts_with('-') {
+                return Some(SatToken::Float(-0.0));
+            }
             return Some(SatToken::Integer(v));
         }
 

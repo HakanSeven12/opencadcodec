@@ -57,8 +57,8 @@ impl SortEntsEntry {
 /// # Example
 ///
 /// ```ignore
-/// use acadrust::objects::SortEntitiesTable;
-/// use acadrust::types::Handle;
+/// use opencadcodec::objects::SortEntitiesTable;
+/// use opencadcodec::types::Handle;
 ///
 /// let mut table = SortEntitiesTable::new();
 /// table.block_owner_handle = Handle::new(0x1F); // Model space block

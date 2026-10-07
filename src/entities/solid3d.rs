@@ -84,13 +84,16 @@ pub struct Wire {
 }
 
 impl Wire {
-    /// Creates a new wire with default transform.
+    /// Creates a new wire with default transform: a visible edge in the
+    /// block color with no ACIS index or selection marker, as the reference
+    /// application writes its wireframe. (An unknown-type wire, or one in
+    /// the layer color, makes it reject or hang on the drawing.)
     pub fn new() -> Self {
         Self {
-            acis_index: 0,
-            wire_type: WireType::Unknown,
-            selection_marker: 0,
-            color: Color::ByLayer,
+            acis_index: -1,
+            wire_type: WireType::VisibleEdge,
+            selection_marker: -1,
+            color: Color::ByBlock,
             points: Vec::new(),
             has_transform: false,
             has_rotation: false,
@@ -496,6 +499,22 @@ impl AcisData {
         Self::from_sat(&doc.to_sat_string())
     }
 
+    /// The SAB bytes to save. A body this crate encoded itself (the default
+    /// header's product id) is re-encoded so drawings saved before the writer
+    /// completed record forms open in the reference application; any other
+    /// body is kept byte for byte.
+    pub(crate) fn sab_for_save(&self) -> std::borrow::Cow<'_, [u8]> {
+        use crate::entities::acis::{SabReader, SabWriter, SatHeader};
+        let id = SatHeader::new().product_id;
+        // Magic (15) and four header ints (16) precede the tagged product id.
+        let ours = self.sab_data.get(31..33) == Some(&[0x07, id.len() as u8][..])
+            && self.sab_data.get(33..33 + id.len()) == Some(id.as_bytes());
+        match ours.then(|| SabReader::read(&self.sab_data).ok()).flatten() {
+            Some(doc) => std::borrow::Cow::Owned(SabWriter::write(&doc)),
+            None => std::borrow::Cow::Borrowed(&self.sab_data),
+        }
+    }
+
     /// Parse the ACIS payload into a [`SatDocument`], decoding binary SAB via
     /// the SAB reader. `None` when the data is empty or cannot be parsed.
     /// Unlike [`parse_sat`](Self::parse_sat), this also handles binary data.
@@ -664,8 +683,8 @@ impl Default for AcisData {
 /// # Example
 ///
 /// ```ignore
-/// use acadrust::entities::Solid3D;
-/// use acadrust::types::Vector3;
+/// use opencadcodec::entities::Solid3D;
+/// use opencadcodec::types::Vector3;
 ///
 /// // Create a 3D solid (typically from DXF/DWG import)
 /// let mut solid = Solid3D::new();
@@ -1296,7 +1315,7 @@ mod tests {
     #[test]
     fn test_wire_creation() {
         let wire = Wire::new();
-        assert_eq!(wire.wire_type, WireType::Unknown);
+        assert_eq!(wire.wire_type, WireType::VisibleEdge);
         assert!(wire.points.is_empty());
         assert!(!wire.has_transform);
     }

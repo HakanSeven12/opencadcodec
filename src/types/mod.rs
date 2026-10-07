@@ -1,4 +1,4 @@
-//! Core types used throughout acadrust.
+//! Core types used throughout opencadcodec.
 //!
 //! Re-exports the fundamental value types that appear across entities,
 //! tables, and I/O:

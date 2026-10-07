@@ -371,8 +371,8 @@ impl Default for PolyfaceFace {
 /// # Example
 ///
 /// ```ignore
-/// use acadrust::entities::{PolyfaceMesh, PolyfaceVertex, PolyfaceFace};
-/// use acadrust::types::Vector3;
+/// use opencadcodec::entities::{PolyfaceMesh, PolyfaceVertex, PolyfaceFace};
+/// use opencadcodec::types::Vector3;
 ///
 /// // Create a simple pyramid
 /// let mut mesh = PolyfaceMesh::new();

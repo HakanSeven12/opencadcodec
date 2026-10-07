@@ -7,6 +7,9 @@ use crate::types::{BoundingBox3D, Color, Handle, LineWeight, Transparency, Vecto
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ViewportStatusFlags {
+    /// Non-rectangular clipping activation, independent of boundary presence.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub non_rectangular_clipping: bool,
     /// Viewport is on (visible)
     pub is_on: bool,
     /// Perspective mode active
@@ -51,10 +54,12 @@ impl ViewportStatusFlags {
     }
 
     /// Create from the DWG/DXF viewport status bit-coded flags (group 90).
-    /// The low bits run perspective(0x1) … iso_pair_right(0x2000); the two high
-    /// bits are viewport-locked(0x4000) and viewport-on/visible(0x8000).
+    /// The low bits run perspective(0x1) … iso_pair_right(0x2000), followed by
+    /// viewport-locked(0x4000), viewport-on/visible(0x8000), and non-rectangular
+    /// clipping(0x10000).
     pub fn from_bits(bits: i32) -> Self {
         Self {
+            non_rectangular_clipping: (bits & 0x10000) != 0,
             perspective: (bits & (1 << 0)) != 0,
             front_clipping: (bits & (1 << 1)) != 0,
             back_clipping: (bits & (1 << 2)) != 0,
@@ -77,6 +82,9 @@ impl ViewportStatusFlags {
     /// Convert to the DWG/DXF viewport status bit-coded flags (group 90).
     pub fn to_bits(&self) -> i32 {
         let mut bits = 0;
+        if self.non_rectangular_clipping {
+            bits |= 0x10000;
+        }
         if self.perspective {
             bits |= 1 << 0;
         }
@@ -225,8 +233,8 @@ impl GridFlags {
 ///
 /// # Example
 /// ```ignore
-/// use acadrust::entities::Viewport;
-/// use acadrust::types::Vector3;
+/// use opencadcodec::entities::Viewport;
+/// use opencadcodec::types::Vector3;
 ///
 /// let mut viewport = Viewport::new();
 /// viewport.center = Vector3::new(5.0, 5.0, 0.0);
@@ -258,6 +266,9 @@ pub struct Viewport {
     pub dwg_status_flag: Option<i32>,
     /// Viewport ID (unique within the drawing)
     pub id: i16,
+    /// On, but off screen or past the active-viewport limit (DXF status
+    /// `68` of -1). Neither DWG nor the status bits carry it.
+    pub off_screen: bool,
     /// View center point (DCS - Display Coordinate System)
     pub view_center: Vector3,
     /// Snap base point
@@ -278,9 +289,9 @@ pub struct Viewport {
     pub back_clip_z: f64,
     /// View height (in model space units)
     pub view_height: f64,
-    /// Snap angle
+    /// Snap angle in radians (DXF group 50 stores degrees).
     pub snap_angle: f64,
-    /// View twist angle
+    /// View twist angle in radians (DXF group 51 stores degrees).
     pub twist_angle: f64,
     /// Circle zoom percent (1-20000)
     pub circle_sides: i16,
@@ -359,6 +370,7 @@ impl Viewport {
             status: ViewportStatusFlags::default_on(),
             dwg_status_flag: None,
             id: 0,
+            off_screen: false,
             view_center: Vector3::ZERO,
             snap_base: Vector3::ZERO,
             snap_spacing: Vector3::new(10.0, 10.0, 0.0),

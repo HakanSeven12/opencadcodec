@@ -55,6 +55,8 @@ pub struct TextStyle {
     pub true_type_font: String,
     /// Whether this style is xref-dependent
     pub xref_dependent: bool,
+    /// Block record of the xref this style came from (NULL when local).
+    pub xref_block_record_handle: Handle,
     /// Whether this STYLE record names an SHX shape file.
     pub is_shape_file: bool,
     /// Whether glyphs are drawn vertically.
@@ -80,6 +82,7 @@ impl TextStyle {
             big_font_file: String::new(),
             true_type_font: String::new(),
             xref_dependent: false,
+            xref_block_record_handle: Handle::NULL,
             is_shape_file: false,
             is_vertical: false,
             annotative: false,
@@ -100,6 +103,7 @@ impl TextStyle {
             big_font_file: String::new(),
             true_type_font: String::new(),
             xref_dependent: false,
+            xref_block_record_handle: Handle::NULL,
             is_shape_file: false,
             is_vertical: false,
             annotative: false,

@@ -115,6 +115,10 @@ pub struct UnderlayDefinition {
 
     /// Reactors (entities referencing this definition).
     pub reactors: Vec<Handle>,
+
+    /// The file is unloaded: its underlays show no content. Stored as the
+    /// `NOLOAD` string in the definition's `ACAD` extended data.
+    pub unloaded: bool,
 }
 
 impl UnderlayDefinition {
@@ -128,6 +132,7 @@ impl UnderlayDefinition {
             page_name: String::new(),
             name: String::new(),
             reactors: Vec::new(),
+            unloaded: false,
         }
     }
 
@@ -243,7 +248,7 @@ pub struct Underlay {
     /// DXF code: 281
     pub contrast: u8,
 
-    /// Fade value (0-80).
+    /// Fade value (0-100).
     /// DXF code: 282
     pub fade: u8,
 
@@ -424,9 +429,19 @@ impl Underlay {
         self.contrast = value.min(100);
     }
 
-    /// Sets fade (0-80).
+    /// Sets fade (0-100).
     pub fn set_fade(&mut self, value: u8) {
-        self.fade = value.min(80);
+        self.fade = value.min(100);
+    }
+
+    /// Display flags as written to a file: `clip_inverted` is the source of
+    /// the clip-inside bit, so an inversion set on the entity survives a save.
+    pub fn display_flags(&self) -> UnderlayDisplayFlags {
+        if self.clip_inverted {
+            self.flags | UnderlayDisplayFlags::CLIP_INSIDE
+        } else {
+            self.flags - UnderlayDisplayFlags::CLIP_INSIDE
+        }
     }
 
     /// Returns the clip boundary vertices in world coordinates.
@@ -789,8 +804,8 @@ mod tests {
         underlay.set_fade(50);
         assert_eq!(underlay.fade, 50);
 
-        underlay.set_fade(100); // Over max
-        assert_eq!(underlay.fade, 80);
+        underlay.set_fade(150); // Over max
+        assert_eq!(underlay.fade, 100);
     }
 
     #[test]
