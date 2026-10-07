@@ -1230,11 +1230,19 @@ pub fn read_associative_data(
                 String::new()
             };
             let flag = reader.read_bit();
-            let reserved = if reader.main_remaining_bits() >= 2 {
-                reader.read_bit_long()
+            let count = if reader.main_remaining_bits() >= 2 {
+                safe_count(reader.read_bit_long())
             } else {
                 0
             };
+            let mut dependencies = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                let dependency = handle(reader);
+                dependencies.push(AssocVariableDependency {
+                    dependency,
+                    flags: reader.read_bit_long(),
+                });
+            }
             AssociativeData::Variable(AssocVariable {
                 action,
                 class_version,
@@ -1246,7 +1254,7 @@ pub fn read_associative_data(
                 has_cached_value,
                 cached_value,
                 flag,
-                reserved,
+                dependencies,
             })
         }
         "ASSOCACTIONPARAM" => {

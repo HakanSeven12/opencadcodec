@@ -1389,6 +1389,8 @@ impl<'a> SectionReader<'a> {
     /// Read the HEADER section
     pub fn read_header(&mut self, document: &mut CadDocument) -> Result<()> {
         let hdr = &mut document.header;
+        // A $CUSTOMPROPERTYTAG waits for its $CUSTOMPROPERTY value.
+        let mut custom_value_pending = false;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 && pair.value_string == "ENDSEC" {
@@ -1440,6 +1442,7 @@ impl<'a> SectionReader<'a> {
                 "$LASTSAVEDBY" => {
                     if let Some(p) = self.reader.read_pair()? {
                         hdr.last_saved_by = p.value_string.clone();
+                        document.summary_info.last_saved_by = p.value_string.clone();
                     }
                 }
                 "$FINGERPRINTGUID" => {
@@ -1465,6 +1468,44 @@ impl<'a> SectionReader<'a> {
                 "$HYPERLINKBASE" => {
                     if let Some(p) = self.reader.read_pair()? {
                         hdr.hyperlink_base = p.value_string.clone();
+                        document.summary_info.hyperlink_base = p.value_string.clone();
+                    }
+                }
+                // ── Drawing properties (DWGPROPS, R2004+) ──
+                "$TITLE" | "$SUBJECT" | "$AUTHOR" | "$KEYWORDS" | "$COMMENTS"
+                | "$REVISIONNUMBER" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        let info = &mut document.summary_info;
+                        let field = match var_name.as_str() {
+                            "$TITLE" => &mut info.title,
+                            "$SUBJECT" => &mut info.subject,
+                            "$AUTHOR" => &mut info.author,
+                            "$KEYWORDS" => &mut info.keywords,
+                            "$COMMENTS" => &mut info.comments,
+                            _ => &mut info.revision_number,
+                        };
+                        *field = p.value_string.clone();
+                    }
+                }
+                "$CUSTOMPROPERTYTAG" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        document
+                            .summary_info
+                            .custom_properties
+                            .push((p.value_string.clone(), String::new()));
+                        custom_value_pending = true;
+                    }
+                }
+                "$CUSTOMPROPERTY" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        let properties = &mut document.summary_info.custom_properties;
+                        match properties.last_mut() {
+                            Some((_, value)) if custom_value_pending => {
+                                *value = p.value_string.clone();
+                            }
+                            _ => properties.push((String::new(), p.value_string.clone())),
+                        }
+                        custom_value_pending = false;
                     }
                 }
                 "$STYLESHEET" => {
@@ -12635,15 +12676,7 @@ impl<'a> SectionReader<'a> {
                 }
                 70 => {
                     if let Some(flags_val) = pair.as_i16() {
-                        spline.dxf_flags = flags_val;
-                        if flags_val & 32 != 0 {
-                            spline.dwg_flags1 |= 1;
-                        }
-                        spline.flags.closed = (flags_val & 1) != 0;
-                        spline.flags.periodic = (flags_val & 2) != 0;
-                        spline.flags.rational = (flags_val & 4) != 0;
-                        spline.flags.planar = (flags_val & 8) != 0;
-                        spline.flags.linear = (flags_val & 16) != 0;
+                        crate::io::dxf::spline_flags::read(&mut spline, flags_val);
                     }
                 }
                 71 => {
@@ -12837,15 +12870,7 @@ impl<'a> SectionReader<'a> {
                 // ── AcDbSpline geometry ──
                 70 => {
                     if let Some(f) = pair.as_i16() {
-                        helix.spline.dxf_flags = f;
-                        if f & 32 != 0 {
-                            helix.spline.dwg_flags1 |= 1;
-                        }
-                        helix.spline.flags.closed = (f & 1) != 0;
-                        helix.spline.flags.periodic = (f & 2) != 0;
-                        helix.spline.flags.rational = (f & 4) != 0;
-                        helix.spline.flags.planar = (f & 8) != 0;
-                        helix.spline.flags.linear = (f & 16) != 0;
+                        crate::io::dxf::spline_flags::read(&mut helix.spline, f);
                     }
                 }
                 71 => {
