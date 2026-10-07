@@ -5790,18 +5790,24 @@ impl<'a> DwgObjectWriter<'a> {
         // 2026-09-30 maintainer audit) and gold -v9 overruns the record
         // (the revision_bytes ERROR). DWG-read documents keep their
         // captured wire state byte-faithful (the record-identity
-        // censuses); the synthesis never touches them. The stub-wire
-        // condition mirrors the constructed-wireframe guard below, so
-        // assembly-stubbed index-0 wires synthesize the empty cache
-        // instead of re-emitting the stubs.
+        // censuses); the synthesis never touches them. The wire list is
+        // NOT a gate condition (2026-10-07): the host's wires are
+        // display data, and no authored ds-backed record carries them
+        // (zero wire counts across the whole measured corpus). The gate
+        // once fired only for index-0 stub wires; the upstream Wire
+        // defaults change (no ACIS index, -1) let real display wires
+        // through to the raw wireframe writer, whose block form (no
+        // point anchor, isolines=0, terminator false) no authored file
+        // carries - and both strict loaders refused the whole solid
+        // over it (AutoCAD "drawing file is not valid", BricsCAD
+        // "General modeling failure AcDb3dSolid").
         let constructed_cache = self.document.dwg_source_version.is_none()
             && acis.contributes_sab()
             && !acis.wireframe_data_present
             && !acis.wireframe_point_present
             && acis.wireframe_isolines == 0
             && !acis.wireframe_isoline_present
-            && silhouettes.is_empty()
-            && (wires.is_empty() || wires.iter().all(|wire| wire.acis_index == 0));
+            && silhouettes.is_empty();
         if constructed_cache {
             let anchor = acis
                 .geometry_centre()

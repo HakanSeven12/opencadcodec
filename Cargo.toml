@@ -69,34 +69,9 @@ codegen-units = 1
 [profile.bench]
 inherits = "release"
 
-[[bin]]
-name = "dwg2json"
-path = "tests/gold_harness/src/bin/dwg2json.rs"
-required-features = ["serde"]
-
-[[bin]]
-name = "dwgrewrite"
-path = "tests/gold_harness/src/bin/dwgrewrite.rs"
-
-[[bin]]
-name = "dump_section_bytes"
-path = "tests/gold_harness/src/bin/dump_section_bytes.rs"
-
-[[bin]]
-name = "dump_proxy_graphics"
-path = "tests/gold_harness/src/bin/dump_proxy_graphics.rs"
-
-[[bin]]
-name = "ac21_token_diff"
-path = "tests/gold_harness/src/bin/ac21_token_diff.rs"
-
-[[bin]]
-name = "ac21_page_layout"
-path = "tests/gold_harness/src/bin/ac21_page_layout.rs"
-
-[[bin]]
-name = "genus_constructed"
-path = "tests/gold_harness/src/bin/genus_constructed.rs"
+# The gold_harness bins live in the excluded tests/gold_harness tree
+# (this branch drops the corpus); their [[bin]] declarations went with
+# it - the package builds standalone again.
 
 # Consumes serde_json unconditionally; skip under feature-less builds.
 [[example]]
