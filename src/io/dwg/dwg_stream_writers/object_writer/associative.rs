@@ -892,7 +892,11 @@ impl<'a> DwgObjectWriter<'a> {
                     self.writer.write_variable_text(&value.cached_value);
                 }
                 self.writer.write_bit(value.flag);
-                self.writer.write_bit_long(value.reserved);
+                self.writer.write_bit_long(value.dependencies.len() as i32);
+                for dependency in &value.dependencies {
+                    self.write_assoc_handle(DwgReferenceType::HardOwnership, dependency.dependency);
+                    self.writer.write_bit_long(dependency.flags);
+                }
             }
             AssociativeData::ActionParam(value) => self.write_assoc_action_param(value),
             AssociativeData::CompoundActionParam(value)

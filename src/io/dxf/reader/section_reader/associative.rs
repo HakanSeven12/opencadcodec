@@ -1417,6 +1417,14 @@ impl<'a> SectionReader<'a> {
                 } else {
                     String::new()
                 };
+                let flag = cursor.bool(290);
+                let count = cursor.i32(90).max(0);
+                let dependencies = (0..count)
+                    .map(|_| AssocVariableDependency {
+                        dependency: cursor.handle(360),
+                        flags: cursor.i32(90),
+                    })
+                    .collect();
                 AssociativeData::Variable(AssocVariable {
                     action,
                     class_version,
@@ -1427,8 +1435,8 @@ impl<'a> SectionReader<'a> {
                     value,
                     has_cached_value,
                     cached_value,
-                    flag: cursor.bool(290),
-                    reserved: cursor.i32(90),
+                    flag,
+                    dependencies,
                 })
             }
             "ASSOCACTIONPARAM" => AssociativeData::ActionParam(read_action_param(&record)),
