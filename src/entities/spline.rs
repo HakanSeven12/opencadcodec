@@ -68,10 +68,11 @@ pub struct Spline {
     pub begin_tangent: Vector3,
     /// End tangent vector (DXF 13/23/33); zero when unset.
     pub end_tangent: Vector3,
-    /// Knot parameterization method (R2013+ DWG): 0=Chord, 1=SquareRoot,
-    /// 2=Uniform, 15=Custom. Zero for splines saved before R2013.
+    /// Knot parameterization method: 0=Chord, 1=SquareRoot, 2=Uniform,
+    /// 15=Custom. Read from R2013+ DWG and DXF group 70; zero when the
+    /// source format does not specify it.
     pub knot_parameterization: i32,
-    /// Show the control-vertex frame (R2013+ DWG flag).
+    /// Show the control-vertex frame (R2013+ DWG flag / DXF group 70 bit 512).
     pub cv_frame_visible: bool,
     /// Complete R2013+ spline flag word, including flags not otherwise
     /// represented by this API.
@@ -86,7 +87,9 @@ pub struct Spline {
     /// constructed splines (the derivation then applies, unchanged).
     #[cfg_attr(feature = "serde", serde(default))]
     pub dwg_wire_scenario: Option<i32>,
-    /// Complete DXF spline flag word; geometry flags are refreshed when written.
+    /// Complete DXF spline flag word. Geometry, knot parameterization, frame
+    /// visibility and creation-method bits are refreshed from typed fields
+    /// when written; unrelated bits are retained.
     #[cfg_attr(feature = "serde", serde(default))]
     pub dxf_flags: i16,
 }

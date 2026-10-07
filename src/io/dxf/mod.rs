@@ -23,6 +23,7 @@ pub mod code_page;
 mod dxf_code;
 mod group_code_value;
 mod reader;
+mod spline_flags;
 mod writer;
 
 pub use dxf_code::DxfCode;
