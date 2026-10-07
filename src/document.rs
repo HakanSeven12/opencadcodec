@@ -22,7 +22,8 @@ use crate::entities::{EntityCommon, EntityType};
 use crate::objects::{
     BlockEvaluationEdge, BlockEvaluationGraph, BlockEvaluationNode, DataObjectData,
     DynamicBlockData, DynamicBlockObject, MaterialColor, MaterialTexture, ObjectType,
-    SolidHistory, SolidHistoryNodeBase, SolidHistoryOperation, XRecordEntry,
+    SolidHistory, SolidHistoryBoolean, SolidHistoryNodeBase, SolidHistoryOperation,
+    SolidHistoryTree, XRecordEntry,
 };
 use crate::tables::*;
 use crate::types::{Color, DxfVersion, Handle, Vector2, Vector3};
@@ -149,11 +150,7 @@ pub struct SolidHistoryGraph {
 const SOLID_HISTORY_NODE_FLAGS: i32 = 32;
 
 fn solid_history_node_id(base: &SolidHistoryNodeBase) -> i32 {
-    if base.eval.node_id > 0 {
-        base.eval.node_id
-    } else {
-        base.step_id
-    }
+    base.node_id()
 }
 
 /// DWG header variables containing drawing settings
@@ -2615,6 +2612,253 @@ impl CadDocument {
         Some(reversed)
     }
 
+    /// The active history as it evaluates, operands under the operation that
+    /// combines them. A boolean step has both solids it joined as operands.
+    pub fn solid_history_tree(&self, entity: Handle) -> Option<SolidHistoryTree> {
+        let graph = self.solid_history_graph(entity)?;
+        let evaluation = graph.evaluation_graph.and_then(|handle| match self.objects.get(&handle) {
+            Some(ObjectType::DynamicBlock(value)) => match &value.data {
+                DynamicBlockData::EvaluationGraph(evaluation) => Some(evaluation),
+                _ => None,
+            },
+            _ => None,
+        });
+        let Some(evaluation) = evaluation else {
+            // A parent-linked history is a chain: each step over the last.
+            let mut chain = self.solid_history_operations(entity)?.into_iter();
+            let mut tree = SolidHistoryTree {
+                operation: chain.next()?,
+                operands: Vec::new(),
+            };
+            for operation in chain {
+                tree = SolidHistoryTree {
+                    operation,
+                    operands: vec![tree],
+                };
+            }
+            return Some(tree);
+        };
+        let active = self.solid_history_active_node(&graph)?;
+        let index = evaluation
+            .nodes
+            .iter()
+            .position(|node| node.expression == active)?;
+        self.solid_history_subtree(evaluation, index, &mut Vec::new())
+    }
+
+    /// The node at `index` over the sources of its incoming edges, which run
+    /// from the node's first incoming edge through each edge's next one.
+    fn solid_history_subtree(
+        &self,
+        evaluation: &BlockEvaluationGraph,
+        index: usize,
+        path: &mut Vec<usize>,
+    ) -> Option<SolidHistoryTree> {
+        if path.contains(&index) {
+            return None;
+        }
+        path.push(index);
+        let node = evaluation.nodes.get(index)?;
+        let mut operands = Vec::new();
+        let mut edge_id = node.node_data[0];
+        while edge_id >= 0 {
+            if operands.len() > evaluation.edges.len() {
+                return None;
+            }
+            let edge = evaluation.edges.iter().find(|edge| edge.id == edge_id)?;
+            let source = evaluation
+                .nodes
+                .iter()
+                .position(|node| node.id == edge.source_node)?;
+            operands.push(self.solid_history_subtree(evaluation, source, path)?);
+            edge_id = edge.outgoing_edges[1];
+        }
+        path.pop();
+        let operation = self.solid_history_node_operation(node.expression)?.clone();
+        // The boolean names its first operand; edge order is only a fallback.
+        if let SolidHistoryOperation::Boolean(value) = &operation {
+            if operands.len() == 2
+                && operands[1]
+                    .operation
+                    .base()
+                    .is_some_and(|base| base.node_id() == value.first_operand)
+            {
+                operands.swap(0, 1);
+            }
+        }
+        Some(SolidHistoryTree {
+            operation,
+            operands,
+        })
+    }
+
+    /// Join `tool`'s history into `target`'s under a boolean step whose first
+    /// operand is `target`'s result and second `tool`'s; the boolean becomes
+    /// `target`'s active result and `tool` is left without a history.
+    ///
+    /// `operation` is a [`SolidHistoryBoolean`] code. The tool's nodes keep
+    /// their handles and move to the target's evaluation graph, renumbered
+    /// past the target's own.
+    pub fn merge_solid_history_boolean(
+        &mut self,
+        target: Handle,
+        tool: Handle,
+        operation: u8,
+    ) -> Option<SolidHistoryGraph> {
+        if target == tool {
+            return None;
+        }
+        let target_graph = self.ensure_solid_history_evaluation_graph(target)?;
+        let tool_graph = self.ensure_solid_history_evaluation_graph(tool)?;
+        let target_evaluation = target_graph.evaluation_graph?;
+        let tool_evaluation = tool_graph.evaluation_graph?;
+        let target_active = self.solid_history_active_node(&target_graph)?;
+        let tool_active = self.solid_history_active_node(&tool_graph)?;
+        let evaluation_data = |document: &Self, handle: Handle| match document.objects.get(&handle) {
+            Some(ObjectType::DynamicBlock(value)) => match &value.data {
+                DynamicBlockData::EvaluationGraph(evaluation) => Some(evaluation.clone()),
+                _ => None,
+            },
+            _ => None,
+        };
+        let mut merged = evaluation_data(self, target_evaluation)?;
+        let tool_data = evaluation_data(self, tool_evaluation)?;
+        // An active node is the latest result and so has no outgoing edge.
+        let latest = |data: &BlockEvaluationGraph, expression: Handle| {
+            data.nodes
+                .iter()
+                .find(|node| node.expression == expression)
+                .is_some_and(|node| node.node_data[2] < 0)
+        };
+        if !latest(&merged, target_active) || !latest(&tool_data, tool_active) {
+            return None;
+        }
+
+        let target_bases = target_graph
+            .nodes
+            .iter()
+            .filter_map(|handle| self.solid_history_node_operation(*handle)?.base())
+            .collect::<Vec<_>>();
+        // One offset for node and step ids keeps a node whose two ids agree
+        // in agreement: the history root names its active node by either.
+        let offset = target_bases
+            .iter()
+            .flat_map(|base| [base.step_id.max(0), base.eval.node_id.max(0)])
+            .max()?;
+        let graph_offset = merged.nodes.iter().map(|node| node.id).max()? + 1;
+        let edge_offset = merged.edges.iter().map(|edge| edge.id).max().map_or(0, |id| id + 1);
+        let shift = |value: i32, by: i32| if value >= 0 { value + by } else { value };
+
+        for mut node in tool_data.nodes {
+            node.id += graph_offset;
+            node.next_id += graph_offset;
+            node.node_data = node.node_data.map(|value| shift(value, edge_offset));
+            merged.nodes.push(node);
+        }
+        for mut edge in tool_data.edges {
+            edge.id += edge_offset;
+            edge.source_node += graph_offset;
+            edge.destination_node += graph_offset;
+            edge.outgoing_edges = edge.outgoing_edges.map(|value| shift(value, edge_offset));
+            merged.edges.push(edge);
+        }
+        let mut tool_active_id = None;
+        let mut highest = offset;
+        for handle in &tool_graph.nodes {
+            let ObjectType::DynamicBlock(value) = self.objects.get_mut(handle)? else {
+                return None;
+            };
+            value.owner = target_evaluation;
+            let DynamicBlockData::SolidHistoryNode(node) = &mut value.data else {
+                return None;
+            };
+            if let SolidHistoryOperation::Boolean(value) = node {
+                value.first_operand = shift(value.first_operand, offset);
+                value.second_operand = shift(value.second_operand, offset);
+            }
+            let base = node.base_mut()?;
+            if base.eval.node_id > 0 {
+                base.eval.node_id += offset;
+            }
+            if base.step_id > 0 {
+                base.step_id += offset;
+            }
+            highest = highest.max(base.step_id).max(base.eval.node_id);
+            if *handle == tool_active {
+                tool_active_id = Some(base.node_id());
+            }
+        }
+        let target_active_id = self
+            .solid_history_node_operation(target_active)?
+            .base()?
+            .node_id();
+
+        let id = merged.nodes.iter().map(|node| node.id).max()? + 1;
+        let first_edge = merged.edges.iter().map(|edge| edge.id).max().map_or(0, |id| id + 1);
+        let second_edge = first_edge + 1;
+        for (expression, edge) in [(target_active, first_edge), (tool_active, second_edge)] {
+            let node = merged
+                .nodes
+                .iter_mut()
+                .find(|node| node.expression == expression)?;
+            node.node_data[2] = edge;
+            node.node_data[3] = edge;
+            let source = node.id;
+            let mut link = Self::solid_history_edge(edge, source, id);
+            if edge == first_edge {
+                link.outgoing_edges[1] = second_edge;
+            } else {
+                link.outgoing_edges[0] = first_edge;
+            }
+            merged.edges.push(link);
+        }
+        let boolean = self.allocate_handle();
+        merged.nodes.push(BlockEvaluationNode {
+            id,
+            edge_flags: SOLID_HISTORY_NODE_FLAGS,
+            next_id: id + 1,
+            expression: boolean,
+            node_data: [first_edge, second_edge, -1, -1],
+            active_cycles: None,
+        });
+        merged.first_node_id = id + 1;
+        merged.first_node_id_copy = id + 1;
+
+        let boolean_id = highest + 1;
+        let base = SolidHistoryNodeBase::new(boolean_id);
+        let step = SolidHistoryOperation::Boolean(SolidHistoryBoolean {
+            base,
+            operation_major: 1,
+            operation,
+            first_operand: target_active_id,
+            second_operand: tool_active_id?,
+            ..SolidHistoryBoolean::default()
+        });
+        let (dxf_name, cpp_class_name) = step.class_names()?;
+        if !self.classes.contains(dxf_name) {
+            self.classes
+                .add_or_update(crate::classes::DxfClass::new(dxf_name, cpp_class_name));
+        }
+        let mut node_object = DynamicBlockObject::new(dxf_name, cpp_class_name);
+        node_object.handle = boolean;
+        node_object.owner = target_evaluation;
+        node_object.data = DynamicBlockData::SolidHistoryNode(step);
+        self.objects
+            .insert(boolean, ObjectType::DynamicBlock(node_object));
+        if let Some(ObjectType::DynamicBlock(value)) = self.objects.get_mut(&target_evaluation) {
+            value.data = DynamicBlockData::EvaluationGraph(merged);
+        }
+        if let Some(ObjectType::DynamicBlock(value)) = self.objects.get_mut(&target_graph.root) {
+            if let DynamicBlockData::SolidHistory(history) = &mut value.data {
+                history.history_node_id = boolean_id;
+            }
+        }
+        self.objects.remove(&tool_graph.root);
+        self.objects.remove(&tool_evaluation);
+        self.set_entity_history_handle(tool, None);
+        self.solid_history_graph(target)
+    }
+
     pub fn create_solid_history(
         &mut self,
         entity: Handle,
@@ -2873,31 +3117,13 @@ impl CadDocument {
         mut operation: SolidHistoryOperation,
     ) -> Option<SolidHistoryOperation> {
         let (dxf_name, cpp_class_name) = operation.class_names()?;
-        let chain = self.solid_history_operations(entity)?;
+        let tree = self.solid_history_tree(entity)?;
         let graph = self.solid_history_graph(entity)?;
-        let replacement_base = operation.base()?;
-        let replacement_id = if replacement_base.eval.node_id > 0 {
-            replacement_base.eval.node_id
-        } else {
-            replacement_base.step_id
-        };
+        let replacement_id = operation.base()?.node_id();
         if replacement_id <= 0 {
             return None;
         }
-        let mut chain_matches = chain.iter().filter(|current| {
-            current.base().is_some_and(|base| {
-                let node_id = if base.eval.node_id > 0 {
-                    base.eval.node_id
-                } else {
-                    base.step_id
-                };
-                node_id == replacement_id
-            })
-        });
-        chain_matches.next()?;
-        if chain_matches.next().is_some() {
-            return None;
-        }
+        tree.find(replacement_id)?;
         let mut node_matches = graph.nodes.iter().copied().filter(|handle| {
             let Some(ObjectType::DynamicBlock(value)) = self.objects.get(handle) else {
                 return false;

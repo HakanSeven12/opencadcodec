@@ -73,7 +73,7 @@ pub use dynamic_block::{
     SolidHistoryBox, SolidHistoryBrep, SolidHistoryChamfer, SolidHistoryCone, SolidHistoryCylinder,
     SolidHistoryFillet, SolidHistoryLoft, SolidHistoryLoftOptions, SolidHistoryLoftParameters, SolidHistoryNodeBase,
     SolidHistoryOperation, SolidHistoryPyramid, SolidHistoryRevolve, SolidHistorySphere,
-    SolidHistorySweep, SolidHistoryTorus,
+    SolidHistorySweep, SolidHistoryTorus, SolidHistoryTree,
 };
 pub use field::{Field, FieldChildValue, FieldList};
 pub use group::Group;
