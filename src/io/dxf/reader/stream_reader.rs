@@ -26,6 +26,7 @@ pub struct DxfCodePair {
     pub code: i32,
 
     /// The DXF code enum
+    #[allow(dead_code)]
     pub dxf_code: DxfCode,
 
     /// String representation of the value
@@ -111,6 +112,9 @@ impl DxfCodePair {
     pub fn as_i16(&self) -> Option<i16> {
         match self.typed_value {
             CodePairValue::Int(v) => i16::try_from(v).ok(),
+            // Codes 290-299 are typed as booleans, but many readers consume
+            // them as 0/1 flags through this accessor.
+            CodePairValue::Bool(v) => Some(v as i16),
             _ => None,
         }
     }
@@ -120,6 +124,7 @@ impl DxfCodePair {
     pub fn as_i32(&self) -> Option<i32> {
         match self.typed_value {
             CodePairValue::Int(v) => i32::try_from(v).ok(),
+            CodePairValue::Bool(v) => Some(v as i32),
             _ => None,
         }
     }
@@ -198,6 +203,101 @@ pub trait DxfStreamReader {
     fn diagnostic_context(&self) -> DxfStreamContext {
         DxfStreamContext::default()
     }
+
+    /// Start (or stop) recording the extended-data pairs read from the
+    /// stream: each 1001 group and the 1000..=1071 groups after it, plus the
+    /// first handle (5) group. Starting clears what was recorded before.
+    fn record_xdata(&mut self, _on: bool) {}
+
+    /// The recorded handle group value and extended-data pairs.
+    fn take_recorded_xdata(&mut self) -> (Option<String>, Vec<DxfCodePair>) {
+        (None, Vec::new())
+    }
+}
+
+/// Stream wrapper that records extended data while the objects of the
+/// OBJECTS section are read, so it reaches the document whatever the object
+/// reader does with the trailing groups. Pushed-back pairs are kept on a
+/// stack, so several pairs can be replayed.
+pub(crate) struct XDataRecorder {
+    inner: Box<dyn DxfStreamReader>,
+    pending: Vec<DxfCodePair>,
+    recording: bool,
+    in_xdata: bool,
+    handle: Option<String>,
+    recorded: Vec<DxfCodePair>,
+}
+
+impl XDataRecorder {
+    pub(crate) fn new(inner: Box<dyn DxfStreamReader>) -> Self {
+        Self {
+            inner,
+            pending: Vec::new(),
+            recording: false,
+            in_xdata: false,
+            handle: None,
+            recorded: Vec::new(),
+        }
+    }
+}
+
+impl DxfStreamReader for XDataRecorder {
+    fn read_pair(&mut self) -> Result<Option<DxfCodePair>> {
+        if let Some(pair) = self.pending.pop() {
+            return Ok(Some(pair));
+        }
+        let pair = self.inner.read_pair()?;
+        if self.recording {
+            if let Some(pair) = &pair {
+                if pair.code == 1001 {
+                    self.in_xdata = true;
+                } else if !(1000..=1071).contains(&pair.code) {
+                    self.in_xdata = false;
+                }
+                if self.in_xdata {
+                    self.recorded.push(pair.clone());
+                } else if pair.code == 5 && self.handle.is_none() {
+                    self.handle = Some(pair.value_string.trim().to_string());
+                }
+            }
+        }
+        Ok(pair)
+    }
+
+    fn peek_code(&mut self) -> Result<Option<i32>> {
+        match self.pending.last() {
+            Some(pair) => Ok(Some(pair.code)),
+            None => self.inner.peek_code(),
+        }
+    }
+
+    fn push_back(&mut self, pair: DxfCodePair) {
+        self.pending.push(pair);
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        self.pending.clear();
+        self.inner.reset()
+    }
+
+    fn set_encoding(&mut self, encoding: &'static encoding_rs::Encoding) {
+        self.inner.set_encoding(encoding);
+    }
+
+    fn diagnostic_context(&self) -> DxfStreamContext {
+        self.inner.diagnostic_context()
+    }
+
+    fn record_xdata(&mut self, on: bool) {
+        self.recording = on;
+        self.in_xdata = false;
+        self.handle = None;
+        self.recorded.clear();
+    }
+
+    fn take_recorded_xdata(&mut self) -> (Option<String>, Vec<DxfCodePair>) {
+        (self.handle.take(), std::mem::take(&mut self.recorded))
+    }
 }
 
 /// Helper for reading 3D points from consecutive code pairs
@@ -221,8 +321,8 @@ impl PointReader {
 
     /// Add a coordinate value
     pub fn add_coordinate(&mut self, pair: &DxfCodePair) -> bool {
-        if let Some(axis) = GroupCodeValueType::coordinate_axis(pair.dxf_code) {
-            let coord_group = GroupCodeValueType::coordinate_group(pair.dxf_code);
+        if let Some(axis) = GroupCodeValueType::coordinate_axis_raw(pair.code) {
+            let coord_group = GroupCodeValueType::coordinate_group_raw(pair.code);
 
             // If this is a new group, reset
             if self.group.is_some() && self.group != coord_group {

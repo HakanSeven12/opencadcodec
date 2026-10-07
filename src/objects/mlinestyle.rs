@@ -163,8 +163,8 @@ impl Default for MLineStyleElement {
 ///
 /// # Example
 /// ```ignore
-/// use acadrust::objects::{MLineStyle, MLineStyleElement};
-/// use acadrust::types::Color;
+/// use opencadcodec::objects::{MLineStyle, MLineStyleElement};
+/// use opencadcodec::types::Color;
 ///
 /// let mut style = MLineStyle::new("Custom");
 /// style.description = "Custom multiline style".to_string();

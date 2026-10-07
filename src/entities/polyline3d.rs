@@ -103,6 +103,24 @@ impl SmoothSurfaceType {
     pub fn to_value(&self) -> i16 {
         *self as i16
     }
+
+    /// From the curve-type byte of a DWG 3D polyline (1 quadratic, 2 cubic).
+    pub fn from_dwg_code(code: u8) -> Self {
+        match code {
+            1 => SmoothSurfaceType::QuadraticBSpline,
+            2 => SmoothSurfaceType::CubicBSpline,
+            _ => SmoothSurfaceType::None,
+        }
+    }
+
+    /// The curve-type byte of a DWG 3D polyline.
+    pub fn to_dwg_code(&self) -> u8 {
+        match self {
+            SmoothSurfaceType::QuadraticBSpline => 1,
+            SmoothSurfaceType::CubicBSpline => 2,
+            _ => 0,
+        }
+    }
 }
 
 /// 3D Vertex for Polyline3D
@@ -166,8 +184,8 @@ impl Default for Vertex3DPolyline {
 ///
 /// # Example
 /// ```ignore
-/// use acadrust::entities::Polyline3D;
-/// use acadrust::types::Vector3;
+/// use opencadcodec::entities::Polyline3D;
+/// use opencadcodec::types::Vector3;
 ///
 /// let mut polyline = Polyline3D::new();
 /// polyline.add_vertex(Vector3::new(0.0, 0.0, 0.0));

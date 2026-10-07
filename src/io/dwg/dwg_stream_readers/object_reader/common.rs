@@ -220,6 +220,9 @@ pub fn dxf_name_to_type_code(dxf_name: &str) -> Option<i16> {
         // INSERT fields. Decode it as an INSERT to place the baked view
         // geometry (the *A / *S view blocks) that the view border frames.
         "ACDBVIEWREPBLOCKREFERENCE" => Some(OBJ_INSERT),
+        // AcIdBlockReference (Inventor drawing export) is also a subclass of
+        // AcDbBlockReference: it places the sheet's *I view/border blocks.
+        "ACIDBLOCKREFERENCE" => Some(OBJ_INSERT),
         // ACAD_SURFACE family (ACIS-backed graphical entities).
         "SURFACE" => Some(OBJ_SURFACE),
         "PLANESURFACE" => Some(OBJ_PLANESURFACE),

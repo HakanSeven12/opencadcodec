@@ -143,6 +143,24 @@ impl<W: Write> DxfStreamWriter for DxfTextWriter<W> {
     #[inline]
     fn write_string(&mut self, code: i32, value: &str) -> Result<()> {
         self.write_code(code)?;
+        // A literal caret is written as "^ ": a bare "^x" is read as a control
+        // character (`\AcExpr (2^3)` would lose its operator). A caret already
+        // followed by a space is escaped (the SAT cipher writes it that way).
+        let caret;
+        let value = if value.contains('^') {
+            let mut escaped = String::with_capacity(value.len() + 4);
+            let mut chars = value.chars().peekable();
+            while let Some(c) = chars.next() {
+                escaped.push(c);
+                if c == '^' && chars.peek() != Some(&' ') {
+                    escaped.push(' ');
+                }
+            }
+            caret = escaped;
+            caret.as_str()
+        } else {
+            value
+        };
         // DXF text format is line-based: literal newlines in string values
         // would corrupt the file.  Replace them with the MText paragraph
         // marker \P which is the standard convention in DXF/DWG ecosystems.

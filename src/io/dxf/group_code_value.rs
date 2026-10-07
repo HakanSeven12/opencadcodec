@@ -119,27 +119,33 @@ impl GroupCodeValueType {
             code_num,
             10..=18 | 20..=28 | 30..=38 |
             110..=112 | 120..=122 | 130..=132 |
-            210 | 220 | 230 |
+            210..=213 | 220..=223 | 230..=233 |
             1010..=1013 | 1020..=1023 | 1030..=1033
         )
     }
 
     /// Get the coordinate axis (0=X, 1=Y, 2=Z) for a coordinate code
     pub fn coordinate_axis(code: DxfCode) -> Option<usize> {
-        let code_num = code.to_i32();
+        Self::coordinate_axis_raw(code.to_i32())
+    }
+
+    /// Like [`coordinate_axis`](Self::coordinate_axis) but keyed on the raw
+    /// integer group code, which survives codes the `DxfCode` enum lacks
+    /// (211-213, 221-223, 231-233, ...).
+    pub fn coordinate_axis_raw(code_num: i32) -> Option<usize> {
 
         // X coordinates (10-18, 110-112, 210, 1010-1013)
-        if matches!(code_num, 10..=18 | 110..=112 | 210 | 1010..=1013) {
+        if matches!(code_num, 10..=18 | 110..=112 | 210..=213 | 1010..=1013) {
             return Some(0);
         }
 
         // Y coordinates (20-28, 120-122, 220, 1020-1023)
-        if matches!(code_num, 20..=28 | 120..=122 | 220 | 1020..=1023) {
+        if matches!(code_num, 20..=28 | 120..=122 | 220..=223 | 1020..=1023) {
             return Some(1);
         }
 
         // Z coordinates (30-38, 130-132, 230, 1030-1033)
-        if matches!(code_num, 30..=38 | 130..=132 | 230 | 1030..=1033) {
+        if matches!(code_num, 30..=38 | 130..=132 | 230..=233 | 1030..=1033) {
             return Some(2);
         }
 
@@ -148,7 +154,11 @@ impl GroupCodeValueType {
 
     /// Get the coordinate group index (0=primary, 1=secondary, etc.)
     pub fn coordinate_group(code: DxfCode) -> Option<usize> {
-        let code_num = code.to_i32();
+        Self::coordinate_group_raw(code.to_i32())
+    }
+
+    /// Raw-integer variant of [`coordinate_group`](Self::coordinate_group).
+    pub fn coordinate_group_raw(code_num: i32) -> Option<usize> {
 
         match code_num {
             10 | 20 | 30 => Some(0), // Primary point
@@ -164,6 +174,9 @@ impl GroupCodeValueType {
             111 | 121 | 131 => Some(11),     // UCS X-axis
             112 | 122 | 132 => Some(12),     // UCS Y-axis
             210 | 220 | 230 => Some(21),     // Extrusion direction
+            211 | 221 | 231 => Some(22),     // Second 21x point (e.g. LEADER horizontal direction)
+            212 | 222 | 232 => Some(23),
+            213 | 223 | 233 => Some(24),
             1010 | 1020 | 1030 => Some(100), // XData point
             1011 | 1021 | 1031 => Some(101), // XData world position
             1012 | 1022 | 1032 => Some(102), // XData world displacement

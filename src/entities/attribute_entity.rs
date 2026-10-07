@@ -18,8 +18,8 @@ use std::f64::consts::PI;
 ///
 /// # Example
 /// ```ignore
-/// use acadrust::entities::AttributeEntity;
-/// use acadrust::types::Vector3;
+/// use opencadcodec::entities::AttributeEntity;
+/// use opencadcodec::types::Vector3;
 ///
 /// let mut attrib = AttributeEntity::new(
 ///     "PART_NUMBER".to_string(),
@@ -212,8 +212,7 @@ impl AttributeEntity {
 
     /// Estimate the width of the text
     pub fn estimated_width(&self) -> f64 {
-        let char_width = self.height * 0.6 * self.width_factor;
-        self.value.len() as f64 * char_width
+        super::text::estimated_width_in_heights(&self.value) * self.height * self.width_factor
     }
 
     /// Apply a transformation from an INSERT entity

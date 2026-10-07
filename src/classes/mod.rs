@@ -376,7 +376,7 @@ impl<'a> IntoIterator for &'a DxfClassCollection {
 ///
 /// DXF names, proxy flags, and application names match AutoCAD R2013 (AC1027)
 /// reference output.
-fn default_classes() -> Vec<DxfClass> {
+pub(crate) fn default_classes() -> Vec<DxfClass> {
     // (dxf_name, cpp_class_name, proxy_flags, app_name, is_entity)
     let defs: &[(&str, &str, u16, &str, bool)] = &[
         // ── Entity classes ──────────────────────────────────────────
@@ -694,10 +694,10 @@ fn default_classes() -> Vec<DxfClass> {
         ("ACDBPOINTPATH", "AcDbPointPath", 0, "SCENEOE", false),
         ("TVDEVICEPROPERTIES", "AcDbTvDeviceProperties", 0, "SCENEOE", false),
         ("ACDBPOINTCLOUDDEF", "AcDbPointCloudDef", 0, "AcDbPointCloudObj", false),
-        ("ACDBPOINTCLOUDDEFEX", "AcDbPointCloudDefEx", 0, "AcDbPointCloudObj", false),
+        ("ACDBPOINTCLOUDDEF_EX", "AcDbPointCloudDefEx", 1024, "AcDbPointCloudObj", false),
         ("ACDBPOINTCLOUDDEF_REACTOR", "AcDbPointCloudDefReactor", 0, "AcDbPointCloudObj", false),
-        ("ACDBPOINTCLOUDDEF_REACTOR_EX", "AcDbPointCloudDefReactorEx", 0, "AcDbPointCloudObj", false),
-        ("ACDBPOINTCLOUDCOLORMAP", "AcDbPointCloudColorMap", 0, "AcDbPointCloudObj", false),
+        ("ACDBPOINTCLOUDDEF_REACTOR_EX", "AcDbPointCloudDefReactorEx", 1025, "AcDbPointCloudObj", false),
+        ("ACDBPOINTCLOUDCOLORMAP", "AcDbPointCloudColorMap", 1025, "AcDbPointCloudObj", false),
         ("NAVISWORKSMODELDEF", "AcDbNavisworksModelDef", 0, "ObjectDBX Classes", false),
         ("CONTEXTDATAMANAGER", "AcDbContextDataManager", 0, "ObjectDBX Classes", false),
         ("DATATABLE", "AcDbDataTable", 0, "ObjectDBX Classes", false),

@@ -99,8 +99,8 @@ impl HooklineDirection {
 ///
 /// # Example
 /// ```ignore
-/// use acadrust::entities::Leader;
-/// use acadrust::types::Vector3;
+/// use opencadcodec::entities::Leader;
+/// use opencadcodec::types::Vector3;
 ///
 /// let mut leader = Leader::new();
 /// leader.add_vertex(Vector3::new(0.0, 0.0, 0.0));    // Arrow point

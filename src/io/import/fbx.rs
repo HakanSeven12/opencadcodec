@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use acadrust::io::import::fbx::FbxImporter;
+//! use opencadcodec::io::import::fbx::FbxImporter;
 //!
 //! let doc = FbxImporter::from_file("model.fbx")?.import()?;
 //! ```

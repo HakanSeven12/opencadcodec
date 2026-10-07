@@ -3,6 +3,24 @@
 use super::{Entity, EntityCommon};
 use crate::types::{BoundingBox3D, Color, Handle, LineWeight, Transparency, Vector3};
 
+/// Rough string width in text heights, without font metrics: 0.6 per
+/// character, 1.0 per full-width (CJK / Hangul / fullwidth-form) character,
+/// whose big-font glyphs fill a square one height wide.
+pub(crate) fn estimated_width_in_heights(s: &str) -> f64 {
+    s.chars()
+        .map(|c| match c as u32 {
+            0x1100..=0x115F
+            | 0x2E80..=0xA4CF
+            | 0xAC00..=0xD7A3
+            | 0xF900..=0xFAFF
+            | 0xFE30..=0xFE4F
+            | 0xFF00..=0xFF60
+            | 0xFFE0..=0xFFE6 => 1.0,
+            _ => 0.6,
+        })
+        .sum()
+}
+
 /// Text horizontal alignment
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -175,7 +193,7 @@ impl Entity for Text {
 
     fn bounding_box(&self) -> BoundingBox3D {
         // Simplified bounding box based on insertion point and height
-        let width = self.value.len() as f64 * self.height * 0.6 * self.width_factor;
+        let width = estimated_width_in_heights(&self.value) * self.height * self.width_factor;
         BoundingBox3D::new(
             self.insertion_point,
             Vector3::new(
