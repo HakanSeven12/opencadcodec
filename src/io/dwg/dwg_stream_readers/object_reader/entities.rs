@@ -5529,9 +5529,11 @@ fn read_surface_sweep_options(reader: &mut DwgMergedReader) -> SurfaceSweepOptio
     let align_start = reader.read_bit();
     let bank = reader.read_bit();
     let base_point_set = reader.read_bit();
+    // In DWG the twist reference vector comes before the two
+    // transform-computed flags (DXF writes it after them).
+    let reference_vector = reader.read_3bit_double();
     let sweep_entity_transform_computed = reader.read_bit();
     let path_entity_transform_computed = reader.read_bit();
-    let reference_vector = reader.read_3bit_double();
     let sweep_entity_transform = read_surface_matrix(reader);
     let path_entity_transform = read_surface_matrix(reader);
     SurfaceSweepOptions {

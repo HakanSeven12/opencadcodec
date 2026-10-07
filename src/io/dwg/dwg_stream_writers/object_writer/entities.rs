@@ -5232,9 +5232,9 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(value.align_start);
         self.writer.write_bit(value.bank);
         self.writer.write_bit(value.base_point_set);
+        self.writer.write_3bit_double(value.reference_vector);
         self.writer.write_bit(value.sweep_entity_transform_computed);
         self.writer.write_bit(value.path_entity_transform_computed);
-        self.writer.write_3bit_double(value.reference_vector);
         self.write_surface_matrix(&value.sweep_entity_transform);
         self.write_surface_matrix(&value.path_entity_transform);
     }
