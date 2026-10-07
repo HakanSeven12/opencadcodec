@@ -990,6 +990,73 @@ fn dwg_roundtrip(doc: &CadDocument) -> CadDocument {
     reader.read().expect("DWG read failed")
 }
 
+/// The degenerate wireframe genus normalizes to the authored form on
+/// re-save (2026-10-07, the Cylinder_ocs_new2 resave failure): a
+/// ds-backed 3DSOLID record whose wireframe block is present but
+/// anchor-less, with no isolines and no empty bit, appears in ZERO
+/// authored R2013+ files (every fixture in the measured corpus writes
+/// point_present + isolines=4 + acis_empty_bit) - the form exists
+/// solely as this crate's pre-gate-fix writer output, and both strict
+/// loaders refuse the whole solid over it. A document holding such an
+/// artifact must re-emit the authored genus - the flags normalized,
+/// the wires passing through as the cache they are.
+#[test]
+fn degenerate_wireframe_genus_normalizes_on_resave() {
+    use acadrust::entities::solid3d::{AcisVersion, Solid3D, Wire, WireType};
+
+    // The artifact's lifted state: SAB-backed (contributes_sab),
+    // wireframe present but anchor-less, no isolines, no empty bit,
+    // two display wires.
+    let sat = acadrust::entities::acis::primitives::build_cylinder([0.0, 0.0, 0.0], 1.0, 3.0);
+    let mut solid = Solid3D::from_sat(&sat.to_sat_string());
+    solid.acis_data.version = AcisVersion::Version2;
+    solid.acis_data.wireframe_data_present = true;
+    solid.acis_data.wireframe_point_present = false;
+    solid.acis_data.wireframe_isolines = 0;
+    solid.acis_data.wireframe_isoline_present = false;
+    solid.acis_data.acis_empty_bit = false;
+    let mut wire = Wire::new();
+    wire.wire_type = WireType::VisibleEdge;
+    wire.points = vec![
+        acadrust::types::Vector3::new(1.0, 0.0, 0.0),
+        acadrust::types::Vector3::new(0.0, 1.0, 0.0),
+    ];
+    let mut wire_top = Wire::new();
+    wire_top.wire_type = WireType::VisibleEdge;
+    wire_top.points = vec![
+        acadrust::types::Vector3::new(1.0, 0.0, 3.0),
+        acadrust::types::Vector3::new(0.0, 1.0, 3.0),
+    ];
+    solid.wires = vec![wire, wire_top];
+
+    let mut doc = CadDocument::with_version(DxfVersion::AC1032);
+    doc.add_entity(EntityType::Solid3D(solid)).unwrap();
+    let roundtrip = dwg_roundtrip(&doc);
+
+    let entity = roundtrip
+        .entities()
+        .find_map(|entity| match entity {
+            EntityType::Solid3D(solid) => Some(solid.clone()),
+            _ => None,
+        })
+        .expect("the solid survives");
+    let acis = &entity.acis_data;
+    // The authored genus: anchor present, the isoline count, the empty
+    // bit - and the wire cache passing through.
+    assert!(acis.wireframe_data_present, "the cache stays present");
+    assert!(
+        acis.wireframe_point_present,
+        "the anchor flag normalizes to the authored form"
+    );
+    assert_eq!(acis.wireframe_isolines, 4, "the isoline count normalizes");
+    assert!(
+        acis.wireframe_isoline_present,
+        "the isoline flag normalizes"
+    );
+    assert!(acis.acis_empty_bit, "the empty bit normalizes");
+    assert_eq!(entity.wires.len(), 2, "the wire cache passes through");
+}
+
 /// The deep-compare wire-scenario sync (the 34c75d0 capture's test-side
 /// twin): every written SPLINE record carries a scenario BL — an
 /// authored capture re-emits verbatim, a constructed spline falls back
