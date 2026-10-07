@@ -1455,6 +1455,8 @@ impl<'a> SectionReader<'a> {
     /// Read the HEADER section
     pub fn read_header(&mut self, document: &mut CadDocument) -> Result<()> {
         let hdr = &mut document.header;
+        // A $CUSTOMPROPERTYTAG waits for its $CUSTOMPROPERTY value.
+        let mut custom_value_pending = false;
 
         while let Some(pair) = self.reader.read_pair()? {
             if pair.code == 0 && pair.value_string == "ENDSEC" {
@@ -1506,6 +1508,7 @@ impl<'a> SectionReader<'a> {
                 "$LASTSAVEDBY" => {
                     if let Some(p) = self.reader.read_pair()? {
                         hdr.last_saved_by = p.value_string.clone();
+                        document.summary_info.last_saved_by = p.value_string.clone();
                     }
                 }
                 "$FINGERPRINTGUID" => {
@@ -1531,6 +1534,44 @@ impl<'a> SectionReader<'a> {
                 "$HYPERLINKBASE" => {
                     if let Some(p) = self.reader.read_pair()? {
                         hdr.hyperlink_base = p.value_string.clone();
+                        document.summary_info.hyperlink_base = p.value_string.clone();
+                    }
+                }
+                // ── Drawing properties (DWGPROPS, R2004+) ──
+                "$TITLE" | "$SUBJECT" | "$AUTHOR" | "$KEYWORDS" | "$COMMENTS"
+                | "$REVISIONNUMBER" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        let info = &mut document.summary_info;
+                        let field = match var_name.as_str() {
+                            "$TITLE" => &mut info.title,
+                            "$SUBJECT" => &mut info.subject,
+                            "$AUTHOR" => &mut info.author,
+                            "$KEYWORDS" => &mut info.keywords,
+                            "$COMMENTS" => &mut info.comments,
+                            _ => &mut info.revision_number,
+                        };
+                        *field = p.value_string.clone();
+                    }
+                }
+                "$CUSTOMPROPERTYTAG" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        document
+                            .summary_info
+                            .custom_properties
+                            .push((p.value_string.clone(), String::new()));
+                        custom_value_pending = true;
+                    }
+                }
+                "$CUSTOMPROPERTY" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        let properties = &mut document.summary_info.custom_properties;
+                        match properties.last_mut() {
+                            Some((_, value)) if custom_value_pending => {
+                                *value = p.value_string.clone();
+                            }
+                            _ => properties.push((String::new(), p.value_string.clone())),
+                        }
+                        custom_value_pending = false;
                     }
                 }
                 "$STYLESHEET" => {

@@ -353,6 +353,12 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         }
         self.write_header_variable("$DWGCODEPAGE", |w| w.write_string(3, &hdr.code_page))?;
 
+        // === Drawing properties (DWGPROPS) === R2004+ files carry them here,
+        // right after $DWGCODEPAGE.
+        if self.dxf_version >= DxfVersion::AC1018 {
+            self.write_summary_info(document)?;
+        }
+
         let handle_seed = self.handle_seed;
         self.write_header_variable("$HANDSEED", |w| w.write_handle(5, Handle::new(handle_seed)))?;
 
@@ -478,6 +484,17 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.write_header_variable("$AUPREC", |w| w.write_i16(70, hdr.angular_unit_precision))?;
         self.write_header_variable("$MEASUREMENT", |w| w.write_i16(70, hdr.measurement))?;
         self.write_header_variable("$INSUNITS", |w| w.write_i16(70, hdr.insertion_units))?;
+        // The drawing property "Hyperlink base" (R2000+); omitted when empty.
+        if self.dxf_version >= DxfVersion::AC1015 {
+            let base = if document.summary_info.hyperlink_base.is_empty() {
+                hdr.hyperlink_base.as_str()
+            } else {
+                document.summary_info.hyperlink_base.as_str()
+            };
+            if !base.is_empty() {
+                self.write_header_variable("$HYPERLINKBASE", |w| w.write_string(1, base))?;
+            }
+        }
 
         // === Point display ===
         self.write_header_variable("$PDMODE", |w| w.write_i16(70, hdr.point_display_mode))?;
@@ -727,6 +744,50 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         })?;
 
         self.writer.write_section_end()?;
+        Ok(())
+    }
+
+    /// Write the drawing properties (`SummaryInfo`, the DWGPROPS dialog) as
+    /// R2004+ header variables: `$TITLE`, `$SUBJECT`, `$AUTHOR`, `$KEYWORDS`,
+    /// `$COMMENTS`, `$LASTSAVEDBY` and `$REVISIONNUMBER` in that order, empty
+    /// ones omitted, then a `$CUSTOMPROPERTYTAG` / `$CUSTOMPROPERTY` pair per
+    /// custom property with a name. Custom properties are only accepted after
+    /// `$LASTSAVEDBY`, so that variable is written whenever there are any.
+    fn write_summary_info(&mut self, document: &CadDocument) -> Result<()> {
+        let info = &document.summary_info;
+        for (name, value) in [
+            ("$TITLE", &info.title),
+            ("$SUBJECT", &info.subject),
+            ("$AUTHOR", &info.author),
+            ("$KEYWORDS", &info.keywords),
+            ("$COMMENTS", &info.comments),
+        ] {
+            if !value.is_empty() {
+                self.write_header_variable(name, |w| w.write_string(1, value))?;
+            }
+        }
+        let custom: Vec<&(String, String)> = info
+            .custom_properties
+            .iter()
+            .filter(|(name, _)| !name.is_empty())
+            .collect();
+        let last_saved_by = if info.last_saved_by.is_empty() {
+            document.header.last_saved_by.as_str()
+        } else {
+            info.last_saved_by.as_str()
+        };
+        if !last_saved_by.is_empty() || !custom.is_empty() {
+            self.write_header_variable("$LASTSAVEDBY", |w| w.write_string(1, last_saved_by))?;
+        }
+        if !info.revision_number.is_empty() {
+            self.write_header_variable("$REVISIONNUMBER", |w| {
+                w.write_string(1, &info.revision_number)
+            })?;
+        }
+        for (name, value) in custom {
+            self.write_header_variable("$CUSTOMPROPERTYTAG", |w| w.write_string(1, name))?;
+            self.write_header_variable("$CUSTOMPROPERTY", |w| w.write_string(1, value))?;
+        }
         Ok(())
     }
 
