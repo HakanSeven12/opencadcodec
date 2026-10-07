@@ -5823,6 +5823,49 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit(true); // acis_empty_bit
             return;
         }
+        // The degenerate captured genus (2026-10-07, the Cylinder_ocs_new2
+        // resave failure): a ds-backed record whose wireframe block is
+        // present but carries no point anchor, no isolines and no empty
+        // bit — a form ZERO authored R2013+ file carries (every fixture
+        // in the measured corpus writes point_present + isolines=4 +
+        // acis_empty_bit, with or without wire caches). The form exists
+        // solely as this crate's pre-gate-fix writer output, and both
+        // strict loaders refuse the whole solid over it (AutoCAD
+        // "drawing file is not valid"). A re-save of such an artifact
+        // lifted the degenerate flags with the captured record, and the
+        // read document (dwg_source_version set) bypassed the
+        // constructed-cache synthesis above — so the artifact's
+        // brokenness persisted verbatim through every further save.
+        // Normalize to the authored genus instead: the anchor from the
+        // entity's reference point (the reader synthesizes the geometry
+        // centre for anchor-less wires), the isoline count, the empty
+        // bit — the wires and silhouettes pass through as the cache they
+        // are (authored files carry them).
+        let degenerate_cache = acis.contributes_sab()
+            && acis.wireframe_data_present
+            && !acis.wireframe_point_present
+            && acis.wireframe_isolines == 0
+            && !acis.acis_empty_bit;
+        if degenerate_cache {
+            let mut normalized = acis.clone();
+            normalized.wireframe_point_present = true;
+            normalized.wireframe_isolines = 4;
+            normalized.wireframe_isoline_present = true;
+            normalized.acis_empty_bit = true;
+            // The authored anchor convention: the geometry centre (what
+            // the synthesis path above and every authored file use),
+            // not the anchor-less captured reference point.
+            let anchor = normalized
+                .geometry_centre()
+                .or_else(|| normalized.placement_origin())
+                .unwrap_or(point);
+            let wireframe_present =
+                self.write_acis_wireframe(anchor, &normalized, wires, silhouettes);
+            if wireframe_present {
+                self.writer.write_bit(normalized.acis_empty_bit);
+            }
+            return;
+        }
         let wireframe_present = self.write_acis_wireframe(point, acis, wires, silhouettes);
         if wireframe_present {
             self.writer.write_bit(acis.acis_empty_bit);
