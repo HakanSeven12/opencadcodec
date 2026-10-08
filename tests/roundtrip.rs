@@ -1057,6 +1057,61 @@ fn degenerate_wireframe_genus_normalizes_on_resave() {
     assert_eq!(entity.wires.len(), 2, "the wire cache passes through");
 }
 
+/// A properties edit replaces the modeler data wholesale (the OCS host's
+/// `set_sat_document` -> `AcisData::from_sat`), resetting every captured
+/// wireframe flag while the entity keeps its display wires - the emitted
+/// block is driven by the wires alone: no anchor, no isolines, no
+/// terminator bit (2026-10-08, the AutoCAD-2027 RECOVER failure on the
+/// Cylinder_PR1671 resave). The write must normalize that mix into the
+/// authored genus too.
+#[test]
+fn wireframe_block_driven_by_wires_alone_normalizes_on_save() {
+    use opencadcodec::entities::solid3d::{Solid3D, Wire, WireType};
+
+    let sat = opencadcodec::entities::acis::primitives::build_cylinder([0.0, 0.0, 0.0], 1.0, 3.0);
+    let mut solid = Solid3D::from_sat(&sat.to_sat_string());
+    // `from_sat` leaves every wireframe flag at its default (false/0);
+    // only the display wires are present.
+    assert!(!solid.acis_data.wireframe_data_present);
+    let mut wire = Wire::new();
+    wire.wire_type = WireType::VisibleEdge;
+    wire.acis_index = 1;
+    wire.points = vec![
+        opencadcodec::types::Vector3::new(1.0, 0.0, 0.0),
+        opencadcodec::types::Vector3::new(0.0, 1.0, 0.0),
+    ];
+    solid.wires = vec![wire];
+
+    let mut doc = CadDocument::with_version(DxfVersion::AC1032);
+    // The properties-edit scenario: a document that was loaded from a
+    // DWG (so the constructed synthesis stays out) whose solid modeler
+    // data was replaced wholesale while the display wires remained.
+    doc.dwg_source_version = Some(DxfVersion::AC1032);
+    doc.add_entity(EntityType::Solid3D(solid)).unwrap();
+    let roundtrip = dwg_roundtrip(&doc);
+
+    let entity = roundtrip
+        .entities()
+        .find_map(|entity| match entity {
+            EntityType::Solid3D(solid) => Some(solid.clone()),
+            _ => None,
+        })
+        .expect("the solid survives");
+    let acis = &entity.acis_data;
+    assert!(
+        acis.wireframe_data_present,
+        "the wires-driven block stays present"
+    );
+    assert!(
+        acis.wireframe_point_present,
+        "the anchor flag normalizes to the authored form"
+    );
+    assert_eq!(acis.wireframe_isolines, 4, "the isoline count normalizes");
+    assert!(acis.wireframe_isoline_present, "the isoline flag normalizes");
+    assert!(acis.acis_empty_bit, "the empty bit normalizes");
+    assert_eq!(entity.wires.len(), 1, "the wire cache passes through");
+}
+
 /// The deep-compare wire-scenario sync (the 34c75d0 capture's test-side
 /// twin): every written SPLINE record carries a scenario BL â€” an
 /// authored capture re-emits verbatim, a constructed spline falls back

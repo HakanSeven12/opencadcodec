@@ -5858,11 +5858,28 @@ impl<'a> DwgObjectWriter<'a> {
         // centre for anchor-less wires), the isoline count, the empty
         // bit â€” the wires and silhouettes pass through as the cache they
         // are (authored files carry them).
+        // The block this record is about to emit is not in the authored
+        // genus (2026-10-08, the AutoCAD-2027 RECOVER failure on the
+        // Cylinder_PR1671 resave): a properties edit replaces the modeler
+        // data wholesale (`set_sat_document` -> `AcisData::from_sat`),
+        // resetting every captured wireframe flag while the entity keeps
+        // its display wires - so `write_acis_wireframe` emits a block
+        // driven by the wires alone: no anchor, no isolines, no
+        // terminator bit. No authored R2013+ ds-backed record carries
+        // that form (every measured fixture writes point_present +
+        // isolines=4 + acis_empty_bit whenever a block is present,
+        // whatever drives it - the captured flags, the isoline flag,
+        // wires or silhouettes), and the strict loaders refuse the whole
+        // solid over it. Gate on block emission, not on the captured
+        // present flag, so every degenerate mix normalizes.
         let degenerate_cache = acis.contributes_sab()
-            && acis.wireframe_data_present
             && !acis.wireframe_point_present
             && acis.wireframe_isolines == 0
-            && !acis.acis_empty_bit;
+            && !acis.acis_empty_bit
+            && (acis.wireframe_data_present
+                || acis.wireframe_isoline_present
+                || !wires.is_empty()
+                || !silhouettes.is_empty());
         if degenerate_cache {
             let mut normalized = acis.clone();
             normalized.wireframe_point_present = true;
