@@ -715,6 +715,7 @@ impl DwgDocumentBuilder {
         // populate the document tables.  This mirrors what the DXF
         // reader does in its TABLES section reader.
         let mut maps = HandleMaps::new();
+        let mut block_control_entries: Vec<u64> = Vec::new();
 
         // Parsed table entries collected for post-loop domain-object creation.
         // We collect first and create domain objects after the loop so that
@@ -1223,6 +1224,7 @@ impl DwgDocumentBuilder {
                             ParsedEntry::AppId(_, _) => {}
                             ParsedEntry::Vx(_, _) => {}
                             ParsedEntry::BlockControl(m, p, entries) => {
+                                block_control_entries = entries.clone();
                                 // Seed the authoritative active model/paper space
                                 // handles (used by the block-name dedup below).
                                 if *m != 0 {
@@ -1247,7 +1249,9 @@ impl DwgDocumentBuilder {
                                     handles.iter().copied().map(Handle::from).collect();
                             }
                         }
-                        // The block control is not a table record â€” don't store it.
+                
+
+        // The block control is not a table record â€” don't store it.
                         if !matches!(
                             entry,
                             ParsedEntry::BlockControl(..) | ParsedEntry::VxControl(..)
@@ -1293,6 +1297,29 @@ impl DwgDocumentBuilder {
         // the "active" model/paper space blocks, which keep their
         // canonical names.
         {
+
+            // Number bare anonymous names ("*U", "*D", ...) in BLOCK_CONTROL
+            // order before dedupe, the way AutoCAD does.
+            let anonymous_names = anonymous_block_names(&block_control_entries, &maps.blocks);
+            let anon_info: Vec<(usize, u64)> = parsed_entries
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, e)| {
+                    if let ParsedEntry::Block(h, _) = e {
+                        Some((idx, *h))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            for (idx, h) in anon_info {
+                if let Some(name) = anonymous_names.get(&h) {
+                    if let ParsedEntry::Block(_, ref mut data) = parsed_entries[idx] {
+                        data.name = name.clone();
+                    }
+                    maps.blocks.insert(h, name.clone());
+                }
+            }
             let active_model = document.header.model_space_block_handle;
             let active_paper = document.header.paper_space_block_handle;
 
@@ -8221,6 +8248,22 @@ impl DwgDocumentBuilder {
             .cloned()
             .unwrap_or_else(|| format!("DWG_OBJ_{}", raw_type_code))
     }
+}
+
+/// AutoCAD numbers bare anonymous names in BLOCK_CONTROL order. Ordinary
+/// records consume an ordinal too; dangling/erased entries do not. This is
+/// independent of object-handle order and excludes the control's two special
+/// model/paper-space pointers. Preserve names with an explicit stored suffix.
+fn anonymous_block_names(entries: &[u64], names: &std::collections::HashMap<u64, String>) -> std::collections::HashMap<u64, String> {
+    entries
+        .iter()
+        .filter_map(|handle| names.get(handle).map(|name| (handle, name)))
+        .enumerate()
+        .filter_map(|(ordinal, (handle, name))| {
+            (name.len() == 2 && name.starts_with('*'))
+                .then(|| (*handle, format!("{name}{ordinal}")))
+        })
+        .collect()
 }
 
 #[cfg(test)]
