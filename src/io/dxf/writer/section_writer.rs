@@ -5160,6 +5160,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             self.writer.write_i16(61, viewport.grid_major)?;
         }
 
+        // R2004+: per-viewport ShadePlot mode, independent of render mode.
+        if self.dxf_version >= DxfVersion::AC1018 {
+            self.writer.write_i16(170, viewport.shade_plot_mode)?;
+        }
+
         Ok(())
     }
 

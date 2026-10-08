@@ -16908,6 +16908,11 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 68 => vp.off_screen = pair.as_i16() == Some(-1),
+                170 => {
+                    if let Some(v) = pair.as_i16() {
+                        vp.shade_plot_mode = v;
+                    }
+                }
                 69 => {
                     if let Some(v) = pair.as_i16() {
                         vp.id = v;
