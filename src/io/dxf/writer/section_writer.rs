@@ -5068,7 +5068,13 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i16(69, id)?;
 
         // Status
-        self.writer.write_i32(90, viewport.status.to_bits())?;
+        let grid_bits = if self.dxf_version >= DxfVersion::AC1021 {
+            i32::from(viewport.grid_flags.to_bits()) << 18
+        } else {
+            0
+        };
+        self.writer
+            .write_i32(90, viewport.status.to_bits() | grid_bits)?;
 
         // View center
         self.writer.write_double(12, viewport.view_center.x)?;

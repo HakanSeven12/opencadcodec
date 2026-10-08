@@ -16905,6 +16905,9 @@ impl<'a> SectionReader<'a> {
                 90 => {
                     if let Some(v) = pair.as_i32() {
                         vp.status = crate::entities::viewport::ViewportStatusFlags::from_bits(v);
+                        // VIEWPORT grid behavior uses group-90 bits 18..21.
+                        vp.grid_flags =
+                            crate::entities::GridFlags::from_bits(((v >> 18) & 0xf) as i16);
                     }
                 }
                 68 => vp.off_screen = pair.as_i16() == Some(-1),

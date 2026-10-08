@@ -2213,7 +2213,12 @@ impl<'a> DwgObjectWriter<'a> {
         // Frozen layer count BL
         self.writer.write_bit_long(e.frozen_layers.len() as i32);
         // Status flags BL 90
-        self.writer.write_bit_long(e.status.to_bits());
+        let grid_bits = if self.version.r2007_plus() {
+            i32::from(e.grid_flags.to_bits()) << 18
+        } else {
+            0
+        };
+        self.writer.write_bit_long(e.status.to_bits() | grid_bits);
         // Style Sheet TV 1
         self.writer.write_variable_text(&e.style_sheet);
         // Render Mode RC 281

@@ -3991,6 +3991,10 @@ impl DwgDocumentBuilder {
                         e.grid_major = data.grid_major;
                     }
                     e.status = ViewportStatusFlags::from_bits(data.status_flags);
+                    // VIEWPORT grid behavior uses status bits 18..21.
+                    e.grid_flags = crate::entities::GridFlags::from_bits(
+                        ((data.status_flags >> 18) & 0xf) as i16,
+                    );
                     e.style_sheet = data.style_sheet;
                     e.render_mode = ViewportRenderMode::from_value(data.render_mode as i16);
                     e.ucs_at_origin = data.ucs_at_origin;
