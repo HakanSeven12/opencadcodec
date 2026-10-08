@@ -1,4 +1,4 @@
-﻿use opencadcodec::entities::Line;
+use opencadcodec::entities::Line;
 use opencadcodec::tables::Layer;
 use opencadcodec::xdata::{ExtendedDataRecord, XDataValue};
 use opencadcodec::{CadDocument, EntityType, Handle};
@@ -29,11 +29,11 @@ fn rename_layer_updates_references_and_current_handle() {
 #[test]
 fn rename_layer_allows_unicode_case_change() {
     let mut document = CadDocument::new();
-    document.layers.add(Layer::new("Ã©")).unwrap();
+    document.layers.add(Layer::new("é")).unwrap();
 
-    document.rename_layer("Ã©", "Ã‰").unwrap();
+    document.rename_layer("é", "É").unwrap();
 
-    assert_eq!(document.layers.get("Ã©").unwrap().name, "Ã‰");
+    assert_eq!(document.layers.get("é").unwrap().name, "É");
 }
 
 #[test]

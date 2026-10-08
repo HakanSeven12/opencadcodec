@@ -1,4 +1,4 @@
-﻿//! Regression test for issue #55.
+//! Regression test for issue #55.
 //!
 //! `read_file_header_ac15` used to infer the AcDbObjects region as
 //! `handles_seeker - aux_header_end`, assuming the AuxHeader physically
@@ -37,7 +37,7 @@ fn read_dwg(bytes: Vec<u8>) -> CadDocument {
 }
 
 /// Repack the file so the Template and AuxHeader sections physically sit at
-/// end-of-file, *after* the Handles section â€” the layout real-world R2000
+/// end-of-file, *after* the Handles section — the layout real-world R2000
 /// files use (issue #55).
 ///
 /// The section bytes are appended verbatim and only their locator seekers are
@@ -99,11 +99,11 @@ fn r2000_with_template_and_aux_header_after_handles_reads_fully() {
     );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════
 //  Secondary issue: legacy string encoding (code page + MIF escapes)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════
 //
-// Pre-Unicode DWG (R13â€“R2004) strings are stored in the code page recorded
+// Pre-Unicode DWG (R13–R2004) strings are stored in the code page recorded
 // in the file header (e.g. ANSI_936 / GBK), and characters outside that code
 // page are stored as MIF `\U+XXXX` escapes. The reader must apply both; the
 // writer must emit MIF escapes rather than `&#NNNNN;` references.
@@ -131,17 +131,17 @@ fn first_text_value(doc: &CadDocument) -> String {
 #[test]
 fn gbk_codepage_text_roundtrip() {
     // Chinese text with the GBK code page decodes back to the same characters.
-    // Â§19 H7g review: "ANSI_936" is codepage byte 39 (CP936/GBK) and now
-    // round-trips nameâ†’byteâ†’name identity-preserving â€” the historical
+    // §19 H7g review: "ANSI_936" is codepage byte 39 (CP936/GBK) and now
+    // round-trips name→byte→name identity-preserving — the historical
     // table conflated it with byte 31 (GB2312/EUC-CN) and renamed the
     // model on the way back. Byte 31 files keep the "GB2312" name.
-    let doc = text_document("ANSI_936", "ä¸­æ–‡æ–‡æœ¬");
+    let doc = text_document("ANSI_936", "中文文本");
     let rt = read_dwg(DwgWriter::write_to_vec(&doc).unwrap());
-    assert_eq!(first_text_value(&rt), "ä¸­æ–‡æ–‡æœ¬");
+    assert_eq!(first_text_value(&rt), "中文文本");
     assert_eq!(rt.header.code_page, "ANSI_936");
-    let doc = text_document("GB2312", "æµ‹è¯•");
+    let doc = text_document("GB2312", "测试");
     let rt = read_dwg(DwgWriter::write_to_vec(&doc).unwrap());
-    assert_eq!(first_text_value(&rt), "æµ‹è¯•");
+    assert_eq!(first_text_value(&rt), "测试");
     assert_eq!(rt.header.code_page, "GB2312");
 }
 
@@ -151,15 +151,15 @@ fn mif_escapes_in_dwg_strings_are_decoded() {
     // for any code page) must decode them into the actual characters.
     let doc = text_document("ANSI_936", "\\U+4E2D\\U+6587");
     let rt = read_dwg(DwgWriter::write_to_vec(&doc).unwrap());
-    assert_eq!(first_text_value(&rt), "ä¸­æ–‡");
+    assert_eq!(first_text_value(&rt), "中文");
 }
 
 #[test]
 fn unmappable_text_is_written_as_mif_escapes() {
     // Characters outside the (western) code page must be stored as MIF
-    // escapes â€” not encoding_rs' HTML `&#NNNNN;` references â€” and must
+    // escapes — not encoding_rs' HTML `&#NNNNN;` references — and must
     // decode back to the original text on read.
-    let doc = text_document("ANSI_1252", "ä¸­æ–‡A");
+    let doc = text_document("ANSI_1252", "中文A");
     let bytes = DwgWriter::write_to_vec(&doc).unwrap();
     let text = String::from_utf8_lossy(&bytes).into_owned();
     assert!(text.contains("\\U+4E2D"), "expected MIF escape in output");
@@ -169,7 +169,7 @@ fn unmappable_text_is_written_as_mif_escapes() {
     );
 
     let rt = read_dwg(bytes);
-    assert_eq!(first_text_value(&rt), "ä¸­æ–‡A");
+    assert_eq!(first_text_value(&rt), "中文A");
 }
 
 #[test]
@@ -177,18 +177,18 @@ fn gbk_layer_names_roundtrip() {
     // Layer table records carry their names as legacy text too.
     let mut doc = CadDocument::with_version(DxfVersion::AC1015);
     doc.header.code_page = "ANSI_936".to_string();
-    for name in ["ASCII_LAYER", "å›¾å±‚ä¸€", "å›¾å±‚äºŒ"] {
+    for name in ["ASCII_LAYER", "图层一", "图层二"] {
         let mut layer = Layer::new(name);
         layer.handle = doc.allocate_handle();
         layer.color = Color::from_index(1);
         doc.layers.add(layer).unwrap();
     }
-    let mut text = Text::with_value("æ–‡æœ¬", Vector3::new(0.0, 0.0, 0.0));
-    text.common.layer = "å›¾å±‚ä¸€".to_string();
+    let mut text = Text::with_value("文本", Vector3::new(0.0, 0.0, 0.0));
+    text.common.layer = "图层一".to_string();
     doc.add_entity(EntityType::Text(text)).unwrap();
 
     let rt = read_dwg(DwgWriter::write_to_vec(&doc).unwrap());
-    for name in ["ASCII_LAYER", "å›¾å±‚ä¸€", "å›¾å±‚äºŒ"] {
+    for name in ["ASCII_LAYER", "图层一", "图层二"] {
         assert!(
             rt.layers.get(name).is_some(),
             "layer {name:?} missing after DWG round-trip"
@@ -196,7 +196,7 @@ fn gbk_layer_names_roundtrip() {
     }
     for entity in rt.entities() {
         if let EntityType::Text(t) = entity {
-            assert_eq!(t.common.layer, "å›¾å±‚ä¸€", "entity layer assignment lost");
+            assert_eq!(t.common.layer, "图层一", "entity layer assignment lost");
         }
     }
 }
