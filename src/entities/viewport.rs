@@ -10,7 +10,10 @@ pub struct ViewportStatusFlags {
     /// Non-rectangular clipping activation, independent of boundary presence.
     #[cfg_attr(feature = "serde", serde(default))]
     pub non_rectangular_clipping: bool,
-    /// Viewport is on (visible)
+    /// Explicit viewport-off flag (0x20000), independent of the legacy on bit.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub is_off: bool,
+    /// Legacy on flag (0x8000); the explicit off flag takes precedence for visibility.
     pub is_on: bool,
     /// Perspective mode active
     pub perspective: bool,
@@ -60,6 +63,7 @@ impl ViewportStatusFlags {
     pub fn from_bits(bits: i32) -> Self {
         Self {
             non_rectangular_clipping: (bits & 0x10000) != 0,
+            is_off: (bits & 0x20000) != 0,
             perspective: (bits & (1 << 0)) != 0,
             front_clipping: (bits & (1 << 1)) != 0,
             back_clipping: (bits & (1 << 2)) != 0,
@@ -82,6 +86,9 @@ impl ViewportStatusFlags {
     /// Convert to the DWG/DXF viewport status bit-coded flags (group 90).
     pub fn to_bits(&self) -> i32 {
         let mut bits = 0;
+        if self.is_off {
+            bits |= 0x20000;
+        }
         if self.non_rectangular_clipping {
             bits |= 0x10000;
         }
@@ -471,16 +478,18 @@ impl Viewport {
     /// Turn viewport on
     pub fn turn_on(&mut self) {
         self.status.is_on = true;
+        self.status.is_off = false;
     }
 
     /// Turn viewport off
     pub fn turn_off(&mut self) {
         self.status.is_on = false;
+        self.status.is_off = true;
     }
 
     /// Check if viewport is on
     pub fn is_on(&self) -> bool {
-        self.status.is_on
+        self.status.is_on && !self.status.is_off
     }
 
     /// Add a frozen layer by handle
