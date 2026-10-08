@@ -478,24 +478,27 @@ impl DwgDocumentBuilder {
     /// 2. Read entities and objects → resolve handle references
     ///
     /// Returns collected notifications (skipped records, warnings).
-    /// Give every BLOCK marker the name and base point of the record that
-    /// owns it.
+    /// Give every BLOCK marker the name, base point and owner of the record
+    /// it opens.
     ///
     /// The marker and the `BlockRecord` are two views of one definition, and
     /// a consumer that reads both must not see them disagree. Pre-R2010
     /// anonymous copies of a dynamic block keep the source block's name on
     /// the marker; the record's name is the one inserts resolve to.
     fn hydrate_block_markers(document: &mut CadDocument) {
-        let records: Vec<(Handle, String, crate::types::Vector3)> = document
+        let records: Vec<(Handle, Handle, String, crate::types::Vector3)> = document
             .block_records
             .iter()
             .filter(|record| !record.block_entity_handle.is_null())
-            .map(|record| (record.block_entity_handle, record.name.clone(), record.base_point))
+            .map(|record| {
+                (record.block_entity_handle, record.handle, record.name.clone(), record.base_point)
+            })
             .collect();
-        for (handle, name, base_point) in records {
+        for (handle, record, name, base_point) in records {
             if let Some(EntityType::Block(marker)) = document.get_entity_mut(handle) {
                 marker.name = name;
                 marker.base_point = base_point;
+                marker.common.owner_handle = record;
             }
         }
     }
@@ -516,21 +519,43 @@ impl DwgDocumentBuilder {
         .ok()
     }
 
-    /// Number the active layout's viewports 1, 2, … in entity order (1 is
-    /// the overall paper-space viewport), as the DXF writer does. DWG keeps
-    /// no viewport IDs; a consumer telling the overall viewport from the
-    /// authored ones needs them (#67). Other layouts keep 0.
+    /// Number the active layout's viewports as the DXF writer does: 1 is the
+    /// overall paper-space viewport, the authored ones follow in entity order.
+    /// DWG keeps no viewport IDs; a consumer telling the overall viewport from
+    /// the authored ones needs them (#67). Other layouts keep 0.
+    ///
+    /// The overall viewport is the one the layout links to, else the first of
+    /// the layout's viewport list — it need not come first in entity order.
     fn number_active_viewports(document: &mut CadDocument) {
         let Some(paper) = document.block_records.get("*Paper_Space") else {
             return;
         };
-        let mut next_id = 1i16;
-        for handle in paper.entity_handles.clone() {
+        let paper_handle = paper.handle;
+        let viewports: Vec<Handle> = paper
+            .entity_handles
+            .iter()
+            .copied()
+            .filter(|handle| matches!(document.get_entity(*handle), Some(EntityType::Viewport(_))))
+            .collect();
+        let layout = document.objects.values().find_map(|object| match object {
+            crate::objects::ObjectType::Layout(layout) if layout.block_record == paper_handle => Some(layout),
+            _ => None,
+        });
+        let overall = layout
+            .and_then(|layout| {
+                std::iter::once(layout.viewport)
+                    .chain(layout.viewports.first().copied())
+                    .find(|handle| viewports.contains(handle))
+            })
+            .or_else(|| viewports.first().copied());
+        let order = overall
+            .into_iter()
+            .chain(viewports.iter().copied().filter(|handle| Some(*handle) != overall));
+        for (index, handle) in order.enumerate() {
             if let Some(EntityType::Viewport(viewport)) = document.get_entity_mut(handle) {
                 if viewport.id == 0 {
-                    viewport.id = next_id;
+                    viewport.id = i16::try_from(index + 1).unwrap_or(i16::MAX);
                 }
-                next_id = next_id.saturating_add(1);
             }
         }
     }
