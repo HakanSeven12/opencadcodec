@@ -1560,7 +1560,7 @@ impl DwgDocumentBuilder {
                     // conversion (the gh44-error LTYPE census): the
                     // pipe-named xref-dependent linetypes carry a real
                     // (5.2.x) target that the rewrite must replay.
-                    lt.xref_handle = Handle::from(data.xref_handle);
+                    lt.xref_block_record_handle = Handle::from(data.xref_handle);
                     lt.elements = data
                         .segments
                         .iter()

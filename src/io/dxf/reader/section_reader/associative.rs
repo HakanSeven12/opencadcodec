@@ -1008,7 +1008,7 @@ fn read_static_pers_subent_manager_dxf(record: &AssocDxfRecord) -> PersSubentMan
         associative_subent_count,
         steps,
         subents,
-        // §19 H8h-ext-6: the tail BLs are DWG-wire-only state (captured
+        // Â§19 H8h-ext-6: the tail BLs are DWG-wire-only state (captured
         // at DWG read); DXF documents carry no tail payload.
         tail_bls: Vec::new(),
     }
@@ -1218,7 +1218,7 @@ impl<'a> SectionReader<'a> {
                     parsed.next().unwrap_or_default(),
                     parsed.next().unwrap_or_default(),
                 ];
-                // §19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
+                // Â§19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
                 // order (between the markers and num_steps).
                 let bl1 = parsed.next().unwrap_or_default();
                 let bl2 = parsed.next().unwrap_or_default();
@@ -1239,7 +1239,7 @@ impl<'a> SectionReader<'a> {
                     bl2,
                     steps,
                     subents,
-                    // §19 H8h-ext-6: the remaining 90 values are the
+                    // Â§19 H8h-ext-6: the remaining 90 values are the
                     // undocumented tail BLs; the 290 code is the
                     // trailing B.
                     tail_bls: parsed.collect(),
@@ -1263,7 +1263,7 @@ impl<'a> SectionReader<'a> {
                     parameter: record.handle("AcDbAssocEdgeActionParam", 330, 0),
                     has_action: record.bool("AcDbAssocEdgeActionParam", 290, 0),
                     action_type,
-                    // §19 H8h-ext-4: the subcurve region is DWG-wire-only
+                    // Â§19 H8h-ext-4: the subcurve region is DWG-wire-only
                     // state (reverse-engineered from the AC1021 specimens);
                     // DXF documents carry no subcurve payload.
                     subcurve: None,
@@ -1621,6 +1621,15 @@ impl<'a> SectionReader<'a> {
             }
             "DIMASSOC" => {
                 AssociativeData::DimensionAssociation(read_dimension_association_dxf(&record))
+            }
+            "ACDBCENTERMARKACTIONBODY" | "ACDBCENTERLINEACTIONBODY" => {
+                AssociativeData::SmartCenterActionBody(AssocSmartCenterActionBody {
+                    action_body: AssocActionBody {
+                        version: record.i32("AcDbAssocActionBody", 90, 0),
+                    },
+                    parameter_body: read_parameter_body(&record),
+                    version: record.i32("AcDbSmartCenterActionBody", 90, 0),
+                })
             }
             "PERSUBENTMGR" => AssociativeData::PersSubentManagerStatic(
                 read_static_pers_subent_manager_dxf(&record),

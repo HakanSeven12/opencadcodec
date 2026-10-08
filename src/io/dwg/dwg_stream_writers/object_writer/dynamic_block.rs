@@ -1,4 +1,4 @@
-﻿use super::DwgObjectWriter;
+use super::DwgObjectWriter;
 use crate::io::dwg::dwg_reference_type::DwgReferenceType;
 use crate::objects::*;
 
@@ -93,8 +93,8 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer
                 .write_handle(DwgReferenceType::SoftPointer, handle.value());
         }
-        self.writer.write_bit_long(value.action_ids.len() as i32);
-        for id in &value.action_ids {
+        self.writer.write_bit_long(value.parameter_ids.len() as i32);
+        for id in &value.parameter_ids {
             self.writer.write_bit_long(*id);
         }
     }
@@ -136,9 +136,9 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_dynamic_offsets(&mut self, value: &BlockActionOffsets) {
-        self.writer.write_bit_double(value.offset_x);
-        self.writer.write_bit_double(value.offset_y);
+        self.writer.write_bit_double(value.distance_multiplier);
         self.writer.write_bit_double(value.angle_offset);
+        self.writer.write_byte(value.flags);
     }
 
     pub(super) fn write_dynamic_angular_constraint_entity(
@@ -688,12 +688,14 @@ impl<'a> DwgObjectWriter<'a> {
                 for expression in &value.expressions {
                     self.writer.write_variable_text(expression);
                 }
-                for row in &value.rows {
-                    for connection in &row.connections {
-                        self.write_dynamic_connection(connection);
-                    }
-                    self.writer.write_bit(row.flag_282);
-                    self.writer.write_bit(row.flag_281);
+                for column in &value.columns {
+                    self.writer.write_bit_long(column.node_id);
+                    self.writer.write_bit_long(column.value_type);
+                    self.writer.write_bit_long(column.property_type);
+                    self.writer.write_bit(column.lookup_property);
+                    self.writer.write_variable_text(&column.unmatched_name);
+                    self.writer.write_bit(column.writable);
+                    self.writer.write_variable_text(&column.connection_name);
                 }
                 self.writer.write_bit(value.flag_280);
             }

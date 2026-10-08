@@ -8,7 +8,7 @@
 //!
 //! - **Pre-R2007**: All data (including handle references) is written
 //!   sequentially to a single stream (two-stream merge: text is inline,
-//!   handles are appended at end — but for the header section the
+//!   handles are appended at end Ã¢â‚¬â€ but for the header section the
 //!   single-stream approach is used for legacy reasons).
 //! - **R2007+**: Uses three-stream merge (`DwgMergedWriter`):
 //!   text goes to a separate text sub-stream, handle references go to
@@ -29,9 +29,9 @@ use crate::io::dwg::dwg_version::DwgVersion;
 use crate::io::dwg::file_headers::section_definition::{end_sentinels, start_sentinels};
 use crate::types::{Color, DxfVersion, Handle, LineWeight, Vector2, Vector3};
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Writer wrapper — dispatches to DwgBitWriter or DwgMergedWriter
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+//  Writer wrapper Ã¢â‚¬â€ dispatches to DwgBitWriter or DwgMergedWriter
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 /// Internal writer that uses DwgBitWriter for pre-R2007 and DwgMergedWriter
 /// (three-stream merge) for R2007+ (AC1021+). This ensures that for R2007+,
@@ -66,7 +66,7 @@ impl SectionWriter {
         SectionWriter { inner }
     }
 
-    // ── Main-stream data writes ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Main-stream data writes Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_bit(&mut self, value: bool) {
         match &mut self.inner {
@@ -132,7 +132,7 @@ impl SectionWriter {
     }
 
     /// Write a CmColor from its retained raw parts, re-emitting the wire
-    /// form verbatim (§19 H7): the wire BS index, the raw rgb word, the
+    /// form verbatim (Ã‚Â§19 H7): the wire BS index, the raw rgb word, the
     /// validated flag byte and the name/book-name strings behind its
     /// bits. Composed from the main-stream primitives so the text
     /// sub-stream routing (R2007+) follows `write_variable_text`.
@@ -166,7 +166,7 @@ impl SectionWriter {
         }
     }
 
-    // ── Text writes: route to text sub-stream for R2007+ ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Text writes: route to text sub-stream for R2007+ Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_variable_text(&mut self, value: &str) {
         match &mut self.inner {
@@ -175,9 +175,9 @@ impl SectionWriter {
         }
     }
 
-    // ── Handle writes: route to handle sub-stream for R2007+ ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Handle writes: route to handle sub-stream for R2007+ Ã¢â€â‚¬Ã¢â€â‚¬
 
-    /// Write handle reference — goes to handle sub-stream for R2007+.
+    /// Write handle reference Ã¢â‚¬â€ goes to handle sub-stream for R2007+.
     fn write_handle_ref(&mut self, ref_type: DwgReferenceType, handle: Handle) {
         match &mut self.inner {
             SectionWriterInner::BitWriter(w) => w.write_handle(ref_type, handle.value()),
@@ -185,9 +185,9 @@ impl SectionWriter {
         }
     }
 
-    /// Write a handle reference from its retained raw form (§19 H7
+    /// Write a handle reference from its retained raw form (Ã‚Â§19 H7
     /// review): the raw-only slots re-emit the captured wire tuple
-    /// verbatim — same code, same counter size, same payload — instead
+    /// verbatim Ã¢â‚¬â€ same code, same counter size, same payload Ã¢â‚¬â€ instead
     /// of a recomputed canonical HardPointer/absolute form (corpus-neutral
     /// today: every corpus header handle already is the canonical form,
     /// but a future authored non-canonical form would round-trip).
@@ -198,7 +198,7 @@ impl SectionWriter {
         }
     }
 
-    /// Write HANDSEED — always goes to the MAIN stream, even for R2007+.
+    /// Write HANDSEED Ã¢â‚¬â€ always goes to the MAIN stream, even for R2007+.
     /// This matches C#: `this._writer.Main.HandleReference(...)`.
     fn write_handle_seed(&mut self, handle_seed: u64) {
         match &mut self.inner {
@@ -228,9 +228,9 @@ impl SectionWriter {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 //  Public API
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 /// Write the complete Header section.
 ///
@@ -264,7 +264,7 @@ pub fn write_header_with_encoding(
 }
 
 /// Write the complete Header section, splicing the retained raw mirror
-/// (§19 H7) into every slot the model does not carry: the unmodeled
+/// (Ã‚Â§19 H7) into every slot the model does not carry: the unmodeled
 /// fields re-emit their wire values verbatim instead of writer defaults,
 /// so a read-modify-write roundtrip preserves the original bits. The
 /// modeled fields keep the model path (the `prepare_header` syncs and
@@ -283,9 +283,9 @@ pub fn write_header_with_encoding_opt(
     wrap_with_sentinels_and_crc(version, maintenance_version, &section_data)
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 //  Sentinel + CRC wrapper (same pattern as classes_writer)
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 fn wrap_with_sentinels_and_crc(
     version: DxfVersion,
@@ -320,9 +320,9 @@ fn wrap_with_sentinels_and_crc(
     output
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 //  Version-range helpers
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 #[inline]
 fn r13_14_only(v: DxfVersion) -> bool {
@@ -359,16 +359,16 @@ fn r2013_plus(v: DxfVersion) -> bool {
     v >= DxfVersion::AC1027
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 //  Julian date helpers
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 fn julian_to_day_ms(julian: f64) -> (i32, i32) {
     let day = julian as i32;
     let fraction = julian - day as f64;
     // Round, not truncate: the f64 days+ms/86400000 roundtrip carries a
-    // tiny representation error (113000 ms → 112999.9999…) — truncation
-    // lost 1 ms per span (§19 H7: the TDINDWG/TDUSRTIMER off-by-ones).
+    // tiny representation error (113000 ms Ã¢â€ â€™ 112999.9999Ã¢â‚¬Â¦) Ã¢â‚¬â€ truncation
+    // lost 1 ms per span (Ã‚Â§19 H7: the TDINDWG/TDUSRTIMER off-by-ones).
     let ms = ((fraction * 86_400_000.0).round() as i32).clamp(0, 86_399_999);
     (day, ms)
 }
@@ -380,14 +380,14 @@ fn timespan_to_day_ms(days_fraction: f64) -> (i32, i32) {
     (days, ms)
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Header field writer — the big one (~200 fields)
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+//  Header field writer Ã¢â‚¬â€ the big one (~200 fields)
 //
-//  The unmodeled slots splice the retained raw mirror (`raw`, §19 H7)
-//  when present — re-emitting the wire values verbatim — and fall back
+//  The unmodeled slots splice the retained raw mirror (`raw`, Ã‚Â§19 H7)
+//  when present Ã¢â‚¬â€ re-emitting the wire values verbatim Ã¢â‚¬â€ and fall back
 //  to the historical default constants for programmatic documents
 //  (`raw = None`). The modeled slots always write the model.
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 fn write_header_fields(
     w: &mut SectionWriter,
@@ -413,7 +413,7 @@ fn write_header_fields(
         };
     }
     // The raw-only handle slots re-emit the retained wire tuple
-    // verbatim (§19 H7 review) — a null-handle default for the
+    // verbatim (Ã‚Â§19 H7 review) Ã¢â‚¬â€ a null-handle default for the
     // programmatic documents.
     macro_rules! splice_handle_raw {
         ($field:ident) => {
@@ -429,7 +429,7 @@ fn write_header_fields(
         w.write_bit_long_long(h.required_versions);
     }
 
-    // ── Unit conversions (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Unit conversions (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_bit_double(splice!(unit1_ratio, 412148564080.0));
     w.write_bit_double(splice!(unit2_ratio, 1.0));
     w.write_bit_double(splice!(unit3_ratio, 1.0));
@@ -443,7 +443,7 @@ fn write_header_fields(
     w.write_bit_long(splice!(unknown_8, 24) as u32 as i32);
     w.write_bit_long(splice!(unknown_9, 0) as u32 as i32);
 
-    // R13-R14 Only: BS unknown_10 (§19 H7 — replay the captured wire
+    // R13-R14 Only: BS unknown_10 (Ã‚Â§19 H7 Ã¢â‚¬â€ replay the captured wire
     // value; 256 = the '11' code on the R14 genus)
     if r13_14_only(v) {
         w.write_bit_short(splice!(unknown_10, 0) as u16 as i16);
@@ -454,7 +454,7 @@ fn write_header_fields(
         w.write_handle_ref(DwgReferenceType::HardPointer, h.current_vx_handle);
     }
 
-    // ── Drawing mode flags (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Drawing mode flags (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_bit(h.associate_dimensions);
     w.write_bit(h.update_dimensions_while_dragging);
 
@@ -512,7 +512,7 @@ fn write_header_fields(
         w.write_bit_short(h.drag_mode);
     }
 
-    // ── Unit settings (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Unit settings (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_bit_short(h.tree_depth);
     w.write_bit_short(h.linear_unit_format);
     w.write_bit_short(h.linear_unit_precision);
@@ -562,7 +562,7 @@ fn write_header_fields(
     w.write_bit_short(h.multiline_justification);
     w.write_bit_short(h.text_quality);
 
-    // ── Scale/size defaults (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Scale/size defaults (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_bit_double(h.linetype_scale);
     w.write_bit_double(h.text_height);
     w.write_bit_double(h.trace_width);
@@ -587,7 +587,7 @@ fn write_header_fields(
 
     w.write_variable_text(&h.menu_name);
 
-    // ── Date/time (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Date/time (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     let (cd, cms) = julian_to_day_ms(h.create_date_julian);
     w.write_datetime(cd, cms);
     let (ud, ums) = julian_to_day_ms(h.update_date_julian);
@@ -604,13 +604,13 @@ fn write_header_fields(
     let (ued, uems) = timespan_to_day_ms(h.user_elapsed_time);
     w.write_timespan(ued, uems);
 
-    // ── Current entity color ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Current entity color Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_cm_color(&h.current_entity_color);
 
-    // ── HANDSEED — always main stream ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ HANDSEED Ã¢â‚¬â€ always main stream Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_handle_seed(h.handle_seed);
 
-    // ── Style/layer/linetype handles ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Style/layer/linetype handles Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_handle_ref(DwgReferenceType::HardPointer, h.current_layer_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.current_text_style_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.current_linetype_handle);
@@ -629,7 +629,7 @@ fn write_header_fields(
         w.write_bit_double(h.viewport_scale_factor);
     }
 
-    // ── Paper space extents/limits/UCS ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Paper space extents/limits/UCS Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_3bit_double(h.paper_space_insertion_base);
     w.write_3bit_double(h.paper_space_extents_min);
     w.write_3bit_double(h.paper_space_extents_max);
@@ -650,7 +650,7 @@ fn write_header_fields(
         // PUCSBASE
         splice_handle_raw!(pucsbase);
 
-        // Paper space orthographic origins (6 × 3BD)
+        // Paper space orthographic origins (6 Ãƒâ€” 3BD)
         w.write_3bit_double(splice_pt!(raw, pucsorgtop));
         w.write_3bit_double(splice_pt!(raw, pucsorgbottom));
         w.write_3bit_double(splice_pt!(raw, pucsorgleft));
@@ -659,7 +659,7 @@ fn write_header_fields(
         w.write_3bit_double(splice_pt!(raw, pucsorgback));
     }
 
-    // ── Model space extents/limits/UCS ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Model space extents/limits/UCS Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_3bit_double(h.model_space_insertion_base);
     w.write_3bit_double(h.model_space_extents_min);
     w.write_3bit_double(h.model_space_extents_max);
@@ -680,7 +680,7 @@ fn write_header_fields(
         // UCSBASE
         splice_handle_raw!(ucsbase);
 
-        // Model space orthographic origins (6 × 3BD)
+        // Model space orthographic origins (6 Ãƒâ€” 3BD)
         w.write_3bit_double(splice_pt!(raw, ucsorgtop));
         w.write_3bit_double(splice_pt!(raw, ucsorgbottom));
         w.write_3bit_double(splice_pt!(raw, ucsorgleft));
@@ -693,7 +693,7 @@ fn write_header_fields(
         w.write_variable_text(&h.dim_alt_post);
     }
 
-    // ── Dimension variables (R13-R14 Only block) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dimension variables (R13-R14 Only block) Ã¢â€â‚¬Ã¢â€â‚¬
     if r13_14_only(v) {
         w.write_bit(h.dim_tolerance);
         w.write_bit(h.dim_limits);
@@ -729,7 +729,7 @@ fn write_header_fields(
         w.write_handle_ref(DwgReferenceType::HardPointer, h.dim_text_style_handle);
     }
 
-    // ── Dimension variables (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dimension variables (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_bit_double(h.dim_scale);
     w.write_bit_double(h.dim_arrow_size);
     w.write_bit_double(h.dim_ext_line_offset);
@@ -743,7 +743,7 @@ fn write_header_fields(
     // R2007+ dimension extras
     if r2007_plus(v) {
         w.write_bit_double(splice!(dimfxl, 0.0)); // DIMFXL
-        w.write_bit_double(splice!(dimjogang, 0.7854)); // DIMJOGANG (default 45°)
+        w.write_bit_double(splice!(dimjogang, 0.7854)); // DIMJOGANG (default 45Ã‚Â°)
         w.write_bit_short(splice!(dimtfill, 0) as u16 as i16); // DIMTFILL
         match raw.and_then(|r| r.dimtfillclr.as_ref()) {
             Some(cmc) => w.write_cm_color_raw(cmc),
@@ -768,7 +768,7 @@ fn write_header_fields(
         w.write_bit_short(splice!(dimarcsym, 0) as u16 as i16); // DIMARCSYM
     }
 
-    // ── Dimension sizes (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dimension sizes (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_bit_double(h.dim_text_height);
     w.write_bit_double(h.dim_center_mark);
     w.write_bit_double(h.dim_tick_size);
@@ -798,7 +798,7 @@ fn write_header_fields(
         w.write_bit(h.dim_suppress_outside_ext);
     }
 
-    // ── Dimension colors (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dimension colors (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_cm_color(&h.dim_line_color);
     w.write_cm_color(&h.dim_ext_line_color);
     w.write_cm_color(&h.dim_text_color);
@@ -862,7 +862,7 @@ fn write_header_fields(
         w.write_bit_short(h.dim_ext_line_weight);
     }
 
-    // ── Table control object handles (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Table control object handles (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_handle_ref(DwgReferenceType::HardOwnership, h.block_control_handle);
     w.write_handle_ref(DwgReferenceType::HardOwnership, h.layer_control_handle);
     w.write_handle_ref(DwgReferenceType::HardOwnership, h.style_control_handle);
@@ -878,7 +878,7 @@ fn write_header_fields(
         w.write_handle_ref(DwgReferenceType::HardOwnership, h.vpent_hdr_control_handle);
     }
 
-    // ── Dictionary handles (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dictionary handles (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_handle_ref(DwgReferenceType::HardPointer, h.acad_group_dict_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.acad_mlinestyle_dict_handle);
     w.write_handle_ref(DwgReferenceType::HardOwnership, h.named_objects_dict_handle);
@@ -969,14 +969,14 @@ fn write_header_fields(
         w.write_variable_text(&h.project_name);
     }
 
-    // ── Block record / linetype handles (Common) ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Block record / linetype handles (Common) Ã¢â€â‚¬Ã¢â€â‚¬
     w.write_handle_ref(DwgReferenceType::HardPointer, h.paper_space_block_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.model_space_block_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.bylayer_linetype_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.byblock_linetype_handle);
     w.write_handle_ref(DwgReferenceType::HardPointer, h.continuous_linetype_handle);
 
-    // ── R2007+ extended fields ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ R2007+ extended fields Ã¢â€â‚¬Ã¢â€â‚¬
     if r2007_plus(v) {
         w.write_bit(h.camera_display);
         w.write_bit_long(splice!(unknown_21, 0) as u32 as i32); // unknown
@@ -985,12 +985,12 @@ fn write_header_fields(
 
         w.write_bit_double(h.steps_per_second);
         w.write_bit_double(h.step_size);
-        w.write_bit_double(splice!(_3ddwfprec, 2.0)); // 3DDWFPREC — valid range 1..6
+        w.write_bit_double(splice!(_3ddwfprec, 2.0)); // 3DDWFPREC Ã¢â‚¬â€ valid range 1..6
         w.write_bit_double(h.lens_length);
         w.write_bit_double(h.camera_height);
         w.write_byte(u8::from(h.record_solid_history));
         w.write_byte(h.show_solid_history.clamp(0, 2) as u8);
-        w.write_bit_double(splice!(psolwidth, 0.25)); // PSOLWIDTH — valid range >0
+        w.write_bit_double(splice!(psolwidth, 0.25)); // PSOLWIDTH Ã¢â‚¬â€ valid range >0
         w.write_bit_double(splice!(psolheight, 0.25)); // PSOLHEIGHT
         w.write_bit_double(h.loft_angle1);
         w.write_bit_double(h.loft_angle2);
@@ -1004,8 +1004,8 @@ fn write_header_fields(
         w.write_bit_long(h.timezone);
         w.write_byte(splice!(lightglyphdisplay, 0) as u8); // LIGHTGLYPHDISPLAY
         w.write_byte(splice!(tilemodelightsynch, 1) as u8); // TILEMODELIGHTSYNCH
-        w.write_byte(splice!(dwfframe, 0) as u8); // DWFFRAME
-        w.write_byte(splice!(dgnframe, 0) as u8); // DGNFRAME
+        w.write_byte(splice!(dwfframe, h.dwf_frame.clamp(0, 2) as i64) as u8); // DWFFRAME
+        w.write_byte(splice!(dgnframe, h.dgn_frame.clamp(0, 2) as i64) as u8); // DGNFRAME
 
         w.write_bit(splice!(realworldscale, 0) != 0); // REALWORLDSCALE
 
@@ -1022,14 +1022,14 @@ fn write_header_fields(
         w.write_bit_double(h.shadow_plane_location);
     }
 
-    // ── R14+ trailing fields ──
+    // Ã¢â€â‚¬Ã¢â€â‚¬ R14+ trailing fields Ã¢â€â‚¬Ã¢â€â‚¬
     if v >= DxfVersion::AC1014 {
         w.write_bit_short(splice!(unknown_54, -1) as u16 as i16);
         w.write_bit_short(splice!(unknown_55, -1) as u16 as i16);
         w.write_bit_short(splice!(unknown_56, -1) as u16 as i16);
         w.write_bit_short(splice!(unknown_57, -1) as u16 as i16);
 
-        // R2004+: the three undocumented trailing slots (§19 H7 review) —
+        // R2004+: the three undocumented trailing slots (Ã‚Â§19 H7 review) Ã¢â‚¬â€
         // spliced from the raw mirror (the reader's retained walk values);
         // the historical 0/0/false stays the programmatic default.
         if r2004_plus(v) {
@@ -1040,9 +1040,9 @@ fn write_header_fields(
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 //  Tests
-// ════════════════════════════════════════════════════════════════════════════
+// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 #[cfg(test)]
 mod tests {

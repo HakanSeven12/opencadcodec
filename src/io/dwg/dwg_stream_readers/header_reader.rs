@@ -14,9 +14,9 @@ use crate::io::dwg::dwg_version::DwgVersion;
 use crate::io::dwg::file_headers::section_definition::start_sentinels;
 use crate::types::{DxfVersion, Handle, LineWeight};
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Version-range helpers (same as header_writer)
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[inline]
 fn r13_14_only(v: DxfVersion) -> bool {
@@ -47,9 +47,9 @@ fn r2013_plus(v: DxfVersion) -> bool {
     v >= DxfVersion::AC1027
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Julian date helpers
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn day_ms_to_julian(day: i32, ms: i32) -> f64 {
     day as f64 + (ms as f64 / 86_400_000.0)
@@ -59,9 +59,9 @@ fn day_ms_to_timespan(days: i32, ms: i32) -> f64 {
     days as f64 + (ms as f64 / 86_400_000.0)
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Reader abstraction (pre-R2007 = inline, R2007+ = three-stream merge)
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Abstraction over single-stream (pre-R2007) and merged (R2007+) reading.
 ///
@@ -164,7 +164,7 @@ impl SectionReader {
         }
     }
     /// Read a handle reference retaining the wire form `(code, size,
-    /// value, absolute)` (§19 H3 raw retention).
+    /// value, absolute)` (Â§19 H3 raw retention).
     fn read_handle_raw(&mut self) -> (u8, u8, u64, u64) {
         match &mut self.inner {
             SectionReaderInner::BitReader(r) => r.read_handle_raw(),
@@ -182,7 +182,7 @@ impl SectionReader {
         }
     }
 
-    /// Read a CmColor retaining the raw wire parts (§19 H3 raw retention).
+    /// Read a CmColor retaining the raw wire parts (Â§19 H3 raw retention).
     fn read_cm_color_raw(&mut self) -> crate::document::DwgRawCmc {
         match &mut self.inner {
             SectionReaderInner::BitReader(r) => r.read_cm_color_raw(),
@@ -203,15 +203,15 @@ impl SectionReader {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Public API
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Read the complete Header section from raw bytes (including sentinels).
 ///
 /// # Returns
 /// `HeaderVariables` populated with all header variables, plus the
-/// gold-JSON-mirror `DwgHeaderRaw` (§19 H3) retained from the same walk.
+/// gold-JSON-mirror `DwgHeaderRaw` (Â§19 H3) retained from the same walk.
 pub fn read_header(
     data: &[u8],
     version: DxfVersion,
@@ -231,7 +231,7 @@ pub fn read_header_with_encoding(
     maintenance_version: u8,
     encoding: &'static encoding_rs::Encoding,
 ) -> Result<(HeaderVariables, crate::document::DwgHeaderRaw)> {
-    // ── Verify start sentinel ──
+    // â”€â”€ Verify start sentinel â”€â”€
     if data.len() < 36 {
         return Err(DxfError::Parse("Header section too short".to_string()));
     }
@@ -241,7 +241,7 @@ pub fn read_header_with_encoding(
         ));
     }
 
-    // ── Read section size ──
+    // â”€â”€ Read section size â”€â”€
     let mut size_offset = 16;
     let section_size = i32::from_le_bytes([
         data[size_offset],
@@ -270,9 +270,9 @@ pub fn read_header_with_encoding(
     Ok((h, raw))
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  Header field reader — the big one (~200 fields, inverse of writer)
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Header field reader â€” the big one (~200 fields, inverse of writer)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn read_header_fields(
     r: &mut SectionReader,
@@ -287,7 +287,7 @@ fn read_header_fields(
         raw.required_versions = Some(t as u64 as i64);
     }
 
-    // ── Unit conversions (Common) ──
+    // â”€â”€ Unit conversions (Common) â”€â”€
     raw.unit1_ratio = Some(r.read_bit_double());
     raw.unit2_ratio = Some(r.read_bit_double());
     raw.unit3_ratio = Some(r.read_bit_double());
@@ -314,7 +314,7 @@ fn read_header_fields(
         raw.vx_table_record = Some(t.into());
     }
 
-    // ── Drawing mode flags (Common) ──
+    // â”€â”€ Drawing mode flags (Common) â”€â”€
     let t = r.read_bit();
     h.associate_dimensions = t;
     raw.dimaso = Some(t as i64);
@@ -421,7 +421,7 @@ fn read_header_fields(
         raw.dragmode = Some(t as u16 as i64);
     }
 
-    // ── Unit settings (Common) ──
+    // â”€â”€ Unit settings (Common) â”€â”€
     let t = r.read_bit_short(); // TREEDEPTH (BSd)
     h.tree_depth = t;
     raw.treedepth = Some(t as i64);
@@ -527,7 +527,7 @@ fn read_header_fields(
     h.text_quality = t;
     raw.textqlty = Some(t as u16 as i64);
 
-    // ── Scale/size defaults (Common) ──
+    // â”€â”€ Scale/size defaults (Common) â”€â”€
     let t = r.read_bit_double();
     h.linetype_scale = t;
     raw.ltscale = Some(t);
@@ -596,8 +596,8 @@ fn read_header_fields(
     h.menu_name = t.clone();
     raw.menu = Some(t);
 
-    // ── Date/time (Common) ── gold's FIELD_TIMEBLL prints [days, ms] as
-    // unsigned BL (PRIu32) — cast the 32-bit words unsigned.
+    // â”€â”€ Date/time (Common) â”€â”€ gold's FIELD_TIMEBLL prints [days, ms] as
+    // unsigned BL (PRIu32) â€” cast the 32-bit words unsigned.
     let (cd, cms) = r.read_datetime();
     h.create_date_julian = day_ms_to_julian(cd, cms);
     raw.tducreate = Some([cd as u32 as i64, cms as u32 as i64]);
@@ -618,7 +618,7 @@ fn read_header_fields(
     h.user_elapsed_time = day_ms_to_timespan(ued, uems);
     raw.tdusrtimer = Some([ued as u32 as i64, uems as u32 as i64]);
 
-    // ── Current entity color ──
+    // â”€â”€ Current entity color â”€â”€
     let cmc = r.read_cm_color_raw();
     h.current_entity_color = if v >= DxfVersion::AC1018 {
         cmc.to_color()
@@ -627,14 +627,14 @@ fn read_header_fields(
     };
     raw.cecolor = Some(cmc);
 
-    // ── HANDSEED ──
+    // â”€â”€ HANDSEED â”€â”€
     // HANDSEED is written to the main stream (not the handle sub-stream),
     // so we must read it inline from the main stream.
     let t = r.read_handle_inline_raw();
     h.handle_seed = t.3;
     raw.handseed = Some(t.into());
 
-    // ── Style/layer/linetype handles ──
+    // â”€â”€ Style/layer/linetype handles â”€â”€
     let t = r.read_handle_raw();
     h.current_layer_handle = Handle::new(t.3);
     raw.clayer = Some(t.into());
@@ -664,7 +664,7 @@ fn read_header_fields(
         raw.psvpscale = Some(t);
     }
 
-    // ── Paper space extents/limits/UCS ──
+    // â”€â”€ Paper space extents/limits/UCS â”€â”€
     let t = r.read_3bit_double();
     h.paper_space_insertion_base = t;
     raw.pinsbase = Some([t.x, t.y, t.z]);
@@ -705,7 +705,7 @@ fn read_header_fields(
         raw.pucsorthoview = Some(t as u16 as i64);
         raw.pucsbase = Some(r.read_handle_raw().into());
 
-        // Paper space orthographic origins (6 × 3BD)
+        // Paper space orthographic origins (6 Ã— 3BD)
         let t = r.read_3bit_double();
         raw.pucsorgtop = Some([t.x, t.y, t.z]);
         let t = r.read_3bit_double();
@@ -720,7 +720,7 @@ fn read_header_fields(
         raw.pucsorgback = Some([t.x, t.y, t.z]);
     }
 
-    // ── Model space extents/limits/UCS ──
+    // â”€â”€ Model space extents/limits/UCS â”€â”€
     let t = r.read_3bit_double();
     h.model_space_insertion_base = t;
     raw.insbase = Some([t.x, t.y, t.z]);
@@ -761,7 +761,7 @@ fn read_header_fields(
         raw.ucsorthoview = Some(t as u16 as i64);
         raw.ucsbase = Some(r.read_handle_raw().into());
 
-        // Model space orthographic origins (6 × 3BD)
+        // Model space orthographic origins (6 Ã— 3BD)
         let t = r.read_3bit_double();
         raw.ucsorgtop = Some([t.x, t.y, t.z]);
         let t = r.read_3bit_double();
@@ -784,7 +784,7 @@ fn read_header_fields(
         raw.dimapost = Some(t);
     }
 
-    // ── Dimension variables (R13-R14 Only block) ──
+    // â”€â”€ Dimension variables (R13-R14 Only block) â”€â”€
     if r13_14_only(v) {
         let t = r.read_bit();
         h.dim_tolerance = t;
@@ -878,7 +878,7 @@ fn read_header_fields(
         raw.dimtxsty = Some(t.into());
     }
 
-    // ── Dimension variables (Common) ──
+    // â”€â”€ Dimension variables (Common) â”€â”€
     let t = r.read_bit_double();
     h.dim_scale = t;
     raw.dimscale = Some(t);
@@ -950,7 +950,7 @@ fn read_header_fields(
         raw.dimarcsym = Some(r.read_bit_short() as u16 as i64);
     }
 
-    // ── Dimension sizes (Common) ──
+    // â”€â”€ Dimension sizes (Common) â”€â”€
     let t = r.read_bit_double();
     h.dim_text_height = t;
     raw.dimtxt = Some(t);
@@ -1020,7 +1020,7 @@ fn read_header_fields(
         raw.dimsoxd = Some(t as i64);
     }
 
-    // ── Dimension colors (Common) ──
+    // â”€â”€ Dimension colors (Common) â”€â”€
     let cmc = r.read_cm_color_raw();
     h.dim_line_color = if v >= DxfVersion::AC1018 { cmc.to_color() } else { cmc.index_color() };
     raw.dimclrd = Some(cmc);
@@ -1140,7 +1140,7 @@ fn read_header_fields(
         raw.dimlwe = Some(t as i16 as i64);
     }
 
-    // ── Table control object handles (Common) ──
+    // â”€â”€ Table control object handles (Common) â”€â”€
     let t = r.read_handle_raw();
     h.block_control_handle = Handle::new(t.3);
     raw.block_control_object = Some(t.into());
@@ -1176,7 +1176,7 @@ fn read_header_fields(
         raw.vx_control_object = Some(t.into());
     }
 
-    // ── Dictionary handles (Common) ──
+    // â”€â”€ Dictionary handles (Common) â”€â”€
     let t = r.read_handle_raw();
     h.acad_group_dict_handle = Handle::new(t.3);
     raw.dictionary_acad_group = Some(t.into());
@@ -1284,10 +1284,10 @@ fn read_header_fields(
         raw.halogap = Some(t as i64);
         let t = r.read_bit_short();
         h.obscured_color = t;
-        raw.obscolor = Some(t as u16 as i64); // FIELD_BS — unsigned print
+        raw.obscolor = Some(t as u16 as i64); // FIELD_BS â€” unsigned print
         let t = r.read_bit_short();
         h.intersection_color = t;
-        raw.intersectioncolor = Some(t as u16 as i64); // FIELD_BS — unsigned print
+        raw.intersectioncolor = Some(t as u16 as i64); // FIELD_BS â€” unsigned print
         let t = r.read_byte() as i16;
         h.obscured_linetype = t;
         raw.obsltype = Some(t as i64);
@@ -1300,7 +1300,7 @@ fn read_header_fields(
         raw.projectname = Some(t);
     }
 
-    // ── Block record / linetype handles (Common) ──
+    // â”€â”€ Block record / linetype handles (Common) â”€â”€
     let t = r.read_handle_raw();
     h.paper_space_block_handle = Handle::new(t.3);
     raw.block_record_pspace = Some(t.into());
@@ -1317,7 +1317,7 @@ fn read_header_fields(
     h.continuous_linetype_handle = Handle::new(t.3);
     raw.ltype_continuous = Some(t.into());
 
-    // ── R2007+ extended fields ──
+    // â”€â”€ R2007+ extended fields â”€â”€
     if r2007_plus(v) {
         let t = r.read_bit();
         h.camera_display = t;
@@ -1379,8 +1379,10 @@ fn read_header_fields(
         raw.timezone = Some(t as i64); // BLd (signed)
         raw.lightglyphdisplay = Some(r.read_byte() as i64);
         raw.tilemodelightsynch = Some(r.read_byte() as i64);
-        raw.dwfframe = Some(r.read_byte() as i64);
-        raw.dgnframe = Some(r.read_byte() as i64);
+        h.dwf_frame = r.read_byte() as i16;
+        h.dgn_frame = r.read_byte() as i16;
+        raw.dwfframe = Some(h.dwf_frame as i64);
+        raw.dgnframe = Some(h.dgn_frame as i64);
 
         raw.realworldscale = Some(r.read_bit() as i64); // REALWORLDSCALE
 
@@ -1396,7 +1398,7 @@ fn read_header_fields(
         raw.shadowplanelocation = Some(t);
     }
 
-    // ── R14+ trailing fields ──
+    // â”€â”€ R14+ trailing fields â”€â”€
     if v >= DxfVersion::AC1014 {
         raw.unknown_54 = Some(r.read_bit_short() as u16 as i64);
         raw.unknown_55 = Some(r.read_bit_short() as u16 as i64);
@@ -1404,7 +1406,7 @@ fn read_header_fields(
         raw.unknown_57 = Some(r.read_bit_short() as u16 as i64);
 
         // R2004+: three undocumented trailing slots gold does not emit;
-        // retained raw (§19 H7 review) so the writer re-emits the wire
+        // retained raw (Â§19 H7 review) so the writer re-emits the wire
         // values verbatim instead of defaulting 0/0/false.
         if r2004_plus(v) {
             raw.unknown_tail_long1 = Some(r.read_bit_long() as u32 as i64);
@@ -1414,9 +1416,9 @@ fn read_header_fields(
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Tests
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[cfg(test)]
 mod tests {
@@ -1439,7 +1441,7 @@ mod tests {
         assert!((read.dim_scale - original.dim_scale).abs() < 1e-10);
         assert!((read.dim_arrow_size - original.dim_arrow_size).abs() < 1e-10);
 
-        // §19 H3: the raw mirror is version-gated by population.
+        // Â§19 H3: the raw mirror is version-gated by population.
         assert_eq!(raw.version, "AC1015");
         assert!(raw.tstackalign.is_some());
         assert!(raw.menu.is_some());

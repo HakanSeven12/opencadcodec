@@ -806,7 +806,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for marker in value.markers {
                     self.writer.write_i32(90, marker)?;
                 }
-                // §19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
+                // Ã‚Â§19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
                 // order; the subents count is the vector length; the cv2
                 // tail emits as 90 + 290.
                 self.writer.write_i32(90, value.bl1)?;
@@ -819,7 +819,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for item in &value.subents {
                     self.writer.write_i32(90, *item)?;
                 }
-                // §19 H8h-ext-6: the captured tail BLs as 90 values,
+                // Ã‚Â§19 H8h-ext-6: the captured tail BLs as 90 values,
                 // then the trailing B as the 290 code.
                 for bl in &value.tail_bls {
                     self.writer.write_i32(90, *bl)?;
@@ -1017,6 +1017,12 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_point3d(210, value.normal)?;
                 self.writer.write_i32(90, value.hatch_index)?;
                 self.writer.write_i32(90, value.flags)?;
+            }
+            AssociativeData::SmartCenterActionBody(value) => {
+                self.write_assoc_action_body(&value.action_body)?;
+                self.write_assoc_parameter_body(&value.parameter_body)?;
+                self.writer.write_subclass("AcDbSmartCenterActionBody")?;
+                self.writer.write_i32(90, value.version)?;
             }
             AssociativeData::ViewLabelActionParam(value) => {
                 self.write_assoc_single_dependency(

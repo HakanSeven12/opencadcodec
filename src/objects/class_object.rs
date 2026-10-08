@@ -15,9 +15,9 @@ pub struct ClassObject {
     pub reactors: Vec<Handle>,
     pub xdictionary_handle: Option<Handle>,
     pub data: ClassObjectData,
-    /// §19 the DATATABLE record-identity packet (the 2026-09-29 era
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 the DATATABLE record-identity packet (the 2026-09-29 era
     /// census): the verbatim merged-record capture for the classes whose
-    /// typed re-encode drifts from the author's bytes — DATATABLE (531)
+    /// typed re-encode drifts from the author's bytes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â DATATABLE (531)
     /// first: her record is 753 bytes (196 main + a 542-byte handle
     /// stream of ~192 0x32-coded handles) while the modeled layout
     /// re-emits 1157 (it loses her handle stream entirely and
@@ -1006,12 +1006,23 @@ pub struct PointCloudDefinition {
 pub struct PointCloudDefinitionReactor {
     pub class_version: i32,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PointCloudRampColor {
+    pub color: i32,
+    pub visible: bool,
+}
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PointCloudColorRamp {
+    /// Identifier of the ramp (a GUID string).
+    pub id: String,
     pub class_version: i16,
-    pub color_schemes: Vec<String>,
+    /// The ramp's colours, each with its visibility.
+    pub colors: Vec<PointCloudRampColor>,
+    /// Display name ("Blues", "LIDAR Classifications", ...).
+    pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

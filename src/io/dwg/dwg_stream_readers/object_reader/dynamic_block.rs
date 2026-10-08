@@ -1,4 +1,4 @@
-﻿use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
+use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
 use crate::io::dwg::dwg_version::DwgVersion;
 use crate::objects::*;
 use crate::types::DxfVersion;
@@ -132,16 +132,16 @@ fn read_action(reader: &mut DwgMergedReader) -> BlockAction {
     for _ in 0..dependency_count {
         dependencies.push(Handle::from(reader.read_handle()));
     }
-    let action_count = safe_count(reader.read_bit_long());
-    let mut action_ids = Vec::with_capacity(action_count as usize);
-    for _ in 0..action_count {
-        action_ids.push(reader.read_bit_long());
+    let parameter_count = safe_count(reader.read_bit_long());
+    let mut parameter_ids = Vec::with_capacity(parameter_count as usize);
+    for _ in 0..parameter_count {
+        parameter_ids.push(reader.read_bit_long());
     }
     BlockAction {
         element,
         display_location,
         dependencies,
-        action_ids,
+        parameter_ids,
     }
 }
 
@@ -194,9 +194,9 @@ fn read_linear_constraint(reader: &mut DwgMergedReader) -> BlockLinearConstraint
 
 fn read_offsets(reader: &mut DwgMergedReader) -> BlockActionOffsets {
     BlockActionOffsets {
-        offset_x: reader.read_bit_double(),
-        offset_y: reader.read_bit_double(),
+        distance_multiplier: reader.read_bit_double(),
         angle_offset: reader.read_bit_double(),
+        flags: reader.read_byte(),
     }
 }
 
@@ -212,7 +212,7 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
         eval,
         major,
         minor,
-        // The on-disk base matrix is row-major (translation at [3,7,11] â€”
+        // The on-disk base matrix is row-major (translation at [3,7,11] Ã¢â‚¬â€
         // measured on the authored sh_history fixtures); the hosts keep
         // column-major glam arrays, so the reader transposes back.
         transform: crate::entities::surface::transpose_matrix(transform),
@@ -226,7 +226,7 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
 /// position to the record's main-section end, MSB-packed. The declared
 /// splits are attacker-controlled framing (a hostile UMC hdlsize or
 /// pre-R2010 raw-long can lie), so the end is clamped to the physical
-/// record window â€” gold clamps only at the physical record end too. See
+/// record window Ã¢â‚¬â€ gold clamps only at the physical record end too. See
 /// `SolidHistorySweep::shsw_raw_tail` for the Phase A rationale.
 /// Capture the record's remaining main-stream bits (from the current
 /// position to min(main_end, record_end)) MSB-packed, for verbatim
@@ -249,7 +249,7 @@ fn read_history_sweep(reader: &mut DwgMergedReader, base: SolidHistoryNodeBase) 
     let operation_major = reader.read_bit_long();
     let operation_minor = reader.read_bit_long();
     // Phase A raw retention: the AcDbShSweepBase/AcDbShSweep tail layout is
-    // undocumented â€” gold compiles the class out (its decoder refuses the
+    // undocumented Ã¢â‚¬â€ gold compiles the class out (its decoder refuses the
     // walk with "Unstable Class") and the shsw blob guess of its debug spec
     // does not match the authored wires (the size fields read 0 while
     // option/transform/flag content follows, so per-field modeling corrupts
@@ -288,6 +288,7 @@ fn read_history_sweep(reader: &mut DwgMergedReader, base: SolidHistoryNodeBase) 
         align_option: 0,
         miter_option: 0,
         has_align_start: false,
+        align_start: false,
         bank: false,
         check_intersections: false,
         flags_294_296: [false, false, false],
@@ -473,7 +474,7 @@ pub fn read_solid_history_data(
             acis_data.extra_acis_data = data.extra_acis_data.map(Box::new);
             acis_data.wireframe_isolines = data.isolines;
             // The SAT-v1 SH records (the R13/R2000 mints) keep their raw
-            // wire blocks â€” the writer's verbatim block echo (the
+            // wire blocks Ã¢â‚¬â€ the writer's verbatim block echo (the
             // reader-capture packet's entity precedent) needs them for a
             // record-identical conventional rewrite; the lossy 159-cipher
             // re-encode from sat_data drifts the block framing.
@@ -524,11 +525,11 @@ pub fn read_solid_history_data(
             let operation_minor = reader.read_bit_long();
             // Phase A raw retention: the REVOLVE tail layout is
             // gold-undocumented and the guessed walk was disproven by
-            // budget alone â€” its fixed 192-bit raw-direction triple
+            // budget alone Ã¢â‚¬â€ its fixed 192-bit raw-direction triple
             // exceeds the entire remaining tail of every Revolve
             // fixture record. Capture verbatim (see shsw_raw_tail).
             let (raw_tail, raw_tail_bit_len) = capture_undocumented_tail(reader);
-            // Phase B blob autopsy: typed view of the pinned anchors â€”
+            // Phase B blob autopsy: typed view of the pinned anchors Ã¢â‚¬â€
             // the first raw entry is the revolve sweep angle (3*pi/2 in
             // every Revolve fixture, see sh_tail_decode).
             let tail_decode =
@@ -810,16 +811,16 @@ pub fn read_dynamic_block_data(
             for _ in 0..count {
                 expressions.push(reader.read_variable_text());
             }
-            let mut rows = Vec::with_capacity(count as usize);
-            for _ in 0..count {
-                rows.push(BlockLookupRow {
-                    connections: [
-                        read_connection(reader),
-                        read_connection(reader),
-                        read_connection(reader),
-                    ],
-                    flag_282: reader.read_bit(),
-                    flag_281: reader.read_bit(),
+            let mut columns = Vec::with_capacity(safe_count(column_count) as usize);
+            for _ in 0..safe_count(column_count) {
+                columns.push(BlockLookupColumn {
+                    node_id: reader.read_bit_long(),
+                    value_type: reader.read_bit_long(),
+                    property_type: reader.read_bit_long(),
+                    lookup_property: reader.read_bit(),
+                    unmatched_name: reader.read_variable_text(),
+                    writable: reader.read_bit(),
+                    connection_name: reader.read_variable_text(),
                 });
             }
             DynamicBlockData::LookupAction(BlockLookupAction {
@@ -827,7 +828,7 @@ pub fn read_dynamic_block_data(
                 row_count,
                 column_count,
                 expressions,
-                rows,
+                columns,
                 flag_280: reader.read_bit(),
             })
         }

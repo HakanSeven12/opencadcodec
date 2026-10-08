@@ -1,4 +1,4 @@
-//! Less-common but fully structured DWG entity classes.
+
 //!
 //! Keeping these class-based entities behind one wrapper avoids treating
 //! supported records as opaque proxy payloads while keeping the main entity
@@ -185,6 +185,29 @@ pub struct PointCloudExCrop {
     pub points: Vec<Vector3>,
 }
 
+
+/// A PointCloudEx point in the scan's own coordinates, placed in the
+/// drawing: origin + x*X + y*Y + z*Z, where X, Y and Z are the
+/// placement axes (scaled by the cloud's scale).
+pub fn point_cloud_ex_to_world(data: &PointCloudExData, p: Vector3) -> Vector3 {
+    data.ucs_origin + data.ucs_x_direction * p.x + data.ucs_y_direction * p.y + data.ucs_z_direction * p.z
+}
+
+/// The eight corners of a PointCloudEx's extents, placed in the drawing.
+pub fn point_cloud_ex_corners(data: &PointCloudExData) -> [Vector3; 8] {
+    let (a, b) = (data.extents_min, data.extents_max);
+    let mut out = [Vector3::ZERO; 8];
+    for (i, corner) in out.iter_mut().enumerate() {
+        let p = Vector3::new(
+            if i & 1 == 0 { a.x } else { b.x },
+            if i & 2 == 0 { a.y } else { b.y },
+            if i & 4 == 0 { a.z } else { b.z },
+        );
+        *corner = point_cloud_ex_to_world(data, p);
+    }
+    out
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PointCloudExData {
@@ -201,8 +224,11 @@ pub struct PointCloudExData {
     pub name: String,
     pub show_intensity: bool,
     pub show_cropping: bool,
-    pub unknown_bl0: i32,
-    pub unknown_bl1: i32,
+    /// Scans turned off, by the scan identifier ("{ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦}") the scan file and
+    /// its project carry.
+    pub hidden_scans: Vec<String>,
+    /// Regions turned off, by index (the unassigned points are region 0).
+    pub hidden_regions: Vec<i32>,
     pub stylization_type: i16,
     pub intensity_color_scheme: String,
     pub current_color_scheme: String,

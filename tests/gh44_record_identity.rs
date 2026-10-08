@@ -131,7 +131,7 @@ fn ltype_xref_binding_pins() {
             .unwrap_or_else(|| panic!("LTYPE {handle:X} missing"));
         assert!(ltype.xref_dependent, "LTYPE {handle:X}: the dep bit");
         assert_eq!(
-            ltype.xref_handle.value(),
+            ltype.xref_block_record_handle.value(),
             xref,
             "LTYPE {handle:X}: the xref binding"
         );
@@ -143,7 +143,7 @@ fn ltype_xref_binding_pins() {
         .find(|l| l.handle.value() == 0x16A5)
         .expect("LTYPE 16A5 missing");
     assert!(!plain.xref_dependent);
-    assert!(plain.xref_handle.is_null());
+    assert!(plain.xref_block_record_handle.is_null());
 }
 
 #[test]

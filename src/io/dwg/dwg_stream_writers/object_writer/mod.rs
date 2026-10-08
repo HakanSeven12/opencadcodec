@@ -1,11 +1,11 @@
 //! DWG Object / Entity Writer (Sprint 4)
 //!
-//! Writes all DWG object records — table controls, table entries,
+//! Writes all DWG object records â€” table controls, table entries,
 //! block headers, entities in each block, and non-graphical objects
 //! (dictionaries, layouts, etc.).
 //!
 //! Ported from the reference `DwgObjectWriter` (partial class across
-//! `DwgObjectWriter.cs`, `…Common.cs`, `…Entities.cs`, `…Objects.cs`).
+//! `DwgObjectWriter.cs`, `â€¦Common.cs`, `â€¦Entities.cs`, `â€¦Objects.cs`).
 //!
 //! ## Record format
 //!
@@ -35,13 +35,13 @@ use crate::io::dwg::dwg_version::DwgVersion;
 use crate::tables::{BlockRecord, TableEntry};
 use crate::types::{BoundingBox3D, DxfVersion, Handle};
 
-// ── Helpers ─────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Convert a deduplicated block name back to the DWG binary name.
 ///
 /// In DWG format, all paper-space blocks are stored as `*Paper_Space`
 /// and anonymous blocks share names like `*U`, `*D`, etc. (no numeric
-/// suffixes).  Our reader adds suffixes (`*Paper_Space0`, `*U1`, …)
+/// suffixes).  Our reader adds suffixes (`*Paper_Space0`, `*U1`, â€¦)
 /// for deduplication.  This function strips them back for writing.
 fn dwg_block_name(name: &str) -> &str {
     // Known multi-word prefixes first
@@ -56,7 +56,7 @@ fn dwg_block_name(name: &str) -> &str {
             }
         }
     }
-    // Generic anonymous: *<alpha><digits> → *<alpha>
+    // Generic anonymous: *<alpha><digits> â†’ *<alpha>
     if name.starts_with('*') && name.len() >= 2 {
         let alpha_end = name[1..]
             .find(|c: char| !c.is_ascii_alphabetic())
@@ -70,10 +70,10 @@ fn dwg_block_name(name: &str) -> &str {
     name
 }
 
-// ── Public struct ───────────────────────────────────────────────────
+// â”€â”€ Public struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Writes all DWG object records (entities + table entries + objects)
-/// into a contiguous byte stream, tracking handle→offset pairs for
+/// into a contiguous byte stream, tracking handleâ†’offset pairs for
 /// the handle section.
 pub struct DwgObjectWriter<'a> {
     /// Target DWG version (controls which fields are emitted)
@@ -86,7 +86,7 @@ pub struct DwgObjectWriter<'a> {
     pub(super) writer: DwgMergedWriter,
     /// Accumulated output bytes (all object records)
     pub(super) output: Vec<u8>,
-    /// Handle → byte-offset map (for handle section)
+    /// Handle â†’ byte-offset map (for handle section)
     pub(super) handle_map: Vec<(u64, u32)>,
     /// Queue of non-graphical objects still to be written
     pub(super) object_queue: VecDeque<Handle>,
@@ -145,10 +145,10 @@ struct ParallelEntityBatch {
 }
 
 impl<'a> DwgObjectWriter<'a> {
-    // ── Constructor ─────────────────────────────────────────────────
+    // â”€â”€ Constructor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Resolve a text-style NAME to its table handle. `Table::get`
-    /// normalizes the name (case-insensitive — AutoCAD's table names
+    /// normalizes the name (case-insensitive â€” AutoCAD's table names
     /// are), so a constructed entity's `MText::new` default "Standard"
     /// resolves the document's seeded "STANDARD" through the same path
     /// as an authored read. The single seam keeps every entity writer's
@@ -169,7 +169,7 @@ impl<'a> DwgObjectWriter<'a> {
                 .unwrap_or(encoding_rs::WINDOWS_1252);
         let mut writer = DwgMergedWriter::with_encoding(version, dxf_version, encoding);
         // The record-close pad genus captured at read (TODO A1, 2026-10-01):
-        // every record of this write closes with the authored convention —
+        // every record of this write closes with the authored convention â€”
         // 1s (AutoCAD genus, the default for constructed documents) or 0s
         // (the ODA FileConverter genus).
         writer.set_close_pad_zeros(document.close_pad_zeros);
@@ -382,7 +382,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.xdic_owner_index.get(&owner).copied()
     }
 
-    // ── Main entry point ────────────────────────────────────────────
+    // â”€â”€ Main entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     pub fn write(
         self,
@@ -432,10 +432,10 @@ impl<'a> DwgObjectWriter<'a> {
             self.object_queue.push_back(root_dict_handle);
         }
 
-        // ── Table controls ──────────────────────────────────────
+        // â”€â”€ Table controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.write_block_control();
-        // §19 H8h-ext-9: the authored entry slots echo (the null
-        // deleted-slot tails — ATMOS-DC22S carries [10, A5, 0]).
+        // Â§19 H8h-ext-9: the authored entry slots echo (the null
+        // deleted-slot tails â€” ATMOS-DC22S carries [10, A5, 0]).
         {
             let live: Vec<Handle> =
                 self.document.layers.iter().map(|l| l.handle).collect();
@@ -451,9 +451,9 @@ impl<'a> DwgObjectWriter<'a> {
         }
         self.write_text_style_control();
         self.write_ltype_control();
-        // §19 H8h-ext: the author's view-table slots echo verbatim (the
+        // Â§19 H8h-ext: the author's view-table slots echo verbatim (the
         // Leader/Constraints/example_2007 genus carries 16 null deleted
-        // slots; gold prints entries [2,0,0,0] × num_entries).
+        // slots; gold prints entries [2,0,0,0] Ã— num_entries).
         {
             let live: Vec<Handle> = self.document.views.iter().map(|v| v.handle).collect();
             let entries = self
@@ -477,8 +477,8 @@ impl<'a> DwgObjectWriter<'a> {
                 .collect::<Vec<_>>(),
             true,
         );
-        // §19 H8h-ext-17: the authored VPORT slots echo (entities-2d/3d
-        // carry the null deleted-slot tails — her [0, 0, 52] against our
+        // Â§19 H8h-ext-17: the authored VPORT slots echo (entities-2d/3d
+        // carry the null deleted-slot tails â€” her [0, 0, 52] against our
         // modeled [52], size 15 vs 13).
         {
             let live: Vec<Handle> =
@@ -493,9 +493,9 @@ impl<'a> DwgObjectWriter<'a> {
                 true,
             );
         }
-        // §19 H8h-ext-17: the author's APPID table order is author data
+        // Â§19 H8h-ext-17: the author's APPID table order is author data
         // (gh209_1's control carries [15, 34, 35, 36, 2F, C, 6E, 6F,
-        // 96, 99] against the file's own record order) — replay the
+        // 96, 99] against the file's own record order) â€” replay the
         // captured slots under the same-universe gate; the ACAD-first
         // model order stays the constructed/edited fallback.
         let mut appid_handles: Vec<_> = self
@@ -525,7 +525,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.write_vpent_hdr_control();
         }
 
-        // ── Table entries ───────────────────────────────────────
+        // â”€â”€ Table entries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.write_layer_entries();
         self.write_text_style_entries();
         self.write_ltype_entries();
@@ -538,10 +538,10 @@ impl<'a> DwgObjectWriter<'a> {
             self.write_vx_entries();
         }
 
-        // ── Block entities ──────────────────────────────────────
+        // â”€â”€ Block entities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.write_block_entities();
 
-        // ── Drain object queue ──────────────────────────────────
+        // â”€â”€ Drain object queue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.write_objects();
 
         (
@@ -605,10 +605,10 @@ impl<'a> DwgObjectWriter<'a> {
         extents
     }
 
-    // ── Table control writers ───────────────────────────────────────
+    // â”€â”€ Table control writers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Generic table control object: type code, count, soft-owner handles.
-    /// §19 H8h-extension: the authored entry slots of a table control —
+    /// Â§19 H8h-extension: the authored entry slots of a table control â€”
     /// the vector captured at DWG read (the author's order plus any null
     /// deleted-slot tails), echoed only under a same-universe gate: the
     /// captured non-null set must equal the live table's handles. Edited
@@ -650,7 +650,7 @@ impl<'a> DwgObjectWriter<'a> {
         // Owner is always 0 for table controls (owned by header)
         self.write_common_non_entity_data(type_code, table_handle, Handle::NULL, &[], &None);
 
-        // Entry count — the wire form is per-control (gold dwg.spec:
+        // Entry count â€” the wire form is per-control (gold dwg.spec:
         // BLOCK/LAYER/STYLE/VIEW num_entries are BL; LTYPE/UCS/VPORT/
         // APPID/DIMSTYLE/VX are BS). The two encodings coincide for
         // 0..255; beyond that a BL count would desync a BS reader
@@ -670,7 +670,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(table_handle);
     }
 
-    /// BLOCK_CONTROL — special: excludes *Model_Space and *Paper_Space
+    /// BLOCK_CONTROL â€” special: excludes *Model_Space and *Paper_Space
     /// from the count, writes them as hard-owner references at the end.
     fn write_block_control(&mut self) {
         let table_handle = self.document.block_records.handle();
@@ -721,8 +721,8 @@ impl<'a> DwgObjectWriter<'a> {
     /// STYLE_CONTROL
     fn write_text_style_control(&mut self) {
         let handles: Vec<Handle> = self.document.text_styles.iter().map(|s| s.handle).collect();
-        // §19 H8h-ext-9: the authored entry slots echo (ATMOS-DC22S
-        // carries [11, 6B, 0×5] — five null deleted slots).
+        // Â§19 H8h-ext-9: the authored entry slots echo (ATMOS-DC22S
+        // carries [11, 6B, 0Ã—5] â€” five null deleted slots).
         let entries = self
             .authored_control_entries(self.document.text_styles.handle(), &handles)
             .unwrap_or(handles);
@@ -734,7 +734,7 @@ impl<'a> DwgObjectWriter<'a> {
         );
     }
 
-    /// LTYPE_CONTROL — special: excludes ByLayer/ByBlock from count.
+    /// LTYPE_CONTROL â€” special: excludes ByLayer/ByBlock from count.
     fn write_ltype_control(&mut self) {
         let table_handle = self.document.line_types.handle();
         self.write_common_non_entity_data(
@@ -763,7 +763,7 @@ impl<'a> DwgObjectWriter<'a> {
             .authored_control_entries(table_handle, &regular)
             .unwrap_or(regular);
         // Gold dwg.spec 3566: LTYPE_CONTROL num_entries is BS (coincides
-        // with BL for 0..255 — the B2 latent-form class beyond).
+        // with BL for 0..255 â€” the B2 latent-form class beyond).
         self.writer.write_bit_short(entries.len() as i16);
         for h in &entries {
             self.writer
@@ -778,7 +778,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(table_handle);
     }
 
-    /// DIMSTYLE_CONTROL — special: has an extra undocumented byte in R2000+.
+    /// DIMSTYLE_CONTROL â€” special: has an extra undocumented byte in R2000+.
     fn write_dimstyle_control(&mut self) {
         let table_handle = self.document.dim_styles.handle();
         let handles: Vec<Handle> = self.document.dim_styles.iter().map(|d| d.handle).collect();
@@ -791,20 +791,20 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
         );
 
-        // §19 H8h-extension: emit the authored entry slots (order plus
+        // Â§19 H8h-extension: emit the authored entry slots (order plus
         // null deleted-slot tails) under the same-universe gate.
         let entries = self
             .authored_control_entries(table_handle, &handles)
             .unwrap_or(handles);
         // Gold dwg.spec 4172: DIMSTYLE_CONTROL num_entries is BS
-        // (coincides with BL for 0..255 — the B2 latent-form class
+        // (coincides with BL for 0..255 â€” the B2 latent-form class
         // beyond).
         self.writer.write_bit_short(entries.len() as i16);
 
-        // Gold dwg.spec 4177: the R2000+ record carries one raw RCu byte —
-        // num_morehandles, "additional hard handles, undocumented" — whose
+        // Gold dwg.spec 4177: the R2000+ record carries one raw RCu byte â€”
+        // num_morehandles, "additional hard handles, undocumented" â€” whose
         // vector follows the entries (code 5). Echo the captured vector
-        // (never the dim-style table entries — that regressed 19 → 109).
+        // (never the dim-style table entries â€” that regressed 19 â†’ 109).
         let morehandles = self.document.dimstyle_morehandles.clone();
         if self.version.r2000_plus() {
             self.writer.write_byte(morehandles.len() as u8);
@@ -823,7 +823,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(table_handle);
     }
 
-    /// VPENT_HDR_CONTROL — R13-R2000 only.
+    /// VPENT_HDR_CONTROL â€” R13-R2000 only.
     /// Viewport entity header table control.
     /// The header section references this via hard-ownership handle.
     fn write_vpent_hdr_control(&mut self) {
@@ -854,7 +854,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(table_handle);
     }
 
-    // ── Table entry writers ─────────────────────────────────────────
+    // â”€â”€ Table entry writers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_vx_entries(&mut self) {
         let entries: Vec<_> = self.document.vx_table.iter().cloned().collect();
@@ -971,7 +971,7 @@ impl<'a> DwgObjectWriter<'a> {
             if layer.flags.frozen {
                 values |= 0b0001;
             }
-            // "off" flag goes in bit 1 (inverted: on → bit clear)
+            // "off" flag goes in bit 1 (inverted: on â†’ bit clear)
             if layer.flags.off {
                 values |= 0b0010;
             }
@@ -1024,7 +1024,7 @@ impl<'a> DwgObjectWriter<'a> {
                 .write_handle(DwgReferenceType::HardPointer, material.value());
         }
 
-        // Linetype handle — look up by name
+        // Linetype handle â€” look up by name
         let lt_handle = self
             .document
             .line_types
@@ -1140,7 +1140,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         // Entry name
         self.writer.write_variable_text(&ltype.name);
-        // Xref — the COMMON_TABLE_FLAGS block: the model's binding drives
+        // Xref â€” the COMMON_TABLE_FLAGS block: the model's binding drives
         // the resolved BS (256 on xref-dependent records) instead of the
         // hardcoded unresolved 0 (the gh44-error LTYPE census: her
         // pipe-named linetypes carry is_xref_resolved 256 + a real xref
@@ -1177,7 +1177,7 @@ impl<'a> DwgObjectWriter<'a> {
             let c = seg.complex.as_ref();
             let flags = if let Some(ref cx) = c {
                 // TODO A5 family 4 (2026-10-01): an authored wire flag
-                // replays verbatim — the flag is the author's own complex
+                // replays verbatim â€” the flag is the author's own complex
                 // marker (a plain dash carries 0 while its scale stores
                 // the author's 0.0; a derived flag would add IS_SHAPE
                 // where the author wrote 0). Constructed and deserialized
@@ -1225,7 +1225,7 @@ impl<'a> DwgObjectWriter<'a> {
             }
             // The wire complex_shapecode replays verbatim when captured
             // (the gh44-error 16A5 census, 2026-10-04): gold reads
-            // text-dash strings SEQUENTIALLY from the area — the
+            // text-dash strings SEQUENTIALLY from the area â€” the
             // shapecode is the author's own value, not the placement
             // offset (well-formed files keep them equal; the
             // pathological specimen carries 4 where the sequential
@@ -1260,11 +1260,11 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // External reference block handle — the retained binding (NULL on
+        // External reference block handle â€” the retained binding (NULL on
         // ordinary records, the authored (5.2.x) target on xref-dependent
         // ones; gold's COMMON_TABLE_FLAGS declares the slot code 5).
         self.writer
-            .write_handle(DwgReferenceType::HardPointer, ltype.xref_handle.value());
+            .write_handle(DwgReferenceType::HardPointer, ltype.xref_block_record_handle.value());
 
         // Shape file handles for each segment
         for seg in &ltype.elements {
@@ -1443,7 +1443,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         // View height BD 40
         self.writer.write_bit_double(vport.view_height);
-        // Aspect ratio BD 41 — DWG stores aspect_ratio * view_height
+        // Aspect ratio BD 41 â€” DWG stores aspect_ratio * view_height
         // (R13 quirk; reader divides by view_height to get actual ratio)
         self.writer
             .write_bit_double(vport.aspect_ratio * vport.view_height);
@@ -1465,7 +1465,7 @@ impl<'a> DwgObjectWriter<'a> {
         // Back clip BD 44
         self.writer.write_bit_double(vport.back_clip);
 
-        // View mode X 71 — 4 bits: 0123
+        // View mode X 71 â€” 4 bits: 0123
         self.writer.write_bit(vport.perspective);
         self.writer.write_bit(vport.front_clipping);
         self.writer.write_bit(vport.back_clipping);
@@ -1507,7 +1507,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_short(vport.circle_zoom);
         // Fast zoom B 73
         self.writer.write_bit(vport.fast_zoom);
-        // UCSICON X 74 — 2 individual bits
+        // UCSICON X 74 â€” 2 individual bits
         self.writer.write_bit(vport.ucsicon_lower);
         self.writer.write_bit(vport.ucsicon_origin);
         // Grid on/off B 76
@@ -1549,7 +1549,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         // R2007+
         if self.version.r2007_plus() {
-            // Grid flags BS 60 — adaptive grid enabled
+            // Grid flags BS 60 â€” adaptive grid enabled
             self.writer.write_bit_short(vport.grid_flags.to_bits());
             // Grid major BS 61
             self.writer.write_bit_short(vport.grid_major);
@@ -1677,7 +1677,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_variable_text(&ds.name);
         self.write_xref_table_flags(ds.xref_reference, ds.xref_resolved, ds.xref_dependent);
 
-        // ── R13/R14 Only: DimStyle fields ───────────────────────────
+        // â”€â”€ R13/R14 Only: DimStyle fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // These fields are ONLY written for R13/R14 (not R2000+).
         // Field order matches the reference writeDimensionStyle() R13_14Only block.
         if self.version.r13_14_only() {
@@ -1791,7 +1791,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_cm_color(&dimclrt_color);
         }
 
-        // ── R2000+ DimStyle fields ──────────────────────────────────
+        // â”€â”€ R2000+ DimStyle fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Field order, data types, and version guards match the reference implementation
         // DwgObjectWriter.writeDimensionStyle() exactly.
         if self.version.r2000_plus() {
@@ -1823,7 +1823,7 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2007_plus() {
             // DIMFXL BD 49
             self.writer.write_bit_double(ds.dimfxl);
-            // DIMJOGANG BD 50 — clamp to valid range [5°..90°]
+            // DIMJOGANG BD 50 â€” clamp to valid range [5Â°..90Â°]
             self.writer
                 .write_bit_double(ds.dimjogang.clamp(0.0872665, 1.5708));
             // DIMTFILL BS 69
@@ -1969,7 +1969,7 @@ impl<'a> DwgObjectWriter<'a> {
         // Common: Unknown B 70
         self.writer.write_bit(false);
 
-        // ── Handle references ───────────────────────────────────────
+        // â”€â”€ Handle references â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         // External reference block handle (hard pointer)
         self.writer
@@ -2011,7 +2011,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(ds.handle);
     }
 
-    // ── Block entity writing ────────────────────────────────────────
+    // â”€â”€ Block entity writing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Write block begin/entities/end for every block record.
     fn write_block_entities(&mut self) {
@@ -2036,9 +2036,9 @@ impl<'a> DwgObjectWriter<'a> {
             let is_xref = br.flags.is_xref || br.flags.is_xref_overlay;
 
             // Keep only live entities directly owned by the block header.
-            // §19 H8h-ext-3: the owned list may also reference non-graphical
+            // Â§19 H8h-ext-3: the owned list may also reference non-graphical
             // records (the author's *Model_Space blocks in the SH fixtures own
-            // an ACDBASSOC* object gold prints as UNKNOWN_OBJ — her wire keeps
+            // an ACDBASSOC* object gold prints as UNKNOWN_OBJ â€” her wire keeps
             // the ref and the count). A handle is live when it resolves to an
             // indexed entity OR to an object this writer will serialize.
             let live_handles: Vec<Handle> = br
@@ -2250,7 +2250,7 @@ impl<'a> DwgObjectWriter<'a> {
 
     /// Write a BLOCK_HEADER (block record) object with explicit entity handles.
     fn write_block_header_with_handles(&mut self, record: &BlockRecord, entity_handles: &[Handle]) {
-        // §19 H8h-ext-3: the block record's extension-dictionary ref —
+        // Â§19 H8h-ext-3: the block record's extension-dictionary ref â€”
         // captured at read into the document side map (already part of
         // the semantic inventory); the author's *Model_Space blocks in
         // the SH fixtures carry one (the 24-bit xdicobjhandle ref the
@@ -2267,7 +2267,7 @@ impl<'a> DwgObjectWriter<'a> {
         // Entry name (DWG uses bare names without numeric suffixes)
         let dwg_name = dwg_block_name(&record.name);
         self.writer.write_variable_text(dwg_name);
-        // Xref table flags — TODO B1 (2026-10-01): the retained RAW
+        // Xref table flags â€” TODO B1 (2026-10-01): the retained RAW
         // `is_xref_resolved` bitshort replays verbatim (the authored xref
         // blocks carry 1, not the 0/256 convention; gold prints the raw
         // value); the dependent bit keeps the historical constant.
@@ -2275,8 +2275,8 @@ impl<'a> DwgObjectWriter<'a> {
 
         // Anonymous flag
         self.writer.write_bit(record.flags.anonymous);
-        // Has attributes. §19 H8h-ext-10: on a DWG read the author's
-        // captured flag is authoritative — her *Model_Space carries
+        // Has attributes. Â§19 H8h-ext-10: on a DWG read the author's
+        // captured flag is authoritative â€” her *Model_Space carries
         // ATTDEF entities yet hasatts=0 (example_2007 h=1F; the wire
         // bit is block metadata, not ATTDEF presence). The
         // AttributeDefinition-presence heuristic stays the fallback
@@ -2377,7 +2377,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         // R2004+: entity handles (hard owner). Xref blocks own no entities in
-        // the format — the owned-object count is skipped above, so the reader
+        // the format â€” the owned-object count is skipped above, so the reader
         // reads zero handles here. Writing any would desync the handle stream
         // and corrupt the block record on read, matching the R13-R2000 guard.
         if self.version.r2004_plus() && !record.flags.is_xref && !record.flags.is_xref_overlay {
@@ -2553,7 +2553,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(common.handle);
     }
 
-    // ── Object queue draining ───────────────────────────────────────
+    // â”€â”€ Object queue draining â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Drain the object queue, writing each non-graphical object.
     fn write_objects(&mut self) {
@@ -2577,7 +2577,7 @@ impl<'a> DwgObjectWriter<'a> {
         //
         // First, seed visited_objects with ALL handles already written
         // (table controls, table entries, block entities, Phase 1 objects)
-        // to prevent Phase 2 from creating duplicate handle→offset entries
+        // to prevent Phase 2 from creating duplicate handleâ†’offset entries
         // that would corrupt the Object Map.
         for &(handle_val, _) in &self.handle_map {
             self.visited_objects.insert(Handle::from(handle_val));
@@ -2611,7 +2611,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // ── Access helpers ──────────────────────────────────────────────
+    // â”€â”€ Access helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Get the output bytes.
     pub fn output(&self) -> &[u8] {
@@ -2624,7 +2624,7 @@ impl<'a> DwgObjectWriter<'a> {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 mod tests {
     use super::*;

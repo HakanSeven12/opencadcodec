@@ -24,9 +24,9 @@ use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
 use crate::io::dwg::dwg_version::DwgVersion;
 use crate::types::{Color, DxfVersion, Handle, LineWeight, Vector2, Vector3};
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Result structs
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -167,7 +167,7 @@ pub struct LwPolylineData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SplineData {
     /// The scenario BL exactly as read from the wire (before any
-    /// R2013+ storage re-derivation) — re-emitted verbatim on rewrite.
+    /// R2013+ storage re-derivation) â€” re-emitted verbatim on rewrite.
     pub wire_scenario: i32,
     pub scenario: i32,
     pub degree: i32,
@@ -208,7 +208,7 @@ pub struct TextEntityData {
     /// Retained raw R2000+ dataflags byte (dwg.spec TEXT 491). The wire
     /// bits are the truth for which optionals AutoCAD wrote (e.g. an
     /// explicit width_factor 1.0 keeps bit 4 clear while a value-based
-    /// recomposition would set it) — keep them for the gold-parity
+    /// recomposition would set it) â€” keep them for the gold-parity
     /// comparison and echo them verbatim on write. None on the R13-R14
     /// unconditional layout.
     pub raw_dataflags: Option<u8>,
@@ -228,8 +228,8 @@ pub struct MTextData {
     pub extents_height: f64,
     pub extents_width: f64,
     pub value: String,
-    /// §19 the MTEXT record-identity packet: the verbatim pre-2007 wire
-    /// text (pre-MIF-decode) — the authored escape/raw form is author
+    /// Â§19 the MTEXT record-identity packet: the verbatim pre-2007 wire
+    /// text (pre-MIF-decode) â€” the authored escape/raw form is author
     /// data (example_2004 `108\U+00B0` vs example_2000 raw 0xB0), so
     /// the rewrite re-emits it verbatim. `None` on R2007+ reads.
     pub wire_value: Option<String>,
@@ -318,7 +318,7 @@ pub struct LightData {
     pub status: bool,
     pub light_color: Color,
     /// The light color's raw CMC twin (TODO B1, 2026-10-01): the wire
-    /// carries BOTH the legacy BS index slot and the true-color BL —
+    /// carries BOTH the legacy BS index slot and the true-color BL â€”
     /// gold's JSON emits the pair (`{"index": 7, "rgb": "c2ffffff"}`)
     /// while the collapsed `Color` loses the index. Retained for the
     /// JSON axis and the same-version write replay; `None` pre-R2004
@@ -342,9 +342,9 @@ pub struct LightData {
     pub photometric_data: Option<LightPhotometricData>,
 }
 
-// ════════════════════════════════════════════════════════════════════════
-//  Reader functions — Simple entities
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Reader functions â€” Simple entities
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 pub fn read_point(reader: &mut DwgMergedReader) -> PointData {
     let location = reader.read_3bit_double();
@@ -364,8 +364,8 @@ pub fn read_light(reader: &mut DwgMergedReader, photometric_mode: bool) -> Light
     let name = reader.read_variable_text();
     let light_type = reader.read_bit_long();
     let status = reader.read_bit();
-    // TODO B1 (2026-10-01): capture the raw CMC pair — the wire's legacy
-    // index slot + the true-color word — then collapse for the model
+    // TODO B1 (2026-10-01): capture the raw CMC pair â€” the wire's legacy
+    // index slot + the true-color word â€” then collapse for the model
     // Color exactly as `read_cm_color` does.
     let light_color_raw = reader.read_cm_color_raw();
     let light_color = light_color_raw.to_color();
@@ -757,41 +757,9 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
     let show_intensity = reader.read_bit();
     let show_cropping = reader.read_bit();
     let crop_count = safe_count(reader.read_bit_long()) as usize;
-    let mut unknown_bl0 = 0;
-    let mut unknown_bl1 = 0;
-    let mut stylization_type = 0;
-    let mut intensity_color_scheme = String::new();
-    let mut current_color_scheme = String::new();
-    let mut classification_color_scheme = String::new();
-    let mut elevation_min = 0.0;
-    let mut elevation_max = 0.0;
-    let mut intensity_min = 0;
-    let mut intensity_max = 0;
-    let mut intensity_out_of_range_behavior = 0;
-    let mut elevation_out_of_range_behavior = 0;
-    let mut elevation_apply_to_fixed_range = false;
-    let mut intensity_as_gradient = false;
-    let mut elevation_as_gradient = false;
-    if crop_count == 0 {
-        unknown_bl0 = reader.read_bit_long();
-        unknown_bl1 = reader.read_bit_long();
-        stylization_type = reader.read_bit_short();
-        intensity_color_scheme = reader.read_variable_text();
-        current_color_scheme = reader.read_variable_text();
-        classification_color_scheme = reader.read_variable_text();
-        elevation_min = reader.read_bit_double();
-        elevation_max = reader.read_bit_double();
-        intensity_min = reader.read_bit_long();
-        intensity_max = reader.read_bit_long();
-        intensity_out_of_range_behavior = reader.read_bit_short();
-        elevation_out_of_range_behavior = reader.read_bit_short();
-        elevation_apply_to_fixed_range = reader.read_bit();
-        intensity_as_gradient = reader.read_bit();
-        elevation_as_gradient = reader.read_bit();
-    }
     let mut croppings = Vec::with_capacity(crop_count);
     for _ in 0..crop_count {
-        let crop_type = reader.read_bit_short();
+        let crop_type = i16::from(reader.read_byte());
         let inside = reader.read_bit();
         let inverted = reader.read_bit();
         let plane = reader.read_3bit_double();
@@ -812,6 +780,24 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
             points,
         });
     }
+    let scan_count = safe_count(reader.read_bit_long()) as usize;
+    let hidden_scans = (0..scan_count).map(|_| reader.read_variable_text()).collect();
+    let region_count = safe_count(reader.read_bit_long()) as usize;
+    let hidden_regions = (0..region_count).map(|_| reader.read_bit_long()).collect();
+    let stylization_type = reader.read_bit_short();
+    let intensity_color_scheme = reader.read_variable_text();
+    let current_color_scheme = reader.read_variable_text();
+    let classification_color_scheme = reader.read_variable_text();
+    let elevation_min = reader.read_bit_double();
+    let elevation_max = reader.read_bit_double();
+    let intensity_min = reader.read_bit_long();
+    let intensity_max = reader.read_bit_long();
+    let intensity_out_of_range_behavior = reader.read_bit_short();
+    let elevation_out_of_range_behavior = reader.read_bit_short();
+    let elevation_apply_to_fixed_range = reader.read_bit();
+    let intensity_as_gradient = reader.read_bit();
+    let elevation_as_gradient = reader.read_bit();
+
     ExtendedEntityData::PointCloudEx(PointCloudExData {
         class_version,
         extents_min,
@@ -826,8 +812,8 @@ pub fn read_point_cloud_ex(reader: &mut DwgMergedReader) -> ExtendedEntityData {
         name,
         show_intensity,
         show_cropping,
-        unknown_bl0,
-        unknown_bl1,
+        hidden_scans,
+        hidden_regions,
         stylization_type,
         intensity_color_scheme,
         current_color_scheme,
@@ -1096,8 +1082,8 @@ pub fn read_face3d(reader: &mut DwgMergedReader, version: DwgVersion) -> Face3DD
         }
     } else {
         let has_no_flags = reader.read_bit();
-        // ODA spec "Z is zero" — corner1's Z is omitted from the stream
-        // (treated as 0.0) when set. Corners 2–4 always encode their Z as
+        // ODA spec "Z is zero" â€” corner1's Z is omitted from the stream
+        // (treated as 0.0) when set. Corners 2â€“4 always encode their Z as
         // BD-with-default (with the previous corner's Z as the default),
         // independent of this flag. Skipping those reads on the later
         // corners desynchronises the bit cursor: corner-3 Y and corner-4
@@ -1141,9 +1127,9 @@ pub fn read_face3d(reader: &mut DwgMergedReader, version: DwgVersion) -> Face3DD
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
-//  Reader functions — Moderate entities
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Reader functions â€” Moderate entities
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 pub fn read_insert(reader: &mut DwgMergedReader, version: DwgVersion) -> InsertData {
     let insert_point = reader.read_3bit_double();
@@ -1246,7 +1232,7 @@ fn read_lwpolyline_impl(
     } else {
         0.0
     };
-    // LWPOLYLINE stores its own thickness/extrusion as plain BD / 3BD — NOT the
+    // LWPOLYLINE stores its own thickness/extrusion as plain BD / 3BD â€” NOT the
     // self-compressing BT / BE forms used in the common entity data. Reading BT
     // (1 bit) where a BD (2-bit selector) lives, or BE (1 bit) where a 3BD lives,
     // under-reads and desyncs every field after it (garbage normal, garbage
@@ -1367,7 +1353,7 @@ pub fn read_spline(
     let mut knot_param = 0i32;
 
     let mut scenario = reader.read_bit_long();
-    // The wire BL, captured before the R2013+ storage re-derivation —
+    // The wire BL, captured before the R2013+ storage re-derivation â€”
     // the authored example_2018 splines carry BL=1 with fit-point
     // storage, and the rewrite must keep the author's record.
     let wire_scenario = scenario;
@@ -1610,7 +1596,7 @@ pub fn read_mtext(
         background_flags = reader.read_bit_long();
 
         // The background-fill block follows when the UseBackgroundFillColor bit
-        // (0x01) is set, or — for R2018+ — when the TextFrame bit (0x10) is set.
+        // (0x01) is set, or â€” for R2018+ â€” when the TextFrame bit (0x10) is set.
         if (background_flags & 0x01) != 0
             || (version.r2018_plus(dxf_version) && (background_flags & 0x10) != 0)
         {
@@ -1627,7 +1613,7 @@ pub fn read_mtext(
     // redundant fields followed by optional column data. The inline annotative
     // bit exists only from R2018 on; for older files MTEXT annotativeness is
     // carried by its text style / annotation context, not the entity, so the
-    // default here must be `false` — defaulting to `true` would mark *every*
+    // default here must be `false` â€” defaulting to `true` would mark *every*
     // pre-R2018 MTEXT annotative and (mis)scale it in annotation-scaled
     // viewports.
     let mut is_annotative = false;
@@ -1652,7 +1638,7 @@ pub fn read_mtext(
             // Registered application H (hard pointer)
             let _app_handle = reader.read_handle();
 
-            // ── BEGIN redundant fields ──
+            // â”€â”€ BEGIN redundant fields â”€â”€
             // Gold's redundant-block header BL is `ignore_attachment` (the
             // absolute attachment point; keep it raw: gold's JSON emits this
             // last-read vector, so the rewrite must repeat it verbatim).
@@ -1669,7 +1655,7 @@ pub fn read_mtext(
             let _extents_width = reader.read_bit_double();
             // Extents height BD
             let _extents_height = reader.read_bit_double();
-            // ── END redundant fields ──
+            // â”€â”€ END redundant fields â”€â”€
 
             // Column type BS 71: 0 = none, 1 = static, 2 = dynamic
             column_type = reader.read_bit_short();
@@ -1788,7 +1774,7 @@ pub fn read_leader(
     };
 
     // dwg.spec 3014-3015: FIELD_BD (box_height, 40) + FIELD_BD (box_width,
-    // 41) — wire fields at EVERY version (the DXF block at 2998 is
+    // 41) â€” wire fields at EVERY version (the DXF block at 2998 is
     // display-only). Reading them only through R2007 desynchronized every
     // R2010+ record.
     let text_height = reader.read_bit_double();
@@ -1798,7 +1784,7 @@ pub fn read_leader(
     let hookline_on_x_dir = reader.read_bit();
     let arrowhead_on = reader.read_bit();
 
-    // dwg.spec 3022: FIELD_BSx (arrowhead_type, 0) — at every version;
+    // dwg.spec 3022: FIELD_BSx (arrowhead_type, 0) â€” at every version;
     // the R2000+ wire slot previously got mislabeled as an unknown short.
     let arrowhead_type = reader.read_bit_short();
     let mut dimasz = 0.0;
@@ -1886,9 +1872,9 @@ pub fn read_tolerance(reader: &mut DwgMergedReader, version: DwgVersion) -> Tole
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
-//  Result structs — Complex entities
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Result structs â€” Complex entities
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2280,16 +2266,16 @@ pub struct AttributeCommonData {
     pub embedded_mtext: Option<MTextData>,
     pub tag: String,
     /// ATTDEF prompt string. Empty for ATTRIB entities (the stream carries no
-    /// prompt for an attribute instance — it lives on the definition).
+    /// prompt for an attribute instance â€” it lives on the definition).
     pub prompt: String,
     pub field_length: i16,
     pub flags: u8,
     pub lock_position: bool,
 }
 
-// ════════════════════════════════════════════════════════════════════════
-//  Reader functions — Complex entities
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Reader functions â€” Complex entities
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Read common dimension data shared by all dimension types.
 pub fn read_common_dimension_data(
@@ -2656,7 +2642,7 @@ pub fn read_hatch_boundary_path_contents(
     }
 
     // Cap the boundary-handle count to a sane upper bound. Corrupt /
-    // misaligned hatch records have been seen to emit ~1.9 × 10^9 here,
+    // misaligned hatch records have been seen to emit ~1.9 Ã— 10^9 here,
     // which spins read_handle() for tens of seconds per record. AutoCAD
     // hatches realistically carry well under MAX_ARRAY_COUNT (100k)
     // associative boundary references.
@@ -3042,7 +3028,7 @@ pub struct PfaceFaceData {
 }
 
 /// Read a VERTEX_PFACE_FACE record (type code 14).
-/// Format: 4 × BS (vertex indices), no flags byte.
+/// Format: 4 Ã— BS (vertex indices), no flags byte.
 pub fn read_pface_face(reader: &mut DwgMergedReader) -> PfaceFaceData {
     let index1 = reader.read_bit_short();
     let index2 = reader.read_bit_short();
@@ -3154,7 +3140,7 @@ pub fn read_mesh(reader: &mut DwgMergedReader) -> MeshData {
     }
 
     // BL 93 carries the FLATTENED FACE-DATA LENGTH: sum of (1 + sizes)
-    // over the faces — the authored-wire convention (see write_mesh; the
+    // over the faces â€” the authored-wire convention (see write_mesh; the
     // 2004/Surface.dwg MESH 0x2D0 is the bit-verified reference).
     let declared_face_data = reader.read_bit_long();
     let available_face_data = reader.main_remaining_bits().saturating_sub(6) / 2;
@@ -3248,7 +3234,7 @@ pub fn read_mesh(reader: &mut DwgMergedReader) -> MeshData {
 /// Decoded fields of an UNDERLAY reference (PDF / DWF / DGN).
 ///
 /// Which of the three underlay flavours this is comes from the object's DXF
-/// class name, resolved by the builder — the bitstream layout is identical for
+/// class name, resolved by the builder â€” the bitstream layout is identical for
 /// all three (AcDbUnderlayReference).
 pub struct UnderlayData {
     pub normal: Vector3,
@@ -3302,7 +3288,7 @@ pub fn read_underlay(reader: &mut DwgMergedReader) -> UnderlayData {
     }
 }
 
-// ── Table (ACAD_TABLE) content — R2010+ ──────────────────────────────
+// â”€â”€ Table (ACAD_TABLE) content â€” R2010+ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // The table entity is INSERT-derived; after the insert base the R2010+ record
 // carries the full table content inline (equivalent to the TABLECONTENT
@@ -4207,7 +4193,7 @@ pub fn read_ole2frame(reader: &mut DwgMergedReader, version: DwgVersion) -> Ole2
     };
     // OLE binary data can be very large (embedded images/documents), so
     // don't use safe_count (100 KB cap). Bound the declared length by what's
-    // actually left in the object stream instead of an arbitrary cap — a
+    // actually left in the object stream instead of an arbitrary cap â€” a
     // 10 MB ceiling used to truncate big embedded pictures mid-stream.
     let declared = reader.read_bit_long().max(0) as usize;
     let data_len = declared.min(reader.remaining_bytes());
@@ -4235,7 +4221,7 @@ pub fn read_ole2frame(reader: &mut DwgMergedReader, version: DwgVersion) -> Ole2
 /// `mtext_type > 1` the stream carries an embedded MTEXT object
 /// (`AcDbMTextObjectEmbedded`) between the type byte and the tag. It must be
 /// consumed in full or the tag / field-length / flags that follow shift.
-/// The only field we keep is the MTEXT `text` — it holds the real multiline
+/// The only field we keep is the MTEXT `text` â€” it holds the real multiline
 /// value (`A\PB`) that the plain single-line `text_value` truncates to `A`.
 /// The R2018 redundant MTEXT and column tail is part of the embedded object;
 /// the attribute-level annotative payload starts only after this returns.
@@ -4479,7 +4465,7 @@ pub fn read_attribute_entity(
     // The outer TEXT style follows the embedded-MTEXT handles.
     text_data.style_handle = reader.read_handle();
 
-    // An ATTRIB instance carries no prompt in the stream — that lives on the
+    // An ATTRIB instance carries no prompt in the stream â€” that lives on the
     // ATTDEF. Keep it empty so the shared struct stays consistent.
     AttributeCommonData {
         text_data,
@@ -4494,9 +4480,9 @@ pub fn read_attribute_entity(
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  MultiLeader reader
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Data returned by the multileader reader.
 #[derive(Debug, Clone)]
@@ -4625,7 +4611,7 @@ pub fn read_multileader(
 
     // dwg2.spec 1418-1445: num_blocklabels + the labels list and the
     // is_neg_textdir / ipe_alignment / justification / scale_factor tail
-    // are VERSIONS (R_14, R_2007) — on R2010+ none of these bits exist on
+    // are VERSIONS (R_14, R_2007) â€” on R2010+ none of these bits exist on
     // the wire and the attach trio (dwg2.spec 1449-1451) follows
     // is_annotative directly. Keep the MultiLeader::new() defaults for
     // the absent fields so nothing else changes.
@@ -4660,11 +4646,11 @@ pub fn read_multileader(
     }
 
     let mut text_attachment_direction: i16 = 0;
-    let mut text_bottom_attachment: i16 = 9; // CenterOfText — matches MultiLeader::new() default
-    let mut text_top_attachment: i16 = 9; // CenterOfText — matches MultiLeader::new() default
+    let mut text_bottom_attachment: i16 = 9; // CenterOfText â€” matches MultiLeader::new() default
+    let mut text_top_attachment: i16 = 9; // CenterOfText â€” matches MultiLeader::new() default
     if version.r2010_plus() {
         // dwg2.spec 1449-1451: the wire order is attach_dir (271),
-        // attach_top (273), attach_bottom (272) — the DXF codes are not
+        // attach_top (273), attach_bottom (272) â€” the DXF codes are not
         // in wire order (the former dir/bottom/top read swapped top and
         // bottom).
         text_attachment_direction = reader.read_bit_short();
@@ -4683,9 +4669,9 @@ pub fn read_multileader(
     // those bits, so capture them verbatim for a byte-faithful rewrite.
     // Census: 17 bits 0b00100101000010010 on the gold tree's Leader
     // drawing family (AutoCAD-2017/2018-saved down-saves and the
-    // ODA-FileConverter 2018 variant, per their SummaryInfo stamps — a
+    // ODA-FileConverter 2018 variant, per their SummaryInfo stamps â€” a
     // content-class convention, not a writer fingerprint), 9 bits on the
-    // fresh simple-content specimens (BricsCAD/AutoCAD/gh44) — the width
+    // fresh simple-content specimens (BricsCAD/AutoCAD/gh44) â€” the width
     // is content-dependent, the group ends at the anchor.
     let mut raw_tail_bits = None;
     if version.r2010_plus() {
@@ -4855,7 +4841,7 @@ pub(crate) fn read_multileader_annotation_context(
     }
 
     // has_block_contents bit is only present when has_text_contents is false
-    // (else-if structure in the DWG format — text and block are mutually exclusive)
+    // (else-if structure in the DWG format â€” text and block are mutually exclusive)
     let mut has_block_contents = false;
 
     let mut block_content_handle: Option<Handle> = None;
@@ -5048,10 +5034,10 @@ fn read_leader_line(reader: &mut DwgMergedReader, version: DwgVersion) -> Leader
     let mut line_color = Color::ByBlock;
     let mut line_type_handle: Option<Handle> = None;
     // Defaults for a pre-R2010 source upconverted to R2010+: a leader line that
-    // does not override these must match AutoCAD's emission — ByBlock weight and
+    // does not override these must match AutoCAD's emission â€” ByBlock weight and
     // a 0.0 arrow size. 0.0 is load-bearing: write_bit_double emits the 2-bit
     // BD-zero code, not a 66-bit double, so the annotation context stays the
-    // length AutoCAD's R2018 reader expects (a non-zero default over-runs it →
+    // length AutoCAD's R2018 reader expects (a non-zero default over-runs it â†’
     // eDwgObjectImproperlyRead).
     let mut line_weight = crate::types::LineWeight::ByBlock;
     let mut arrowhead_size = 0.0;
@@ -5097,9 +5083,9 @@ fn read_leader_line(reader: &mut DwgMergedReader, version: DwgVersion) -> Leader
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  ACIS / Modeler-geometry readers (3DSOLID, REGION, BODY)
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Data returned by the ACIS entity reader (shared between 3DSOLID, REGION, BODY).
 #[derive(Debug, Clone)]
@@ -5134,10 +5120,10 @@ pub struct AcisEntityData {
     /// R2007+ material bindings.
     pub materials: Vec<AcisMaterial>,
     /// Raw pre-2004 SAT wire blocks (one entry per block; gold emits them
-    /// verbatim as encr_sat_data hex strings — the decode is lossy).
+    /// verbatim as encr_sat_data hex strings â€” the decode is lossy).
     pub encr_sat_data: Vec<Vec<u8>>,
     /// The SH-BREP raw-remainder form (2026-10-04): the captured tail from
-    /// just after the wire version BS to the record's main end — the write
+    /// just after the wire version BS to the record's main end â€” the write
     /// authority for records whose wire version sits outside {1, 2}.
     pub raw_tail: Vec<u8>,
     pub raw_tail_bit_len: u32,
@@ -5334,7 +5320,7 @@ fn read_acis_entity_impl(
     let mut raw_tail_form = false;
     let mut raw_tail_start = 0i64;
     if !acis_empty && !has_ds_data {
-        // Unknown bit — per ODA spec / LibreDWG this B
+        // Unknown bit â€” per ODA spec / LibreDWG this B
         // is always present between acis_empty and the version BS.
         wire_unknown = reader.read_bit();
 
@@ -5344,7 +5330,7 @@ fn read_acis_entity_impl(
         }
 
         if acis_version == 1 {
-            // SAT text — all DWG versions use the same encoding:
+            // SAT text â€” all DWG versions use the same encoding:
             // BL-sized blocks of encrypted bytes (cipher: 159 - byte)
             // terminated by BL(0).  Per LibreDWG dwg.spec.
             is_binary = false;
@@ -5352,7 +5338,7 @@ fn read_acis_entity_impl(
             let mut all_bytes = Vec::new();
             // Gold keeps each wire block verbatim as encr_sat_data[i]
             // (out_json json_3dsolid prints per-block hex; the
-            // 159-cipher decode below is lossy) — retain the raw blocks
+            // 159-cipher decode below is lossy) â€” retain the raw blocks
             // for the gold-parity comparison and the verbatim write echo.
             let mut raw_blocks: Vec<Vec<u8>> = Vec::new();
             loop {
@@ -5402,8 +5388,8 @@ fn read_acis_entity_impl(
             sab_data = probe[..used].to_vec();
             reader.set_position_in_bits(start + used as i64 * 8);
         } else if !version.r2007_plus() {
-            // SAB binary, R2004–R2006: the bytes flow with NO length prefix
-            // ("ACIS BinaryFile…" starts right after the version BS —
+            // SAB binary, R2004â€“R2006: the bytes flow with NO length prefix
+            // ("ACIS BinaryFileâ€¦" starts right after the version BS â€”
             // bit-verified on an AC1018 save). The payload is self-delimiting
             // (End-of-ACIS-data record), so parse once to measure it, keep
             // exactly that many bytes, then restore the bit cursor immediately
@@ -5422,7 +5408,7 @@ fn read_acis_entity_impl(
             }
         } else if history_sh && acis_version != 2 {
             // The SH-BREP raw-remainder form (the 2026-10-04 BREP packet):
-            // the wire version sits outside {1, 2} (0 on the 2007–2013
+            // the wire version sits outside {1, 2} (0 on the 2007â€“2013
             // AutoCAD mints, garbage like 38438 on 2018). Gold's own
             // unstable-class decode (dwg2.spec 3054, ACTION_3DSOLID ->
             // DECODE_3DSOLID) reads NO body here and walks the
@@ -5479,10 +5465,10 @@ fn read_acis_entity_impl(
         }
     }
 
-    // Wireframe data (version=1 SAT, R2004–R2006 inline SAB and AcDs-backed
+    // Wireframe data (version=1 SAT, R2004â€“R2006 inline SAB and AcDs-backed
     // empty bodies; R2007+ inline SAB may return early above).
     // Layout per LibreDWG COMMON_3DSOLID,
-    // bit-verified against an AutoCAD AC1015 (R2000) v1-SAT sample — the
+    // bit-verified against an AutoCAD AC1015 (R2000) v1-SAT sample â€” the
     // `point` decodes to the body's exact bounding-box centre only WITH the
     // point_present gate (AC1032's solids are SAB and skip this path, so it
     // was never really exercised before):
@@ -5550,7 +5536,7 @@ fn read_acis_entity_impl(
     if version.r2007_plus() {
         // The wire version is an UNSIGNED bitcode (gold's BITCODE_BS):
         // the raw-remainder form's garbage head (38438 on the 2018 mint)
-        // wraps negative in i16 — compare as u16 so the materials gate
+        // wraps negative in i16 â€” compare as u16 so the materials gate
         // mirrors gold's `version > 1` exactly.
         if (acis_version as u16) > 1 && !has_ds_data {
             let count = safe_count(reader.read_bit_long());
@@ -5564,7 +5550,7 @@ fn read_acis_entity_impl(
                     // Gold's overflow semantics (bit_read_RC "buffer
                     // overflow" at the handle-stream end): a handle that
                     // cannot supply even its code byte reads as NULL and
-                    // consumes nothing — every later entry reads the same
+                    // consumes nothing â€” every later entry reads the same
                     // exhausted stream (the 2018 mint's 177-entry walk,
                     // every material_handle [0,0]).
                     0
@@ -5582,14 +5568,14 @@ fn read_acis_entity_impl(
         } else if !raw_tail_form {
             // AcDs-backed R2013+ entities and version-1 bodies carry the
             // legacy R2007 unknown BL here, not a materials array. The
-            // raw-remainder form reads nothing — gold's gate is
+            // raw-remainder form reads nothing â€” gold's gate is
             // `version > 1` with no else branch.
             let _unknown_2007 = reader.read_bit_long();
         }
     }
 
     // R2013+ (AC1027+): the modeler-geometry revision block. It must be read
-    // (and later written back) or the entity stream desyncs — AutoCAD/TrueView
+    // (and later written back) or the entity stream desyncs â€” AutoCAD/TrueView
     // then reject the file.
     let revision = if version.r2013_plus(dxf_version) {
         let has_guid = reader.read_bit();
@@ -5653,7 +5639,7 @@ fn read_acis_entity_impl(
 }
 
 /// Read the COMMON_3DSOLID silhouette array (BL count + per-entry
-/// vp_id/3BD triple/perspective/has_wires/[wires]) — shared by the entity
+/// vp_id/3BD triple/perspective/has_wires/[wires]) â€” shared by the entity
 /// wireframe walk and the raw-remainder tail walk.
 fn read_silhouettes_into(reader: &mut DwgMergedReader, silhouettes: &mut Vec<Silhouette>) {
     let num_silhouettes = safe_count(reader.read_bit_long());
@@ -5761,7 +5747,7 @@ pub fn read_surface(
     let history_handle = 0;
     // gold dwg2.spec PLANESURFACE (and the sibling SURFACE blocks):
     // after the COMMON_3DSOLID tail (ACIS + wireframe + acis_empty_bit)
-    // come three BS — modeler_format_version (DXF 70; a per-file modeler
+    // come three BS â€” modeler_format_version (DXF 70; a per-file modeler
     // value like 6, not a constant), then the two isoline counts. Reading
     // the counts two fields early lands u on the modeler slot (6) and v
     // on u (6), the 2004/Surface.dwg PLANESURFACE residue. The writer
@@ -5980,24 +5966,24 @@ pub fn read_surface(
 /// Read a single wire struct from the DWG stream.
 /// Field order/types per LibreDWG `Dwg_3DSOLID_wire`:
 /// RC type, BLd selection_marker, BS color, BLd acis_index, BL num_points,
-/// 3BD points…, B transform_present [+ axes/translation/scale/flags].
+/// 3BD pointsâ€¦, B transform_present [+ axes/translation/scale/flags].
 fn read_wire(reader: &mut DwgMergedReader) -> Wire {
     let wire_type_raw = reader.read_byte();
     let selection_marker = reader.read_bit_long();
     // The wire color is a BS on the wire on EVERY version: gold's
     // WIRESTRUCT_fields uses FIELD_CAST (color, BS, BL, 0), and the
     // decoder's FIELD_CAST reads with the TYPE (dec_macros.h:121:
-    // `(BITCODE_##cast)bit_read_##type`) — a BS read stored into the BL
+    // `(BITCODE_##cast)bit_read_##type`) â€” a BS read stored into the BL
     // struct field. The historical r2004_plus BL branch here (and the
-    // matching writer branch) was a misreading of the cast — the BL
+    // matching writer branch) was a misreading of the cast â€” the BL
     // read diverges from gold exactly when the '11' degenerate code
     // fires (256: gold's BS error branch) or a >255 color uses the
     // '00' form (BS reads RS16 = 2 bytes, BL reads RL32 = 4). Pinned by
-    // Cone_2007: the original's wires[0].color BS is '11' → gold 256
+    // Cone_2007: the original's wires[0].color BS is '11' â†’ gold 256
     // (ByLayer); the BL read gave 0 (ByBlock) before the BL '11'
     // fallback fix, and the BL WRITE of 256 ('00'+RL32) then made the
     // rewrite's wire record 2 bytes longer than gold's BS re-read
-    // expects — the 96-diff corpus regression that exposed this.
+    // expects â€” the 96-diff corpus regression that exposed this.
     let color_val = reader.read_bit_short() as i32;
     let acis_index = reader.read_bit_long();
     let num_pts = safe_count(reader.read_bit_long());
@@ -6045,9 +6031,9 @@ fn read_wire(reader: &mut DwgMergedReader) -> Wire {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Tests
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[cfg(test)]
 mod tests {
@@ -6265,7 +6251,7 @@ mod tests {
         w.write_bit(false); // acis_empty = false
         w.write_bit(false); // unknown bit (per ODA/LibreDWG spec)
         w.write_bit_short(2); // acis_version = 2 (SAB binary)
-                              // NO BL size prefix — reader infers size from remaining bits
+                              // NO BL size prefix â€” reader infers size from remaining bits
         w.write_bytes(&sab_data);
         w.write_bit(false); // wireframe_present = false
         w.write_bit(false); // acis_empty_bit

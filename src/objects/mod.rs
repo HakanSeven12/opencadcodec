@@ -36,7 +36,7 @@ pub use class_object::{
     GeoMapImage, GradientBackground, GroundPlaneBackground, IblBackground, ImageBackground,
     LayerFilter, LightList, LightListEntry, MentalRayRenderSettings, ModelDocViewStyle, MotionPath,
     NavisworksModelDefinition, PartialViewingIndex, PartialViewingIndexEntry,
-    PersistentSubentityManager, PointCloudColorMap, PointCloudColorRamp, PointCloudDefinition,
+    PersistentSubentityManager, PointCloudColorMap, PointCloudColorRamp, PointCloudDefinition, PointCloudRampColor,
     PointCloudDefinitionReactor, PointPath, RapidRtGoldShadow, RapidRtRenderSettings,
     RenderEntry, RenderEnvironment,
     RenderGlobal, RenderSettings, SectionGeometrySettings, SectionManager, SectionSettings,
@@ -64,7 +64,7 @@ pub use dynamic_block::{
     BlockDistanceConstraintParameter, BlockElement, BlockEvalExpression, BlockEvaluationEdge,
     BlockEvaluationGraph, BlockEvaluationNode, BlockFlipAction, BlockFlipGrip, BlockFlipParameter,
     BlockGrip, BlockGripExpression, BlockLinearConstraintParameter, BlockLinearParameter,
-    BlockLookupAction, BlockLookupParameter, BlockLookupRow, BlockMoveAction,
+    BlockLookupAction, BlockLookupParameter, BlockLookupColumn, BlockMoveAction,
     BlockOnePointParameter, BlockOrientedGrip, BlockParameter, BlockParameterDependencyBody,
     BlockParameterProperty, BlockParameterValueSet, BlockPointParameter, BlockPolarParameter,
     BlockPolarStretchAction, BlockRepresentationData, BlockRotationParameter, BlockStretchAction,
@@ -138,8 +138,8 @@ pub struct Dictionary {
     /// Dictionary entries (key -> handle)
     pub entries: Vec<(String, Handle)>,
     /// The verbatim pre-2007 wire forms of the entry keys, index-aligned
-    /// with `entries` (§19 H8h-ext-17, the MTEXT wire-text precedent): the
-    /// authored escape form of a non-ASCII key is author data — the writer
+    /// with `entries` (Ã‚Â§19 H8h-ext-17, the MTEXT wire-text precedent): the
+    /// authored escape form of a non-ASCII key is author data Ã¢â‚¬â€ the writer
     /// replays it verbatim on same-version writes. Wire plumbing, not
     /// model data; not serialized.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -294,12 +294,12 @@ pub struct Layout {
     /// Physical paper height in mm (from embedded PlotSettings, code 45).
     /// Zero means unknown / not read from the file.
     pub paper_height: f64,
-    /// Plot rotation from PlotSettings (code 73): 0=none, 1=90°, 2=180°, 3=270°.
+    /// Plot rotation from PlotSettings (code 73): 0=none, 1=90Ã‚Â°, 2=180Ã‚Â°, 3=270Ã‚Â°.
     pub plot_rotation: i16,
     /// Full embedded PlotSettings flags.
     pub plot_flags: PlotFlags,
 
-    // ── Remaining embedded PlotSettings fields ──────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Remaining embedded PlotSettings fields Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // The LAYOUT object embeds a full PlotSettings record. Preserving only the
     // paper size left the sheet unsized in AutoCAD (rendered tiny in the corner
     // because the paper-size name / units / margins were dropped). Keep the rest
@@ -434,7 +434,7 @@ pub enum ObjectType {
     TableContent(crate::entities::Table),
     /// Scale object - named scale definition
     Scale(Scale),
-    /// Annotative per-object context data (`AcDb*ObjectContextData` leaf) — one
+    /// Annotative per-object context data (`AcDb*ObjectContextData` leaf) Ã¢â‚¬â€ one
     /// per-scale representation of an annotative object.
     ObjectContextData(ObjectContextData),
     /// SortEntitiesTable object - entity draw order
