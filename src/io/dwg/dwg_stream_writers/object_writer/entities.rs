@@ -2470,8 +2470,19 @@ impl<'a> DwgObjectWriter<'a> {
         // block record (*D/*U). Write the RAW wire handle: the doc's
         // name-keyed table uniquifies the many `*D` blocks, so a
         // nameâ†’handle re-lookup resolves the wrong record (or none).
+        let block_handle_value = if !base.block_handle.is_null() {
+            base.block_handle.value()
+        } else {
+            // A programmatically built dimension carries no block handle;
+            // its baked record resolves by the uniquified name.
+            self.document
+                .block_records
+                .get(&base.block_name)
+                .map(|br| br.handle.value())
+                .unwrap_or(0)
+        };
         self.writer
-            .write_handle(DwgReferenceType::HardPointer, base.block_handle.value());
+            .write_handle(DwgReferenceType::HardPointer, block_handle_value);
     }
 
     fn write_dimension_linear(&mut self, d: &DimensionLinear) {
