@@ -1339,14 +1339,13 @@ impl<'a> DwgObjectWriter<'a> {
                 if upper == "*MODEL_SPACE" {
                     return 2; // model space (BB 10)
                 }
-                if upper == "*PAPER_SPACE"
-                    || (upper.starts_with("*PAPER_SPACE")
-                        && upper.len() > 12
-                        && upper[12..].bytes().all(|b| b.is_ascii_digit()))
-                {
+                // Paper-space mode names the active layout's *Paper_Space;
+                // the other layouts' *Paper_SpaceN records, like named
+                // blocks, store their owner.
+                if upper == "*PAPER_SPACE" {
                     return 1; // paper space (BB 01)
                 }
-                return 0; // named block → owned
+                return 0; // owner handle follows
             }
         }
         0

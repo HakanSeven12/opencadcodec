@@ -1918,6 +1918,81 @@ impl<'a> SectionReader<'a> {
                         }
                     }
                 }
+                "$DIMFXL" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.dim_fixed_ext_line_length = v;
+                        }
+                    }
+                }
+                "$DIMJOGANG" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.dim_jog_angle = v;
+                        }
+                    }
+                }
+                "$DIMTFILL" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.dim_text_fill = v;
+                        }
+                    }
+                }
+                "$DIMTFILLCLR" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.dim_text_fill_color = Color::from_index(v);
+                        }
+                    }
+                }
+                "$3DDWFPREC" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.dwf_3d_precision = v;
+                        }
+                    }
+                }
+                "$PSOLWIDTH" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.polysolid_width = v;
+                        }
+                    }
+                }
+                "$PSOLHEIGHT" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_double() {
+                            hdr.polysolid_height = v;
+                        }
+                    }
+                }
+                "$LIGHTGLYPHDISPLAY" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.light_glyph_display = v.clamp(0, 1) as u8;
+                        }
+                    }
+                }
+                "$TILEMODELIGHTSYNCH" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.tile_model_light_synch = v.clamp(0, 1) as u8;
+                        }
+                    }
+                }
+                "$INTERFERECOLOR" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        if let Some(v) = p.as_i16() {
+                            hdr.interference_color = Color::from_index(v);
+                        }
+                    }
+                }
+                "$REALWORLDSCALE" => {
+                    if let Some(p) = self.reader.read_pair()? {
+                        hdr.real_world_scale = p.as_bool() != Some(false);
+                    }
+                }
                 "$INTERSECTIONCOLOR" => {
                     if let Some(p) = self.reader.read_pair()? {
                         if let Some(v) = p.as_i16() {
