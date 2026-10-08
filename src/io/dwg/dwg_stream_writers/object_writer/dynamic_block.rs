@@ -165,7 +165,7 @@ impl<'a> DwgObjectWriter<'a> {
         // hosts keep column-major glam arrays, so the writer transposes.
         // Identity matrices are their own transpose, which is why the
         // base-at-origin transforms of earlier sessions survived either
-        // way Ã¢â‚¬â€ center-carrying placements do not.
+        // way ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â center-carrying placements do not.
         self.write_dynamic_eval(&value.saved_eval());
         self.writer.write_bit_long(value.major);
         self.writer.write_bit_long(value.minor);
@@ -179,9 +179,9 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     /// Emit a captured undocumented node-class tail verbatim (Phase A raw
-    /// retention). Returns false when the model carries no tail Ã¢â‚¬â€ the byte
+    /// retention). Returns false when the model carries no tail ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the byte
     /// vector is the authority, so a deserialized record with a declared
-    /// but inconsistent bit_len also falls back Ã¢â‚¬â€ letting the caller run
+    /// but inconsistent bit_len also falls back ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â letting the caller run
     /// its modeled arm instead. See `SolidHistorySweep::shsw_raw_tail`.
     fn write_undocumented_tail(&mut self, bytes: &[u8], bit_len: u32) -> bool {
         let bits = (bit_len as usize).min(bytes.len() * 8);
@@ -199,16 +199,16 @@ impl<'a> DwgObjectWriter<'a> {
     /// The SH-BREP raw-remainder re-emission (the 2026-10-04 BREP packet).
     ///
     /// For records read in the raw-remainder form (the wire version
-    /// outside {1, 2} Ã¢â‚¬â€ gold's unstable-class walk reads no body and
+    /// outside {1, 2} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's unstable-class walk reads no body and
     /// walks the COMMON_3DSOLID tail from the modeler blob's first
     /// bits), the captured tail is the write authority: re-emit the
     /// wire head (acis_empty B, unknown B, version BS) verbatim, then
     /// the captured tail bits bit-exact. The materials' retained handle
-    /// references follow into the object handle stream Ã¢â‚¬â€ gold's
+    /// references follow into the object handle stream ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's
     /// overflow semantics read un-retained handles as NULL consuming
     /// nothing, so only the retained (Some) handles have wire bits to
     /// reproduce. Returns false (before writing anything) when the
-    /// model carries no captured tail Ã¢â‚¬â€ the modeled arm runs instead
+    /// model carries no captured tail ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the modeled arm runs instead
     /// (DXF-read records).
     fn write_brep_raw_tail(&mut self, acis: &crate::entities::AcisData) -> bool {
         let Some(wire_version) = acis.raw_wire_version else {
@@ -237,10 +237,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.operation_minor);
         // Phase B write rule: re-encode only when a decoded field was
         // programmatically modified, else verbatim (bit-identical by
-        // construction Ã¢â‚¬â€ `render_sweep_tail` splices the current model
+        // construction ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `render_sweep_tail` splices the current model
         // values into the stored bits and the unmodified decode round-trips
         // bit-exact). A tail that does not decode keeps its Phase A
-        // verbatim re-emission here Ã¢â‚¬â€ the modeled arm stays reserved for
+        // verbatim re-emission here ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the modeled arm stays reserved for
         // records with NO captured tail (DXF reads). Same rule for the
         // loft/revolve arms below.
         let rendered = crate::io::dwg::sh_tail_decode::render_sweep_tail(
@@ -758,7 +758,7 @@ impl<'a> DwgObjectWriter<'a> {
                     self.writer.write_bit_long(node.id);
                     self.writer.write_bit_long(node.edge_flags);
                     self.writer.write_bit_long(node.next_id);
-                    // Ã‚Â§19 H8h-extension: the author's wire codes the
+                    // Ãƒâ€šÃ‚Â§19 H8h-extension: the author's wire codes the
                     // eval-graph node expression ref 3 (HardOwnership),
                     // corpus-wide across every AC1021 genus (gold prints
                     // evalexpr [3, ..] in the 2027 fixtures, example_2007
@@ -802,7 +802,7 @@ impl<'a> DwgObjectWriter<'a> {
             DynamicBlockData::SolidHistory(value) => {
                 self.writer.write_bit_long(value.major);
                 self.writer.write_bit_long(value.minor);
-                // Ã‚Â§19 H8h-extension: the history root's graph ref is
+                // Ãƒâ€šÃ‚Â§19 H8h-extension: the history root's graph ref is
                 // code 3 (HardOwnership) on the author's wire (gold
                 // prints owner [3, ..] in every AC1021 genus).
                 self.writer
@@ -814,17 +814,24 @@ impl<'a> DwgObjectWriter<'a> {
             DynamicBlockData::SolidHistoryNode(value) => {
                 // The primitive nodes carry the authored genus on disk:
                 // the transform translation names the solid's world
-                // centre (the local primitive hangs centred on the frame
-                // origin), while this crate's hosts build â€” and the
-                // reader lifts back â€” base-at-origin frames. Shift the
-                // translation by the family's local centre on the way
-                // out, unconditionally: a captured record round-trips
+                // centre, while the hosts anchor Cylinder, Cone and
+                // Pyramid frames at the base centre (Box, Wedge, Sphere
+                // and Torus hosts already anchor at the centre). Shift
+                // the translation by the family's centre offset on the
+                // way out, unconditionally: a captured record round-trips
                 // through the reader's un-shift, so re-shifting is what
                 // keeps the typed re-encode stable. (Records with a raw
                 // whole-record capture echo verbatim above and never
-                // reach here.) Non-primitive families answer a zero
-                // centre and pass through untouched.
-                self.write_solid_history_operation(value);
+                // reach here.) Families whose hosts anchor at the centre
+                // answer a zero offset and pass through untouched.
+                let mut authored = value.clone();
+                if let Some(base) = authored.base_mut() {
+                    base.translate_frame(
+                        crate::objects::primitive_center_shift(value),
+                        1.0,
+                    );
+                }
+                self.write_solid_history_operation(&authored);
             }
         }
         self.register_object(object.handle);

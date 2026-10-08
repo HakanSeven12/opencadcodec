@@ -983,11 +983,10 @@ impl SolidHistoryNodeBase {
 /// untouched.
 pub(crate) fn primitive_center_shift(operation: &SolidHistoryOperation) -> [f64; 3] {
     match operation {
-        SolidHistoryOperation::Box(value) | SolidHistoryOperation::Wedge(value) => [
-            value.length * 0.5,
-            value.width * 0.5,
-            value.height * 0.5,
-        ],
+        // The hosts anchor Box and Wedge frames at the solid's centre and
+        // Cylinder, Cone and Pyramid at the base centre, while the authored
+        // wire carries the solid's world centre in every family: the frame
+        // translation the write shift produces and the read un-shift expects.
         SolidHistoryOperation::Cylinder(value) => [0.0, 0.0, value.height * 0.5],
         SolidHistoryOperation::Cone(value) => [0.0, 0.0, value.height * 0.5],
         SolidHistoryOperation::Pyramid(value) => [0.0, 0.0, value.height * 0.5],
