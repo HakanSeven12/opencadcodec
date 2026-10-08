@@ -650,7 +650,7 @@ fn prepare_legacy_document(document: &mut CadDocument) {
                         .iter()
                         .any(|record| record.viewport == viewport.common.handle) =>
                 {
-                    Some((viewport.common.handle, viewport.status.is_on))
+                    Some((viewport.common.handle, viewport.is_on()))
                 }
                 _ => None,
             })
