@@ -5045,7 +5045,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 .copied()
                 .unwrap_or(0)
         };
-        let status = match (viewport.status.is_on, viewport.off_screen) {
+        let status = match (viewport.is_on(), viewport.off_screen) {
             (false, _) => 0,
             (true, true) => -1,
             (true, false) => id,
