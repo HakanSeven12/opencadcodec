@@ -294,6 +294,28 @@ pub struct HeaderVariables {
     pub intersection_display: i16,
     /// INTERSECTIONCOLOR - Intersection polyline color
     pub intersection_color: i16,
+    /// INTERFERECOLOR - Color of interference objects
+    pub interference_color: Color,
+    /// REALWORLDSCALE - Materials use real-world scale
+    pub real_world_scale: bool,
+    /// LIGHTGLYPHDISPLAY - Light glyphs shown
+    pub light_glyph_display: u8,
+    /// TILEMODELIGHTSYNCH - Lighting synchronized between model and layouts
+    pub tile_model_light_synch: u8,
+    /// PSOLWIDTH - Default polysolid width
+    pub polysolid_width: f64,
+    /// PSOLHEIGHT - Default polysolid height
+    pub polysolid_height: f64,
+    /// 3DDWFPREC - 3D DWF precision
+    pub dwf_3d_precision: f64,
+    /// DIMFXL - Fixed extension line length
+    pub dim_fixed_ext_line_length: f64,
+    /// DIMJOGANG - Jogged radius dimension angle (radians)
+    pub dim_jog_angle: f64,
+    /// DIMTFILL - Dimension text background fill
+    pub dim_text_fill: i16,
+    /// DIMTFILLCLR - Dimension text background fill color
+    pub dim_text_fill_color: Color,
     /// DIMASSOC - Dimension associativity (0=no, 1=non-exploded, 2=associative)
     pub dimension_associativity: i16,
     /// PROJECTNAME - Project name
@@ -832,6 +854,17 @@ impl Default for HeaderVariables {
             obscured_linetype: 0,
             intersection_display: 0,
             intersection_color: 257,
+            interference_color: Color::from_index(1),
+            real_world_scale: true,
+            light_glyph_display: 1,
+            tile_model_light_synch: 1,
+            polysolid_width: 0.25,
+            polysolid_height: 4.0,
+            dwf_3d_precision: 2.0,
+            dim_fixed_ext_line_length: 1.0,
+            dim_jog_angle: std::f64::consts::FRAC_PI_4,
+            dim_text_fill: 0,
+            dim_text_fill_color: Color::ByBlock,
             dimension_associativity: 2,
             project_name: String::new(),
 

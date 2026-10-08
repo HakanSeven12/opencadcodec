@@ -580,10 +580,10 @@ fn read_header_fields(r: &mut SectionReader, v: DxfVersion, h: &mut HeaderVariab
 
     // R2007+ dimension extras
     if r2007_plus(v) {
-        let _ = r.read_bit_double(); // DIMFXL
-        let _ = r.read_bit_double(); // DIMJOGANG
-        let _ = r.read_bit_short(); // DIMTFILL
-        let _ = r.read_cm_color(); // DIMTFILLCLR
+        h.dim_fixed_ext_line_length = r.read_bit_double();
+        h.dim_jog_angle = r.read_bit_double();
+        h.dim_text_fill = r.read_bit_short();
+        h.dim_text_fill_color = r.read_cm_color();
     }
 
     // R2000+ dimension flags
@@ -800,13 +800,13 @@ fn read_header_fields(r: &mut SectionReader, v: DxfVersion, h: &mut HeaderVariab
 
         h.steps_per_second = r.read_bit_double();
         h.step_size = r.read_bit_double();
-        let _ = r.read_bit_double(); // 3DDWFPREC
+        h.dwf_3d_precision = r.read_bit_double();
         h.lens_length = r.read_bit_double();
         h.camera_height = r.read_bit_double();
         h.record_solid_history = r.read_byte() != 0;
         h.show_solid_history = (r.read_byte() as i16).clamp(0, 2);
-        let _ = r.read_bit_double(); // PSOLWIDTH
-        let _ = r.read_bit_double(); // PSOLHEIGHT
+        h.polysolid_width = r.read_bit_double();
+        h.polysolid_height = r.read_bit_double();
         h.loft_angle1 = r.read_bit_double();
         h.loft_angle2 = r.read_bit_double();
         h.loft_magnitude1 = r.read_bit_double();
@@ -817,14 +817,14 @@ fn read_header_fields(r: &mut SectionReader, v: DxfVersion, h: &mut HeaderVariab
         h.longitude = r.read_bit_double();
         h.north_direction = r.read_bit_double();
         h.timezone = r.read_bit_long();
-        let _ = r.read_byte(); // LIGHTGLYPHDISPLAY
-        let _ = r.read_byte(); // TILEMODELIGHTSYNCH
+        h.light_glyph_display = r.read_byte();
+        h.tile_model_light_synch = r.read_byte();
         h.dwf_frame = r.read_byte() as i16;
         h.dgn_frame = r.read_byte() as i16;
 
-        let _ = r.read_bit(); // unknown
+        h.real_world_scale = r.read_bit();
 
-        let _ = r.read_cm_color(); // INTERFERECOLOR
+        h.interference_color = r.read_cm_color();
 
         let _ = r.read_handle(); // INTERFEREOBJVS
         let _ = r.read_handle(); // INTERFEREVPVS
