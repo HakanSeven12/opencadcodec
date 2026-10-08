@@ -131,6 +131,7 @@ fn document_with_edge_param(
             dxf_name: "ACDBASSOCEDGEACTIONPARAM".to_string(),
             cpp_class_name: "AcDbAssocEdgeActionParam".to_string(),
             data: AssociativeData::EdgeActionParam(AssocEdgeActionParam {
+                curve: Vec::new(),
                 single_dependency: AssocSingleDependencyActionParam {
                     action_param: AssocActionParam {
                         is_r2013,

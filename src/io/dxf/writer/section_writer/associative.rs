@@ -806,7 +806,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for marker in value.markers {
                     self.writer.write_i32(90, marker)?;
                 }
-                // Ã‚Â§19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
+                // Ãƒâ€šÃ‚Â§19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
                 // order; the subents count is the vector length; the cv2
                 // tail emits as 90 + 290.
                 self.writer.write_i32(90, value.bl1)?;
@@ -819,7 +819,7 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for item in &value.subents {
                     self.writer.write_i32(90, *item)?;
                 }
-                // Ã‚Â§19 H8h-ext-6: the captured tail BLs as 90 values,
+                // Ãƒâ€šÃ‚Â§19 H8h-ext-6: the captured tail BLs as 90 values,
                 // then the trailing B as the 290 code.
                 for bl in &value.tail_bls {
                     self.writer.write_i32(90, *bl)?;
@@ -834,6 +834,18 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_handle(330, value.parameter)?;
                 self.writer.write_bool(290, value.has_action)?;
                 self.writer.write_i32(90, value.action_type)?;
+                for item in &value.curve {
+                    match item {
+                        AssocCurveValue::Bool(value) => self.writer.write_bool(70, *value)?,
+                        AssocCurveValue::Int(value) => self.writer.write_i32(90, *value)?,
+                        AssocCurveValue::Real(value) => self.writer.write_double(40, *value)?,
+                        AssocCurveValue::Point(value) => {
+                            self.writer.write_double(10, value.x)?;
+                            self.writer.write_double(20, value.y)?;
+                            self.writer.write_double(30, value.z)?;
+                        }
+                    }
+                }
             }
             AssociativeData::ConstraintGroup(value) => {
                 self.write_assoc_action(&value.action)?;

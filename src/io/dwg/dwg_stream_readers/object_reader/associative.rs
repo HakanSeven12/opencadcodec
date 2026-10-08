@@ -207,9 +207,9 @@ fn read_parameter_body(
 /// ("bit_read_RC buffer overflow"), which out_json prints as the [0,0]
 /// pair. The 2004/Surface.dwg ORIG record is truncated mid-payload: 23
 /// data bytes whose handle region carries exactly [owner (8.0.0)][deps
-/// ((3.2)â†’1294)][pab.assocdep ((4.2)â†’1293)] plus one leftover bit, so the
-/// sab.assocdep form starts at that very last bit â€” the zero-filling
-/// reader would turn it into code 8, counter 0 and resolve `refâˆ’1`
+/// ((3.2)Ã¢â€ â€™1294)][pab.assocdep ((4.2)Ã¢â€ â€™1293)] plus one leftover bit, so the
+/// sab.assocdep form starts at that very last bit Ã¢â‚¬â€ the zero-filling
+/// reader would turn it into code 8, counter 0 and resolve `refÃ¢Ë†â€™1`
 /// garbage (1291) where gold reads NULL. Intact records (silver's own
 /// rewrite and every non-truncated action-body record) keep every handle
 /// slot inside the record, so the guard never fires on them.
@@ -223,7 +223,7 @@ fn surface_bounded_handle(reader: &mut DwgMergedReader) -> Handle {
 /// BitLong with LibreDWG's object-dat end bound (the action-body tails).
 ///
 /// Gold's `bit_read_BL` consumes the 2-bit code and then refuses the
-/// value bytes that would cross the record's data end, printing 0 â€” the
+/// value bytes that would cross the record's data end, printing 0 Ã¢â‚¬â€ the
 /// truncated 2004/Surface record reads pbsab_status as '01' + a byte
 /// starting at the last data bit (0-padded read would give 128) and
 /// class_version as a code starting past the end; both print 0. The
@@ -647,11 +647,11 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
             subents.push(reader.read_bit_long());
         }
     }
-    // Â§19 H8h-ext-6: the undocumented tail after the subents vector â€”
+    // Ã‚Â§19 H8h-ext-6: the undocumented tail after the subents vector Ã¢â‚¬â€
     // a variable BL run captured verbatim (the loft specimens carry
     // two; the Chamfer/Fillet 2DF records carry the ~1224-BL history
     // blob; the count-0 records carry none). The run ends flush at the
-    // main content end â€” the bit after the content is the merged
+    // main content end Ã¢â‚¬â€ the bit after the content is the merged
     // stream's no-text flag, never a record field (the H8h-ext-5
     // lesson). See PersSubentManager::tail_bls.
     let mut tail_bls = Vec::new();
@@ -689,13 +689,13 @@ pub fn read_associative_data(
             let dependency = read_dependency(reader);
             let class_version = reader.read_bit_short();
             let enabled = reader.read_bit();
-            // Â§19 H8h-ext-15: capture the text stream's PRESENCE at the
-            // classname TU â€” the author's PER-RECORD form: her R2013
+            // Ã‚Â§19 H8h-ext-15: capture the text stream's PRESENCE at the
+            // classname TU Ã¢â‚¬â€ the author's PER-RECORD form: her R2013
             // Constraints geomdeps carry has_strings: 0 (no stream; the
             // TU read returns "" at 0 bits) while the AC1021 corpus
             // authors write has_strings: 1 even with empty-only
             // streams. The writer skips the TU on a no-stream record so
-            // the merge emits no stream. Gated to R2007+ â€” the
+            // the merge emits no stream. Gated to R2007+ Ã¢â‚¬â€ the
             // pre-2007 classname is an inline main TV (no text
             // streams exist; the flag stays false and the write is
             // the normal inline form).
@@ -703,8 +703,8 @@ pub fn read_associative_data(
                 dxf_version >= DxfVersion::AC1021 && reader.text_remaining_bits() <= 0;
             let class_name = reader.read_variable_text();
             let dependent_on_compound_object = reader.read_bit();
-            // Â§19 H8h-ext-10: capture the undocumented persubent-id
-            // tail â€” the main-stream bits after dependent_on_compound_
+            // Ã‚Â§19 H8h-ext-10: capture the undocumented persubent-id
+            // tail Ã¢â‚¬â€ the main-stream bits after dependent_on_compound_
             // object that gold's spec block (dwg2.spec 3148) does not
             // cover and its own -v9 walk parks as unknown (example_
             // 2007 h=396: 46 bits; the handle stream holds only the
@@ -808,7 +808,7 @@ pub fn read_associative_data(
             ))
         }
         "ASSOCPERSSUBENTMANAGER" => {
-            // Â§19 H8h-ext-6: the gold dwg2.spec field order â€”
+            // Ã‚Â§19 H8h-ext-6: the gold dwg2.spec field order Ã¢â‚¬â€
             // class_version, unknown_3/0/2 (the markers), unknown_bl1,
             // unknown_bl2, num_steps, steps, num_subents, subents, and
             // the class_version-2 tail (unknown_bl3 + B). The old parse
@@ -840,13 +840,13 @@ pub fn read_associative_data(
                 }
                 result
             };
-            // Â§19 H8h-ext-6: the undocumented tail after the subents
-            // vector â€” a variable BL run (captured verbatim; the gold
+            // Ã‚Â§19 H8h-ext-6: the undocumented tail after the subents
+            // vector Ã¢â‚¬â€ a variable BL run (captured verbatim; the gold
             // spec declares only the cv2 [BL][B] pair, but the cv=1
             // corpus records carry more there, e.g. LoftCSurf/LoftM
             // 2DD's [0,0,0,1,1,0]), then the trailing B (the last
             // content bit). The bit after the content is the merged
-            // stream's no-text flag â€” never a record field (the
+            // stream's no-text flag Ã¢â‚¬â€ never a record field (the
             // H8h-ext-5 lesson).
             let mut tail_bls = Vec::new();
             while reader.main_remaining_bits() > 1 {
@@ -878,55 +878,102 @@ pub fn read_associative_data(
                 27 => AssocSubcurveKind::Curve3d,
                 _ => AssocSubcurveKind::None,
             };
-            // Â§19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
+            // Ã‚Â§19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
             // geometry region after action_type. The typed forms:
-            // ARC (11) â€” twelve BDs: center, normal, x-axis (3BD
+            // ARC (11) Ã¢â‚¬â€ twelve BDs: center, normal, x-axis (3BD
             // each), radius, start/end angles (the H8h-ext-4
             // reverse-engineering); the R2013+ frames append a
             // constant two-bit `10` trailing form but the read stops
             // at the twelfth BD (the tail is a write-side emission,
-            // see the writer arm). ELLIPSE (17) â€” thirteen BDs:
+            // see the writer arm). ELLIPSE (17) Ã¢â‚¬â€ thirteen BDs:
             // center, major/minor-axis unit vectors, major/minor
             // radii, start/end angles (the B2 authored quads + the
-            // 2004/Surface.dwg corpus specimens). LINESEG3D (23) â€”
+            // 2004/Surface.dwg corpus specimens). LINESEG3D (23) Ã¢â‚¬â€
             // six BDs: start/end points (same double-source
-            // evidence). The remaining kinds â€” NURB3D (42, a
+            // evidence). The remaining kinds Ã¢â‚¬â€ NURB3D (42, a
             // ~1300-bit parameterized form), the gold-unknown 47 and
-            // any future 19/27 â€” stay unread and their region is
+            // any future 19/27 Ã¢â‚¬â€ stay unread and their region is
             // captured verbatim for same-version replay (the
             // H8h-ext-8 `nodes_wire_main` pattern).
             let mut subcurve = None;
+            let mut curve = Vec::new();
             let mut subcurve_wire = None;
             let mut subcurve_wire_bit_len = 0u32;
             match action_type {
                 11 => {
+                    let (center, normal, x_axis) = (
+                        reader.read_3bit_double(),
+                        reader.read_3bit_double(),
+                        reader.read_3bit_double(),
+                    );
+                    let (radius, start_angle, end_angle) = (
+                        reader.read_bit_double(),
+                        reader.read_bit_double(),
+                        reader.read_bit_double(),
+                    );
                     subcurve = Some(AssocSubcurve::Arc(AssocArcSubcurve {
-                        center: reader.read_3bit_double(),
-                        normal: reader.read_3bit_double(),
-                        x_axis: reader.read_3bit_double(),
-                        radius: reader.read_bit_double(),
-                        start_angle: reader.read_bit_double(),
-                        end_angle: reader.read_bit_double(),
+                        center,
+                        normal,
+                        x_axis,
+                        radius,
+                        start_angle,
+                        end_angle,
                     }));
+                    curve = vec![
+                        AssocCurveValue::Point(center),
+                        AssocCurveValue::Point(normal),
+                        AssocCurveValue::Point(x_axis),
+                        AssocCurveValue::Real(radius),
+                        AssocCurveValue::Real(start_angle),
+                        AssocCurveValue::Real(end_angle),
+                    ];
                 }
                 17 => {
+                    let (center, major_axis, minor_axis) = (
+                        reader.read_3bit_double(),
+                        reader.read_3bit_double(),
+                        reader.read_3bit_double(),
+                    );
+                    let (major_radius, minor_radius, start_angle, end_angle) = (
+                        reader.read_bit_double(),
+                        reader.read_bit_double(),
+                        reader.read_bit_double(),
+                        reader.read_bit_double(),
+                    );
                     subcurve = Some(AssocSubcurve::Ellipse(AssocEllipseSubcurve {
-                        center: reader.read_3bit_double(),
-                        major_axis: reader.read_3bit_double(),
-                        minor_axis: reader.read_3bit_double(),
-                        major_radius: reader.read_bit_double(),
-                        minor_radius: reader.read_bit_double(),
-                        start_angle: reader.read_bit_double(),
-                        end_angle: reader.read_bit_double(),
+                        center,
+                        major_axis,
+                        minor_axis,
+                        major_radius,
+                        minor_radius,
+                        start_angle,
+                        end_angle,
                     }));
+                    curve = vec![
+                        AssocCurveValue::Point(center),
+                        AssocCurveValue::Point(major_axis),
+                        AssocCurveValue::Point(minor_axis),
+                        AssocCurveValue::Real(major_radius),
+                        AssocCurveValue::Real(minor_radius),
+                        AssocCurveValue::Real(start_angle),
+                        AssocCurveValue::Real(end_angle),
+                    ];
                 }
                 23 => {
+                    let (start_point, end_point) = (
+                        reader.read_3bit_double(),
+                        reader.read_3bit_double(),
+                    );
                     subcurve = Some(AssocSubcurve::LineSegment3d(
                         AssocLineSegment3dSubcurve {
-                            start_point: reader.read_3bit_double(),
-                            end_point: reader.read_3bit_double(),
+                            start_point,
+                            end_point,
                         },
                     ));
+                    curve = vec![
+                        AssocCurveValue::Point(start_point),
+                        AssocCurveValue::Point(end_point),
+                    ];
                 }
                 _ => {
                     let region_start = reader.position_in_bits();
@@ -937,7 +984,7 @@ pub fn read_associative_data(
                             reader.peek_window_bytes(region_start, count)
                         {
                             // TODO A8 (2026-10-02): the NURB3D (42)
-                            // region parses TYPED â€” the measured
+                            // region parses TYPED Ã¢â‚¬â€ the measured
                             // grammar (see `AssocNurb3dSubcurve`):
                             // fully self-delimiting and era-stable
                             // (bit-identical 2007/2018 regions on
@@ -958,7 +1005,7 @@ pub fn read_associative_data(
                                 }
                             } else if action_type == 47 {
                                 // TODO A8 (2026-10-03): the composite
-                                // (47) region parses TYPED â€” the
+                                // (47) region parses TYPED Ã¢â‚¬â€ the
                                 // segment-list grammar (see
                                 // `AssocCompositeSubcurve`): BL count +
                                 // per segment BS kind (23 line
@@ -993,6 +1040,7 @@ pub fn read_associative_data(
             let subcurve_wire_dxf_version =
                 if subcurve_wire.is_some() { Some(dxf_version) } else { None };
             AssociativeData::EdgeActionParam(AssocEdgeActionParam {
+                curve,
                 single_dependency,
                 parameter,
                 has_action,
@@ -1018,7 +1066,7 @@ pub fn read_associative_data(
             let actions = read_handles(reader, count);
             let node_count = safe_count(reader.read_bit_long());
             // gold dwg2.spec ASSOC2DCONSTRAINTGROUP (5682 + AcConstraint
-            // GroupNode_fields 5576): num_nodes BL then a FLAT REPEAT â€”
+            // GroupNode_fields 5576): num_nodes BL then a FLAT REPEAT Ã¢â‚¬â€
             // per node: nodeid BLd, [pre-R2013b: status RC], num_
             // connections BL, connections BL-vector, [R2013b+: status
             // RC]. The old root-node + class-registry shape misparsed the
@@ -1051,12 +1099,12 @@ pub fn read_associative_data(
                     data: AssocConstraintNodeData::None,
                 });
             }
-            // Â§19 H8h-ext-8: the node-region wire capture. Gold's flat
-            // REPEAT misparses the authored records â€” on the 2007/
+            // Ã‚Â§19 H8h-ext-8: the node-region wire capture. Gold's flat
+            // REPEAT misparses the authored records Ã¢â‚¬â€ on the 2007/
             // Constraints.dwg group (h 3E3, nine nodes) gold's own -v9
             // walk desyncs at node[1] and parks 5249 unknown bits. The
             // real wire (cross-verified against the R2000/R2004
-            // ancestors of the same drawing â€” the circle node's data
+            // ancestors of the same drawing Ã¢â‚¬â€ the circle node's data
             // region is bit-identical across eras once the inline
             // class-name TV of the pre-2007 records is discounted)
             // carries, per node: a class-name TU consumed from the
@@ -1064,7 +1112,7 @@ pub fn read_associative_data(
             // "AcConstrainedImplicitPoint", "AcCenterPointConstraint",
             // ...), a class data arm (the circle: connection BLs, the
             // center 3BD, normal/x-axis 3BD shorts, radius BD, 0.0,
-            // 2Ï€; the implicit points: connection BLs, point_idx BLd
+            // 2Ãâ‚¬; the implicit points: connection BLs, point_idx BLd
             // -1, curve_id BLd; ...) and per-node geometry handles in
             // the HANDLE stream (two soft pointers into the group's
             // two ASSOCGEOMDEPENDENCYs plus three inline nulls). None
@@ -1078,28 +1126,28 @@ pub fn read_associative_data(
             // includes her closing 1s pad; the merged writer's own pad
             // is a no-op once aligned).
             //
-            // Â§19 H8h-ext-13: the capture extends to the TwoStream
-            // eras (AC1015/AC1018) â€” the same drawing's R2000/R2004
+            // Ã‚Â§19 H8h-ext-13: the capture extends to the TwoStream
+            // eras (AC1015/AC1018) Ã¢â‚¬â€ the same drawing's R2000/R2004
             // specimens carry the node class names INLINE as main TVs
             // (inside the captured region, so no separate names
             // capture), and their handle streams are bit-continuous
-            // at the RL (the authored Â§19.4.C frame our merge already
+            // at the RL (the authored Ã‚Â§19.4.C frame our merge already
             // mirrors). DXF/programmatic reads keep the naive modeled
             // emission (`nodes_wire_main` stays `None`).
             //
-            // Â§19 H8h-ext-14: the capture extends to the R2010/R2013
-            // frames (AC1024/AC1027 â€” the MC handle-bits header, the
-            // BOT type, the flag at handle_startâˆ’1). Their text
+            // Ã‚Â§19 H8h-ext-14: the capture extends to the R2010/R2013
+            // frames (AC1024/AC1027 Ã¢â‚¬â€ the MC handle-bits header, the
+            // BOT type, the flag at handle_startÃ¢Ë†â€™1). Their text
             // streams (has_strings: 1) hold content this campaign
-            // never decoded â€” the AC21 raw-stream dump instrument
-            // does not cover the R2010+ containers â€” so the region
+            // never decoded Ã¢â‚¬â€ the AC21 raw-stream dump instrument
+            // does not cover the R2010+ containers Ã¢â‚¬â€ so the region
             // is retained VERBATIM (the ext-12 TABLECONTENT
             // `wire_text` pattern) instead of re-encoding class-name
             // TUs; AC1021 keeps the decoded-names path (verified
             // 58/58). The naive walk desyncs on these records exactly
             // as on AC1021 (gold's own -v9 walk errors at node[1]:
             // nconn 2800028726 / 68456580), but the capture is
-            // peek-based â€” the bounds come from the frame, not the
+            // peek-based Ã¢â‚¬â€ the bounds come from the frame, not the
             // walk.
             let mut nodes_wire_names: Vec<String> = Vec::new();
             let mut nodes_wire_main: Option<Vec<u8>> = None;
@@ -1109,14 +1157,14 @@ pub fn read_associative_data(
             let mut nodes_wire_text: Option<Vec<u8>> = None;
             let mut nodes_wire_text_bit_len: u32 = 0;
             // TODO A5 family 2 (2026-10-01): AC1032 (2018) joins the
-            // captured frames â€” the Dynblocks specimen's two
+            // captured frames Ã¢â‚¬â€ the Dynblocks specimen's two
             // ACDBASSOC2DCONSTRAINTGROUP records (0xBB1B/0xBB81) have
             // the same R2010+ container shape (the MC handle-bits
-            // header, the BOT type, the flag at handle_startâˆ’1, an
+            // header, the BOT type, the flag at handle_startÃ¢Ë†â€™1, an
             // undecoded text region); without the capture the naive
             // typed REPEAT balloons (200k phantom nodes read from her
-            // ~170-node region) and the rewrite explodes 2948â†’29650
-            // bytes. The capture is peek-based â€” the bounds come from
+            // ~170-node region) and the rewrite explodes 2948Ã¢â€ â€™29650
+            // bytes. The capture is peek-based Ã¢â‚¬â€ the bounds come from
             // the frame, not the walk.
             let era_wire = matches!(
                 dxf_version,
@@ -1141,7 +1189,7 @@ pub fn read_associative_data(
                 // The class-name TUs, in walk order, bounded by what
                 // the record's text stream actually holds (the
                 // dissected corpus specimen carries exactly nine).
-                // TwoStream eras: the names are inline main TVs â€”
+                // TwoStream eras: the names are inline main TVs Ã¢â‚¬â€
                 // already inside the captured region.
                 if dxf_version == DxfVersion::AC1021 {
                     for _ in 0..node_count {
@@ -1172,9 +1220,9 @@ pub fn read_associative_data(
                     }
                 }
                 let handle_from = reader.handle_position_in_bits();
-                // Trim the author's closing 1s pad (Â§19.4: the record's
+                // Trim the author's closing 1s pad (Ã‚Â§19.4: the record's
                 // final partial byte is the 1s pad; our merged writer
-                // re-creates it at close). The pad is at most 7 bits â€”
+                // re-creates it at close). The pad is at most 7 bits Ã¢â‚¬â€
                 // a wider run means real handle bits, not padding.
                 let mut handle_to = reader.record_end_bits();
                 let mut pad_bits: i64 = 0;
@@ -1443,7 +1491,7 @@ pub fn read_associative_data(
 }
 
 /// TODO A8 (2026-10-02): the typed NURB3D (action_type 42) region
-/// parser â€” the measured grammar (see AssocNurb3dSubcurve for the
+/// parser Ã¢â‚¬â€ the measured grammar (see AssocNurb3dSubcurve for the
 /// dissection record): a 12-bit header constant, the knot-tolerance
 /// BD, a 4-bit constant, the 6 flag bits, BL num_knots + a constant
 /// BL 8, the knot array (BD[]; 0.0 as the 2-bit short), the gap (BL
@@ -1542,7 +1590,7 @@ fn parse_nurb3d_region(bytes: &[u8], bit_len: u32) -> Option<AssocNurb3dSubcurve
         let z = bits.bd()?;
         control_points.push(Vector3::new(x, y, z));
     }
-    // the region must close exactly â€” the typed form's own gate
+    // the region must close exactly Ã¢â‚¬â€ the typed form's own gate
     if bits.pos != bit_len {
         return None;
     }
@@ -1555,14 +1603,14 @@ fn parse_nurb3d_region(bytes: &[u8], bit_len: u32) -> Option<AssocNurb3dSubcurve
     })
 }
 
-/// Parse the composite (47) subcurve region â€” TODO A8 (2026-10-03).
+/// Parse the composite (47) subcurve region Ã¢â‚¬â€ TODO A8 (2026-10-03).
 ///
 /// The grammar (measured on the ExtrudePline/Extrude3DPoly/
 /// RevolvePline/LoftMixed quads, all four eras; gold's spec has no
-/// case 47 â€” the corpus is the authority): `BL num_segments`, then
+/// case 47 Ã¢â‚¬â€ the corpus is the authority): `BL num_segments`, then
 /// per segment `BS kind` + the kind's own typed form. The measured
-/// kinds: 23 (LINESEG3D â€” six BDs: absolute start 3BD + delta 3BD)
-/// and 11 (ARC â€” the twelve-BD arc form, plus the constant two-bit
+/// kinds: 23 (LINESEG3D Ã¢â‚¬â€ six BDs: absolute start 3BD + delta 3BD)
+/// and 11 (ARC Ã¢â‚¬â€ the twelve-BD arc form, plus the constant two-bit
 /// `10` trailing form on the R2013+ frames, exactly like the
 /// standalone ARC region). Gates on the segment count, the known
 /// kinds, and exact closure; any deviation (a future kind, a variant
@@ -1655,7 +1703,7 @@ fn parse_composite47_region(
                 let start_angle = bits.bd()?;
                 let end_angle = bits.bd()?;
                 if r2013_plus && bits.raw(2)? != 0b10 {
-                    // the R2013+ arc tail is the constant `10` â€” any
+                    // the R2013+ arc tail is the constant `10` Ã¢â‚¬â€ any
                     // other two bits mean a variant: fall to the net.
                     return None;
                 }
@@ -1668,11 +1716,11 @@ fn parse_composite47_region(
                     end_angle,
                 }));
             }
-            // an unmeasured kind (17, 42, 19, 27, â€¦) â€” the net.
+            // an unmeasured kind (17, 42, 19, 27, Ã¢â‚¬Â¦) Ã¢â‚¬â€ the net.
             _ => return None,
         }
     }
-    // the region must close exactly â€” the typed form's own gate.
+    // the region must close exactly Ã¢â‚¬â€ the typed form's own gate.
     if bits.pos != bit_len {
         return None;
     }
