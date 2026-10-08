@@ -639,6 +639,16 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.write_header_variable("$DIMLWD", |w| w.write_i16(70, hdr.dim_line_weight))?;
         self.write_header_variable("$DIMLWE", |w| w.write_i16(70, hdr.dim_ext_line_weight))?;
         self.write_header_variable("$DIMTFAC", |w| w.write_double(40, hdr.dim_tolerance_scale))?;
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.write_header_variable("$DIMFXL", |w| {
+                w.write_double(40, hdr.dim_fixed_ext_line_length)
+            })?;
+            self.write_header_variable("$DIMJOGANG", |w| w.write_double(40, hdr.dim_jog_angle))?;
+            self.write_header_variable("$DIMTFILL", |w| w.write_i16(70, hdr.dim_text_fill))?;
+            self.write_header_variable("$DIMTFILLCLR", |w| {
+                w.write_i16(70, hdr.dim_text_fill_color.approximate_index())
+            })?;
+        }
 
         // === Misc ===
         self.write_header_variable("$SPLFRAME", |w| {
@@ -663,6 +673,23 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             })?;
             self.write_header_variable("$SHOWHIST", |w| {
                 w.write_byte(280, hdr.show_solid_history.clamp(0, 2) as u8)
+            })?;
+            self.write_header_variable("$3DDWFPREC", |w| w.write_double(40, hdr.dwf_3d_precision))?;
+            self.write_header_variable("$PSOLWIDTH", |w| w.write_double(40, hdr.polysolid_width))?;
+            self.write_header_variable("$PSOLHEIGHT", |w| {
+                w.write_double(40, hdr.polysolid_height)
+            })?;
+            self.write_header_variable("$LIGHTGLYPHDISPLAY", |w| {
+                w.write_byte(280, hdr.light_glyph_display)
+            })?;
+            self.write_header_variable("$TILEMODELIGHTSYNCH", |w| {
+                w.write_byte(280, hdr.tile_model_light_synch)
+            })?;
+            self.write_header_variable("$REALWORLDSCALE", |w| {
+                w.write_bool(290, hdr.real_world_scale)
+            })?;
+            self.write_header_variable("$INTERFERECOLOR", |w| {
+                w.write_i16(62, hdr.interference_color.approximate_index())
             })?;
         }
         self.write_header_variable("$SPLINETYPE", |w| w.write_i16(70, hdr.spline_type))?;
