@@ -78,7 +78,7 @@ pub use dynamic_block::{
     SolidHistoryRevolveTail, SolidHistorySphere, SolidHistorySweep, SolidHistorySweepTail,
     SolidHistoryTorus, SolidHistoryTree,
 };
-pub(crate) use dynamic_block::primitive_center_shift;
+
 pub use field::{Field, FieldChildValue, FieldList};
 pub use group::Group;
 pub use image_definition::{ImageDefinition, ImageDefinitionReactor, ResolutionUnit};
@@ -138,8 +138,8 @@ pub struct Dictionary {
     /// Dictionary entries (key -> handle)
     pub entries: Vec<(String, Handle)>,
     /// The verbatim pre-2007 wire forms of the entry keys, index-aligned
-    /// with `entries` (Ã‚Â§19 H8h-ext-17, the MTEXT wire-text precedent): the
-    /// authored escape form of a non-ASCII key is author data Ã¢â‚¬â€ the writer
+    /// with `entries` (Ãƒâ€šÃ‚Â§19 H8h-ext-17, the MTEXT wire-text precedent): the
+    /// authored escape form of a non-ASCII key is author data ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the writer
     /// replays it verbatim on same-version writes. Wire plumbing, not
     /// model data; not serialized.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -294,12 +294,12 @@ pub struct Layout {
     /// Physical paper height in mm (from embedded PlotSettings, code 45).
     /// Zero means unknown / not read from the file.
     pub paper_height: f64,
-    /// Plot rotation from PlotSettings (code 73): 0=none, 1=90Ã‚Â°, 2=180Ã‚Â°, 3=270Ã‚Â°.
+    /// Plot rotation from PlotSettings (code 73): 0=none, 1=90Ãƒâ€šÃ‚Â°, 2=180Ãƒâ€šÃ‚Â°, 3=270Ãƒâ€šÃ‚Â°.
     pub plot_rotation: i16,
     /// Full embedded PlotSettings flags.
     pub plot_flags: PlotFlags,
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Remaining embedded PlotSettings fields Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Remaining embedded PlotSettings fields ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     // The LAYOUT object embeds a full PlotSettings record. Preserving only the
     // paper size left the sheet unsized in AutoCAD (rendered tiny in the corner
     // because the paper-size name / units / margins were dropped). Keep the rest
@@ -434,7 +434,7 @@ pub enum ObjectType {
     TableContent(crate::entities::Table),
     /// Scale object - named scale definition
     Scale(Scale),
-    /// Annotative per-object context data (`AcDb*ObjectContextData` leaf) Ã¢â‚¬â€ one
+    /// Annotative per-object context data (`AcDb*ObjectContextData` leaf) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â one
     /// per-scale representation of an annotative object.
     ObjectContextData(ObjectContextData),
     /// SortEntitiesTable object - entity draw order

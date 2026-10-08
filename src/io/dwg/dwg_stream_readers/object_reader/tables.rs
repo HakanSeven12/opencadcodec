@@ -12,9 +12,9 @@ use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
 use crate::io::dwg::dwg_version::DwgVersion;
 use crate::types::{Color, DxfVersion, Vector2, Vector3};
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Result structs for each table entry type
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Parsed table control object data.
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ pub struct VxTableRecordData {
     pub legacy_previous_entry_index: i16,
 }
 
-/// Parsed BLOCK_CONTROL data (special — has *Model_Space and *Paper_Space).
+/// Parsed BLOCK_CONTROL data (special â€” has *Model_Space and *Paper_Space).
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockControlData {
@@ -87,7 +87,7 @@ pub struct LayerData {
     pub linetype_handle: u64,
     /// Visual style handle (gold `visualstyle`, dwg.spec LAYER: the last
     /// field of the record's handle stream, SINCE R_2013b). Gold always
-    /// serializes the field on R2013+ layers — a null handle when unset.
+    /// serializes the field on R2013+ layers â€” a null handle when unset.
     pub visualstyle_handle: Option<u64>,
     /// Gold's flag0: the raw bitmask from the R2000+ BS read (discarded by the
     /// decomposed bools above). Stored so the normalizer can emit it.
@@ -377,7 +377,7 @@ pub struct BlockHeaderData {
     pub name: String,
     /// The table-entry xref flags (the COMMON_TABLE_FLAGS bits, TODO B1,
     /// 2026-10-01): `reference` (bit 4), `resolved` (the RAW
-    /// `is_xref_resolved` BS — gold prints it verbatim: the authored xref
+    /// `is_xref_resolved` BS â€” gold prints it verbatim: the authored xref
     /// blocks carry 1), `dependent` (bit 6). Distinct from the
     /// BLOCK_HEADER body's `is_xref`/`is_xref_overlay` bits below.
     pub xref_reference: bool,
@@ -406,9 +406,9 @@ pub struct BlockHeaderData {
     pub layout_handle: Option<u64>,
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Reader methods
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Read xref-dependant bits for a table entry.
 /// Returns `true` if the entry is xref-dependent.
@@ -419,7 +419,7 @@ struct XrefTableFlags {
     reference: bool,
     /// The RAW `is_xref_resolved` BS value (TODO B1, 2026-10-01): gold
     /// prints the raw bitshort verbatim (the convention is 0 or 256, but
-    /// the authored xref blocks carry 1 — gold's Xref_2000 trace reads
+    /// the authored xref blocks carry 1 â€” gold's Xref_2000 trace reads
     /// `is_xref_resolved: 1 [BS 0]`), so a `== 256` bool test lost it.
     resolved: i16,
     dependent: bool,
@@ -534,7 +534,9 @@ pub fn read_layer(
     let off;
     let frozen_in_new_vp;
     let locked;
-    let mut plottable = false;
+    // R13/R14 records carry no plot flag (it arrived with R2000), so a layer
+    // plots unless the record says otherwise - as a new layer and DXF do.
+    let mut plottable = true;
     let mut line_weight: i16 = 0;
     let mut flag0: i16 = 0;
 
@@ -641,11 +643,11 @@ pub fn read_text_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Tex
 
 /// Extract text from a linetype text area buffer into segments.
 /// For text-type elements (DWG 0x02 bit) the string is taken from the
-/// area SEQUENTIALLY — gold's decoder (dwg.spec's LTYPE DECODER block)
+/// area SEQUENTIALLY â€” gold's decoder (dwg.spec's LTYPE DECODER block)
 /// walks `dash_i` forward per text dash: each dash's text is the
 /// string at the running offset, then the cursor advances past its
 /// terminator. The wire `complex_shapecode` is NOT the offset gold
-/// uses — on well-formed files the author keeps them equal, but the
+/// uses â€” on well-formed files the author keeps them equal, but the
 /// pathological records (gh44-error's 16A5: shapecode 4 where the
 /// sequential position is 8) carry the author's own value, which the
 /// model retains for verbatim replay.
@@ -653,7 +655,7 @@ pub fn read_text_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Tex
 /// R2004 and earlier: 256-byte area of null-terminated ASCII strings.
 /// R2007+: 512-byte area of null-terminated UTF-16LE strings (2 bytes/char,
 /// terminated by a 0x0000 word).
-/// Per OpenDesign spec §20.4.58.
+/// Per OpenDesign spec Â§20.4.58.
 fn extract_text_strings(
     segments: &mut [LinetypeSegment],
     area: &[u8],
@@ -726,7 +728,7 @@ pub fn read_linetype(reader: &mut DwgMergedReader, version: DwgVersion) -> Linet
         });
     }
 
-    // Per spec (OpenDesign §20.4.58):
+    // Per spec (OpenDesign Â§20.4.58):
     //   R2004 and earlier: 256-byte text area (always present).
     //   R2007+: 512-byte text area ONLY if the 0x02 text bit is set on any
     //   ShapeFlag entry. Shape-only elements do not carry this area.
@@ -1231,7 +1233,7 @@ pub fn read_dimstyle(
     // R13/R14 only: the older DimStyle field block. Field order/types mirror
     // the writer's r13_14_only block (matches the reference implementation). Without this the
     // whole record was skipped, leaving DIMTAD/DIMASZ/DIMGAP at their defaults
-    // (0 / 0.18 / 0.09) — so a leader that hooks its text via DIMTAD never
+    // (0 / 0.18 / 0.09) â€” so a leader that hooks its text via DIMTAD never
     // drew the underline. dimblk names are strings here (handles only R2000+).
     if version.r13_14_only() {
         ds.dimtol = reader.read_bit();
@@ -1420,7 +1422,7 @@ pub fn read_dimstyle(
 /// Read BLOCK_HEADER (block record) table entry data.
 pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> BlockHeaderData {
     let name = reader.read_variable_text();
-    // TODO B1 (2026-10-01): retain the full table-entry xref flags —
+    // TODO B1 (2026-10-01): retain the full table-entry xref flags â€”
     // the resolved bit (gold's `is_xref_resolved`) was read and
     // discarded here, so an xref block's JSON read 0 against gold's 1.
     let xref_flags = read_xref_table_flags(reader, version);
@@ -1450,7 +1452,7 @@ pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> B
     let mut insert_count_bytes = Vec::new();
     let mut preview_data = Vec::new();
     if version.r2000_plus() {
-        // Insert count bytes — read until 0
+        // Insert count bytes â€” read until 0
         loop {
             let b = reader.read_byte();
             if b == 0 {
@@ -1567,7 +1569,7 @@ pub struct VPortEntityHeaderData {
     pub entity_handle: u64,
 }
 
-/// Read VPORT_ENTITY_CONTROL (type 70) — R13-R14 viewport entity control.
+/// Read VPORT_ENTITY_CONTROL (type 70) â€” R13-R14 viewport entity control.
 /// Same structure as a generic table control.
 pub fn read_vport_entity_control(reader: &mut DwgMergedReader) -> VPortEntityControlData {
     let entry_count = safe_count(reader.read_bit_long());
@@ -1581,7 +1583,7 @@ pub fn read_vport_entity_control(reader: &mut DwgMergedReader) -> VPortEntityCon
     }
 }
 
-/// Read VPORT_ENTITY_HEADER (type 71) — R13-R14 viewport entity header.
+/// Read VPORT_ENTITY_HEADER (type 71) â€” R13-R14 viewport entity header.
 pub fn read_vport_entity_header(
     reader: &mut DwgMergedReader,
     version: DwgVersion,
@@ -1599,9 +1601,9 @@ pub fn read_vport_entity_header(
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Tests
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[cfg(test)]
 mod tests {

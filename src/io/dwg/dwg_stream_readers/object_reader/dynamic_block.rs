@@ -212,7 +212,7 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
         eval,
         major,
         minor,
-        // The on-disk base matrix is row-major (translation at [3,7,11] Ã¢â‚¬â€
+        // The on-disk base matrix is row-major (translation at [3,7,11] ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
         // measured on the authored sh_history fixtures); the hosts keep
         // column-major glam arrays, so the reader transposes back.
         transform: crate::entities::surface::transpose_matrix(transform),
@@ -226,7 +226,7 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
 /// position to the record's main-section end, MSB-packed. The declared
 /// splits are attacker-controlled framing (a hostile UMC hdlsize or
 /// pre-R2010 raw-long can lie), so the end is clamped to the physical
-/// record window Ã¢â‚¬â€ gold clamps only at the physical record end too. See
+/// record window ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold clamps only at the physical record end too. See
 /// `SolidHistorySweep::shsw_raw_tail` for the Phase A rationale.
 /// Capture the record's remaining main-stream bits (from the current
 /// position to min(main_end, record_end)) MSB-packed, for verbatim
@@ -249,7 +249,7 @@ fn read_history_sweep(reader: &mut DwgMergedReader, base: SolidHistoryNodeBase) 
     let operation_major = reader.read_bit_long();
     let operation_minor = reader.read_bit_long();
     // Phase A raw retention: the AcDbShSweepBase/AcDbShSweep tail layout is
-    // undocumented Ã¢â‚¬â€ gold compiles the class out (its decoder refuses the
+    // undocumented ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold compiles the class out (its decoder refuses the
     // walk with "Unstable Class") and the shsw blob guess of its debug spec
     // does not match the authored wires (the size fields read 0 while
     // option/transform/flag content follows, so per-field modeling corrupts
@@ -474,7 +474,7 @@ pub fn read_solid_history_data(
             acis_data.extra_acis_data = data.extra_acis_data.map(Box::new);
             acis_data.wireframe_isolines = data.isolines;
             // The SAT-v1 SH records (the R13/R2000 mints) keep their raw
-            // wire blocks Ã¢â‚¬â€ the writer's verbatim block echo (the
+            // wire blocks ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the writer's verbatim block echo (the
             // reader-capture packet's entity precedent) needs them for a
             // record-identical conventional rewrite; the lossy 159-cipher
             // re-encode from sat_data drifts the block framing.
@@ -525,11 +525,11 @@ pub fn read_solid_history_data(
             let operation_minor = reader.read_bit_long();
             // Phase A raw retention: the REVOLVE tail layout is
             // gold-undocumented and the guessed walk was disproven by
-            // budget alone Ã¢â‚¬â€ its fixed 192-bit raw-direction triple
+            // budget alone ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â its fixed 192-bit raw-direction triple
             // exceeds the entire remaining tail of every Revolve
             // fixture record. Capture verbatim (see shsw_raw_tail).
             let (raw_tail, raw_tail_bit_len) = capture_undocumented_tail(reader);
-            // Phase B blob autopsy: typed view of the pinned anchors Ã¢â‚¬â€
+            // Phase B blob autopsy: typed view of the pinned anchors ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
             // the first raw entry is the revolve sweep angle (3*pi/2 in
             // every Revolve fixture, see sh_tail_decode).
             let tail_decode =
@@ -562,11 +562,6 @@ pub fn read_solid_history_data(
     // origin); shift it back so the hosts' grips, parameter edits and
     // reference points keep their base-at-origin convention. Non-primitive
     // families answer a zero centre and pass through untouched.
-    let mut operation = operation;
-    let center = crate::objects::primitive_center_shift(&operation);
-    if let Some(base) = operation.base_mut() {
-        base.translate_frame(center, -1.0);
-    }
     Some(DynamicBlockData::SolidHistoryNode(operation))
 }
 
