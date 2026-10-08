@@ -156,6 +156,7 @@ fn solid_history_node_id(base: &SolidHistoryNodeBase) -> i32 {
 /// DWG header variables containing drawing settings
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct HeaderVariables {
     // ==================== Version-specific Flags ====================
     /// REQUIREDVERSIONS (R2013+) - Bit coded required versions

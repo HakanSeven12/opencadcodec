@@ -643,7 +643,10 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             self.write_header_variable("$DIMFXL", |w| {
                 w.write_double(40, hdr.dim_fixed_ext_line_length)
             })?;
-            self.write_header_variable("$DIMJOGANG", |w| w.write_double(40, hdr.dim_jog_angle))?;
+            // DIMJOGANG valid range is 5°..90°
+            self.write_header_variable("$DIMJOGANG", |w| {
+                w.write_double(40, hdr.dim_jog_angle.clamp(0.0872665, std::f64::consts::FRAC_PI_2))
+            })?;
             self.write_header_variable("$DIMTFILL", |w| w.write_i16(70, hdr.dim_text_fill))?;
             self.write_header_variable("$DIMTFILLCLR", |w| {
                 w.write_i16(70, hdr.dim_text_fill_color.approximate_index())
@@ -674,16 +677,27 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
             self.write_header_variable("$SHOWHIST", |w| {
                 w.write_byte(280, hdr.show_solid_history.clamp(0, 2) as u8)
             })?;
-            self.write_header_variable("$3DDWFPREC", |w| w.write_double(40, hdr.dwf_3d_precision))?;
-            self.write_header_variable("$PSOLWIDTH", |w| w.write_double(40, hdr.polysolid_width))?;
-            self.write_header_variable("$PSOLHEIGHT", |w| {
-                w.write_double(40, hdr.polysolid_height)
+            self.write_header_variable("$3DDWFPREC", |w| {
+                w.write_double(40, hdr.dwf_3d_precision.clamp(1.0, 6.0))
             })?;
+            // PSOLWIDTH / PSOLHEIGHT must be positive
+            let polysolid_width = if hdr.polysolid_width > 0.0 {
+                hdr.polysolid_width
+            } else {
+                0.25
+            };
+            let polysolid_height = if hdr.polysolid_height > 0.0 {
+                hdr.polysolid_height
+            } else {
+                4.0
+            };
+            self.write_header_variable("$PSOLWIDTH", |w| w.write_double(40, polysolid_width))?;
+            self.write_header_variable("$PSOLHEIGHT", |w| w.write_double(40, polysolid_height))?;
             self.write_header_variable("$LIGHTGLYPHDISPLAY", |w| {
-                w.write_byte(280, hdr.light_glyph_display)
+                w.write_byte(280, hdr.light_glyph_display.min(1))
             })?;
             self.write_header_variable("$TILEMODELIGHTSYNCH", |w| {
-                w.write_byte(280, hdr.tile_model_light_synch)
+                w.write_byte(280, hdr.tile_model_light_synch.min(1))
             })?;
             self.write_header_variable("$REALWORLDSCALE", |w| {
                 w.write_bool(290, hdr.real_world_scale)
