@@ -1,24 +1,24 @@
-//! TODO A9 (2026-10-04): the R13/R14 header-variable raw mirror — the
+﻿//! TODO A9 (2026-10-04): the R13/R14 header-variable raw mirror â€” the
 //! struct-axis key-gap head.
 //!
-//! Gold's HEADER JSON (json_header_write → header_variables.spec) prints
+//! Gold's HEADER JSON (json_header_write â†’ header_variables.spec) prints
 //! the era-gated variable set per file: the R13/R14 wires carry
 //! unknown_10, DIMSAV, BLIPMODE, ATTREQ/ATTDIA, WIREFRAME, DELOBJ,
 //! DRAGMODE, OSMODE, COORDS, PICKSTYLE, the whole R13/R14 DIM block
 //! (DIMTOL..DIMALTTD + DIMFIT + DIMUNIT + the DIMTXSTY handle) and the
-//! DIMPOST/DIMAPOST/DIMBLK*_T text quintet — all VERSIONS (R_13b1,
+//! DIMPOST/DIMAPOST/DIMBLK*_T text quintet â€” all VERSIONS (R_13b1,
 //! R_14) in the spec. Silver's reader walked every slot (the typed
 //! `HeaderVariables` stayed positioned) but the `DwgHeaderRaw` mirror
-//! — the gold-JSON projection the structure census compares — was
+//! â€” the gold-JSON projection the structure census compares â€” was
 //! never populated for them, so every R13/R14 corpus file ranked 49
 //! HEADER key-gaps (the 5,439-leaf share of the 5,510 struct axis).
 //! The reader now retains them raw; the writer's four no-model slots
 //! (unknown_10, DIMSAV, WIREFRAME, DIMUNIT) replay the captured wire
-//! value (§19 H7) instead of the hardcoded defaults. These pins hold
+//! value (Â§19 H7) instead of the hardcoded defaults. These pins hold
 //! the measured gold values (the Line_AC1012/Line_AC1014 census,
 //! 2026-10-04) and the conventional-rewrite survival.
 
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
 fn read_fixture(dir: &str, name: &str) -> Option<CadDocument> {
@@ -29,14 +29,14 @@ fn read_fixture(dir: &str, name: &str) -> Option<CadDocument> {
     .join(dir)
     .join(name);
     if !path.exists() {
-        eprintln!("fixture {name} missing — skipping");
+        eprintln!("fixture {name} missing â€” skipping");
         return None;
     }
     let mut reader = DwgReader::from_file(&path).expect("open fixture");
     Some(reader.read().expect("read fixture"))
 }
 
-fn raw_of(document: &CadDocument) -> acadrust::document::DwgHeaderRaw {
+fn raw_of(document: &CadDocument) -> opencadcodec::document::DwgHeaderRaw {
     document
         .dwg_header_raw
         .clone()
@@ -140,7 +140,7 @@ fn line_ac1012_header_raw_pins() {
 fn header_raw_survives_the_conventional_rewrite() {
     // The echo arm re-emits the whole file verbatim; the CONVENTIONAL arm
     // (edited documents) is where the new splices' write authority
-    // matters — unknown_10/DIMSAV/WIREFRAME/DIMUNIT have no typed-model
+    // matters â€” unknown_10/DIMSAV/WIREFRAME/DIMUNIT have no typed-model
     // slot, so the captured raw value is the only carrier.
     std::env::set_var("DWG_NO_ECHO", "1");
     for (dir, name, unknown_10) in [

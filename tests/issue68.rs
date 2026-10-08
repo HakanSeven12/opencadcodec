@@ -1,10 +1,10 @@
-//! Repro for issue #68: an AC1009/R12 DXF round-trip writes `$ACADVER` as
+﻿//! Repro for issue #68: an AC1009/R12 DXF round-trip writes `$ACADVER` as
 //! `UNKNOWN` and leaves the default MLEADERSTYLE pointing at a text style
 //! handle the input reassigned to another record.
 
-use acadrust::objects::ObjectType;
-use acadrust::types::DxfVersion;
-use acadrust::{DxfReader, DxfWriter};
+use opencadcodec::objects::ObjectType;
+use opencadcodec::types::DxfVersion;
+use opencadcodec::{DxfReader, DxfWriter};
 
 /// The reporter's minimal R12 file: handle-less STYLE records, no entities.
 const R12_REPRO: &str = "tests/issue68/r12_mleaderstyle_repro.dxf";

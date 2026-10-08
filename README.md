@@ -1,4 +1,4 @@
-# acadrust
+﻿# acadrust
 
 [![Crates.io](https://img.shields.io/crates/v/acadrust.svg)](https://crates.io/crates/acadrust)
 [![Documentation](https://docs.rs/acadrust/badge.svg)](https://docs.rs/acadrust)
@@ -18,9 +18,9 @@ acadrust = "0.5.5"
 ```
 
 ```rust
-use acadrust::{DxfReader, DxfWriter};
+use opencadcodec::{DxfReader, DxfWriter};
 
-fn main() -> acadrust::Result<()> {
+fn main() -> opencadcodec::Result<()> {
     let doc = DxfReader::from_file("input.dxf")?.read()?;
     println!("{} entities", doc.entities().count());
 
@@ -48,28 +48,28 @@ acadrust = { version = "0.5.5", features = ["serde", "import"] }
 
 ## Features
 
-- **DXF I/O** — ASCII and binary formats, R12 through R2018+
-- **DWG I/O** — Native binary formats, R13 through R2018+
-- **Broad entity coverage** — 48 top-level `EntityType` variants covering 2D
+- **DXF I/O** â€” ASCII and binary formats, R12 through R2018+
+- **DWG I/O** â€” Native binary formats, R13 through R2018+
+- **Broad entity coverage** â€” 48 top-level `EntityType` variants covering 2D
   geometry, annotations, dimensions, meshes, underlays, viewports, 3D solids,
   regions, bodies, and native surfaces
-- **ACIS modeling data** — SAT/SAB parsing and writing, B-rep topology, solid
+- **ACIS modeling data** â€” SAT/SAB parsing and writing, B-rep topology, solid
   history, and primitive builders
-- **Tables and objects** — Layers, linetypes, styles, dictionaries, layouts,
+- **Tables and objects** â€” Layers, linetypes, styles, dictionaries, layouts,
   materials, fields, dynamic blocks, and associative data
-- **Resilient reads** — Optional failsafe recovery with bounded, structured
+- **Resilient reads** â€” Optional failsafe recovery with bounded, structured
   diagnostics and read statistics
-- **Encoding support** — Automatic handling of roughly 40 code pages for
+- **Encoding support** â€” Automatic handling of roughly 40 code pages for
   pre-2007 drawings
-- **Optional serialization** — Serde support for document data
-- **Optional 3D imports** — STL, COLLADA, OBJ, glTF/GLB, and FBX converted to
+- **Optional serialization** â€” Serde support for document data
+- **Optional 3D imports** â€” STL, COLLADA, OBJ, glTF/GLB, and FBX converted to
   acadrust documents
 
 ## File Version Support
 
 | File code | Release era | DXF | DWG read | DWG write | DWG parity |
 |-----------|-----------------|-----|----------|-----------|-------------|
-| AC1009 | R12 | R/W | — | — | — |
+| AC1009 | R12 | R/W | â€” | â€” | â€” |
 | AC1012 | R13 | R/W | yes | yes | partial |
 | AC1014 | R14 | R/W | yes | yes | partial |
 | AC1015 | 2000 | R/W | yes | yes | full |
@@ -84,17 +84,17 @@ independent `libredwg` reference decoder across all four semantic axes
 (read fidelity, write fidelity, read key-gap, write key-gap) on a curated
 280-file corpus:
 
-- **full** (R2000–R2018) — all four axes hold zero diffs corpus-wide;
+- **full** (R2000â€“R2018) â€” all four axes hold zero diffs corpus-wide;
   byte-level record identity has additionally been verified against the
   reference on the per-era census specimens.
-- **partial** (R13–R14) — files parse and round-trip, but the decoded
+- **partial** (R13â€“R14) â€” files parse and round-trip, but the decoded
   content shows known divergence from the reference decoder (record-count
-  mismatches and era-specific field differences; ~90–150 semantic diffs per
+  mismatches and era-specific field differences; ~90â€“150 semantic diffs per
   specimen). The parity details and the path to closing them are documented
-  in `tests/gold_harness/IMPLEMENTATION.md` §19.5 (the version-parity
+  in `tests/gold_harness/IMPLEMENTATION.md` Â§19.5 (the version-parity
   matrix).
 
-DWG files older than AC1009 (R11 and earlier) are not supported — the
+DWG files older than AC1009 (R11 and earlier) are not supported â€” the
 reference decoder does not decode them either (version identification
 only).
 
@@ -106,9 +106,9 @@ Entity availability varies by file version.
 <summary>DWG Read/Write</summary>
 
 ```rust
-use acadrust::{CadDocument, Color, DwgReader, DwgWriter, EntityType, Line};
+use opencadcodec::{CadDocument, Color, DwgReader, DwgWriter, EntityType, Line};
 
-fn main() -> acadrust::Result<()> {
+fn main() -> opencadcodec::Result<()> {
     let mut reader = DwgReader::from_file("drawing.dwg")?;
     let doc = reader.read()?;
 
@@ -130,15 +130,15 @@ fn main() -> acadrust::Result<()> {
 <summary>Paper Space Layouts & Viewports</summary>
 
 ```rust
-use acadrust::{CadDocument, DxfVersion, DxfWriter};
-use acadrust::entities::{EntityType, Viewport};
-use acadrust::types::Vector3;
+use opencadcodec::{CadDocument, DxfVersion, DxfWriter};
+use opencadcodec::entities::{EntityType, Viewport};
+use opencadcodec::types::Vector3;
 
-fn main() -> acadrust::Result<()> {
+fn main() -> opencadcodec::Result<()> {
     let mut doc = CadDocument::with_version(DxfVersion::AC1027);
 
     // Add geometry to model space
-    let line = acadrust::entities::Line::from_coords(0.0, 0.0, 0.0, 100.0, 100.0, 0.0);
+    let line = opencadcodec::entities::Line::from_coords(0.0, 0.0, 0.0, 100.0, 100.0, 0.0);
     doc.add_entity(EntityType::Line(line))?;
 
     // Overall viewport (ID=1) for default Layout1
@@ -172,9 +172,9 @@ fn main() -> acadrust::Result<()> {
 <summary>Failsafe Reading and Diagnostics</summary>
 
 ```rust
-use acadrust::{DxfReader, DxfReaderConfiguration};
+use opencadcodec::{DxfReader, DxfReaderConfiguration};
 
-fn main() -> acadrust::Result<()> {
+fn main() -> opencadcodec::Result<()> {
     let config = DxfReaderConfiguration {
         failsafe: true,
         ..Default::default()
@@ -198,9 +198,9 @@ fn main() -> acadrust::Result<()> {
 Requires `features = ["import"]`.
 
 ```rust
-use acadrust::{import_file, DwgWriter, ImportConfig};
+use opencadcodec::{import_file, DwgWriter, ImportConfig};
 
-fn main() -> acadrust::Result<()> {
+fn main() -> opencadcodec::Result<()> {
     let doc = import_file("model.glb", &ImportConfig::default())?;
     DwgWriter::write_to_file("model.dwg", &doc)?;
     Ok(())
@@ -212,9 +212,9 @@ fn main() -> acadrust::Result<()> {
 <summary>Serde / JSON</summary>
 
 ```rust
-use acadrust::{CadDocument, DxfReader};
+use opencadcodec::{CadDocument, DxfReader};
 
-fn main() -> acadrust::Result<()> {
+fn main() -> opencadcodec::Result<()> {
     let doc = DxfReader::from_file("drawing.dxf")?.read()?;
     let json = serde_json::to_string_pretty(&doc).unwrap();
     let doc2: CadDocument = serde_json::from_str(&json).unwrap();
@@ -253,4 +253,4 @@ Every contribution helps keep this project active and well-maintained. Thank you
 
 ## License
 
-MPL-2.0 — see [LICENSE](LICENSE).
+MPL-2.0 â€” see [LICENSE](LICENSE).

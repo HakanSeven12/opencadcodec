@@ -1,22 +1,22 @@
-//! TODO A9 head (2026-10-04): the ACSH_BREP_CLASS raw-remainder form.
+﻿//! TODO A9 head (2026-10-04): the ACSH_BREP_CLASS raw-remainder form.
 //!
 //! AutoCAD-authored SH-BREP records (the `fixtures/brep` mints) carry a
 //! modeler-geometry head whose wire version sits outside {1, 2} (0 on
-//! the 2007–2013 mints, 38438 on the 2018 one). Gold's unstable-class
-//! decode (dwg2.spec 3054, ACTION_3DSOLID → DECODE_3DSOLID) reads NO
+//! the 2007â€“2013 mints, 38438 on the 2018 one). Gold's unstable-class
+//! decode (dwg2.spec 3054, ACTION_3DSOLID â†’ DECODE_3DSOLID) reads NO
 //! body there and walks the COMMON_3DSOLID tail straight from the
-//! modeler blob's first bits (dwg_spec_shared.h 471: wireframe block →
-//! acis_empty_bit → materials when version > 1 → the R2013b revision
+//! modeler blob's first bits (dwg_spec_shared.h 471: wireframe block â†’
+//! acis_empty_bit â†’ materials when version > 1 â†’ the R2013b revision
 //! block), leaving the record's ~45 KB body un-walked between the tail
 //! and the handle stream. The reader mirrors that walk (typed,
 //! projection-only) and captures the whole tail verbatim as the write
-//! authority — the re-emission is bit-exact, so a conventional rewrite
+//! authority â€” the re-emission is bit-exact, so a conventional rewrite
 //! is record-identical (the record census: 153/153 and 141/141 on the
 //! two R2013+ mints, size+CRC). These pins hold the measured gold
 //! values (the `-v9` dissection, 2026-10-04) and the rewrite survival.
 
-use acadrust::objects::{DynamicBlockData, ObjectType, SolidHistoryOperation};
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::objects::{DynamicBlockData, ObjectType, SolidHistoryOperation};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
 fn read_fixture(name: &str) -> Option<CadDocument> {
@@ -26,7 +26,7 @@ fn read_fixture(name: &str) -> Option<CadDocument> {
     ))
     .join(name);
     if !path.exists() {
-        eprintln!("fixture {name} missing — skipping");
+        eprintln!("fixture {name} missing â€” skipping");
         return None;
     }
     let mut reader = DwgReader::from_file(&path).expect("open fixture");
@@ -34,7 +34,7 @@ fn read_fixture(name: &str) -> Option<CadDocument> {
 }
 
 /// The document's single ACSH_BREP_CLASS record's Brep model.
-fn brep_of(document: &CadDocument) -> Option<acadrust::entities::solid3d::AcisData> {
+fn brep_of(document: &CadDocument) -> Option<opencadcodec::entities::solid3d::AcisData> {
     for object in document.objects.values() {
         if let ObjectType::DynamicBlock(block) = object {
             if block.dxf_name != "ACSH_BREP_CLASS" {
@@ -58,14 +58,14 @@ fn brep_ac1027_raw_tail_pins() {
     let acis = brep_of(&document).expect("the SH-BREP record decodes");
 
     // The wire head: version 0 (gold's [BS 70] read), unknown 0, and the
-    // leading acis_empty bit 0 — the raw-remainder form marker.
+    // leading acis_empty bit 0 â€” the raw-remainder form marker.
     assert_eq!(acis.raw_wire_version, Some(0));
     assert!(!acis.raw_wire_unknown);
     assert!(!acis.raw_wire_acis_empty);
 
     // Gold's COMMON_3DSOLID walk over the body's first bits: no
     // wireframe cache, no materials (version 0), then the R2013b
-    // revision block — gold's -v9 values pinned.
+    // revision block â€” gold's -v9 values pinned.
     assert!(!acis.wireframe_data_present);
     assert!(!acis.acis_empty_bit);
     assert!(acis.materials.is_empty());
@@ -94,14 +94,14 @@ fn brep_ac1032_raw_tail_pins() {
     let acis = brep_of(&document).expect("the SH-BREP record decodes");
 
     // The wire head: version 38438 (u16; the model's i16 wraps to
-    // -27098 — the writer re-emits the same 16 bits), unknown 1.
+    // -27098 â€” the writer re-emits the same 16 bits), unknown 1.
     assert_eq!(acis.raw_wire_version, Some(-27098));
     assert!(acis.raw_wire_unknown);
     assert!(!acis.raw_wire_acis_empty);
 
     // Gold's walk reads a garbage wireframe cache and a 177-entry
     // materials array out of the body's first bits (every handle read
-    // overflows the exhausted handle stream — gold's own trace), then
+    // overflows the exhausted handle stream â€” gold's own trace), then
     // the revision block. Pinned to gold's -v9 values.
     assert!(acis.wireframe_data_present);
     assert!(acis.wireframe_point_present);

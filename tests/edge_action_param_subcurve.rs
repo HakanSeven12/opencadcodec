@@ -1,4 +1,4 @@
-//! TODO B2 (2026-10-01): the ASSOCEDGEACTIONPARAM subcurve kinds.
+﻿//! TODO B2 (2026-10-01): the ASSOCEDGEACTIONPARAM subcurve kinds.
 //!
 //! The modeled wire forms assert BIT-EXACT against the authored
 //! specimens' pinned record bodies (the prefix + region bits the DWG
@@ -13,14 +13,14 @@
 //! cross-source; gold's own spec switch is dead code behind
 //! HANDLE_UNKNOWN_BITS, so none of this is gold-attested).
 
-use acadrust::objects::{
+use opencadcodec::objects::{
     AssocActionParam, AssocArcSubcurve, AssocCompositeSegment, AssocCompositeSubcurve,
     AssocEdgeActionParam, AssocEllipseSubcurve, AssocLineSegment3dSubcurve,
     AssocNurb3dSubcurve, AssocSingleDependencyActionParam, AssocSubcurve,
     AssocSubcurveKind, AssociativeData, AssociativeObject, ObjectType,
 };
-use acadrust::types::{DxfVersion, Vector3};
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::types::{DxfVersion, Vector3};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
 // Her ExtrudeM_2018 record 0x742: the 27-bit typed prefix (is_r2013
@@ -31,7 +31,7 @@ const ARC_R2013_BODY_HEX: &str = "406AA17552D30305A88A9F64232810";
 
 // Her ExtrudeM_2007 record 0x742: the 17-bit prefix (is_r2013 BS 0,
 // no aap_version BL on the pre-R2013 grammar) + the 88-bit region
-// (twelve BDs only — the trailing form is R2013+).
+// (twelve BDs only â€” the trailing form is R2013+).
 const ARC_R2007_BODY_BITS: u32 = 105;
 const ARC_R2007_BODY_HEX: &str = "AA85D54B4C0C16A22A7D908CA00";
 
@@ -43,12 +43,12 @@ const ELLIPSE_R2013_BODY_HEX: &str =
     "406AA235353000000000000010800000000000007C1FC0C16A22A7D908CA04";
 
 // Her ExtrudeLine_2018 record 0x739: prefix + the 76-bit six-BD
-// region (start/end points — no trailing form on any frame).
+// region (start/end points â€” no trailing form on any frame).
 const LINESEG3D_R2013_BODY_BITS: u32 = 103;
 const LINESEG3D_R2013_BODY_HEX: &str = "406AA2F5000000000000020814";
 
 // Her ExtrudePline_2018 record 0x739: the gold-unknown composite (47)
-// region, 610 bits — the verbatim replay payload (the capture+replay
+// region, 610 bits â€” the verbatim replay payload (the capture+replay
 // net's remaining user now that 42 parses typed, TODO A8 2026-10-02).
 const PLINE47_REGION_BITS: u32 = 610;
 const PLINE47_REGION_HEX: &str = concat!(
@@ -90,7 +90,7 @@ fn document_with_edge_param(
     action_type: i32,
     subcurve: Option<AssocSubcurve>,
     wire: Option<(Vec<u8>, u32, Option<DxfVersion>)>,
-) -> (CadDocument, acadrust::types::Handle) {
+) -> (CadDocument, opencadcodec::types::Handle) {
     let is_r2013 = if version >= DxfVersion::AC1027 { 1 } else { 0 };
     let mut document = CadDocument::with_version(version);
     let handle = document.allocate_handle();
@@ -99,14 +99,14 @@ fn document_with_edge_param(
     // class tables), so the writer emits the record under its own
     // class number instead of the 500 fallback (which collides with
     // ACDBDICTIONARYWDFLT).
-    document.classes.add_or_update(acadrust::classes::DxfClass {
+    document.classes.add_or_update(opencadcodec::classes::DxfClass {
         dxf_name: "ACDBASSOCEDGEACTIONPARAM".to_string(),
         cpp_class_name: "AcDbAssocEdgeActionParam".to_string(),
         application_name: "ObjectDBX Classes".to_string(),
-        proxy_flags: acadrust::classes::ProxyFlags(
-            acadrust::classes::ProxyFlags::ERASE_ALLOWED.0
-                | acadrust::classes::ProxyFlags::CLONING_ALLOWED.0
-                | acadrust::classes::ProxyFlags::DISABLES_PROXY_WARNING_DIALOG.0,
+        proxy_flags: opencadcodec::classes::ProxyFlags(
+            opencadcodec::classes::ProxyFlags::ERASE_ALLOWED.0
+                | opencadcodec::classes::ProxyFlags::CLONING_ALLOWED.0
+                | opencadcodec::classes::ProxyFlags::DISABLES_PROXY_WARNING_DIALOG.0,
         ),
         instance_count: 0,
         was_zombie: false,
@@ -138,10 +138,10 @@ fn document_with_edge_param(
                         name: String::new(),
                     },
                     dependency_class_version: 0,
-                    dependency: acadrust::types::Handle::from(0u64),
+                    dependency: opencadcodec::types::Handle::from(0u64),
                     class_version: 0,
                 },
-                parameter: acadrust::types::Handle::from(0u64),
+                parameter: opencadcodec::types::Handle::from(0u64),
                 has_action: true,
                 action_type,
                 subcurve_kind: match action_type {
@@ -164,7 +164,7 @@ fn document_with_edge_param(
 
 /// Write + read back, returning the record's captured body hex and
 /// the decoded record. The capture is keyed by the DECODED record's
-/// own handle — the AC1021 writer canonicalizes handles, so the
+/// own handle â€” the AC1021 writer canonicalizes handles, so the
 /// document-time allocation may not survive the write.
 fn roundtrip(document: CadDocument) -> (String, AssocEdgeActionParam) {
     let bytes = DwgWriter::write_to_vec(&document).expect("write DWG");
@@ -182,7 +182,7 @@ fn roundtrip(document: CadDocument) -> (String, AssocEdgeActionParam) {
             _ => None,
         })
         .expect("edge action param should round-trip");
-    assert_ne!(record_handle, acadrust::types::Handle::from(0u64));
+    assert_ne!(record_handle, opencadcodec::types::Handle::from(0u64));
     let captured = decoded
         .unknown_bits_by_handle
         .get(&record_handle)
@@ -289,7 +289,7 @@ fn dwg_subcurve_linesegment3d_typed_emission_r2013() {
 
 #[test]
 fn dwg_subcurve_untyped_kind_replays_captured_wire_same_version() {
-    // the never-measured kind 19 (Line) — the capture+replay net's
+    // the never-measured kind 19 (Line) â€” the capture+replay net's
     // standing user: the composite (47) moved to the typed ladder
     // (TODO A8, 2026-10-03), so the net's test rides an untyped kind
     // with the pinned 610-bit region as its verbatim payload.
@@ -344,7 +344,7 @@ fn dwg_subcurve_wire_replay_is_version_gated() {
 }
 
 // Her SweepSurfSpline_2018 record 0x746 (the 2026-10-02 surface-mode
-// sweep path): the typed NURB3D region, 1224 bits — the measured
+// sweep path): the typed NURB3D region, 1224 bits â€” the measured
 // grammar's smallest full specimen (TODO A8, 2026-10-02).
 const NURB_SWEEP_REGION_BITS: u32 = 1224;
 const NURB_SWEEP_REGION_HEX: &str = concat!(
@@ -436,10 +436,10 @@ fn dwg_subcurve_nurb3d_emission_is_era_stable() {
     assert!(matches!(record.subcurve, Some(AssocSubcurve::Nurb3d(_))));
 }
 
-// ─── TODO A8 (2026-10-03): the composite (47) segment-list form ─────────
+// â”€â”€â”€ TODO A8 (2026-10-03): the composite (47) segment-list form â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Her RevolvePline_2007 record's captured region (814 bits): the
-/// mixed profile — a line, the ARC semicircle cap (twelve BDs, NO
+/// mixed profile â€” a line, the ARC semicircle cap (twelve BDs, NO
 /// trailing form at R2007), a line, a line.
 const COMPOSITE47_REVOLVE_R2007_BITS: u32 = 814;
 const COMPOSITE47_REVOLVE_R2007_HEX: &str = concat!(
@@ -533,7 +533,7 @@ fn dwg_subcurve_composite47_line_segments_r2007() {
 #[test]
 fn dwg_subcurve_composite47_mixed_arc_r2013() {
     // The mixed profile (her RevolvePline_2018): a line, the ARC
-    // semicircle cap, a line, a line — the arc segment carries the
+    // semicircle cap, a line, a line â€” the arc segment carries the
     // R2013+ two-bit `10` trailing form. The typed emission matches
     // her 816-bit region after the 27-bit R2013+ prefix.
     let (document, _) = document_with_edge_param(
@@ -568,7 +568,7 @@ fn dwg_subcurve_composite47_mixed_arc_r2013() {
 #[test]
 fn dwg_subcurve_composite47_mixed_arc_r2007_has_no_arc_tail() {
     // The same mixed profile at R2007: the arc segment closes at its
-    // twelfth BD (no trailing form) — her 814-bit RevolvePline_2007
+    // twelfth BD (no trailing form) â€” her 814-bit RevolvePline_2007
     // region. The 2-bit delta against the 2018 form is exactly the
     // arc tail.
     let (document, _) = document_with_edge_param(

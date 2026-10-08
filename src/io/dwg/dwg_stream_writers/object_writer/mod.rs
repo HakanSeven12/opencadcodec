@@ -1060,14 +1060,28 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_text_style(&mut self, style: &crate::tables::TextStyle) {
-        let anno = self.annotative_eed_block(style.annotative);
+        let mut eed: Vec<(u64, Vec<u8>)> =
+            self.annotative_eed_block(style.annotative).into_iter().collect();
+        // The TrueType typeface goes in `ACAD` EED; the record has no field.
+        if !style.true_type_font.trim().is_empty() {
+            if let Some(app) = self.document.app_ids.get("ACAD") {
+                eed.push((
+                    app.handle.value(),
+                    crate::io::dwg::typeface_eed::encode(
+                        self.version.r2007_plus(),
+                        style.true_type_font.trim(),
+                        crate::io::dwg::typeface_eed::DEFAULT_FONT_FLAGS,
+                    ),
+                ));
+            }
+        }
         self.write_common_non_entity_data_eed(
             common::OBJ_STYLE,
             style.handle,
             self.document.text_styles.handle(),
             &[],
             &None,
-            anno.into_iter().collect(),
+            eed,
         );
 
         // Entry name

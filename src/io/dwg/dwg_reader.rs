@@ -1,4 +1,4 @@
-//! DWG file reader
+﻿//! DWG file reader
 //!
 //! Reads DWG binary files and extracts structural information including
 //! file headers, section metadata, and integrity checksums (CRC values).
@@ -15,7 +15,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use acadrust::io::dwg::dwg_reader::DwgReader;
+//! use opencadcodec::io::dwg::dwg_reader::DwgReader;
 //!
 //! let reader = DwgReader::from_file("drawing.dwg")?;
 //! let info = reader.read_file_header()?;
@@ -189,8 +189,8 @@ pub struct DwgFileHeaderInfo {
     /// VBA project address
     pub vba_project_addr: i32,
 
-    // ── gold's FILEHEADER fields retained for the structure axis (§19 H2).
-    // These bytes were all parsed at their correct offsets before — but
+    // â”€â”€ gold's FILEHEADER fields retained for the structure axis (Â§19 H2).
+    // These bytes were all parsed at their correct offsets before â€” but
     // skipped or mislabeled: `zero_one_or_three` was "the unknown byte",
     // the R2000 dwg_version/maint_version pair was "magic 0x1B/0x19",
     // and the R2004+ tail (unknown_0/app_dwg/app_maint, rl_1c_address,
@@ -206,7 +206,7 @@ pub struct DwgFileHeaderInfo {
     // [32..36] summaryinfo, [36..40] vbaproj, [40..44] r2004_header addr.
     /// Gold's `zero_one_or_three` (byte 12)
     pub zero_one_or_three: u8,
-    /// Gold's `maint_version` (byte 18 — the same byte historically read
+    /// Gold's `maint_version` (byte 18 â€” the same byte historically read
     /// into `app_release_version`; both stay set from the one read)
     pub maint_version: u8,
     /// Gold's `sections` (R2000: the section-locator record count)
@@ -222,19 +222,19 @@ pub struct DwgFileHeaderInfo {
     /// Gold's R2004+ `r2004_header_address` (mostly 128/0x80)
     pub r2004_header_address: i32,
     /// The unmasked 120-byte system section, gold's `R2004_Header` shape
-    /// (None on AC21-format files — gold's separate R2007_Header row —
-    /// and pre-R2004 formats). §19 H2.
+    /// (None on AC21-format files â€” gold's separate R2007_Header row â€”
+    /// and pre-R2004 formats). Â§19 H2.
     pub r2004_system: Option<crate::document::DwgR2004SystemHeader>,
-    /// The sentinel-located R13–R2000 second header, gold's
-    /// `SecondHeader` shape (§19 H2). None when the sentinel is not
+    /// The sentinel-located R13â€“R2000 second header, gold's
+    /// `SecondHeader` shape (Â§19 H2). None when the sentinel is not
     /// found or on R2004+ formats.
     pub second_header: Option<crate::document::DwgSecondHeaderSummary>,
     /// The R13c3+ AuxHeader at the section locator, gold's `AuxHeader`
-    /// shape (§19 H2). None when the FILEHEADER carries fewer than 6
+    /// shape (Â§19 H2). None when the FILEHEADER carries fewer than 6
     /// section records.
     pub aux_header: Option<crate::document::DwgAuxHeaderSummary>,
 
-    // ── AC1021-specific data ──
+    // â”€â”€ AC1021-specific data â”€â”€
     /// AC1021 compressed metadata (contains CRC-64 and section layout)
     pub ac21_metadata: Option<Dwg21CompressedMetadata>,
     /// Raw Reed-Solomon decoded values from file header
@@ -243,13 +243,13 @@ pub struct DwgFileHeaderInfo {
     pub ac21_unknown_key: Option<i64>,
     /// CRC of compressed data in AC1021 header
     pub ac21_compressed_data_crc: Option<i64>,
-    /// Page records: page_id → (offset, size)
+    /// Page records: page_id â†’ (offset, size)
     pub page_records: HashMap<i32, (i64, i64)>,
     /// Section descriptors from the section map
     pub section_descriptors: Vec<DwgSectionInfo>,
 
-    // ── AC15-specific data ──
-    /// Section locator records for AC15 format: name → (file_offset, size)
+    // â”€â”€ AC15-specific data â”€â”€
+    /// Section locator records for AC15 format: name â†’ (file_offset, size)
     pub section_locators: HashMap<String, (i64, i64)>,
     /// Base file offset of AcDb:AcDbObjects section (AC15 only).
     /// Handle offsets in AC15 are absolute; subtract this to get buffer-relative.
@@ -258,7 +258,7 @@ pub struct DwgFileHeaderInfo {
     /// Determines which decompression path to use in `get_section_buffer`.
     pub is_ac18_format: bool,
 
-    // ── The §19 H7g container-shape retention (R2004 family) ──
+    // â”€â”€ The Â§19 H7g container-shape retention (R2004 family) â”€â”€
     /// The section page map entries in the author's physical order
     /// (page id + on-disk size), from `read_page_map_ac18`.
     pub ac18_map_order: Vec<crate::document::DwgAc18PageEntry>,
@@ -267,7 +267,7 @@ pub struct DwgFileHeaderInfo {
     /// unnamed AcDs ones).
     pub ac18_section_shapes: Vec<crate::document::DwgAc18SectionShape>,
 
-    // ── The §19 H8 container-shape retention (AC1021 family) ──
+    // â”€â”€ The Â§19 H8 container-shape retention (AC1021 family) â”€â”€
     /// The pages-map entries in the author's physical order, from
     /// `read_page_map_ac21`.
     pub ac21_map_order: Vec<crate::document::DwgAc21PageEntry>,
@@ -357,7 +357,7 @@ fn find_subsequence(haystack: &[u8], needle: &[u8], from: usize) -> Option<usize
     (from..=haystack.len() - needle.len()).find(|&i| &haystack[i..i + needle.len()] == needle)
 }
 
-/// First index `>= from` where a SAB blob header magic begins — either
+/// First index `>= from` where a SAB blob header magic begins â€” either
 /// `"ACIS BinaryFile"` or `"ASM BinaryFile"`, whichever comes first. A single
 /// forward scan over `buf` (both magics start with `b'A'`, used as a cheap
 /// first-byte gate), so callers that advance `from` past each match walk the
@@ -396,7 +396,7 @@ const ACIS_TAGGED_END_MARKER: &[u8] = b"\x0e\x03End\x0e\x02of\x0e\x04ACIS\x0d\x0
 /// `to` bounds the search: a SAB body carries only ONE of the two end-marker
 /// families, so the search for the absent one would otherwise run to the end of
 /// the whole (often hundreds-of-MB) AcDs buffer on every call. With thousands of
-/// records that is O(records × buf) — the dominant cost of opening a 3D-heavy
+/// records that is O(records Ã— buf) â€” the dominant cost of opening a 3D-heavy
 /// DWG. Callers pass the tightest known upper bound (segment end, next blob, or
 /// the pre-table region) so a missing marker costs one bounded scan, not a full
 /// one. (#203)
@@ -409,7 +409,7 @@ fn find_acds_end(buf: &[u8], from: usize, to: usize) -> Option<(usize, usize)> {
 }
 
 /// Each AcDs SAB blob paired with its owning entity handle, read from the
-/// `_data_` record table(s) — authoritative regardless of blob / record / handle
+/// `_data_` record table(s) â€” authoritative regardless of blob / record / handle
 /// ordering (that ordering diverges in some BIM exports, so guessing it gave one
 /// solid another solid's geometry and body transform).
 ///
@@ -431,7 +431,7 @@ fn extract_acds_record_blobs(buf: &[u8], modeler_handles: &HashSet<u64>) -> Vec<
     };
     let marker = [0xACu8, 0xD5, 0x5F, 0x64, 0x61, 0x74, 0x61, 0x5F]; // "\xAC\xD5_data_"
     let mut out: Vec<(u64, Vec<u8>)> = Vec::new();
-    // Records whose blob is not in the table's own data — handled below from
+    // Records whose blob is not in the table's own data â€” handled below from
     // unclaimed blob segments elsewhere in the datastore. Kept in record order.
     let mut orphan_handles: Vec<u64> = Vec::new();
     let mut claimed_starts: HashSet<usize> = HashSet::new();
@@ -462,13 +462,13 @@ fn extract_acds_record_blobs(buf: &[u8], modeler_handles: &HashSet<u64>) -> Vec<
         }
         // The AUTHORED zero-offset form (measured 2026-09-30,
         // Box_2018/Box_2013): every record row carries 0 in its
-        // 4th field — the blobs are located by walking the
+        // 4th field â€” the blobs are located by walking the
         // LENGTH-PREFIXED chain from the aligned records area, one
         // (u32 len + payload) entry per record, in record order.
         // (The offset-based regions below work for tables that DO
         // carry per-record offsets; the zero-form makes record 0's
         // region collapse and the LAST record span the whole area
-        // — mis-pairing multi-SAB datastores: the roundtrip suite
+        // â€” mis-pairing multi-SAB datastores: the roundtrip suite
         // caught solid and region SWAPPING blobs.)
         if recs.len() >= 2 && recs.iter().all(|&(_, off)| off == 0) {
             let table_end = seg + 48 + recs.len() * 20;
@@ -540,8 +540,8 @@ fn extract_acds_record_blobs(buf: &[u8], modeler_handles: &HashSet<u64>) -> Vec<
             // trail a few bytes past `off[r+1]`, so bound to `region_end` plus a
             // small slack (clamped to the segment). Bounding to `region_end`, not
             // `seg_end`, is what makes this linear: a big datastore is often ONE
-            // segment (seg_end ≈ buf.len()), so a per-record scan to seg_end for
-            // the absent marker family is still O(records × buf). (#203)
+            // segment (seg_end â‰ˆ buf.len()), so a per-record scan to seg_end for
+            // the absent marker family is still O(records Ã— buf). (#203)
             let end_bound = (region_end + ACIS_TAGGED_END_MARKER.len()).min(seg_end);
             if let Some((end, marker_len)) = find_acds_end(buf, start, end_bound) {
                 claimed_starts.insert(start);
@@ -566,23 +566,23 @@ fn extract_acds_record_blobs(buf: &[u8], modeler_handles: &HashSet<u64>) -> Vec<
 }
 
 /// Extract every SAB (ACIS/ASM binary) blob from a decompressed AcDs section, in
-/// the order they appear — the `_data_` record order, matching the handle list
+/// the order they appear â€” the `_data_` record order, matching the handle list
 /// order they appear.
 ///
-/// Each blob runs from its header magic — `"ACIS BinaryFile"` (classic ACIS) or
-/// `"ASM BinaryFile"` (Autodesk ShapeManager, AutoCAD 2013+) — through its
+/// Each blob runs from its header magic â€” `"ACIS BinaryFile"` (classic ACIS) or
+/// `"ASM BinaryFile"` (Autodesk ShapeManager, AutoCAD 2013+) â€” through its
 /// end-of-body terminator (`End-of-ASM-data` or `End-of-ACIS-data`).
 fn extract_acds_sab_blob_ranges(buf: &[u8]) -> Vec<(usize, usize)> {
     let mut blobs = Vec::new();
     let mut pos = 0usize;
     // A single forward walk: each `find_acds_magic` resumes from `pos`, and the
     // end-marker search and `pos = stop` advance past the blob just taken, so
-    // the buffer is scanned once overall — not once per blob per magic, which
+    // the buffer is scanned once overall â€” not once per blob per magic, which
     // was quadratic on 3D-heavy files with many SAB bodies (issue #203).
     while let Some(start) = find_acds_magic(buf, pos) {
         // A body's end marker precedes the next blob's header magic, so bound
         // the (possibly-absent) marker search there instead of running to the
-        // end of the whole buffer on every blob — the same O(n²) trap as the
+        // end of the whole buffer on every blob â€” the same O(nÂ²) trap as the
         // record-table path. (#203)
         let bound = find_acds_magic(buf, start + 1).unwrap_or(buf.len());
         match find_acds_end(buf, start, bound) {
@@ -609,7 +609,7 @@ fn extract_acds_sab_blobs(buf: &[u8]) -> Vec<Vec<u8>> {
 /// Large ASM bodies are split across storage segments. The decompressed AcDs
 /// byte stream places an 80-byte segment header/continuation descriptor between
 /// consecutive SAB chunks:
-/// `AC D5 "blob01" ... 55×8 ...`. Those bytes belong to the datastore, not the
+/// `AC D5 "blob01" ... 55Ã—8 ...`. Those bytes belong to the datastore, not the
 /// SAB token stream; leaving them in makes the ACIS decoder fail at 0x0f_ffb0.
 fn strip_acds_blob01_frames(blob: Vec<u8>) -> Vec<u8> {
     const PREFIX: &[u8] = b"\xAC\xD5blob01";
@@ -709,7 +709,7 @@ fn acds_apply(entity: &mut crate::entities::EntityType, blob: Vec<u8>) -> bool {
 }
 
 /// Attach handle-paired AcDs SAB blobs (from [`extract_acds_record_blobs`]) to
-/// their owning modeler entities — authoritative, each blob to the entity the
+/// their owning modeler entities â€” authoritative, each blob to the entity the
 /// record table named. Returns the number attached.
 fn attach_acds_record_blobs(
     document: &mut crate::document::CadDocument,
@@ -776,8 +776,8 @@ fn attach_acds_sab_blobs(
 ///
 /// The name ends at the first null byte. Some writers leave non-zero garbage
 /// in the bytes *after* the terminator instead of zero-padding the field, so
-/// trimming trailing nulls is not enough — it would keep the embedded null and
-/// the junk that follows (e.g. `"AcDb:Handles\0t…"`), and the name would then
+/// trimming trailing nulls is not enough â€” it would keep the embedded null and
+/// the junk that follows (e.g. `"AcDb:Handles\0tâ€¦"`), and the name would then
 /// fail to match when looking the section up.
 fn section_name_from_field(name_buf: &[u8; 64]) -> String {
     let end = name_buf
@@ -834,7 +834,7 @@ fn parse_summary_info(buf: &[u8], utf16: bool) -> crate::document::SummaryInfo {
         custom_properties: Vec::new(),
         ..Default::default()
     };
-    // TDINDWG, TDCREATE, TDUPDATE — each a TIMERLL (2×u32 = 8 bytes;
+    // TDINDWG, TDCREATE, TDUPDATE â€” each a TIMERLL (2Ã—u32 = 8 bytes;
     // gold prints each as a `[days, ms]` pair).
     if cur.len() >= 24 {
         let timer = |cur: &mut &[u8]| -> [u32; 2] {
@@ -869,18 +869,18 @@ fn parse_summary_info(buf: &[u8], utf16: bool) -> crate::document::SummaryInfo {
     si
 }
 
-/// Read one `TU32` string — gold's `bit_read_TU32` exactly (§19 H4):
+/// Read one `TU32` string â€” gold's `bit_read_TU32` exactly (Â§19 H4):
 /// 4-byte BYTE-count prefix; pre-2007 `size` single-byte chars; R2007+
-/// the char width is sniffed — the overflow check comes FIRST (`size +
-/// byte >= total` → NULL with only the prefix consumed; in remaining-
+/// the char width is sniffed â€” the overflow check comes FIRST (`size +
+/// byte >= total` â†’ NULL with only the prefix consumed; in remaining-
 /// slice terms `size >= remaining`), then the next RL is peeked
 /// (consumed): if its `0x00ff0000` bits are set the payload is UCS-2
 /// (rewind, `size/2` RS chars = `size` bytes), else 4-byte chars
 /// (`size/4` RLs with the peek as the first char, low 16 bits kept).
 /// `FIELD_T32` expands to this same reader on R2007+ (dec_macros.h:616)
-/// — an "empty" string still consumes the peek (8 bytes total), which
+/// â€” an "empty" string still consumes the peek (8 bytes total), which
 /// is load-bearing for the FileDepList record alignment (pinned by
-/// 2018/Arc.dwg: three empty strings consume 8+8+4 — the third's size RL
+/// 2018/Arc.dwg: three empty strings consume 8+8+4 â€” the third's size RL
 /// is 0xFFFFFFFF and overflows).
 fn read_tu32(cur: &mut &[u8], utf16: bool) -> String {
     if cur.len() < 4 {
@@ -895,7 +895,7 @@ fn read_tu32(cur: &mut &[u8], utf16: bool) -> String {
         *cur = &cur[bytes..];
         return s.trim_end_matches('\0').to_string();
     }
-    // R2007+: the overflow check precedes the peek — NULL with only the
+    // R2007+: the overflow check precedes the peek â€” NULL with only the
     // prefix consumed (gold: `size + dat->byte >= dat->size || size >
     // dat->size`; in remaining-slice terms size >= remaining).
     if size >= cur.len() as u64 {
@@ -921,7 +921,7 @@ fn read_tu32(cur: &mut &[u8], utf16: bool) -> String {
             .to_string()
     } else {
         // 4-byte chars: the peeked RL is the first char (low half kept),
-        // then size/4 − 1 more RLs
+        // then size/4 âˆ’ 1 more RLs
         let count = (size / 4) as usize;
         let mut units = Vec::with_capacity(count);
         units.push(peek as u16);
@@ -940,7 +940,7 @@ fn read_tu32(cur: &mut &[u8], utf16: bool) -> String {
     }
 }
 
-/// Parse the `AcDb:Template` section — gold's `Template` shape (§19 H4):
+/// Parse the `AcDb:Template` section â€” gold's `Template` shape (Â§19 H4):
 /// description (T16) + MEASUREMENT (RS).
 fn parse_template_section(buf: &[u8], utf16: bool) -> crate::document::DwgTemplateSummary {
     let mut cur: &[u8] = buf;
@@ -956,8 +956,8 @@ fn parse_template_section(buf: &[u8], utf16: bool) -> crate::document::DwgTempla
     }
 }
 
-/// Parse the `AcDb:FileDepList` section — gold's `FileDepList` shape
-/// (§19 H4): num_features RL + features (TU32 vector) + num_files RL +
+/// Parse the `AcDb:FileDepList` section â€” gold's `FileDepList` shape
+/// (Â§19 H4): num_features RL + features (TU32 vector) + num_files RL +
 /// the file records (T32 filename/filepath/fingerprint/version + the
 /// numeric fields). The count fields do not print.
 fn parse_file_dep_list_section(
@@ -985,7 +985,7 @@ fn parse_file_dep_list_section(
     };
     let mut files = Vec::new();
     for _ in 0..num_files.clamp(0, 4096) {
-        // FIELD_T32 = TU32 semantics on R2007+ (dec_macros.h:616) — the
+        // FIELD_T32 = TU32 semantics on R2007+ (dec_macros.h:616) â€” the
         // sniffing reader, whose peek/overflow behavior is load-bearing
         // for the record alignment.
         let filename = read_tu32(&mut cur, utf16);
@@ -1027,8 +1027,8 @@ fn parse_file_dep_list_section(
     crate::document::DwgFileDepListSummary { features, files }
 }
 
-/// Parse the `AcDb:RevHistory` section — gold's `RevHistory` shape
-/// (§19 H4): class_version RL, class_minor RL, num_histories RL +
+/// Parse the `AcDb:RevHistory` section â€” gold's `RevHistory` shape
+/// (Â§19 H4): class_version RL, class_minor RL, num_histories RL +
 /// the RL values (the count does not print).
 fn parse_rev_history_section(buf: &[u8]) -> crate::document::DwgRevHistorySummary {
     let mut cur: &[u8] = buf;
@@ -1055,7 +1055,7 @@ fn parse_rev_history_section(buf: &[u8]) -> crate::document::DwgRevHistorySummar
     }
 }
 
-/// Parse the `AcDb:Security` section — gold's `Security` shape (§19 H4):
+/// Parse the `AcDb:Security` section â€” gold's `Security` shape (Â§19 H4):
 /// three RLx unknowns, crypto_id, T32 crypto_name, algo_id, key_len,
 /// encr_size + the encr_size bytes as hex.
 fn parse_security_section(buf: &[u8], utf16: bool) -> crate::document::DwgSecuritySummary {
@@ -1073,7 +1073,7 @@ fn parse_security_section(buf: &[u8], utf16: bool) -> crate::document::DwgSecuri
     let unknown_2 = rl(&mut cur);
     let unknown_3 = rl(&mut cur);
     let crypto_id = rl(&mut cur);
-    // FIELD_T32 → TU32 semantics on R2007+ (see read_tu32)
+    // FIELD_T32 â†’ TU32 semantics on R2007+ (see read_tu32)
     let crypto_name = read_tu32(&mut cur, utf16);
     let algo_id = rl(&mut cur);
     let key_len = rl(&mut cur);
@@ -1097,8 +1097,8 @@ fn parse_security_section(buf: &[u8], utf16: bool) -> crate::document::DwgSecuri
     }
 }
 
-/// Parse the `AcDb:ObjFreeSpace` section — gold's `ObjFreeSpace` shape
-/// (§19 H4), version-gated per objfreespace.spec: ≤R2007 (incl. R2000)
+/// Parse the `AcDb:ObjFreeSpace` section â€” gold's `ObjFreeSpace` shape
+/// (Â§19 H4), version-gated per objfreespace.spec: â‰¤R2007 (incl. R2000)
 /// reads 4-byte `zero`/`numhandles` (FIELD_CAST into 64-bit stores),
 /// TDUPDATE TIMERLL, `objects_address` RLx, `numnums` RC, then the
 /// four plain RLL maxes; R2010+ reads 64-bit `zero`/`numhandles`, no
@@ -1193,10 +1193,10 @@ fn parse_obj_free_space_section(
     }
 }
 
-/// Parse the `AcDb:AppInfo` section — gold's `AppInfo` shape (§19 H4):
+/// Parse the `AcDb:AppInfo` section â€” gold's `AppInfo` shape (Â§19 H4):
 /// the parsed fields plus, on the R2004-format containers (AC1018 and
 /// AC1024+), the whole section as `size` + `unknown_bits` hex. The
-/// AC1021 (R2007) container's reader never sets size/unknown_bits —
+/// AC1021 (R2007) container's reader never sets size/unknown_bits â€”
 /// gold prints 0 and '' there (the container split pinned empirically:
 /// example_2007 size=0 vs sample_2018/example_2004 size=698).
 fn parse_app_info_section(
@@ -1216,13 +1216,13 @@ fn parse_app_info_section(
         summary.unknown_bits = hex;
     }
     if !utf16 {
-        // R2004 (AC1018): the pre-2007 branch — gold's bit_read_T16
+        // R2004 (AC1018): the pre-2007 branch â€” gold's bit_read_T16
         // semantics are C-string truncation at the first NUL plus
         // overflow-to-empty (CHK_OVERFLOW returns NULL after consuming
         // only the RS). The R2004 corpus files carry R2007-format
         // content (class_version=3 first), so this branch misparses:
-        // appinfo_name reads a 3-byte NUL-led prefix (→ ""), the bogus
-        // num_strings length then overflows every later T16 (→ "") —
+        // appinfo_name reads a 3-byte NUL-led prefix (â†’ ""), the bogus
+        // num_strings length then overflows every later T16 (â†’ "") â€”
         // gold's emission is size + hex + four empty strings.
         fn t16_pre2007(cur: &mut &[u8]) -> String {
             if cur.len() < 2 {
@@ -1290,9 +1290,9 @@ fn parse_app_info_section(
     summary
 }
 
-/// Parse the `AcDb:AppInfoHistory` section — gold's `AppInfoHistory`
-/// shape (§19 H4): the whole section as `size` + `unknown_bits` hex
-/// (gold's spec include for it is commented out — never parsed).
+/// Parse the `AcDb:AppInfoHistory` section â€” gold's `AppInfoHistory`
+/// shape (Â§19 H4): the whole section as `size` + `unknown_bits` hex
+/// (gold's spec include for it is commented out â€” never parsed).
 fn parse_app_info_history_section(buf: &[u8]) -> crate::document::DwgAppInfoHistorySummary {
     let mut hex = String::with_capacity(buf.len() * 2);
     for b in buf {
@@ -1311,7 +1311,7 @@ pub struct DwgReader<R: Read + Seek> {
     pub options: DwgReadOptions,
     /// Notifications collected during reading
     pub notifications: NotificationCollection,
-    /// Source path, when opened from a file — copied onto the document so the
+    /// Source path, when opened from a file â€” copied onto the document so the
     /// `Filename` / `FilePath` fields can resolve.
     source_path: Option<String>,
     /// Optional monotonic read progress callback. The value is in 0..=1000 so
@@ -1512,7 +1512,7 @@ impl<R: Read + Seek> DwgReader<R> {
         let mut document = crate::document::CadDocument::with_version(dxf_version);
         document.maintenance_version = info.acad_maintenance_version;
         document.dwg_source_version = Some(dxf_version);
-        // The file-header summary (§19 H2): gold's FILEHEADER shape, kept
+        // The file-header summary (Â§19 H2): gold's FILEHEADER shape, kept
         // in the document so the structure axis can compare it (the dump
         // emits it automatically through CadDocument's serde).
         document.dwg_file_header = Some(crate::document::DwgFileHeaderSummary {
@@ -1533,13 +1533,13 @@ impl<R: Read + Seek> DwgReader<R> {
             vbaproj_address: info.vba_project_addr,
             r2004_header_address: info.r2004_header_address,
         });
-        // The R2004-format system-section summary (§19 H2's second
-        // sub-row) — set on AC18-format files only.
+        // The R2004-format system-section summary (Â§19 H2's second
+        // sub-row) â€” set on AC18-format files only.
         document.dwg_r2004_header = info.r2004_system.clone();
-        // The §19 H7g container shape: the author's page space
+        // The Â§19 H7g container shape: the author's page space
         // (per-descriptor page boundaries/ids, the physical map order,
         // the box-page identity), retained for the same-version
-        // roundtrip's container-shape mirror. AC18-family files only —
+        // roundtrip's container-shape mirror. AC18-family files only â€”
         // the write gate below falls back to the conventional layout
         // whenever the re-encoded content does not fit the author's
         // page space.
@@ -1554,8 +1554,8 @@ impl<R: Read + Seek> DwgReader<R> {
                 });
             }
         }
-        // The R2007-format system-section summary (§19 H2's third
-        // sub-row) — the gold-named projection of the AC1021 container
+        // The R2007-format system-section summary (Â§19 H2's third
+        // sub-row) â€” the gold-named projection of the AC1021 container
         // metadata silver already parses (Dwg21CompressedMetadata). The
         // container names differ from gold's; sections_amount has no
         // gold-emitted counterpart and is dropped.
@@ -1596,15 +1596,15 @@ impl<R: Read + Seek> DwgReader<R> {
                 header_crc: m.header_crc64,
             });
         }
-        // The §19 H8 AC21 container shape — set on AC1021-format
+        // The Â§19 H8 AC21 container shape â€” set on AC1021-format
         // files only (the pages map and the sections table both parse
         // on that format; both stay empty on every other one).
         if info.ac21_metadata.is_some() {
             document.dwg_ac21_shape = info.ac21_shape.take();
         }
-        // The R13-R2000 structural pair (§19 H2's fourth and fifth
+        // The R13-R2000 structural pair (Â§19 H2's fourth and fifth
         // sub-rows): the sentinel-located SecondHeader and the
-        // locator-addressed AuxHeader — both parsed during the AC15
+        // locator-addressed AuxHeader â€” both parsed during the AC15
         // file-header read, both gold-JSON-shaped.
         document.dwg_second_header = info.second_header.clone();
         document.dwg_aux_header = info.aux_header.clone();
@@ -1612,8 +1612,8 @@ impl<R: Read + Seek> DwgReader<R> {
         // 2. Read Classes (AcDb:Classes)
         match self.get_section_buffer("AcDb:Classes", &info) {
             Ok(classes_buf) => {
-                // §19 H7 CLASSES row: retain the raw section bytes for the
-                // verbatim same-version re-emission — the desynced tables
+                // Â§19 H7 CLASSES row: retain the raw section bytes for the
+                // verbatim same-version re-emission â€” the desynced tables
                 // (the AutoCAD-2027.1 fixture set) round-trip gold's walk
                 // only byte-exactly, and the bytes also carry the author's
                 // counts for the raw-passthrough classes.
@@ -1755,8 +1755,8 @@ impl<R: Read + Seek> DwgReader<R> {
             match self.get_section_buffer("AcDb:AcDbObjects", &info) {
                  Ok(objects_buf) => {
                      objects_section_read = true;
-                     // §19 H8d: retain her reconstructed objects-section
-                     // stream plus her handle map on AC1021-format files —
+                     // Â§19 H8d: retain her reconstructed objects-section
+                     // stream plus her handle map on AC1021-format files â€”
                      // the mirror arm's raw-echo source. Her physical
                      // layout is her editor's incremental-save allocation
                      // history; the echo engages only when the document's
@@ -1768,9 +1768,9 @@ impl<R: Read + Seek> DwgReader<R> {
                             handle_map.iter().map(|(&h, &o)| (h, o)).collect();
                         her_handles.sort_by_key(|&(h, _)| h);
                         if std::env::var_os("DWG_RECORD_TRACE").is_some() {
-                            // §19 H8h diagnostics: her record map —
+                            // Â§19 H8h diagnostics: her record map â€”
                             // (handle, offset in her objects-section
-                            // stream) — for record-level autopsy of the
+                            // stream) â€” for record-level autopsy of the
                             // conventional emission.
                             for &(h, o) in &her_handles {
                                 eprintln!("[record-trace her] {h:X} {o}");
@@ -1779,10 +1779,10 @@ impl<R: Read + Seek> DwgReader<R> {
                         document.raw_acdb_objects_handles =
                             Some(std::sync::Arc::new(her_handles));
                     }
-                     // §19 H8e-2/H8f/H8g: her whole on-disk file (the
+                     // Â§19 H8e-2/H8f/H8g: her whole on-disk file (the
                      // header blocks with their unknown-region bytes,
                      // her page walk or flat section layout exactly
-                     // as it sits) for the whole-file echo — every
+                     // as it sits) for the whole-file echo â€” every
                      // container family (the AC21 page system, the
                      // AC18-family paged containers, the R2000 flat
                      // container); the per-format write gates decide
@@ -1868,13 +1868,13 @@ impl<R: Read + Seek> DwgReader<R> {
         }
 
         // 6. R2013+ (AC1027+): 3DSOLID / REGION / BODY ACIS geometry is not
-        //    stored inline — it lives as SAB blobs in the AcDs (Autodesk Data
+        //    stored inline â€” it lives as SAB blobs in the AcDs (Autodesk Data
         //    Store) section. Extract those blobs and attach them, in document
         //    order, to the modeler-geometry entities that arrived with only a
         //    stub. Files without an AcDs section keep their inline data.
         if let Ok(acds_buf) = self.get_section_buffer("AcDb:AcDsPrototype_1b", &info) {
             // Authoritative: the `_data_` record table(s) bind each blob to its
-            // owning handle. When present, attach by handle — the only mapping
+            // owning handle. When present, attach by handle â€” the only mapping
             // that survives BIM exports whose blob/record/handle orders diverge.
             let modeler_handles: HashSet<u64> = document
                 .entities()
@@ -1913,7 +1913,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 (!acis.sab_data.is_empty())
                     .then_some((entity.common().handle, acis.sab_data.as_slice()))
             }));
-            // §19 H5a: gold's `AcDs` structure view — the section outline
+            // Â§19 H5a: gold's `AcDs` structure view â€” the section outline
             // (the 13 header fields + the segment index + the per-type
             // sub-blocks). A fetched-but-unreadable section still projects
             // a zeroed header, as gold's JSON does.
@@ -1935,8 +1935,8 @@ impl<R: Read + Seek> DwgReader<R> {
             .map(|v| v.r2004_plus())
             .unwrap_or(false)
         {
-            // §19 H5a: gold's AcDs emission is UNCONDITIONAL on the
-            // R2004+ arm (out_json.c:2675) — a file without the section
+            // Â§19 H5a: gold's AcDs emission is UNCONDITIONAL on the
+            // R2004+ arm (out_json.c:2675) â€” a file without the section
             // still prints the zeroed 13-field header (2004/Line pinned:
             // all-zero values, no segidx/segments keys).
             document.dwg_acds = Some(Default::default());
@@ -1945,11 +1945,11 @@ impl<R: Read + Seek> DwgReader<R> {
 
         // 7. Preview / thumbnail image. Best-effort: a malformed or absent
         //    preview leaves `document.preview` as `None`. The container
-        //    source is version-split (§19 H5c, gold-pinned):
+        //    source is version-split (Â§19 H5c, gold-pinned):
         //    - R2004+ (incl. AC1021): gold reads the thumbnail ONLY from
         //      the decompressed AcDb:Preview section
-        //      (read_2004_section_preview / decode_R2007 — gold size =
-        //      sec−16 there, sec−32 on AC1021). The raw bytes at the
+        //      (read_2004_section_preview / decode_R2007 â€” gold size =
+        //      secâˆ’16 there, secâˆ’32 on AC1021). The raw bytes at the
         //      preview seeker are not the container on compressed stores
         //      (the 17 AC1032 corpus files: compressed bytes whose
         //      overall-size field still passes the allocation guard), and
@@ -1994,7 +1994,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 }
             }
             // Parse the container. A fetched container with NO decodable
-            // image descriptor (the header-only previews — the 80-byte
+            // image descriptor (the header-only previews â€” the 80-byte
             // reserved block with no BMP/WMF/PNG behind it) still carries
             // gold's THUMBNAILIMAGE size/chain, so retain the raw bytes
             // with empty `data` either way; the writer treats empty data
@@ -2004,7 +2004,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 .and_then(|buf| crate::io::dwg::preview::parse_preview(buf, base));
             match (container, parsed) {
                 (Some(buf), Some(p)) => {
-                    // Retain the raw container for the §19 H5c structure
+                    // Retain the raw container for the Â§19 H5c structure
                     // projection (gold's THUMBNAILIMAGE size/chain).
                     document.preview = Some(crate::document::Preview { raw: buf, ..p });
                 }
@@ -2023,7 +2023,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // file rather than a bare stream.
         document.source_path = self.source_path.clone();
 
-        // Document summary information (Author/Title/Subject/… → the
+        // Document summary information (Author/Title/Subject/â€¦ â†’ the
         // Document-category dynamic-text fields).
         if let Ok(buf) = self.get_section_buffer("AcDb:SummaryInfo", &info) {
             let utf16 = crate::io::dwg::dwg_version::DwgVersion::from_dxf_version(dxf_version)
@@ -2032,8 +2032,8 @@ impl<R: Read + Seek> DwgReader<R> {
             document.summary_info = parse_summary_info(&buf, utf16);
         }
 
-        // The §19 H4 metadata sections (gold-JSON-shaped summaries for
-        // the structure axis; every section optional — a missing section
+        // The Â§19 H4 metadata sections (gold-JSON-shaped summaries for
+        // the structure axis; every section optional â€” a missing section
         // is a skip, never an error).
         self.read_metadata_sections(&info, dxf_version, &mut document);
 
@@ -2065,11 +2065,11 @@ impl<R: Read + Seek> DwgReader<R> {
 
         // 7. Preview / thumbnail image. Best-effort: a malformed or absent
         //    preview leaves `document.preview` as `None`. The container
-        //    source is version-split (§19 H5c, gold-pinned):
+        //    source is version-split (Â§19 H5c, gold-pinned):
         //    - R2004+ (incl. AC1021): gold reads the thumbnail ONLY from
         //      the decompressed AcDb:Preview section
-        //      (read_2004_section_preview / decode_R2007 — gold size =
-        //      sec−16 there, sec−32 on AC1021). The raw bytes at the
+        //      (read_2004_section_preview / decode_R2007 â€” gold size =
+        //      secâˆ’16 there, secâˆ’32 on AC1021). The raw bytes at the
         //      preview seeker are not the container on compressed stores
         //      (the 17 AC1032 corpus files: compressed bytes whose
         //      overall-size field still passes the allocation guard), and
@@ -2114,7 +2114,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 }
             }
             // Parse the container. A fetched container with NO decodable
-            // image descriptor (the header-only previews — the 80-byte
+            // image descriptor (the header-only previews â€” the 80-byte
             // reserved block with no BMP/WMF/PNG behind it) still carries
             // gold's THUMBNAILIMAGE size/chain, so retain the raw bytes
             // with empty `data` either way; the writer treats empty data
@@ -2124,7 +2124,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 .and_then(|buf| crate::io::dwg::preview::parse_preview(buf, base));
             match (container, parsed) {
                 (Some(buf), Some(p)) => {
-                    // Retain the raw container for the §19 H5c structure
+                    // Retain the raw container for the Â§19 H5c structure
                     // projection (gold's THUMBNAILIMAGE size/chain).
                     document.preview = Some(crate::document::Preview { raw: buf, ..p });
                 }
@@ -2143,7 +2143,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // file rather than a bare stream.
         document.source_path = self.source_path.clone();
 
-        // Document summary information (Author/Title/Subject/… → the
+        // Document summary information (Author/Title/Subject/â€¦ â†’ the
         // Document-category dynamic-text fields).
         if let Ok(buf) = self.get_section_buffer("AcDb:SummaryInfo", &info) {
             let utf16 = crate::io::dwg::dwg_version::DwgVersion::from_dxf_version(dxf_version)
@@ -2152,22 +2152,22 @@ impl<R: Read + Seek> DwgReader<R> {
             document.summary_info = parse_summary_info(&buf, utf16);
         }
 
-        // The §19 H4 metadata sections (both read flows).
+        // The Â§19 H4 metadata sections (both read flows).
         self.read_metadata_sections(&info, dxf_version, &mut document);
 
-        // §19 H7 CLASSES row: capture the read-time state hash (the
+        // Â§19 H7 CLASSES row: capture the read-time state hash (the
         // ordered class identity + the document's per-class object
-        // census) guarding the verbatim re-emission — the write-time
+        // census) guarding the verbatim re-emission â€” the write-time
         // gate recomputes it and falls back to the sane encoding when
         // the class table or any class's census changed.
         document.raw_classes_fingerprint = super::classes_state_fingerprint(&document);
 
-        // §19 H8g: the document-state hash guarding every whole-file
-        // echo — captured at the END of the read (after every section
+        // Â§19 H8g: the document-state hash guarding every whole-file
+        // echo â€” captured at the END of the read (after every section
         // has loaded: the objects, the metadata models, the preview),
         // so the write gates compare the full state. Any edit between
-        // read and write — including in-place field edits the
-        // handle-set fingerprints cannot see — declines the echo.
+        // read and write â€” including in-place field edits the
+        // handle-set fingerprints cannot see â€” declines the echo.
         document.dwg_state_fingerprint = super::document_state_fingerprint(&document);
 
         // Transfer reader notifications to the document so callers can
@@ -2279,7 +2279,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 self.read_file_header_ac18(&mut info)?;
             }
             _ => {
-                // AC15 format (R13/R14/R2000) — linear file with section locator records
+                // AC15 format (R13/R14/R2000) â€” linear file with section locator records
                 self.read_file_header_ac15(&mut info)?;
             }
         }
@@ -2289,7 +2289,7 @@ impl<R: Read + Seek> DwgReader<R> {
 
     /// Read common file metadata shared between AC18 and AC21 formats.
     ///
-    /// This reads bytes 6–0xFF of the file (after the version string).
+    /// This reads bytes 6â€“0xFF of the file (after the version string).
     fn read_file_metadata(&mut self, info: &mut DwgFileHeaderInfo) -> Result<(), DxfError> {
         // Skip 5 bytes after version string
         let mut skip = [0u8; 5];
@@ -2298,7 +2298,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // Maintenance version (1 byte)
         info.acad_maintenance_version = self.stream.read_u8()?;
 
-        // Gold's `zero_one_or_three` (1 byte — previously "skip 1")
+        // Gold's `zero_one_or_three` (1 byte â€” previously "skip 1")
         info.zero_one_or_three = self.stream.read_u8()?;
 
         // Preview address (4 bytes)
@@ -2307,7 +2307,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // DWG version (1 byte)
         info.dwg_version = self.stream.read_u8()?;
 
-        // App release version (1 byte) — this byte IS gold's `maint_version`
+        // App release version (1 byte) â€” this byte IS gold's `maint_version`
         // (the same position ledger as the R2000 path: byte 18)
         info.app_release_version = self.stream.read_u8()?;
         info.maint_version = info.app_release_version;
@@ -2324,7 +2324,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // Security type (4 bytes)
         info.security_type = self.stream.read_i32::<LittleEndian>()?;
 
-        // Gold's `rl_1c_address` (4 bytes — previously "skip unknown")
+        // Gold's `rl_1c_address` (4 bytes â€” previously "skip unknown")
         info.rl_1c_address = self.stream.read_i32::<LittleEndian>()?;
 
         // Summary info address (4 bytes)
@@ -2333,13 +2333,13 @@ impl<R: Read + Seek> DwgReader<R> {
         // VBA project address (4 bytes)
         info.vba_project_addr = self.stream.read_i32::<LittleEndian>()?;
 
-        // Gold's `r2004_header_address` (4 bytes — previously the first
+        // Gold's `r2004_header_address` (4 bytes â€” previously the first
         // half of the "skip 2 unknown ints" tail)
         info.r2004_header_address = self.stream.read_i32::<LittleEndian>()?;
         // and the remaining 4 stub bytes of the old 8-byte skip
         self.stream.read_i32::<LittleEndian>()?;
 
-        // Skip 80 bytes of trailing padding — the byte ledger is
+        // Skip 80 bytes of trailing padding â€” the byte ledger is
         // unchanged: the r2004_header_address+stub pair above covers
         // exactly the old 8-byte skip, and this lands the cursor at the
         // 0x100 file-header end (byte 128) exactly as before.
@@ -2358,16 +2358,16 @@ impl<R: Read + Seek> DwgReader<R> {
     /// [0x0D] Preview seeker (4 bytes)
     /// [0x11] Magic bytes (2 bytes: 0x1B, 0x19)
     /// [0x13] Code page (2 bytes LE)
-    /// [0x15] Record count (4 bytes LE) — always 6
-    /// [0x19] 6 × Section locator records (9 bytes each)
+    /// [0x15] Record count (4 bytes LE) â€” always 6
+    /// [0x19] 6 Ã— Section locator records (9 bytes each)
     /// [0x4F] CRC-16 (2 bytes)
     /// [0x51] End sentinel (16 bytes)
-    /// [0x61] End of header → section data starts
+    /// [0x61] End of header â†’ section data starts
     /// ```
     ///
     /// Section numbers: 0=Header, 1=Classes, 2=Handles,
     /// 3=ObjFreeSpace, 4=Template, 5=AuxHeader.
-    /// AcDbObjects is not in the locator table — its position is
+    /// AcDbObjects is not in the locator table â€” its position is
     /// inferred from the gap between the Classes section end and the
     /// Handles section start (see the calculation below for why the
     /// AuxHeader position is only used as a legacy fallback).
@@ -2381,7 +2381,7 @@ impl<R: Read + Seek> DwgReader<R> {
         let mut pad = [0u8; 5];
         self.stream.read_exact(&mut pad)?;
         info.acad_maintenance_version = self.stream.read_u8()?;
-        // Byte 12 — gold's `zero_one_or_three` (pinned by hand-decoding
+        // Byte 12 â€” gold's `zero_one_or_three` (pinned by hand-decoding
         // sample_2000: gold's observed 1 sits at exactly this byte; the
         // historical "unknown" label was wrong)
         info.zero_one_or_three = self.stream.read_u8()?;
@@ -2389,7 +2389,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // 0x0D: Preview seeker (4 bytes LE)
         info.preview_address = self.stream.read_i32::<LittleEndian>()?;
 
-        // 0x11/0x12: gold's `dwg_version` (byte 17 — the historical "magic
+        // 0x11/0x12: gold's `dwg_version` (byte 17 â€” the historical "magic
         // 0x1B/0x19" was gold's dwg_version=25 on sample_2000) and
         // `maint_version` (byte 18)
         info.dwg_version = self.stream.read_u8()?;
@@ -2399,7 +2399,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // 0x13: Code page (2 bytes LE)
         info.code_page = self.stream.read_u16::<LittleEndian>()?;
 
-        // 0x15: Number of locator records (4 bytes LE) — should be 6.
+        // 0x15: Number of locator records (4 bytes LE) â€” should be 6.
         // This IS gold's FILEHEADER `sections` field (sample_2000:
         // gold's "sections": 6 = this count).
         let record_count = self.stream.read_i32::<LittleEndian>()?;
@@ -2442,7 +2442,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 handles_seeker = seeker;
             }
             if number == 5 {
-                // AuxHeader — objects start right after this
+                // AuxHeader â€” objects start right after this
                 aux_header_end = seeker + size;
             }
         }
@@ -2467,7 +2467,7 @@ impl<R: Read + Seek> DwgReader<R> {
             objects_start = classes_end;
             objects_size = handles_seeker - classes_end;
         } else {
-            // Malformed Classes locator — fall back to the legacy inference:
+            // Malformed Classes locator â€” fall back to the legacy inference:
             // objects start right after the AuxHeader, or, when AuxHeader is
             // missing (R13/R14 layout), at 0x61 + the sum of all known
             // sections that precede it.
@@ -2507,7 +2507,7 @@ impl<R: Read + Seek> DwgReader<R> {
             ),
         );
 
-        // The R13-R2000 structural pair (§19 H2): the AuxHeader at the
+        // The R13-R2000 structural pair (Â§19 H2): the AuxHeader at the
         // section locator (gold: decode.c:373-405, gated on sections==6)
         // and the sentinel-located SecondHeader (gold: decode.c:907).
         // Both parse into gold's JSON shapes for the structure axis;
@@ -2530,8 +2530,8 @@ impl<R: Read + Seek> DwgReader<R> {
         Ok(())
     }
 
-    /// Read the R13c3+ AuxHeader at its section-locator address — gold's
-    /// `AuxHeader` shape (§19 H2). Byte-aligned fields per `auxheader.spec`
+    /// Read the R13c3+ AuxHeader at its section-locator address â€” gold's
+    /// `AuxHeader` shape (Â§19 H2). Byte-aligned fields per `auxheader.spec`
     /// (no sentinels since R13c3; gold decode.c:373-405). The field order
     /// was hand-decoded byte-for-byte against gold's JSON on sample_2000
     /// before implementation (every field matched).
@@ -2642,16 +2642,16 @@ impl<R: Read + Seek> DwgReader<R> {
         Ok(())
     }
 
-    /// Read the R13–R2000 SecondHeader — gold's `SecondHeader` shape
-    /// (§19 H2). Located by the 2NDHEADER_BEGIN sentinel (gold searches
+    /// Read the R13â€“R2000 SecondHeader â€” gold's `SecondHeader` shape
+    /// (Â§19 H2). Located by the 2NDHEADER_BEGIN sentinel (gold searches
     /// forward from the ObjFreeSpace read position, decode.c:907; the
     /// sentinel is unique, so the search starts at the ObjFreeSpace
     /// locator address with a 0 fallback). Parsed per `2ndheader.spec`
     /// via `secondheader_private`: RL size, BL address, 11-byte version,
     /// RC maint_rel_version, RC zero_one_or_three, BS dwg_versions,
-    /// RS codepage, BS num_sections (≤6) + the section records
-    /// (RC nr, BL address, BL size), BS num_handles (≤14) + the handle
-    /// records (RC num_hdl ≤8, RC nr, num_hdl raw bytes), the trailing
+    /// RS codepage, BS num_sections (â‰¤6) + the section records
+    /// (RC nr, BL address, BL size), BS num_handles (â‰¤14) + the handle
+    /// records (RC num_hdl â‰¤8, RC nr, num_hdl raw bytes), the trailing
     /// RS CRC (not printed), and `junk_r14` (RLL) on R14/R2000 only.
     fn read_second_header_r13(
         &mut self,
@@ -2723,15 +2723,15 @@ impl<R: Read + Seek> DwgReader<R> {
         }
         // gold's bit_check_CRC aligns to the next byte boundary before
         // reading the CRC (bits.c: `if (dat->bit > 0) { dat->byte++;
-        // dat->bit = 0; }`) — the SecondHeader walk ends mid-byte when
+        // dat->bit = 0; }`) â€” the SecondHeader walk ends mid-byte when
         // the BS num_handles leaves the cursor between boundaries, and
         // the raw reads preserve the shift. Without the align the CRC
         // (invisible) and the trailing junk_r14 (printed) read shifted
-        // bytes — the whole SecondHeader junk_r14 value-diff family.
+        // bytes â€” the whole SecondHeader junk_r14 value-diff family.
         reader.set_position(reader.position());
         let _crc = reader.read_raw_short();
         // junk_r14: RLL, R14/R2000 only (VERSIONS (R_14, R_2000) in
-        // secondheader_private — R13 files stop at the CRC).
+        // secondheader_private â€” R13 files stop at the CRC).
         let junk_r14 = if matches!(dxf_version, crate::types::DxfVersion::AC1014 | crate::types::DxfVersion::AC1015)
         {
             let mut b = [0u8; 8];
@@ -2758,11 +2758,11 @@ impl<R: Read + Seek> DwgReader<R> {
         Ok(())
     }
 
-    /// Read the §19 H4 metadata sections into their gold-JSON-shaped
+    /// Read the Â§19 H4 metadata sections into their gold-JSON-shaped
     /// summaries (Template, ObjFreeSpace, FileDepList, RevHistory,
     /// Security, AppInfo, AppInfoHistory). Every section is optional:
     /// a missing section (no locator / no map entry) is a skip, never
-    /// an error — gold's own emission gates (the FILEHEADER address
+    /// an error â€” gold's own emission gates (the FILEHEADER address
     /// fields and the R2000 locator counts) make presence file-driven,
     /// and the structure axis compares only what both sides carry.
     fn read_metadata_sections(
@@ -2776,7 +2776,7 @@ impl<R: Read + Seek> DwgReader<R> {
             .map(|v| v.r2007_plus())
             .unwrap_or(true);
         // ObjFreeSpace's 128-bit max split is R2010+ (objfreespace.spec's
-        // UNTIL (R_2007) branch — inclusive — covers R2000/R2004/R2007).
+        // UNTIL (R_2007) branch â€” inclusive â€” covers R2000/R2004/R2007).
         let r2010_plus = matches!(
             dxf_version,
             crate::types::DxfVersion::AC1024
@@ -2784,7 +2784,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 | crate::types::DxfVersion::AC1032
         );
         // The R2004+ emission arm (out_json.c's `dat->version >= R_2004`
-        // gate) — the metadata sections exist there (or print zeroed).
+        // gate) â€” the metadata sections exist there (or print zeroed).
         let r2004_plus = matches!(
             dxf_version,
             crate::types::DxfVersion::AC1018
@@ -2796,9 +2796,9 @@ impl<R: Read + Seek> DwgReader<R> {
 
         // The R2004+-only sections. Gold emits these UNCONDITIONALLY on
         // R2004+ files (out_json.c's R_2004 arm has no address gates for
-        // them — only SummaryInfo/VBAProject are gated): when the section
+        // them â€” only SummaryInfo/VBAProject are gated): when the section
         // is absent from the map, gold prints the ZEROED struct (e.g.
-        // Security's 9 zero constants on files without the section —
+        // Security's 9 zero constants on files without the section â€”
         // pinned by sample_2018 whose map carries only the 13 core
         // names). Parsing the empty buffer reproduces the zeroed
         // emission exactly. On R2000 the sections do not exist at all
@@ -2815,8 +2815,8 @@ impl<R: Read + Seek> DwgReader<R> {
             document.dwg_security = Some(parse_security_section(&buf, utf16));
             let buf = self.get_section_buffer(names::APP_INFO, info).unwrap_or_default();
             let ac1021 = dxf_version == crate::types::DxfVersion::AC1021;
-            // §19 H7 AppInfo row: retain the raw section bytes for the
-            // verbatim same-version re-emission — gold prints the section
+            // Â§19 H7 AppInfo row: retain the raw section bytes for the
+            // verbatim same-version re-emission â€” gold prints the section
             // unconditionally (zeroed when absent), so a source without
             // one must not get a boilerplate section materialized.
             if !buf.is_empty() {
@@ -2826,7 +2826,7 @@ impl<R: Read + Seek> DwgReader<R> {
             let buf = self
                 .get_section_buffer(names::APP_INFO_HISTORY, info)
                 .unwrap_or_default();
-            // §19 H7 AppInfoHistory row: same verbatim rule — the section
+            // Â§19 H7 AppInfoHistory row: same verbatim rule â€” the section
             // was never written before this row.
             if !buf.is_empty() {
                 document.raw_app_info_history_data = Some(std::sync::Arc::new(buf.clone()));
@@ -2836,16 +2836,16 @@ impl<R: Read + Seek> DwgReader<R> {
             // there), so their zeroed fallback belongs to the R2004+ arm
             // only; the R2000 arm below re-reads them when present.
             let buf = self.get_section_buffer(names::OBJ_FREE_SPACE, info).unwrap_or_default();
-            // §19 H7e ObjFreeSpace row: retain the raw section bytes for
-            // the verbatim same-version re-emission — the content is the
+            // Â§19 H7e ObjFreeSpace row: retain the raw section bytes for
+            // the verbatim same-version re-emission â€” the content is the
             // author's (numhandles/TDUPDATE/max pattern words), never
             // derivable from the model.
             if !buf.is_empty() {
                 document.raw_obj_free_space_data = Some(std::sync::Arc::new(buf.clone()));
             }
             document.dwg_obj_free_space = Some(parse_obj_free_space_section(&buf, r2010_plus));
-            // §19 H7g: the XrefManifest bytes (the R2013+ external-
-            // reference table — authored state, unmodeled, unprinted
+            // Â§19 H7g: the XrefManifest bytes (the R2013+ external-
+            // reference table â€” authored state, unmodeled, unprinted
             // by gold) retained verbatim for the same-version
             // container mirror.
             let buf = self
@@ -2861,7 +2861,7 @@ impl<R: Read + Seek> DwgReader<R> {
             document.dwg_template = Some(parse_template_section(&buf, utf16));
         } else {
             // R2000: emission gated on the locator counts (Template
-            // sections>=4, ObjFreeSpace sections>=3) — the locator
+            // sections>=4, ObjFreeSpace sections>=3) â€” the locator
             // lookup IS the gate.
             if let Ok(buf) = self.get_section_buffer(names::OBJ_FREE_SPACE, info) {
                 if !buf.is_empty() {
@@ -2902,13 +2902,13 @@ impl<R: Read + Seek> DwgReader<R> {
             ));
         }
 
-        // Parse the inner file header — gold's field ledger
+        // Parse the inner file header â€” gold's field ledger
         // (r2004_file_header.spec): file_ID_string @0x00 (12 bytes,
         // NUL-terminated), header_address/size, x04, the three tree-node
         // gaps, unknown_long (=1), last_section_id @0x28, the two u64
         // addresses, numgaps/numsections, x20/x80/x40,
         // section_map_id @0x50, section_map_address @0x54 (stored =
-        // actual − 0x100; gold prints the RAW stored value — the +0x100
+        // actual âˆ’ 0x100; gold prints the RAW stored value â€” the +0x100
         // is decode-side navigation only), section_info_id @0x5C,
         // section_array_size, gap_array_size, crc32 @0x68, and the
         // 12-byte padding @0x6C.
@@ -2933,7 +2933,7 @@ impl<R: Read + Seek> DwgReader<R> {
 
         let section_map_id_hdr = cursor.read_u32::<LittleEndian>()?;
         let page_map_address_stored = cursor.read_u64::<LittleEndian>()?;
-        // Gold's `section_info_id` @0x5C — historically mislabeled
+        // Gold's `section_info_id` @0x5C â€” historically mislabeled
         // section_map_id (the real section_map_id sits @0x50).
         let section_info_id = cursor.read_i32::<LittleEndian>()?;
         let section_array_size = cursor.read_i32::<LittleEndian>()?;
@@ -2993,7 +2993,7 @@ impl<R: Read + Seek> DwgReader<R> {
             ),
         );
 
-        // Read page map (page_number → file_offset mapping)
+        // Read page map (page_number â†’ file_offset mapping)
         self.read_page_map_ac18(info, page_map_address)?;
 
         // Read section map (section descriptors with per-page info)
@@ -3057,8 +3057,8 @@ impl<R: Read + Seek> DwgReader<R> {
             if page_number > 0 {
                 info.page_records
                     .insert(page_number, (file_offset, page_size as i64));
-                // §19 H7g: the map order is the author's physical page
-                // order — the container-shape mirror's emission order.
+                // Â§19 H7g: the map order is the author's physical page
+                // order â€” the container-shape mirror's emission order.
                 info.ac18_map_order
                     .push(crate::document::DwgAc18PageEntry {
                         id: page_number,
@@ -3152,8 +3152,8 @@ impl<R: Read + Seek> DwgReader<R> {
             // Section name (64-byte field, null-terminated). Some writers leave
             // non-zero garbage in the bytes *after* the terminator instead of
             // zero-padding, so cut at the first null rather than trimming
-            // trailing nulls — otherwise the embedded null plus trailing junk
-            // survives and the name fails to match (e.g. "AcDb:Handles\0t…").
+            // trailing nulls â€” otherwise the embedded null plus trailing junk
+            // survives and the name fails to match (e.g. "AcDb:Handles\0tâ€¦").
             let mut name_buf = [0u8; 64];
             cursor.read_exact(&mut name_buf)?;
             let raw_name = section_name_from_field(&name_buf);
@@ -3202,7 +3202,7 @@ impl<R: Read + Seek> DwgReader<R> {
                 });
             }
 
-            // §19 H7g: retain the descriptor's container shape —
+            // Â§19 H7g: retain the descriptor's container shape â€”
             // every descriptor (the unnamed AcDs ones included; their
             // page lists may be empty), with the raw 64-byte name so
             // the re-emitted table matches the author's bytes.
@@ -3242,7 +3242,7 @@ impl<R: Read + Seek> DwgReader<R> {
     fn read_file_header_ac21(&mut self, info: &mut DwgFileHeaderInfo) -> Result<(), DxfError> {
         // After read_file_metadata, stream is at position 0x80 (128).
         // The Reed-Solomon encoded data follows immediately.
-        // Do NOT seek — continue reading from current position.
+        // Do NOT seek â€” continue reading from current position.
 
         // Step 1: Read 0x400 bytes of Reed-Solomon encoded data
         let mut compressed_data = [0u8; 0x400];
@@ -3341,8 +3341,8 @@ impl<R: Read + Seek> DwgReader<R> {
         // Step 7: Read section map
         self.read_section_map_ac21(info, &metadata)?;
 
-        // The §19 H8a container shape: compose the author's AC1021
-        // page space from the parsed maps — the sections-table order
+        // The Â§19 H8a container shape: compose the author's AC1021
+        // page space from the parsed maps â€” the sections-table order
         // with each record's pages-map id resolved to its physical
         // extent. Retained for the H8 same-version roundtrip mirror
         // (the write gate falls back to the conventional layout when
@@ -3388,7 +3388,7 @@ impl<R: Read + Seek> DwgReader<R> {
     /// Read the page map from an AC1021 file.
     ///
     /// The page map lists all data pages and their sizes, allowing
-    /// the reader to build a page ID → file offset lookup table.
+    /// the reader to build a page ID â†’ file offset lookup table.
     fn read_page_map_ac21(
         &mut self,
         info: &mut DwgFileHeaderInfo,
@@ -3410,7 +3410,7 @@ impl<R: Read + Seek> DwgReader<R> {
             let id = cursor.read_i64::<LittleEndian>()?;
 
             if size == 0 && id == 0 {
-                // Terminator — all remaining bytes are padding
+                // Terminator â€” all remaining bytes are padding
                 break;
             }
 
@@ -3638,7 +3638,7 @@ impl<R: Read + Seek> DwgReader<R> {
         let perf = std::env::var_os("PERF").is_some();
         let started = web_time::Instant::now();
 
-        // ── AC15 path: direct read from section locators ──
+        // â”€â”€ AC15 path: direct read from section locators â”€â”€
         // If we have section_locators (AC15 format), read raw bytes
         // directly from the file at the recorded offset.
         if !info.section_locators.is_empty() {
@@ -3669,7 +3669,7 @@ impl<R: Read + Seek> DwgReader<R> {
             }
         }
 
-        // ── AC18 path: page-based with LZ77 AC18 compression ──
+        // â”€â”€ AC18 path: page-based with LZ77 AC18 compression â”€â”€
         if info.is_ac18_format {
             let result = self.get_section_buffer_ac18(section_name, info);
             if perf {
@@ -3683,7 +3683,7 @@ impl<R: Read + Seek> DwgReader<R> {
             return result;
         }
 
-        // ── AC21 path: page-based section descriptors ──
+        // â”€â”€ AC21 path: page-based section descriptors â”€â”€
         // Find the section descriptor
         let section = info
             .section_descriptors
@@ -3694,7 +3694,7 @@ impl<R: Read + Seek> DwgReader<R> {
             })?;
 
         // Field 0x00 ("Data size") holds the total section data size.
-        // Field 0x08 ("Max size") is the page partition size per spec §5.4.
+        // Field 0x08 ("Max size") is the page partition size per spec Â§5.4.
         // We truncate to the total data size, not the page size.
         let total_size = section.compressed_size as usize;
         let mut result = Vec::with_capacity(total_size);
@@ -3702,7 +3702,7 @@ impl<R: Read + Seek> DwgReader<R> {
         // encoding=1 (stored): contiguous data followed by non-interleaved RS
         // parity. Reading only the payload deliberately skips that parity.
         // encoding=4 (compressed): data is LZ77-compressed then RS-encoded with RS(255,251).
-        // System pages (page map, section map) use RS(255,239) per §5.3,
+        // System pages (page map, section map) use RS(255,239) per Â§5.3,
         // but those are decoded separately in read_page_map_ac21 / read_section_map_ac21.
         let encoding = section.encoding;
         let block_size: usize = 251;
@@ -4174,7 +4174,7 @@ mod dwg_reader_tests {
 
     #[test]
     fn stops_at_first_null_ignoring_trailing_garbage() {
-        // Terminator at index 12, then non-zero junk — the real-world case that
+        // Terminator at index 12, then non-zero junk â€” the real-world case that
         // broke `trim_end_matches('\0')`.
         let mut b = field(b"AcDb:Handles");
         b[13] = b't';
@@ -4274,7 +4274,7 @@ pub(crate) fn recover_roundtrip_gradients(document: &mut crate::document::CadDoc
         "LINEAR",
     ];
 
-    // Phase 1 — collect (immutable): which hatches need a gradient, and what.
+    // Phase 1 â€” collect (immutable): which hatches need a gradient, and what.
     let mut recovered: Vec<(Handle, u8, u8, String)> = Vec::new();
     for e in document.entities() {
         let EntityType::Hatch(h) = e else { continue };
@@ -4301,21 +4301,21 @@ pub(crate) fn recover_roundtrip_gradients(document: &mut crate::document::CadDoc
 
         // A live down-saved gradient always carries an ACAD_XREC_ROUNDTRIP
         // XRecord (under the hatch's extension dictionary) alongside the
-        // GradientColor*ACI EED. When only the EED survives — no extension
-        // dictionary, or one without that XRecord — the colours are stale
+        // GradientColor*ACI EED. When only the EED survives â€” no extension
+        // dictionary, or one without that XRecord â€” the colours are stale
         // metadata left behind by an edit that turned a gradient into a plain
         // solid fill (or recoloured it). Resurrecting a gradient then paints a
         // genuine single-colour solid hatch as a two-colour gradient, so treat
         // the missing round-trip XRecord as proof the hatch is really solid.
         //
         // Gradient type: the trailing name string in that same XRecord
-        // (hatch xdict → "ACAD_XREC_ROUNDTRIP" → XRecord raw_data).
+        // (hatch xdict â†’ "ACAD_XREC_ROUNDTRIP" â†’ XRecord raw_data).
         let mut name = String::new();
         let mut has_roundtrip = false;
         if let Some(xd) = h.common.xdictionary_handle {
             if let Some(ObjectType::Dictionary(d)) = document.objects.get(&xd) {
                 // R14 mis-sizes dictionary key strings, leaving trailing
-                // garbage bytes ("ACAD_XREC_ROUNDTRIP\x03q0…"), so match by
+                // garbage bytes ("ACAD_XREC_ROUNDTRIP\x03q0â€¦"), so match by
                 // prefix rather than equality.
                 if let Some((_, xrec_h)) = d.entries.iter().find(|(k, _)| {
                     k.len() >= 19 && k[..19].eq_ignore_ascii_case("ACAD_XREC_ROUNDTRIP")
@@ -4370,7 +4370,7 @@ pub(crate) fn recover_roundtrip_gradients(document: &mut crate::document::CadDoc
                 }
             }
         }
-        // No round-trip XRecord ⇒ the gradient EED is stale; keep it solid.
+        // No round-trip XRecord â‡’ the gradient EED is stale; keep it solid.
         if !has_roundtrip {
             continue;
         }
@@ -4380,7 +4380,7 @@ pub(crate) fn recover_roundtrip_gradients(document: &mut crate::document::CadDoc
         recovered.push((e.common().handle, c1, c2, name));
     }
 
-    // Phase 2 — apply (mutable).
+    // Phase 2 â€” apply (mutable).
     for (handle, c1, c2, name) in recovered {
         if let Some(EntityType::Hatch(h)) = document.get_entity_mut(handle) {
             h.gradient_color.enabled = true;
@@ -4401,7 +4401,7 @@ pub(crate) fn recover_roundtrip_gradients(document: &mut crate::document::CadDoc
 }
 
 /// Recover an MTEXT background fill that a pre-R2004 (R2000/R14) save stored as
-/// round-trip EED (`ACAD_MTEXT_BBRT` … `ACAD_MTEXT_BERT`) instead of the native
+/// round-trip EED (`ACAD_MTEXT_BBRT` â€¦ `ACAD_MTEXT_BERT`) instead of the native
 /// codes (90 flags / 63|421 colour / 45 scale / 441 transparency), which those
 /// versions predate. AutoCAD/ODA render the fill from this metadata; without it
 /// a down-saved dimension text (or any MTEXT) shows no background. Applied only
@@ -4430,7 +4430,7 @@ pub(crate) fn recover_mtext_bg_roundtrip(document: &mut crate::document::CadDocu
     for e in document.entities() {
         let EntityType::MText(m) = e else { continue };
         if m.background_fill_flags != 0 {
-            continue; // native fill present — nothing to recover
+            continue; // native fill present â€” nothing to recover
         }
         let Some(rec) = m
             .common
@@ -4448,7 +4448,7 @@ pub(crate) fn recover_mtext_bg_roundtrip(document: &mut crate::document::CadDocu
         else {
             continue;
         };
-        // Walk the BBRT…BERT block as (Integer16 code, value) pairs.
+        // Walk the BBRTâ€¦BERT block as (Integer16 code, value) pairs.
         let (mut flags, mut scale, mut color, mut transp) = (0i32, 1.0f64, Color::ByLayer, 0i32);
         let mut i = begin + 1;
         while i + 1 < vals.len() {

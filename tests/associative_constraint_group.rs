@@ -1,11 +1,11 @@
-use std::io::Cursor;
+﻿use std::io::Cursor;
 
-use acadrust::objects::{
+use opencadcodec::objects::{
     Assoc2dConstraintGroup, AssocAction, AssocConstraintNode, AssocConstraintNodeData,
     AssociativeData, AssociativeObject, ObjectType,
 };
-use acadrust::types::Vector3;
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
+use opencadcodec::types::Vector3;
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
 
 #[test]
 fn dwg_constraint_group_counts_only_registered_nodes() {
@@ -64,7 +64,7 @@ fn dwg_constraint_group_counts_only_registered_nodes() {
     assert_eq!(group.nodes[0].node_id, 0);
     assert_eq!(group.nodes[1].node_id, 1);
     // The DWG wire is gold's flat per-node REPEAT (dwg2.spec 5682 +
-    // AcConstraintGroupNode_fields 5576 — nodeid/status/connections
+    // AcConstraintGroupNode_fields 5576 â€” nodeid/status/connections
     // only): the registry/class channel is a DXF-side semantic and does
     // not survive a DWG round-trip.
     assert_eq!(group.nodes[1].class_name, "");
@@ -277,10 +277,10 @@ fn axis_constraint_and_rigid_set_round_trip_in_dwg_and_dxf() {
     .expect("read DWG");
     // The DWG binary wire is gold's FLAT per-node REPEAT (dwg2.spec
     // ASSOC2DCONSTRAINTGROUP 5682 + AcConstraintGroupNode_fields 5576:
-    // nodeid BLd, status RC era-gated, num_connections + BL vector —
+    // nodeid BLd, status RC era-gated, num_connections + BL vector â€”
     // nothing else). The rich per-node class/data payload is a DXF-side
     // semantic and cannot survive a DWG round-trip; assert the flat fields
-    // only (the flat reader landed with the gold-parity packet — the old
+    // only (the flat reader landed with the gold-parity packet â€” the old
     // registry/class wire shape misparsed every real AutoCAD record).
     {
         let group = dwg

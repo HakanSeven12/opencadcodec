@@ -1,6 +1,6 @@
-//! Graphical entity types.
+﻿//! Graphical entity types.
 //!
-//! This module contains all 41 supported CAD entity types — from simple
+//! This module contains all 41 supported CAD entity types â€” from simple
 //! primitives ([`Line`], [`Circle`], [`Arc`]) through complex objects
 //! ([`Hatch`], [`Spline`], [`MultiLeader`], [`Mesh`]).
 //!
@@ -285,7 +285,7 @@ pub struct EntityCommon {
     pub linetype_handle: Option<Handle>,
     /// Linetype scale factor (default 1.0)
     pub linetype_scale: f64,
-    /// Linetype flags (00=bylayer, 01=byblock, 10=continuous, 11=handle) — R2000+
+    /// Linetype flags (00=bylayer, 01=byblock, 10=continuous, 11=handle) â€” R2000+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub linetype_flags: u8,
     /// Transparency
@@ -301,41 +301,41 @@ pub struct EntityCommon {
     /// Raw entity graphic data bytes (stored for DWG round-trip; None otherwise).
     #[cfg_attr(feature = "serde", serde(skip))]
     pub graphic_data: Option<Vec<u8>>,
-    /// Reactor handles — objects attached as reactors ({ACAD_REACTORS})
+    /// Reactor handles â€” objects attached as reactors ({ACAD_REACTORS})
     pub reactors: Vec<Handle>,
-    /// Extended dictionary handle ({ACAD_XDICTIONARY}) — hard-owner handle to a Dictionary
+    /// Extended dictionary handle ({ACAD_XDICTIONARY}) â€” hard-owner handle to a Dictionary
     pub xdictionary_handle: Option<Handle>,
     /// Owner handle (soft pointer, code 330)
     pub owner_handle: Handle,
 
-    // ── Native reference/round-trip fields ──
-    /// AcDbColor object handle for a color-book color — R2004+.
+    // â”€â”€ Native reference/round-trip fields â”€â”€
+    /// AcDbColor object handle for a color-book color â€” R2004+.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub color_book_handle: Option<Handle>,
-    /// Full visual-style override handle — R2010+; DXF code 348.
+    /// Full visual-style override handle â€” R2010+; DXF code 348.
     pub full_visual_style_handle: Option<Handle>,
-    /// Face visual-style override handle — R2010+.
+    /// Face visual-style override handle â€” R2010+.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub face_visual_style_handle: Option<Handle>,
-    /// Edge visual-style override handle — R2010+.
+    /// Edge visual-style override handle â€” R2010+.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub edge_visual_style_handle: Option<Handle>,
-    /// Material flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) — R2007+
+    /// Material flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) â€” R2007+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub material_flags: u8,
-    /// Material handle (only valid when material_flags == 0b11) — R2007+
+    /// Material handle (only valid when material_flags == 0b11) â€” R2007+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub material_handle: Option<Handle>,
-    /// Shadow flags (RC) — R2007+
+    /// Shadow flags (RC) â€” R2007+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub shadow_flags: u8,
-    /// Plotstyle flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) — R2000+
+    /// Plotstyle flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) â€” R2000+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub plotstyle_flags: u8,
-    /// Plotstyle handle (only valid when plotstyle_flags == 0b11) — R2000+
+    /// Plotstyle handle (only valid when plotstyle_flags == 0b11) â€” R2000+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub plotstyle_handle: Option<Handle>,
-    /// Entity mode (0=owned, 1=paper, 2=model) — raw DWG value for round-trip
+    /// Entity mode (0=owned, 1=paper, 2=model) â€” raw DWG value for round-trip
     #[cfg_attr(feature = "serde", serde(skip))]
     pub entity_mode: Option<u8>,
     /// R2013+ `has_ds_data` bit: the entity's modeler geometry (3DSOLID/REGION/
@@ -462,7 +462,7 @@ pub enum EntityType {
     /// Spline entity
     Spline(Spline),
     /// Helix entity (spline-derived 3D spiral)
-    Helix(Helix),
+    Helix(Box<Helix>),
     /// Dimension entity
     Dimension(Dimension),
     /// Hatch entity
@@ -490,7 +490,7 @@ pub enum EntityType {
     /// Leader entity
     Leader(Leader),
     /// MultiLeader entity
-    MultiLeader(MultiLeader),
+    MultiLeader(Box<MultiLeader>),
     /// MLine (multiline) entity
     MLine(MLine),
     /// Mesh entity
@@ -504,9 +504,9 @@ pub enum EntityType {
     /// Body entity
     Body(Body),
     /// Surface entity (ACAD_SURFACE family: lofted/swept/extruded/etc.)
-    Surface(Surface),
+    Surface(Box<Surface>),
     /// Table entity
-    Table(Table),
+    Table(Box<Table>),
     /// Tolerance entity (geometric tolerancing)
     Tolerance(Tolerance),
     /// PolyfaceMesh entity
@@ -528,7 +528,7 @@ pub enum EntityType {
     SectionSymbol(SectionSymbol),
     ViewBorder(ViewBorder),
     /// Structured class-based and legacy entities.
-    Extended(ExtendedEntity),
+    Extended(Box<ExtendedEntity>),
     /// Unknown / unsupported entity type (common fields only)
     Unknown(UnknownEntity),
 }
@@ -568,7 +568,7 @@ impl EntityType {
             EntityType::Text(e) => e,
             EntityType::MText(e) => e,
             EntityType::Spline(e) => e,
-            EntityType::Helix(e) => e,
+            EntityType::Helix(e) => e.as_ref(),
             EntityType::Dimension(e) => e,
             EntityType::Hatch(e) => e,
             EntityType::Solid(e) => e,
@@ -582,15 +582,15 @@ impl EntityType {
             EntityType::AttributeDefinition(e) => e,
             EntityType::AttributeEntity(e) => e,
             EntityType::Leader(e) => e,
-            EntityType::MultiLeader(e) => e,
+            EntityType::MultiLeader(e) => e.as_ref(),
             EntityType::MLine(e) => e,
             EntityType::Mesh(e) => e,
             EntityType::RasterImage(e) => e,
             EntityType::Solid3D(e) => e,
             EntityType::Region(e) => e,
             EntityType::Body(e) => e,
-            EntityType::Surface(e) => e,
-            EntityType::Table(e) => e,
+            EntityType::Surface(e) => e.as_ref(),
+            EntityType::Table(e) => e.as_ref(),
             EntityType::Tolerance(e) => e,
             EntityType::PolyfaceMesh(e) => e,
             EntityType::Wipeout(e) => e,
@@ -602,7 +602,7 @@ impl EntityType {
             EntityType::Light(e) => e,
             EntityType::SectionSymbol(e) => e,
             EntityType::ViewBorder(e) => e,
-            EntityType::Extended(e) => e,
+            EntityType::Extended(e) => e.as_ref(),
             EntityType::Unknown(e) => e,
         }
     }
@@ -622,7 +622,7 @@ impl EntityType {
             EntityType::MText(e) => e,
             EntityType::Text(e) => e,
             EntityType::Spline(e) => e,
-            EntityType::Helix(e) => e,
+            EntityType::Helix(e) => e.as_mut(),
             EntityType::Dimension(e) => e,
             EntityType::Hatch(e) => e,
             EntityType::Solid(e) => e,
@@ -636,15 +636,15 @@ impl EntityType {
             EntityType::AttributeDefinition(e) => e,
             EntityType::AttributeEntity(e) => e,
             EntityType::Leader(e) => e,
-            EntityType::MultiLeader(e) => e,
+            EntityType::MultiLeader(e) => e.as_mut(),
             EntityType::MLine(e) => e,
             EntityType::Mesh(e) => e,
             EntityType::RasterImage(e) => e,
             EntityType::Solid3D(e) => e,
             EntityType::Region(e) => e,
             EntityType::Body(e) => e,
-            EntityType::Surface(e) => e,
-            EntityType::Table(e) => e,
+            EntityType::Surface(e) => e.as_mut(),
+            EntityType::Table(e) => e.as_mut(),
             EntityType::Tolerance(e) => e,
             EntityType::PolyfaceMesh(e) => e,
             EntityType::Wipeout(e) => e,
@@ -656,7 +656,7 @@ impl EntityType {
             EntityType::Light(e) => e,
             EntityType::SectionSymbol(e) => e,
             EntityType::ViewBorder(e) => e,
-            EntityType::Extended(e) => e,
+            EntityType::Extended(e) => e.as_mut(),
             EntityType::Unknown(e) => e,
         }
     }

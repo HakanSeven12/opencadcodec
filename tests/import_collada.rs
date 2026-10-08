@@ -1,10 +1,10 @@
-//! Integration tests for COLLADA import.
+﻿//! Integration tests for COLLADA import.
 
 #![cfg(feature = "import")]
 
-use acadrust::entities::EntityType;
-use acadrust::io::import::collada::ColladaImporter;
-use acadrust::io::import::ImportConfig;
+use opencadcodec::entities::EntityType;
+use opencadcodec::io::import::collada::ColladaImporter;
+use opencadcodec::io::import::ImportConfig;
 
 const TRIANGLE_DAE: &str = r##"<?xml version="1.0" encoding="utf-8"?>
 <COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
@@ -90,7 +90,7 @@ fn test_collada_material_layer() {
     }
 }
 
-// ─── Multi-material test ─────────────────────────────────────────────────
+// â”€â”€â”€ Multi-material test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const TWO_MATERIAL_DAE: &str = r##"<?xml version="1.0" encoding="utf-8"?>
 <COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
@@ -161,7 +161,7 @@ fn test_collada_multi_material() {
     let doc = importer.import().unwrap();
 
     let entities: Vec<_> = doc.entities().collect();
-    // Should produce 2 Mesh entities — one per material
+    // Should produce 2 Mesh entities â€” one per material
     assert_eq!(
         entities.len(),
         2,
@@ -190,7 +190,7 @@ fn test_collada_multi_material() {
     );
 }
 
-// ─── Scale factor test ───────────────────────────────────────────────────
+// â”€â”€â”€ Scale factor test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_collada_scale_factor() {
@@ -204,7 +204,7 @@ fn test_collada_scale_factor() {
 
     let entities: Vec<_> = doc.entities().collect();
     if let EntityType::Mesh(mesh) = &entities[0] {
-        // vertex (1, 0, 0) × 100 = (100, 0, 0)
+        // vertex (1, 0, 0) Ã— 100 = (100, 0, 0)
         let has_scaled = mesh.vertices.iter().any(|v| (v.x - 100.0).abs() < 0.001);
         assert!(has_scaled, "Vertices should be scaled by 100");
     } else {
@@ -212,7 +212,7 @@ fn test_collada_scale_factor() {
     }
 }
 
-// ─── Geometry without visual scene ───────────────────────────────────────
+// â”€â”€â”€ Geometry without visual scene â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_collada_no_visual_scene() {

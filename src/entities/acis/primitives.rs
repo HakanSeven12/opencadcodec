@@ -1,8 +1,8 @@
-//! Parametric ACIS primitive builders.
+﻿//! Parametric ACIS primitive builders.
 //!
 //! High-level functions that produce a complete [`SatDocument`] for standard
 //! 3-D primitives.  Each builder creates the full B-rep topology
-//! (body → lump → shell → face → loop → coedge → edge → vertex) with correct
+//! (body â†’ lump â†’ shell â†’ face â†’ loop â†’ coedge â†’ edge â†’ vertex) with correct
 //! geometry so the result can be assigned directly to a [`Solid3D`] entity.
 //!
 //! # Primitives
@@ -20,7 +20,7 @@
 //! # Example
 //!
 //! ```rust
-//! use acadrust::entities::acis::primitives;
+//! use opencadcodec::entities::acis::primitives;
 //!
 //! let sat = primitives::build_box([0.0, 0.0, 0.0], 10.0, 10.0, 10.0);
 //! assert_eq!(sat.faces().len(), 6);
@@ -36,7 +36,7 @@ fn ptr(i: i32) -> SatPointer {
 
 /// Build an axis-aligned box centered at `center` with the given dimensions.
 ///
-/// The box extends ±`length/2` along X, ±`width/2` along Y, and ±`height/2`
+/// The box extends Â±`length/2` along X, Â±`width/2` along Y, and Â±`height/2`
 /// along Z from the center point.
 pub fn build_box(center: [f64; 3], length: f64, width: f64, height: f64) -> SatDocument {
     let mut sat = SatDocument::new_body();
@@ -630,7 +630,7 @@ pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> Sa
     let shell_idx = base + 28;
     let lump_idx = base + 29;
 
-    // Bottom: A→C→B
+    // Bottom: Aâ†’Câ†’B
     sat.add_coedge(
         ptr(co(1)),
         ptr(co(2)),
@@ -655,7 +655,7 @@ pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> Sa
         Sense::Reversed,
         ptr(loop_base),
     );
-    // Top: D→E→F
+    // Top: Dâ†’Eâ†’F
     sat.add_coedge(
         ptr(co(4)),
         ptr(co(5)),
@@ -680,7 +680,7 @@ pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> Sa
         Sense::Forward,
         ptr(loop_base + 1),
     );
-    // Front: A→B→E→D
+    // Front: Aâ†’Bâ†’Eâ†’D
     sat.add_coedge(
         ptr(co(7)),
         ptr(co(9)),
@@ -713,7 +713,7 @@ pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> Sa
         Sense::Reversed,
         ptr(loop_base + 2),
     );
-    // Left: A→D→F→C
+    // Left: Aâ†’Dâ†’Fâ†’C
     sat.add_coedge(
         ptr(co(11)),
         ptr(co(13)),
@@ -746,7 +746,7 @@ pub fn build_wedge(origin: [f64; 3], length: f64, width: f64, height: f64) -> Sa
         Sense::Forward,
         ptr(loop_base + 3),
     );
-    // Hypotenuse: B→C→F→E
+    // Hypotenuse: Bâ†’Câ†’Fâ†’E
     sat.add_coedge(
         ptr(co(15)),
         ptr(co(17)),
@@ -988,7 +988,7 @@ pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocume
     let shell_idx = base + 26;
     let lump_idx = base + 27;
 
-    // Base: A→D→C→B
+    // Base: Aâ†’Dâ†’Câ†’B
     sat.add_coedge(
         ptr(co(1)),
         ptr(co(3)),
@@ -1021,7 +1021,7 @@ pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocume
         Sense::Reversed,
         ptr(loop_base),
     );
-    // Front: A→B→E
+    // Front: Aâ†’Bâ†’E
     sat.add_coedge(
         ptr(co(5)),
         ptr(co(6)),
@@ -1046,7 +1046,7 @@ pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocume
         Sense::Reversed,
         ptr(loop_base + 1),
     );
-    // Right: B→C→E
+    // Right: Bâ†’Câ†’E
     sat.add_coedge(
         ptr(co(8)),
         ptr(co(9)),
@@ -1071,7 +1071,7 @@ pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocume
         Sense::Reversed,
         ptr(loop_base + 2),
     );
-    // Back: C→D→E
+    // Back: Câ†’Dâ†’E
     sat.add_coedge(
         ptr(co(11)),
         ptr(co(12)),
@@ -1096,7 +1096,7 @@ pub fn build_pyramid(center: [f64; 3], base_size: f64, height: f64) -> SatDocume
         Sense::Reversed,
         ptr(loop_base + 3),
     );
-    // Left: D→A→E
+    // Left: Dâ†’Aâ†’E
     sat.add_coedge(
         ptr(co(14)),
         ptr(co(15)),
@@ -1243,7 +1243,7 @@ pub fn build_cylinder(center: [f64; 3], radius: f64, height: f64) -> SatDocument
     );
 
     // Cylindrical face uses two separate loops (one per boundary circle),
-    // matching the ACIS convention — no seam edge needed.
+    // matching the ACIS convention â€” no seam edge needed.
     let base = sat.records.len() as i32;
     let co = |i: i32| base + i;
     let loop_base = base + 4;
@@ -1382,7 +1382,7 @@ pub fn build_cone(center: [f64; 3], radius: f64, height: f64) -> SatDocument {
         ptr(crv_base),
         Sense::Forward,
     );
-    // Singularity (degenerate) edge at the apex — zero-length, no curve
+    // Singularity (degenerate) edge at the apex â€” zero-length, no curve
     let e_apex = sat.add_edge(
         ptr(v_apex),
         1.0,
@@ -1418,7 +1418,7 @@ pub fn build_cone(center: [f64; 3], radius: f64, height: f64) -> SatDocument {
         Sense::Forward,
         ptr(loop_base + 1),
     );
-    // co2: singularity (apex) on the cone face — partner=$-1 (no partner for degenerate edge)
+    // co2: singularity (apex) on the cone face â€” partner=$-1 (no partner for degenerate edge)
     sat.add_coedge(
         ptr(co(2)),
         ptr(co(2)),
@@ -1430,7 +1430,7 @@ pub fn build_cone(center: [f64; 3], radius: f64, height: f64) -> SatDocument {
 
     // Base cap loop
     sat.add_loop(SatPointer::NULL, ptr(co(0)), ptr(face_base));
-    // Cone face: two loops — base circle boundary + apex singularity
+    // Cone face: two loops â€” base circle boundary + apex singularity
     sat.add_loop(ptr(loop_base + 2), ptr(co(1)), ptr(face_base + 1)); // next_loop = singularity loop
     sat.add_loop(SatPointer::NULL, ptr(co(2)), ptr(face_base + 1)); // singularity loop on same cone face
 
@@ -1553,7 +1553,7 @@ pub fn build_torus(center: [f64; 3], major_radius: f64, minor_radius: f64) -> Sa
     sat
 }
 
-// ── General planar polyhedron ────────────────────────────────────────────────
+// â”€â”€ General planar polyhedron â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn vsub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
@@ -1593,26 +1593,26 @@ fn face_plane(vertices: &[[f64; 3]], ring: &[usize]) -> Option<([f64; 3], [f64; 
 
 fn set_coedge_partner(sat: &mut SatDocument, coedge_idx: i32, partner_idx: i32) {
     if let Some(rec) = sat.record_mut(coedge_idx as usize) {
-        // coedge tokens: [0]=sentinel [1]=next [2]=prev [3]=partner [4]=edge …
+        // coedge tokens: [0]=sentinel [1]=next [2]=prev [3]=partner [4]=edge â€¦
         rec.tokens[3] = SatToken::Pointer(SatPointer::new(partner_idx));
     }
 }
 
 /// Build an exact ACIS B-rep for a closed polyhedron whose faces are all planar
-/// polygons — the general form of [`build_box`], used to export a faceted or
+/// polygons â€” the general form of [`build_box`], used to export a faceted or
 /// natively-planar solid.
 ///
-/// * `vertices` — the distinct corner positions.
-/// * `faces` — each face is an ordered ring of indices into `vertices`, wound
+/// * `vertices` â€” the distinct corner positions.
+/// * `faces` â€” each face is an ordered ring of indices into `vertices`, wound
 ///   counter-clockwise **as seen from outside** the solid, so the outward
-///   normal is `(v1-v0) × (v2-v0)`. Only single (outer) loops are supported;
+///   normal is `(v1-v0) Ã— (v2-v0)`. Only single (outer) loops are supported;
 ///   faces with holes are not.
 ///
 /// The mesh must be a closed 2-manifold: every polygon edge is shared by exactly
 /// two faces. Returns `None` (leaving the caller's geometry untouched) on any
-/// degeneracy — a face with fewer than 3 vertices, an out-of-range or repeated
+/// degeneracy â€” a face with fewer than 3 vertices, an out-of-range or repeated
 /// index, a collinear face, a zero-length edge, a non-manifold edge, or a body
-/// that fails [`SatDocument::validate`] — so a malformed solid is never emitted.
+/// that fails [`SatDocument::validate`] â€” so a malformed solid is never emitted.
 pub fn build_planar_body(vertices: &[[f64; 3]], faces: &[Vec<usize>]) -> Option<SatDocument> {
     use std::collections::HashMap;
 
@@ -1750,7 +1750,7 @@ pub fn build_planar_body(vertices: &[[f64; 3]], faces: &[Vec<usize>]) -> Option<
         set_coedge_partner(&mut sat, c1, c0);
     }
 
-    // Loops + faces (each face's normal already matches its plane → Forward).
+    // Loops + faces (each face's normal already matches its plane â†’ Forward).
     for fi in 0..faces.len() {
         sat.add_loop(
             SatPointer::NULL,
@@ -1942,7 +1942,7 @@ mod tests {
 
     #[test]
     fn planar_body_rejects_open_mesh() {
-        // A single square is not a closed manifold — its edges are used once.
+        // A single square is not a closed manifold â€” its edges are used once.
         let vertices = [
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],

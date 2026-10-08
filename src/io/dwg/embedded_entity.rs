@@ -316,6 +316,14 @@ pub(crate) fn encode_embedded_entity(
             writer.write_3bit_double(entity.direction);
             common::OBJ_XLINE
         }
+        // Written by the surface writers; a body has no entity bits.
+        EmbeddedEntity::Body { type_code, .. } => {
+            return EncodedEmbeddedEntity {
+                type_code: *type_code,
+                bit_length: 0,
+                bytes: Vec::new(),
+            };
+        }
         EmbeddedEntity::Unknown {
             type_code,
             bit_count,

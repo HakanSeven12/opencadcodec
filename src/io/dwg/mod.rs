@@ -1,4 +1,4 @@
-//! DWG binary file format support.
+﻿//! DWG binary file format support.
 //!
 //! Read and write AutoCAD's native binary format.  DWG files use
 //! bit-granularity encoding, version-specific data layouts, and LZ77
@@ -7,7 +7,7 @@
 //! # Reading
 //!
 //! ```rust,ignore
-//! use acadrust::DwgReader;
+//! use opencadcodec::DwgReader;
 //!
 //! let doc = DwgReader::from_file("drawing.dwg")?.read()?;
 //! ```
@@ -15,7 +15,7 @@
 //! # Writing
 //!
 //! ```rust,ignore
-//! use acadrust::DwgWriter;
+//! use opencadcodec::DwgWriter;
 //!
 //! DwgWriter::write_to_file("output.dwg", &doc)?;
 //! ```
@@ -34,6 +34,7 @@
 //! | AC1032      | R2018   | Paged + LZ77 |
 
 pub mod annotative_eed;
+pub(crate) mod typeface_eed;
 pub mod acds;
 pub mod checksum;
 pub mod compression;
@@ -79,9 +80,9 @@ pub(crate) fn sab_fingerprint<'a>(
     fingerprint
 }
 
-/// §19 H8g: the document-state hash guarding EVERY whole-file echo
+/// Â§19 H8g: the document-state hash guarding EVERY whole-file echo
 /// (the objects-stream echo, the AC21 compressed-page echo, the R2000
-/// and AC18-family whole-file echoes) — the sorted per-part hash of
+/// and AC18-family whole-file echoes) â€” the sorted per-part hash of
 /// the semantic inventory's visit (the header variables, the ten
 /// tables' records, the classes, the entities with their ownership /
 /// extension-dictionary / reactor relationships, the objects, the
@@ -89,9 +90,9 @@ pub(crate) fn sab_fingerprint<'a>(
 /// table control handles and the retained metadata models (aux
 /// header, template, file-dep list, rev history). Computed
 /// identically at read time (the end-of-read capture, after every
-/// section has loaded) and at the write gates: ANY document edit —
+/// section has loaded) and at the write gates: ANY document edit â€”
 /// including the in-place field edits the handle-set fingerprints
-/// cannot see (the issue-80 layer rename) — changes a part's Debug
+/// cannot see (the issue-80 layer rename) â€” changes a part's Debug
 /// projection and declines the echo. Per-part hashes are sorted
 /// before combining, so the HashMap iteration orders of the
 /// document's side channels do not perturb the result; reader-skipped
@@ -99,7 +100,7 @@ pub(crate) fn sab_fingerprint<'a>(
 /// are outside the visited parts on both sides, so an unedited
 /// document engages despite them. Residual limitation: non-public
 /// side-channel state outside the inventory and the metadata models
-/// is outside the hash (a false decline is always safe — the echo
+/// is outside the hash (a false decline is always safe â€” the echo
 /// falls back to our own emission).
 pub(crate) fn document_state_fingerprint(document: &crate::document::CadDocument) -> u64 {
     use std::hash::{Hash, Hasher};
@@ -134,7 +135,7 @@ pub(crate) fn document_state_fingerprint(document: &crate::document::CadDocument
     ] {
         handle.value().hash(&mut hasher);
     }
-    // The retained metadata models — plain summary structures, so
+    // The retained metadata models â€” plain summary structures, so
     // their Debug projections are order-stable.
     format!("{:?}", document.dwg_aux_header).hash(&mut hasher);
     format!("{:?}", document.dwg_template).hash(&mut hasher);
@@ -143,8 +144,8 @@ pub(crate) fn document_state_fingerprint(document: &crate::document::CadDocument
     hasher.finish()
 }
 
-/// §19 H7 CLASSES row: the state hash guarding the verbatim classes
-/// re-emission — the ordered class identity tuple plus the document's
+/// Â§19 H7 CLASSES row: the state hash guarding the verbatim classes
+/// re-emission â€” the ordered class identity tuple plus the document's
 /// per-class object census (entities + objects resolved through the
 /// class table, mirroring the writer's required-classes walk). Computed
 /// identically at read time (the capture) and at write time (the gate):
@@ -181,7 +182,7 @@ pub(crate) fn classes_state_fingerprint(document: &crate::document::CadDocument)
 /// every entity/object that resolves through the class table counts
 /// under its class number. This is the document-state census (not the
 /// object writer's write-time census, which cannot see the
-/// raw-passthrough records) — self-consistency between the read-time
+/// raw-passthrough records) â€” self-consistency between the read-time
 /// capture and the write-time gate is what matters.
 ///
 /// The census must mirror the writer's full class-resolution landscape:
@@ -190,9 +191,9 @@ pub(crate) fn classes_state_fingerprint(document: &crate::document::CadDocument)
 /// 2026-10-02 AutoCAD manual-test round found the gap: only three entity
 /// kinds were counted, so adding a helix, view border, section symbol,
 /// wipeout, image, table, light or multileader to a same-version read
-/// document left the classes fingerprint unchanged — the raw class bytes
+/// document left the classes fingerprint unchanged â€” the raw class bytes
 /// re-emitted with the source file's zero-instance zombie state while
-/// real records referenced those classes — and AutoCAD's strict
+/// real records referenced those classes â€” and AutoCAD's strict
 /// open-time validation refused the whole file (BricsCAD tolerated it).
 /// Missing arms resolved to type code 0 or their fixed fallbacks wrote
 /// the same, but the stale table is what a strict loader cannot accept:
@@ -210,7 +211,7 @@ fn document_class_census(
     use crate::entities::EntityType;
     for entity in document.entities() {
         match entity {
-            // ── class-resolved entities, mirroring the writer dispatch ──
+            // â”€â”€ class-resolved entities, mirroring the writer dispatch â”€â”€
             EntityType::Surface(surface) => bump(surface.kind.dxf_name(), &mut counts),
             EntityType::Extended(entity) => bump(entity.class_name(), &mut counts),
             EntityType::Underlay(entity) => bump(entity.entity_name(), &mut counts),
@@ -254,7 +255,7 @@ fn document_class_census(
     }
     for object in document.objects.values() {
         match object {
-            // ── class-resolved objects, mirroring the writer dispatch ──
+            // â”€â”€ class-resolved objects, mirroring the writer dispatch â”€â”€
             crate::objects::ObjectType::ClassObject(class_object) => {
                 let name = class_object.dxf_name();
                 if !name.is_empty() {

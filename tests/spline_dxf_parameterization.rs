@@ -1,9 +1,9 @@
-//! Literal DXF flags and a DWG -> DXF -> DWG chain independently guard
+﻿//! Literal DXF flags and a DWG -> DXF -> DWG chain independently guard
 //! fit-spline parameterization; matching two lossy codec chains is insufficient.
 use std::io::Cursor;
 
-use acadrust::entities::{Helix, Spline};
-use acadrust::{
+use opencadcodec::entities::{Helix, Spline};
+use opencadcodec::{
     CadDocument, DwgReader, DwgWriter, DxfReader, DxfVersion, DxfWriter, EntityType, Vector3,
 };
 
@@ -189,7 +189,7 @@ fn helix_embedded_spline_uses_the_same_extended_flag_mapping() {
     helix.spline = fit_spline(2);
     helix.spline.cv_frame_visible = true;
     let mut doc = CadDocument::with_version(DxfVersion::AC1032);
-    doc.add_entity(EntityType::Helix(helix)).unwrap();
+    doc.add_entity(EntityType::Helix(Box::new(helix))).unwrap();
     let bytes = DxfWriter::new(&doc).write_to_vec().unwrap();
     assert_eq!(written_flags(&bytes, "HELIX"), 1664);
     let read = read_dxf(bytes);

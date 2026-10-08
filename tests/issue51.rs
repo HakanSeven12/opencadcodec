@@ -1,4 +1,4 @@
-//! Regression tests for issue #51 -- inconsistency in DXF file handling.
+﻿//! Regression tests for issue #51 -- inconsistency in DXF file handling.
 //!
 //! Four defects made DXF handling inconsistent between read and write:
 //!
@@ -34,12 +34,12 @@
 use std::collections::HashMap;
 use std::io::Cursor;
 
-use acadrust::entities::{Circle, EntityType, Line};
-use acadrust::objects::{
+use opencadcodec::entities::{Circle, EntityType, Line};
+use opencadcodec::objects::{
     Dictionary, DictionaryWithDefault, ObjectType, PlaceHolder, XRecord, XRecordEntry, XRecordValue,
 };
-use acadrust::types::{DxfVersion, Handle, Vector3};
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
+use opencadcodec::types::{DxfVersion, Handle, Vector3};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
 
 fn write_dxf(doc: &CadDocument) -> Vec<u8> {
     DxfWriter::new(doc).write_to_vec().unwrap()
@@ -255,7 +255,7 @@ fn mlinestyle_angle_codes(bytes: &[u8], handle: &str) -> (f64, f64) {
 #[test]
 fn mlinestyle_angles_stable_across_roundtrips() {
     let mut doc = CadDocument::with_version(DxfVersion::AC1032);
-    let mut style = acadrust::objects::MLineStyle::new("TESTSTYLE");
+    let mut style = opencadcodec::objects::MLineStyle::new("TESTSTYLE");
     style.handle = doc.allocate_handle();
     style.start_angle = std::f64::consts::FRAC_PI_2; // 90 degrees
     style.end_angle = std::f64::consts::FRAC_PI_4; // 45 degrees
@@ -454,7 +454,7 @@ fn visualstyle_record_carries_code_291() {
         DxfVersion::AC1032,
     ] {
         let mut doc = CadDocument::with_version(version);
-        let mut style = acadrust::objects::VisualStyle::new();
+        let mut style = opencadcodec::objects::VisualStyle::new();
         style.handle = doc.allocate_handle();
         doc.objects
             .insert(style.handle, ObjectType::VisualStyle(style));
@@ -493,19 +493,19 @@ fn handle_less_records_receive_handles_on_read() {
     )))
     .unwrap();
 
-    let mut layer = acadrust::tables::Layer::new("NULL_LAYER");
+    let mut layer = opencadcodec::tables::Layer::new("NULL_LAYER");
     layer.handle = Handle::NULL;
     doc.layers.add(layer).unwrap();
-    let mut style = acadrust::tables::TextStyle::new("NULL_STYLE");
+    let mut style = opencadcodec::tables::TextStyle::new("NULL_STYLE");
     style.handle = Handle::NULL;
     doc.text_styles.add(style).unwrap();
-    let mut dimstyle = acadrust::tables::DimStyle::new("NULL_DIM");
+    let mut dimstyle = opencadcodec::tables::DimStyle::new("NULL_DIM");
     dimstyle.handle = Handle::NULL;
     doc.dim_styles.add(dimstyle).unwrap();
-    let mut vport = acadrust::tables::VPort::new("NULL_VPORT");
+    let mut vport = opencadcodec::tables::VPort::new("NULL_VPORT");
     vport.handle = Handle::NULL;
     doc.vports.add(vport).unwrap();
-    let mut appid = acadrust::tables::AppId::new("NULL_APPID");
+    let mut appid = opencadcodec::tables::AppId::new("NULL_APPID");
     appid.handle = Handle::NULL;
     doc.app_ids.add(appid).unwrap();
 
@@ -658,7 +658,7 @@ fn supported_assoc_objects_are_written() {
     let nod_handle = doc.header.named_objects_dict_handle;
     let assoc_handle = doc.allocate_handle();
     let mut assoc =
-        acadrust::objects::AssociativeObject::new("ACDBASSOCVARIABLE", "AcDbAssocVariable");
+        opencadcodec::objects::AssociativeObject::new("ACDBASSOCVARIABLE", "AcDbAssocVariable");
     assoc.handle = assoc_handle;
     assoc.owner = nod_handle;
     doc.objects

@@ -1,11 +1,11 @@
-//! Regression test for issue #67: legacy space aliases on BLOCK markers
+﻿//! Regression test for issue #67: legacy space aliases on BLOCK markers
 //! must resolve to the canonical BLOCK_RECORD entries.
 
 use std::collections::HashSet;
 use std::io::Cursor;
 
-use acadrust::types::DxfVersion;
-use acadrust::{CadDocument, DxfReader, DxfWriter};
+use opencadcodec::types::DxfVersion;
+use opencadcodec::{CadDocument, DxfReader, DxfWriter};
 
 #[derive(Debug)]
 struct DxfPair {

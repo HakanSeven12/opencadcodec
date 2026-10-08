@@ -1,4 +1,4 @@
-//! The §20 candidate-6 payload-swap experiment: split the blame
+﻿//! The Â§20 candidate-6 payload-swap experiment: split the blame
 //! between the SAB stream and the DWG wrapper.
 //!
 //! The constructed Region now mirrors the authored sheet on every
@@ -7,13 +7,13 @@
 //! strict loader while the authored plain region MODELS. Two chimeras
 //! triangulate the blocker:
 //!
-//!   swap_authored_wrapper.dwg  — the AUTHORED example_2018 document
+//!   swap_authored_wrapper.dwg  â€” the AUTHORED example_2018 document
 //!     with its plain region's SAB replaced by the CONSTRUCTED
 //!     region's SAB. Models => the constructed SAB stream is
 //!     exonerated (the blocker lives in the wrapper/slot);
 //!     null-boxes => the SAB stream itself is the blocker, below
 //!     every measured invariant.
-//!   swap_constructed_wrapper.dwg — the CONSTRUCTED Region.dwg
+//!   swap_constructed_wrapper.dwg â€” the CONSTRUCTED Region.dwg
 //!     document with its region's SAB replaced by the AUTHORED
 //!     plain region's SAB. Models => the wrapper was never the
 //!     problem (the SAB is the blocker); null-boxes => the
@@ -25,8 +25,8 @@
 use std::fs;
 use std::io::Cursor;
 
-use acadrust::entities::EntityType;
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::entities::EntityType;
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 
 fn read_dwg(path: &str) -> CadDocument {
     let bytes = fs::read(path).unwrap_or_else(|e| panic!("read {path}: {e}"));
@@ -50,11 +50,11 @@ fn first_region_sab(doc: &CadDocument) -> Vec<u8> {
 /// point_of_reference is written as the wireframe cache's 3BD anchor,
 /// and the modeler may cross-check it against the SAB's actual
 /// geometry. A swap that replaces only the SAB leaves the wrapper's
-/// anchor pointing at the OLD geometry — an incoherent entity the
+/// anchor pointing at the OLD geometry â€” an incoherent entity the
 /// chimera then measures as a "wrapper blocker" that is really the
 /// experiment's own artifact. The coherent swap carries the SAB's
 /// owning entity's anchor with it.
-fn first_region_point(doc: &CadDocument) -> acadrust::types::Vector3 {
+fn first_region_point(doc: &CadDocument) -> opencadcodec::types::Vector3 {
     for e in doc.entities() {
         if let EntityType::Region(r) = e {
             if r.acis_data.is_binary && !r.acis_data.sab_data.is_empty() {
@@ -65,7 +65,7 @@ fn first_region_point(doc: &CadDocument) -> acadrust::types::Vector3 {
     panic!("no binary region SAB found");
 }
 
-fn swap_first_region_sab(doc: &mut CadDocument, sab: &[u8], anchor: acadrust::types::Vector3) -> bool {
+fn swap_first_region_sab(doc: &mut CadDocument, sab: &[u8], anchor: opencadcodec::types::Vector3) -> bool {
     for e in doc.entities_mut() {
         if let EntityType::Region(r) = e {
             if r.acis_data.is_binary && !r.acis_data.sab_data.is_empty() {
@@ -119,19 +119,19 @@ fn main() {
     println!("wrote {out_c}");
 
     // Control: the authored document REWRITTEN with the region
-    // untouched — a trivial edit elsewhere (a LINE) forces the
+    // untouched â€” a trivial edit elsewhere (a LINE) forces the
     // conventional arm. If BricsCAD's census still finds the three
     // 3D entities, the rewrite path preserves visibility and the
     // swap's SAB-length change is what broke it; if the census
-    // finds none, the read→rewrite path loses 3D-entity visibility
+    // finds none, the readâ†’rewrite path loses 3D-entity visibility
     // generally.
     let mut control = read_dwg(&authored_path);
-    let line = acadrust::entities::Line::from_points(
-        acadrust::types::Vector3::new(0.0, 0.0, 0.0),
-        acadrust::types::Vector3::new(1.0, 1.0, 0.0),
+    let line = opencadcodec::entities::Line::from_points(
+        opencadcodec::types::Vector3::new(0.0, 0.0, 0.0),
+        opencadcodec::types::Vector3::new(1.0, 1.0, 0.0),
     );
     control
-        .add_entity(acadrust::EntityType::Line(line))
+        .add_entity(opencadcodec::EntityType::Line(line))
         .expect("add line");
     let out_ctl = format!("{outdir}/rewrite_control.dwg");
     DwgWriter::write_to_file(&out_ctl, &control).expect("write control");

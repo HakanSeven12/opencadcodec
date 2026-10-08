@@ -1,6 +1,6 @@
-use std::io::Cursor;
+﻿use std::io::Cursor;
 
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfVersion};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfVersion};
 
 #[test]
 fn measurement_roundtrips_independently_of_insertion_units() {

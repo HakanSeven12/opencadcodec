@@ -902,6 +902,16 @@ impl SolidHistoryNodeBase {
     /// Expression value code meaning "no value".
     pub const NO_VALUE: i16 = -9999;
 
+    /// The id other nodes and the history root name this node by: its
+    /// evaluation node id, or its step id in histories that carry none.
+    pub fn node_id(&self) -> i32 {
+        if self.eval.node_id > 0 {
+            self.eval.node_id
+        } else {
+            self.step_id
+        }
+    }
+
     /// The evaluation header as stored on disk. The reference application
     /// rejects the whole drawing when a history node's expression has
     /// parent 0 or value code 0 without a value; it writes -1 and -9999.
@@ -1143,6 +1153,54 @@ pub struct SolidHistoryBoolean {
     pub operation: u8,
     pub first_operand: i32,
     pub second_operand: i32,
+}
+
+impl SolidHistoryBoolean {
+    /// `operation` codes.
+    pub const UNION: u8 = 0;
+    pub const INTERSECT: u8 = 1;
+    pub const SUBTRACT: u8 = 2;
+}
+
+/// A solid's history as it evaluates: each operation over the results of its
+/// operands, in order. A primitive has none, an edge operation one, a boolean
+/// two.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SolidHistoryTree {
+    pub operation: SolidHistoryOperation,
+    pub operands: Vec<SolidHistoryTree>,
+}
+
+impl SolidHistoryTree {
+    /// The operation whose node id is `id`, anywhere in the tree.
+    pub fn find(&self, id: i32) -> Option<&SolidHistoryTree> {
+        if self.operation.base().is_some_and(|base| base.node_id() == id) {
+            return Some(self);
+        }
+        self.operands.iter().find_map(|operand| operand.find(id))
+    }
+
+    pub fn find_mut(&mut self, id: i32) -> Option<&mut SolidHistoryTree> {
+        if self.operation.base().is_some_and(|base| base.node_id() == id) {
+            return Some(self);
+        }
+        self.operands.iter_mut().find_map(|operand| operand.find_mut(id))
+    }
+
+    /// Whether any step combines two solids.
+    pub fn has_boolean(&self) -> bool {
+        matches!(self.operation, SolidHistoryOperation::Boolean(_))
+            || self.operands.iter().any(Self::has_boolean)
+    }
+
+    /// The operations with no operands — the primitives and profiles the
+    /// solid was built from — in operand order.
+    pub fn leaves(&self) -> Vec<&SolidHistoryOperation> {
+        if self.operands.is_empty() {
+            return vec![&self.operation];
+        }
+        self.operands.iter().flat_map(Self::leaves).collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

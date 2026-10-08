@@ -1,4 +1,4 @@
-//! ACIS/SAT solid modeler data parser and writer.
+﻿//! ACIS/SAT solid modeler data parser and writer.
 //!
 //! This module provides support for parsing and generating ACIS SAT (Save And
 //! Restore) format data, which is the text-based geometry representation used
@@ -6,7 +6,7 @@
 //!
 //! # Supported Versions
 //!
-//! - **ACIS 1.5–6.0** (SAT versions 400–600): Legacy format without explicit
+//! - **ACIS 1.5â€“6.0** (SAT versions 400â€“600): Legacy format without explicit
 //!   record indices.
 //! - **ACIS 7.0** (SAT version 700): Adds explicit negative record indices,
 //!   `asmheader` entity, and `@`-prefixed counted strings.
@@ -15,15 +15,15 @@
 //! # Format Overview
 //!
 //! A SAT file consists of:
-//! 1. A **header** (3–4 lines): version, product info, tolerances
+//! 1. A **header** (3â€“4 lines): version, product info, tolerances
 //! 2. **Entity records**: each terminated by `#`, representing the B-rep
-//!    topology (body → lump → shell → face → loop → coedge → edge → vertex)
+//!    topology (body â†’ lump â†’ shell â†’ face â†’ loop â†’ coedge â†’ edge â†’ vertex)
 //!    and associated geometry (surfaces, curves, points, transforms).
 //!
 //! # Example
 //!
 //! ```rust
-//! use acadrust::entities::acis::{SatDocument, SatVersion};
+//! use opencadcodec::entities::acis::{SatDocument, SatVersion};
 //!
 //! // Parse SAT text from a 3DSOLID entity
 //! let sat_text = "700 0 1 0\n\
@@ -75,13 +75,13 @@ pub fn downgrade_records_to_v400(records: &mut Vec<SatRecord>) {
             // v600 edge tokens (after sentinel normalization):
             //   [0] sentinel $-1
             //   [1] $sv
-            //   [2] start_param (Float)      ← remove
+            //   [2] start_param (Float)      â† remove
             //   [3] $ev
-            //   [4] end_param (Float)        ← remove
+            //   [4] end_param (Float)        â† remove
             //   [5] $coedge
             //   [6] $curve
             //   [7] sense (Enum)
-            //   [8] "unknown" (String)       ← remove
+            //   [8] "unknown" (String)       â† remove
             // Result: [0]sentinel [1]$sv [2]$ev [3]$coedge [4]$curve [5]sense
             let len = record.tokens.len();
             if len >= 9 {

@@ -1,12 +1,12 @@
-//! Drawing properties (DWGPROPS) survive a DXF write and read. R2004+ files
+﻿//! Drawing properties (DWGPROPS) survive a DXF write and read. R2004+ files
 //! carry them as header variables: `$TITLE` .. `$REVISIONNUMBER` right after
 //! `$DWGCODEPAGE`, the custom properties as `$CUSTOMPROPERTYTAG` /
 //! `$CUSTOMPROPERTY` pairs after `$LASTSAVEDBY`, and `$HYPERLINKBASE`.
 
 use std::io::Cursor;
 
-use acadrust::types::DxfVersion;
-use acadrust::{CadDocument, DxfReader, DxfWriter};
+use opencadcodec::types::DxfVersion;
+use opencadcodec::{CadDocument, DxfReader, DxfWriter};
 
 const PROPERTY_VARIABLES: [&str; 10] = [
     "$TITLE",

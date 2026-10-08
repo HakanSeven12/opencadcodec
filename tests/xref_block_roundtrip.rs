@@ -1,9 +1,9 @@
-//! Regression test for issue #268 (via OpenCADStudio): an xref block must
+﻿//! Regression test for issue #268 (via OpenCADStudio): an xref block must
 //! round-trip through DWG as an *external reference*, not as baked-in geometry.
 //!
 //! Some hosts (e.g. OCS) merge the resolved contents of an xref into its block
 //! record so they can be displayed. Those entities must never be serialized as
-//! owned entities of the xref block — doing so binds/explodes the xref into the
+//! owned entities of the xref block â€” doing so binds/explodes the xref into the
 //! host file, so on the next open the reference is gone and only loose objects
 //! remain. The writer now skips owned-entity output for `is_xref` block records
 //! (and no longer writes their R2004+ owned-handle list, which also desynced
@@ -11,10 +11,10 @@
 
 use std::io::Cursor;
 
-use acadrust::entities::*;
-use acadrust::tables::BlockRecord;
-use acadrust::types::DxfVersion;
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::entities::*;
+use opencadcodec::tables::BlockRecord;
+use opencadcodec::types::DxfVersion;
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 
 fn dwg_roundtrip(doc: &CadDocument) -> CadDocument {
     let bytes = DwgWriter::write_to_vec(doc).expect("DWG write failed");
@@ -33,7 +33,7 @@ fn xref_block_does_not_bind_owned_entities() {
     ] {
         let mut doc = CadDocument::with_version(version);
 
-        // A genuine model-space entity that must survive untouched — a canary
+        // A genuine model-space entity that must survive untouched â€” a canary
         // for handle-stream desync corruption around the xref block.
         doc.add_entity(EntityType::Circle(Circle::from_coords(5.0, 5.0, 0.0, 3.0)))
             .unwrap();
@@ -68,7 +68,7 @@ fn xref_block_does_not_bind_owned_entities() {
             .len();
         assert_eq!(
             owned_before, 5,
-            "{version:?}: precondition — merged entities should be present before save"
+            "{version:?}: precondition â€” merged entities should be present before save"
         );
 
         let rt = dwg_roundtrip(&doc);
@@ -81,7 +81,7 @@ fn xref_block_does_not_bind_owned_entities() {
             .unwrap_or_else(|| panic!("{version:?}: xref block record lost on roundtrip"));
         assert!(
             xref.flags.is_xref,
-            "{version:?}: is_xref flag lost — the xref was bound/exploded"
+            "{version:?}: is_xref flag lost â€” the xref was bound/exploded"
         );
         assert_eq!(
             xref.xref_path, "./OCS_xref_file.dwg",
@@ -89,7 +89,7 @@ fn xref_block_does_not_bind_owned_entities() {
         );
         assert!(
             xref.entity_handles.is_empty(),
-            "{version:?}: xref block still owns {} entities — resolved geometry was baked into the file",
+            "{version:?}: xref block still owns {} entities â€” resolved geometry was baked into the file",
             xref.entity_handles.len()
         );
 
@@ -110,7 +110,7 @@ fn xref_block_does_not_bind_owned_entities() {
             .count();
         assert_eq!(
             circles, 1,
-            "{version:?}: model-space circle lost — the handle stream desynced"
+            "{version:?}: model-space circle lost â€” the handle stream desynced"
         );
     }
 }

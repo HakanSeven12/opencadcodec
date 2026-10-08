@@ -1,4 +1,4 @@
-//! A layer's description survives a round-trip.
+﻿//! A layer's description survives a round-trip.
 //!
 //! The format keeps it in the layer's extended data under the
 //! `AcAecLayerStandard` application, as two strings of which the second is the
@@ -9,8 +9,8 @@
 //! The fixtures are written by the crate itself: no sample drawing is needed
 //! and none is referenced.
 
-use acadrust::tables::Layer;
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
+use opencadcodec::tables::Layer;
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
 
 const DESCRIPTION: &str = "Roadways: profile geometry points";
 

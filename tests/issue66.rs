@@ -1,14 +1,14 @@
-//! Regression tests for issue #66: post-read handle repair must allocate
+﻿//! Regression tests for issue #66: post-read handle repair must allocate
 //! above file-sourced handles and preserve object ownership when remapping.
 
 use std::collections::HashSet;
 use std::io::Cursor;
 
-use acadrust::entities::{Circle, EntityType};
-use acadrust::objects::{Dictionary, DictionaryVariable, ObjectType, XRecord};
-use acadrust::tables::AppId;
-use acadrust::types::Handle;
-use acadrust::{CadDocument, DxfReader, DxfWriter, TableEntry};
+use opencadcodec::entities::{Circle, EntityType};
+use opencadcodec::objects::{Dictionary, DictionaryVariable, ObjectType, XRecord};
+use opencadcodec::tables::AppId;
+use opencadcodec::types::Handle;
+use opencadcodec::{CadDocument, DxfReader, DxfWriter, TableEntry};
 
 fn read_dxf(bytes: Vec<u8>) -> CadDocument {
     DxfReader::from_reader(Cursor::new(bytes))

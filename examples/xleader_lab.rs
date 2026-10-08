@@ -1,4 +1,4 @@
-//! Envelope lab: load a BricsCAD-accepted silver rewrite (an authored
+﻿//! Envelope lab: load a BricsCAD-accepted silver rewrite (an authored
 //! document envelope), append ONE constructed gen_all-class leader, and
 //! write the result out.
 //!
@@ -14,10 +14,10 @@
 //!
 //! Usage: cargo run --example xleader_lab [source.dwg [out.dwg]]
 
-use acadrust::entities::*;
-use acadrust::io::dwg::DwgReader;
-use acadrust::types::Vector3;
-use acadrust::{CadDocument, DwgWriter, LineWeight, Transparency};
+use opencadcodec::entities::*;
+use opencadcodec::io::dwg::DwgReader;
+use opencadcodec::types::Vector3;
+use opencadcodec::{CadDocument, DwgWriter, LineWeight, Transparency};
 
 fn main() {
     let src = std::env::args()

@@ -1,9 +1,9 @@
-//! Entity iteration APIs for issue #52: entities stored inside block
+﻿//! Entity iteration APIs for issue #52: entities stored inside block
 //! definitions are not part of the model-space drawable set, the way CAD
 //! applications do not render unreferenced block geometry.
 
-use acadrust::entities::{EntityType, Line};
-use acadrust::{CadDocument, DxfReader, DxfWriter};
+use opencadcodec::entities::{EntityType, Line};
+use opencadcodec::{CadDocument, DxfReader, DxfWriter};
 
 fn build_doc() -> CadDocument {
     let mut doc = CadDocument::new();

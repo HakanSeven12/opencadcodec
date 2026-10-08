@@ -1,10 +1,10 @@
-﻿use acadrust::entities::{solid3d::Solid3D, EntityType};
-use acadrust::objects::{
+﻿use opencadcodec::entities::{solid3d::Solid3D, EntityType};
+use opencadcodec::objects::{
     SolidHistoryBox, SolidHistoryBrep, SolidHistoryFillet, SolidHistoryNodeBase,
     SolidHistoryOperation,
 };
-use acadrust::types::DxfVersion;
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::types::DxfVersion;
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
 fn box_step(step_id: i32) -> SolidHistoryOperation {
@@ -55,8 +55,8 @@ fn appended_history_is_returned_root_to_active() {
     let graph = document.solid_history_graph(entity).unwrap();
     let evaluation = graph.evaluation_graph.expect("an evaluation graph");
     match document.objects.get(&evaluation) {
-        Some(acadrust::objects::ObjectType::DynamicBlock(value)) => match &value.data {
-            acadrust::objects::DynamicBlockData::EvaluationGraph(graph) => {
+        Some(opencadcodec::objects::ObjectType::DynamicBlock(value)) => match &value.data {
+            opencadcodec::objects::DynamicBlockData::EvaluationGraph(graph) => {
                 assert_eq!(graph.nodes.len(), 2);
                 assert_eq!(graph.edges.len(), 1);
                 assert_eq!(graph.edges[0].source_node, graph.nodes[0].id);
@@ -114,7 +114,7 @@ fn updating_a_step_preserves_its_graph_identity() {
 
 #[test]
 fn dwg_save_preserves_constructed_history_trees() {
-    let sat = acadrust::entities::acis::primitives::build_planar_body(
+    let sat = opencadcodec::entities::acis::primitives::build_planar_body(
         &[
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -135,10 +135,10 @@ fn dwg_save_preserves_constructed_history_trees() {
         ],
     )
     .unwrap();
-    let sab = acadrust::SabWriter::write(&sat);
+    let sab = opencadcodec::SabWriter::write(&sat);
     let operation = SolidHistoryOperation::Brep(SolidHistoryBrep {
         base: SolidHistoryNodeBase::new(1),
-        acis_data: acadrust::entities::AcisData::from_sab(sab.clone()),
+        acis_data: opencadcodec::entities::AcisData::from_sab(sab.clone()),
         ..SolidHistoryBrep::default()
     });
     let mut document = CadDocument::with_version(DxfVersion::AC1032);
@@ -168,16 +168,16 @@ fn dwg_save_preserves_constructed_history_trees() {
 
 #[test]
 fn dwg_save_writes_the_history_pointer_real() {
-    let sat = acadrust::entities::acis::primitives::build_box(
+    let sat = opencadcodec::entities::acis::primitives::build_box(
         [0.0, 0.0, 0.0],
         2.0,
         3.0,
         4.0,
     );
-    let sab = acadrust::SabWriter::write(&sat);
+    let sab = opencadcodec::SabWriter::write(&sat);
     let operation = SolidHistoryOperation::Brep(SolidHistoryBrep {
         base: SolidHistoryNodeBase::new(1),
-        acis_data: acadrust::entities::AcisData::from_sab(sab.clone()),
+        acis_data: opencadcodec::entities::AcisData::from_sab(sab.clone()),
         ..SolidHistoryBrep::default()
     });
     let mut document = CadDocument::with_version(DxfVersion::AC1032);
@@ -236,7 +236,7 @@ fn primitive_nodes_round_trip_the_base_at_origin_frame() {
         base.transform[12] = 10.0;
         base.transform[13] = 5.0;
         base.transform[14] = 2.0;
-        SolidHistoryOperation::Cylinder(acadrust::objects::SolidHistoryCylinder {
+        SolidHistoryOperation::Cylinder(opencadcodec::objects::SolidHistoryCylinder {
             base,
             height: 10.0,
             major_radius: 5.0,

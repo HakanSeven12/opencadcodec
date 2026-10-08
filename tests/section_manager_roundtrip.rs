@@ -1,9 +1,9 @@
-use acadrust::entities::{
+﻿use opencadcodec::entities::{
     EntityCommon, EntityType, ExtendedEntity, ExtendedEntityData, SectionObjectData,
 };
-use acadrust::objects::{ClassObject, ClassObjectData, ObjectType, SectionManager};
-use acadrust::types::{Color, Vector3};
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter, Handle};
+use opencadcodec::objects::{ClassObject, ClassObjectData, ObjectType, SectionManager};
+use opencadcodec::types::{Color, Vector3};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter, Handle};
 use std::io::Cursor;
 
 #[test]
@@ -46,7 +46,7 @@ fn dxf_preserves_section_manager_handles() {
 fn dwg_preserves_section_object_entity() {
     let mut document = CadDocument::new();
     document
-        .add_entity(EntityType::Extended(ExtendedEntity {
+        .add_entity(EntityType::Extended(Box::new(ExtendedEntity {
             common: EntityCommon::new(),
             data: ExtendedEntityData::SectionObject(SectionObjectData {
                 state: 1,
@@ -61,17 +61,17 @@ fn dwg_preserves_section_object_entity() {
                 back_line_vertices: Vec::new(),
                 settings_handle: Handle::new(0x1234),
             }),
-        }))
+        })))
         .expect("add section object");
     let bytes = DwgWriter::write_to_vec(&document).expect("write DWG");
     let roundtripped = DwgReader::from_stream(Cursor::new(bytes))
         .read()
         .expect("read DWG");
     let section = roundtripped.entities().find_map(|entity| match entity {
-        EntityType::Extended(ExtendedEntity {
-            data: ExtendedEntityData::SectionObject(section),
-            ..
-        }) => Some(section),
+        EntityType::Extended(ext) => match &ext.data {
+            ExtendedEntityData::SectionObject(section) => Some(section),
+            _ => None,
+        },
         _ => None,
     });
 

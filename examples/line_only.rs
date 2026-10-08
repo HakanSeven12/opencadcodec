@@ -1,13 +1,13 @@
-//! The §20 rewrite-rejection bisect, minimal suspect: a FRESH AC1032
+﻿//! The Â§20 rewrite-rejection bisect, minimal suspect: a FRESH AC1032
 //! document containing ONLY a LINE. If BricsCAD rejects this, the
 //! conventional arm's LINE emission is fatal by itself; if it opens,
 //! the poison is the combination (region + LINE).
 //!
 //! Usage: cargo run --example line_only --features serde -- <outdir>
 
-use acadrust::entities::{EntityType, Line};
-use acadrust::types::{DxfVersion, Vector3};
-use acadrust::{CadDocument, DwgWriter};
+use opencadcodec::entities::{EntityType, Line};
+use opencadcodec::types::{DxfVersion, Vector3};
+use opencadcodec::{CadDocument, DwgWriter};
 
 fn main() {
     let outdir = std::env::args().nth(1).expect("usage: line_only <outdir>");

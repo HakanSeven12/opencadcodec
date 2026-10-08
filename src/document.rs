@@ -1,19 +1,19 @@
-//! Central CAD document structure.
+﻿//! Central CAD document structure.
 //!
 //! [`CadDocument`] is the top-level container that holds everything in a
-//! drawing: header variables, tables (layers, line types, text styles, …),
+//! drawing: header variables, tables (layers, line types, text styles, â€¦),
 //! entities, non-graphical objects, block definitions, and classes.
 //!
 //! # Creating a document
 //!
 //! ```rust
-//! use acadrust::CadDocument;
+//! use opencadcodec::CadDocument;
 //!
 //! // Default version (R2018 / AC1032)
 //! let doc = CadDocument::new();
 //!
 //! // Specific version
-//! use acadrust::types::DxfVersion;
+//! use opencadcodec::types::DxfVersion;
 //! let doc = CadDocument::with_version(DxfVersion::AC1015); // R2000
 //! ```
 
@@ -22,7 +22,7 @@ use crate::entities::{EntityCommon, EntityType};
 use crate::objects::{
     BlockEvaluationEdge, BlockEvaluationGraph, BlockEvaluationNode, DataObjectData,
     DynamicBlockData, DynamicBlockObject, MaterialColor, MaterialTexture, ObjectType,
-    SolidHistory, SolidHistoryNodeBase, SolidHistoryOperation, XRecordEntry,
+    SolidHistory, SolidHistoryBoolean, SolidHistoryNodeBase, SolidHistoryOperation, SolidHistoryTree, XRecordEntry,
 };
 use crate::tables::*;
 use crate::types::{Color, DxfVersion, Handle, Vector2, Vector3};
@@ -30,6 +30,10 @@ use crate::xdata::XDataValue;
 use crate::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+
+#[cfg(test)]
+#[path = "document/evaluated_block_tests.rs"]
+mod evaluated_block_tests;
 
 fn material_checker_texture(entries: &[XRecordEntry]) -> Option<MaterialTexture> {
     if !entries.iter().any(|entry| {
@@ -134,7 +138,7 @@ pub struct SolidHistoryGraph {
     pub root: Handle,
     pub nodes: Vec<Handle>,
     /// The ACAD_EVALUATION_GRAPH object interposed between the history
-    /// root and its nodes — the authored genus (payload owner -> graph,
+    /// root and its nodes â€” the authored genus (payload owner -> graph,
     /// never the solid). `None` only for trees written by older releases
     /// of this crate, which `ensure_solid_history_evaluation_graph`
     /// upgrades before any append.
@@ -675,6 +679,11 @@ pub struct HeaderVariables {
     // ==================== Date/Time ====================
     /// Document creation time (Julian date)
     pub create_date_julian: f64,
+    /// TDUCREATE: creation time in universal time - the value DWG files store.
+    /// 0 = unknown; writers then fall back to the local value.
+    pub universal_create_date_julian: f64,
+    /// TDUUPDATE: last save in universal time; 0 = unknown.
+    pub universal_update_date_julian: f64,
     /// Document update time (Julian date)
     pub update_date_julian: f64,
     /// Total editing time in days
@@ -720,6 +729,27 @@ pub struct HeaderVariables {
     /// CMLEADERSTYLE - Current multileader style name
     pub current_mleader_style_name: String,
 }
+
+impl HeaderVariables {
+    /// TDUCREATE, or TDCREATE when the universal value is unknown.
+    pub fn universal_create_or_local(&self) -> f64 {
+        if self.universal_create_date_julian != 0.0 {
+            self.universal_create_date_julian
+        } else {
+            self.create_date_julian
+        }
+    }
+
+    /// TDUUPDATE, or TDUPDATE when the universal value is unknown.
+    pub fn universal_update_or_local(&self) -> f64 {
+        if self.universal_update_date_julian != 0.0 {
+            self.universal_update_date_julian
+        } else {
+            self.update_date_julian
+        }
+    }
+}
+
 
 impl Default for HeaderVariables {
     fn default() -> Self {
@@ -1002,6 +1032,8 @@ impl Default for HeaderVariables {
             // Date/time
             create_date_julian: 0.0,
             update_date_julian: 0.0,
+            universal_create_date_julian: 0.0,
+            universal_update_date_julian: 0.0,
             total_editing_time: 0.0,
             user_elapsed_time: 0.0,
 
@@ -1037,8 +1069,8 @@ fn is_none<T>(v: &Option<T>) -> bool {
 
 /// A wire handle reference exactly as gold's JSON prints it:
 /// `[code, size, value, absolute]`. Retained verbatim by the header reader
-/// (§19 H3); `value` is the on-wire payload and `absolute` the resolved
-/// handle, which are identical for the absolute handle codes (≤ 5) the
+/// (Â§19 H3); `value` is the on-wire payload and `absolute` the resolved
+/// handle, which are identical for the absolute handle codes (â‰¤ 5) the
 /// header section uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DwgRawHandle {
@@ -1086,15 +1118,15 @@ impl<'de> serde::Deserialize<'de> for DwgRawHandle {
     }
 }
 
-/// A CmColor in gold's **post-decode state** (§19 H3), mirroring libredwg
+/// A CmColor in gold's **post-decode state** (Â§19 H3), mirroring libredwg
 /// `bit_read_CMC` exactly.
 ///
 /// On R2004+ the reader retains the raw `rgb` word (method nibble in byte
-/// 3, RGB in bytes 0-2 — already method-validated: an out-of-range nibble
+/// 3, RGB in bytes 0-2 â€” already method-validated: an out-of-range nibble
 /// is forced to `0xC2` with the low 24 bits kept) and the flag byte
-/// (already validated: a flag ≥ 4 is zeroed and the name/book-name
+/// (already validated: a flag â‰¥ 4 is zeroed and the name/book-name
 /// strings are not read at all). `index` is the wire BS (informational on
-/// R2004+ — gold's decode overwrites it with a palette lookup of `rgb`,
+/// R2004+ â€” gold's decode overwrites it with a palette lookup of `rgb`,
 /// which the harness projection reproduces; on pre-R2004 it is the only
 /// field and gold prints it as the unsigned 16-bit value). The gold
 /// harness projects this into gold's JSON shape: a plain index on
@@ -1110,7 +1142,7 @@ pub struct DwgRawCmc {
     /// (post method-validation).
     pub rgb: u32,
     /// The flag byte (post validation: 0..=3, or 0 for an invalid wire
-    /// flag — the name/book-name bits are meaningful only when set).
+    /// flag â€” the name/book-name bits are meaningful only when set).
     pub flag: i64,
     /// Optional color name (wire flag bit 0, read only behind a valid
     /// flag).
@@ -1144,12 +1176,12 @@ impl DwgRawCmc {
     }
 }
 
-/// The authored entity-color (ENC) wire form, retained verbatim at read —
+/// The authored entity-color (ENC) wire form, retained verbatim at read â€”
 /// the raw-retention twin of the collapsed `Color` + `Transparency` pair
-/// (§19 H8h-ext-17, the B1 LIGHT raw-CMC precedent). The R2004+ ENC
+/// (Â§19 H8h-ext-17, the B1 LIGHT raw-CMC precedent). The R2004+ ENC
 /// flags/index BS carries an ACI index slot alongside the true-color flag
 /// that the collapsed model cannot reproduce: HatchG's authored records
-/// carry slot 112 where the nearest-ACI derivation reads 110 — the slot
+/// carry slot 112 where the nearest-ACI derivation reads 110 â€” the slot
 /// is author data, not a derivable convention. The writer replays the
 /// captured words whenever they still decode to the entity's current
 /// color (the A1 same-target gate).
@@ -1163,13 +1195,13 @@ pub struct DwgRawEnc {
     /// The transparency BL as read, present when the 0x2000 flag is set.
     pub transparency: Option<i32>,
     /// The pair the raw words decode to (the replay gate compares these
-    /// against the entity's current values — an edited color falls back
+    /// against the entity's current values â€” an edited color falls back
     /// to the modeled emission).
     pub decoded_color: Color,
     pub decoded_transparency: crate::types::Transparency,
 }
 
-/// Gold-JSON mirror of the DWG `AcDb:Header` variables (§19 H3 read row).
+/// Gold-JSON mirror of the DWG `AcDb:Header` variables (Â§19 H3 read row).
 ///
 /// One field per key of gold's `HEADER` JSON output, named after gold's
 /// spelling (`serde` renames carry the ALLCAPS spec names), shaped as gold
@@ -1188,7 +1220,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "__version"))]
     pub version: String,
 
-    // ── Header prefix ──
+    // â”€â”€ Header prefix â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "REQUIREDVERSIONS", skip_serializing_if = "is_none"))]
     pub required_versions: Option<i64>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_none"))]
@@ -1216,7 +1248,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "VX_TABLE_RECORD", skip_serializing_if = "is_none"))]
     pub vx_table_record: Option<DwgRawHandle>,
 
-    // ── Drawing mode bits ──
+    // â”€â”€ Drawing mode bits â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "DIMASO", skip_serializing_if = "is_none"))]
     pub dimaso: Option<i64>,
     #[cfg_attr(feature = "serde", serde(rename = "DIMSHO", skip_serializing_if = "is_none"))]
@@ -1276,7 +1308,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "DRAGMODE", skip_serializing_if = "is_none"))]
     pub dragmode: Option<i64>,
 
-    // ── Unit settings ──
+    // â”€â”€ Unit settings â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "TREEDEPTH", skip_serializing_if = "is_none"))]
     pub treedepth: Option<i64>,
     #[cfg_attr(feature = "serde", serde(rename = "LUNITS", skip_serializing_if = "is_none"))]
@@ -1342,7 +1374,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "TEXTQLTY", skip_serializing_if = "is_none"))]
     pub textqlty: Option<i64>,
 
-    // ── Scale/size defaults ──
+    // â”€â”€ Scale/size defaults â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "LTSCALE", skip_serializing_if = "is_none"))]
     pub ltscale: Option<f64>,
     #[cfg_attr(feature = "serde", serde(rename = "TEXTSIZE", skip_serializing_if = "is_none"))]
@@ -1402,7 +1434,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "TDUSRTIMER", skip_serializing_if = "is_none"))]
     pub tdusrtimer: Option<[i64; 2]>,
 
-    // ── Current-object handles + colors ──
+    // â”€â”€ Current-object handles + colors â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "CECOLOR", skip_serializing_if = "is_none"))]
     pub cecolor: Option<DwgRawCmc>,
     #[cfg_attr(feature = "serde", serde(rename = "HANDSEED", skip_serializing_if = "is_none"))]
@@ -1422,7 +1454,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "PSVPSCALE", skip_serializing_if = "is_none"))]
     pub psvpscale: Option<f64>,
 
-    // ── Paper-space extents/limits/UCS ──
+    // â”€â”€ Paper-space extents/limits/UCS â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "PINSBASE", skip_serializing_if = "is_none"))]
     pub pinsbase: Option<[f64; 3]>,
     #[cfg_attr(feature = "serde", serde(rename = "PEXTMIN", skip_serializing_if = "is_none"))]
@@ -1462,7 +1494,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "PUCSORGBACK", skip_serializing_if = "is_none"))]
     pub pucsorgback: Option<[f64; 3]>,
 
-    // ── Model-space extents/limits/UCS ──
+    // â”€â”€ Model-space extents/limits/UCS â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "INSBASE", skip_serializing_if = "is_none"))]
     pub insbase: Option<[f64; 3]>,
     #[cfg_attr(feature = "serde", serde(rename = "EXTMIN", skip_serializing_if = "is_none"))]
@@ -1512,7 +1544,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "DIMBLK2_T", skip_serializing_if = "is_none"))]
     pub dimblk2_t: Option<String>,
 
-    // ── Dimension variables ──
+    // â”€â”€ Dimension variables â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "DIMSCALE", skip_serializing_if = "is_none"))]
     pub dimscale: Option<f64>,
     #[cfg_attr(feature = "serde", serde(rename = "DIMASZ", skip_serializing_if = "is_none"))]
@@ -1670,7 +1702,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "DIMLWE", skip_serializing_if = "is_none"))]
     pub dimlwe: Option<i64>,
 
-    // ── Table control objects ──
+    // â”€â”€ Table control objects â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "BLOCK_CONTROL_OBJECT", skip_serializing_if = "is_none"))]
     pub block_control_object: Option<DwgRawHandle>,
     #[cfg_attr(feature = "serde", serde(rename = "LAYER_CONTROL_OBJECT", skip_serializing_if = "is_none"))]
@@ -1692,7 +1724,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "VX_CONTROL_OBJECT", skip_serializing_if = "is_none"))]
     pub vx_control_object: Option<DwgRawHandle>,
 
-    // ── Dictionaries ──
+    // â”€â”€ Dictionaries â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_ACAD_GROUP", skip_serializing_if = "is_none"))]
     pub dictionary_acad_group: Option<DwgRawHandle>,
     #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_ACAD_MLINESTYLE", skip_serializing_if = "is_none"))]
@@ -1722,7 +1754,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_none"))]
     pub unknown_20: Option<DwgRawHandle>,
 
-    // ── R2000+ flags/plots and GUIDs ──
+    // â”€â”€ R2000+ flags/plots and GUIDs â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "FLAGS", skip_serializing_if = "is_none"))]
     pub flags: Option<i64>,
     #[cfg_attr(feature = "serde", serde(rename = "INSUNITS", skip_serializing_if = "is_none"))]
@@ -1736,7 +1768,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "VERSIONGUID", skip_serializing_if = "is_none"))]
     pub versionguid: Option<String>,
 
-    // ── R2004+ entity settings ──
+    // â”€â”€ R2004+ entity settings â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "SORTENTS", skip_serializing_if = "is_none"))]
     pub sortents: Option<i64>,
     #[cfg_attr(feature = "serde", serde(rename = "INDEXCTL", skip_serializing_if = "is_none"))]
@@ -1760,7 +1792,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "PROJECTNAME", skip_serializing_if = "is_none"))]
     pub projectname: Option<String>,
 
-    // ── Block record / linetype handles ──
+    // â”€â”€ Block record / linetype handles â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "BLOCK_RECORD_PSPACE", skip_serializing_if = "is_none"))]
     pub block_record_pspace: Option<DwgRawHandle>,
     #[cfg_attr(feature = "serde", serde(rename = "BLOCK_RECORD_MSPACE", skip_serializing_if = "is_none"))]
@@ -1772,7 +1804,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "LTYPE_CONTINUOUS", skip_serializing_if = "is_none"))]
     pub ltype_continuous: Option<DwgRawHandle>,
 
-    // ── R2007+ extended block (camera, loft, geo, visual styles) ──
+    // â”€â”€ R2007+ extended block (camera, loft, geo, visual styles) â”€â”€
     #[cfg_attr(feature = "serde", serde(rename = "CAMERADISPLAY", skip_serializing_if = "is_none"))]
     pub cameradisplay: Option<i64>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_none"))]
@@ -1842,7 +1874,7 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(rename = "SHADOWPLANELOCATION", skip_serializing_if = "is_none"))]
     pub shadowplanelocation: Option<f64>,
 
-    // ── R14+ trailing shorts ──
+    // â”€â”€ R14+ trailing shorts â”€â”€
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_none"))]
     pub unknown_54: Option<i64>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_none"))]
@@ -1852,9 +1884,9 @@ pub struct DwgHeaderRaw {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_none"))]
     pub unknown_57: Option<i64>,
 
-    // ── R2004+ trailing undocumented slots ── (§19 H7 review): consumed
+    // â”€â”€ R2004+ trailing undocumented slots â”€â”€ (Â§19 H7 review): consumed
     // by the reader's walk after `unknown_57` but not emitted by gold's
-    // JSON — retained raw (BL, BL, B) so the writer re-emits the wire
+    // JSON â€” retained raw (BL, BL, B) so the writer re-emits the wire
     // values verbatim instead of defaulting them. Serde-skipped: no
     // gold-JSON counterpart exists (the census is blind here by
     // construction; preservation is byte-level).
@@ -1870,7 +1902,7 @@ pub struct DwgHeaderRaw {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PreviewFormat {
-    /// Windows DIB — a `BITMAPINFOHEADER` + palette + pixels, WITHOUT the
+    /// Windows DIB â€” a `BITMAPINFOHEADER` + palette + pixels, WITHOUT the
     /// 14-byte `BITMAPFILEHEADER`. Prepend a file header to save as `.bmp`.
     Bmp,
     /// Windows Metafile.
@@ -1881,8 +1913,8 @@ pub enum PreviewFormat {
     /// 80-byte reserved header block with no BMP/WMF/PNG descriptor
     /// behind it (e.g. the R2018 corpus files whose drawing was never
     /// rendered). `data` is then empty, but `raw` still holds the whole
-    /// container — gold's read keeps such thumbnails and prints their
-    /// size/chain, so the §19 structure axis projects them from `raw`.
+    /// container â€” gold's read keeps such thumbnails and prints their
+    /// size/chain, so the Â§19 structure axis projects them from `raw`.
     Unknown,
 }
 
@@ -1899,8 +1931,8 @@ pub struct Preview {
     pub format: PreviewFormat,
     /// Raw image bytes exactly as stored in the file (a DIB for `Bmp`).
     pub data: Vec<u8>,
-    /// The whole preview container as read (§19 H5c): `[16-byte start
-    /// sentinel][chain bytes]` where the chain's tail is family-split —
+    /// The whole preview container as read (Â§19 H5c): `[16-byte start
+    /// sentinel][chain bytes]` where the chain's tail is family-split â€”
     /// pre-R2004 and AC1021 containers also carry a 16-byte END sentinel
     /// (the chain excludes it: gold's bracketed/decode_R2007 rules), the
     /// rest of the R2004 family keeps everything past the start sentinel
@@ -1913,7 +1945,7 @@ pub struct Preview {
 
 /// A decoded `AcDbField` definition (a dynamic text field).
 ///
-/// `evaluator` is the field's evaluator id (DXF 1) — e.g. `"AcVar"` or
+/// `evaluator` is the field's evaluator id (DXF 1) â€” e.g. `"AcVar"` or
 /// `"AcDiesel"`. `code` is the field-code string (DXF 2): for a *leaf* field it
 /// is the expression to evaluate (e.g. `\AcDiesel $(getvar,"cdate")`); for a
 /// *container* field it is the display template with `%<\_FldIdx N>%` markers
@@ -1931,7 +1963,7 @@ pub struct FieldDef {
     pub objects: Vec<Handle>,
 }
 
-/// Document summary information (the DWG `SummaryInfo` section — the same
+/// Document summary information (the DWG `SummaryInfo` section â€” the same
 /// properties AutoCAD's DWGPROPS dialog edits). Backs the Document-category
 /// dynamic-text fields (Author, Title, Subject, Keywords, Comments,
 /// HyperlinkBase, RevisionNumber) plus arbitrary custom properties.
@@ -1948,19 +1980,19 @@ pub struct SummaryInfo {
     pub hyperlink_base: String,
     /// Custom document properties as `(name, value)` pairs.
     pub custom_properties: Vec<(String, String)>,
-    /// TDINDWG — total editing time (gold prints a `[days, ms]` pair).
+    /// TDINDWG â€” total editing time (gold prints a `[days, ms]` pair).
     pub tdindwg: [u32; 2],
-    /// TDCREATE — creation time (`[days, ms]`).
+    /// TDCREATE â€” creation time (`[days, ms]`).
     pub tdcreate: [u32; 2],
-    /// TDUPDATE — last-update time (`[days, ms]`).
+    /// TDUPDATE â€” last-update time (`[days, ms]`).
     pub tdupdate: [u32; 2],
     /// The two trailing raw longs gold prints as `unknown1`/`unknown2`.
     pub unknown1: u32,
     pub unknown2: u32,
 }
 
-/// The R2004-format system-section summary — gold's `R2004_Header` shape
-/// (§19 H2's second sub-row). The 120-byte encrypted block at file offset
+/// The R2004-format system-section summary â€” gold's `R2004_Header` shape
+/// (Â§19 H2's second sub-row). The 120-byte encrypted block at file offset
 /// 0x80 (XOR-masked with the 256-byte magic sequence): 108 bytes of
 /// header fields + 12 bytes of padding, all unmasked as one region.
 /// Field names match gold's JSON exactly; `padding` is the 12-byte
@@ -1969,12 +2001,12 @@ pub struct SummaryInfo {
 /// separate `R2007_Header` shape, its own sub-row) and pre-R2004.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
-// `file_ID_string` is gold's JSON key spelling — the §19 convention
+// `file_ID_string` is gold's JSON key spelling â€” the Â§19 convention
 // that field names match gold's emission exactly. The allow sits on the
 // struct so the serde-derive expansion is covered too.
 #[allow(non_snake_case)]
 pub struct DwgR2004SystemHeader {
-    /// The 11-char magic ("AcFssFcAJMB" — the trailing NUL trimmed).
+    /// The 11-char magic ("AcFssFcAJMB" â€” the trailing NUL trimmed).
     pub file_ID_string: String,
     pub header_address: i32,
     pub header_size: i32,
@@ -1992,7 +2024,7 @@ pub struct DwgR2004SystemHeader {
     pub x80: i32,
     pub x40: i32,
     pub section_map_id: u32,
-    /// The RAW stored value — gold prints it unadjusted (the +0x100 the
+    /// The RAW stored value â€” gold prints it unadjusted (the +0x100 the
     /// readers apply for navigation stays decode-side; pinned by
     /// sample_2018: gold 19328, stored+0x100 19584)
     pub section_map_address: u64,
@@ -2004,19 +2036,19 @@ pub struct DwgR2004SystemHeader {
     pub padding: String,
 }
 
-/// The R2004-family container shape (§19 H7g — the container-parity
+/// The R2004-family container shape (Â§19 H7g â€” the container-parity
 /// wall): the author's page space as read from the section page map and
 /// the section-info descriptor table, re-emitted verbatim on a
 /// same-version roundtrip when the write-time content-parity gate
 /// passes (every section's re-encoded content fits the author's
 /// per-descriptor page space at the author's own page boundaries).
 /// `numsections` (@0x40) IS the page-map entry count and the four id
-/// fields (@0x28/@0x50/@0x5C/@0x60) follow the page space — the corpus
+/// fields (@0x28/@0x50/@0x5C/@0x60) follow the page space â€” the corpus
 /// authors allocate the two box pages at `data_page_count + 3/+4`
 /// (leaving two ids unused), where the historical writer emitted them
 /// at `+1/+2`, and split the metadata sections with custom
 /// per-descriptor max-decomp sizes (AppInfo 0x300, AppInfoHistory
-/// 0x580, Preview 0x7C00, SummaryInfo 0x80 — single pages) where the
+/// 0x580, Preview 0x7C00, SummaryInfo 0x80 â€” single pages) where the
 /// historical writer used the uniform 0x80 SMALL_PAGE and 0x7400
 /// conventions. The emission order below is the author's PHYSICAL page
 /// order, which puts the summary page first and the preview page right
@@ -2024,7 +2056,7 @@ pub struct DwgR2004SystemHeader {
 /// (seeker + 0x20), so an order- and size-faithful prefix reproduces
 /// `summaryinfo_address` and `thumbnail_address` exactly (the preview
 /// container's image descriptors hold those same absolute file
-/// offsets — the THUMBNAILIMAGE chain identity follows for free).
+/// offsets â€” the THUMBNAILIMAGE chain identity follows for free).
 /// Internal only: never serialized through the document (the census
 /// rows it serves are all gold-JSON fields, measured against gold's
 /// own dwgread output); the derive serves `DwgFileHeaderInfo`'s own
@@ -2039,14 +2071,14 @@ pub struct DwgAc18ContainerShape {
     /// on-disk sizes as laid out from 0x100; the last two entries are
     /// the section-info box and the page-map box pages).
     pub map_order: Vec<DwgAc18PageEntry>,
-    /// The System Section (Section Page Map) box's page id — the
+    /// The System Section (Section Page Map) box's page id â€” the
     /// system header's `section_map_id` @0x50 (gold's naming; the
     /// writer historically calls it `section_page_map_id`).
     pub section_map_id: u32,
-    /// The Data Section (descriptor table) box's page id — the system
+    /// The Data Section (descriptor table) box's page id â€” the system
     /// header's `section_info_id` @0x5C.
     pub section_info_id: u32,
-    /// The max page id including the author's id gaps — the system
+    /// The max page id including the author's id gaps â€” the system
     /// header's `section_array_size` @0x60 (== `last_section_id` on
     /// every corpus file: both name the last allocated id).
     pub section_array_size: u32,
@@ -2063,7 +2095,7 @@ pub struct DwgAc18SectionShape {
     /// The author's raw 64-byte name field (`` when the writer left it
     /// empty), re-emitted verbatim into the descriptor table.
     pub raw_name: String,
-    /// The descriptor's content size (the 8-byte `size` field — the
+    /// The descriptor's content size (the 8-byte `size` field â€” the
     /// decompressed section length, not the compressed sum).
     pub size: u64,
     /// The per-descriptor maximum decompressed page size.
@@ -2086,20 +2118,20 @@ pub struct DwgAc18PageEntry {
     pub on_disk_size: i64,
 }
 
-/// The R2007-format system-section summary — gold's `R2007_Header` shape
-/// (§19 H2's third sub-row). The AC1021 (R2007) files carry their system
+/// The R2007-format system-section summary â€” gold's `R2007_Header` shape
+/// (Â§19 H2's third sub-row). The AC1021 (R2007) files carry their system
 /// section as a Reed-Solomon-encoded 0x110-byte metadata block; silver's
 /// container reader already parses every field into
-/// `Dwg21CompressedMetadata` — this summary is the gold-named projection
-/// of it (the container names differ: `pages_map_correction_factor` →
-/// gold's `pages_map_correction`, `map2_offset` → `pages_map2_offset`,
-/// `unknown_0x20/0x40/0xf800/4/1` → `unknown1..5`,
-/// `header_crc64` → `header_crc`, the `*_compressed/*_uncompressed`
-/// suffixes → gold's `*_comp/*_uncomp`). `sections_amount` has NO gold
+/// `Dwg21CompressedMetadata` â€” this summary is the gold-named projection
+/// of it (the container names differ: `pages_map_correction_factor` â†’
+/// gold's `pages_map_correction`, `map2_offset` â†’ `pages_map2_offset`,
+/// `unknown_0x20/0x40/0xf800/4/1` â†’ `unknown1..5`,
+/// `header_crc64` â†’ `header_crc`, the `*_compressed/*_uncompressed`
+/// suffixes â†’ gold's `*_comp/*_uncomp`). `sections_amount` has NO gold
 /// counterpart (the JSON emitter prints 33 fields without it) and is
 /// dropped here. All values print as unsigned (gold's emitter prints
-/// the high-bit CRCs as positive — e.g. sections_map_crc_comp
-/// 14004064320028269436 > 2^63 on example_2007 — so u64 matches).
+/// the high-bit CRCs as positive â€” e.g. sections_map_crc_comp
+/// 14004064320028269436 > 2^63 on example_2007 â€” so u64 matches).
 /// Only populated on AC1021 files; `None` on every other format.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -2139,8 +2171,8 @@ pub struct DwgR2007SystemHeader {
     pub header_crc: u64,
 }
 
-/// The §19 H8 container shape (the AC1021 family): the author's
-/// RS-chunk page space — the pages-map entries in her physical order
+/// The Â§19 H8 container shape (the AC1021 family): the author's
+/// RS-chunk page space â€” the pages-map entries in her physical order
 /// (gold's `read_pages_map` accumulates the running offsets from
 /// 0x480 in exactly this order; the first two entries are the
 /// pages-map system pages, `pages_map_id`/`pages_map2_id` at
@@ -2148,14 +2180,14 @@ pub struct DwgR2007SystemHeader {
 /// plus her per-section page plans in the sections-table order (the
 /// data pages' ids, per-page boundaries in the decompressed stream
 /// and the declared frame fields). Retained for the same-version
-/// roundtrip's AC21 container mirror — the H7g doctrine transferred
-/// to the R2007 container — where a rewrite that reproduces the
+/// roundtrip's AC21 container mirror â€” the H7g doctrine transferred
+/// to the R2007 container â€” where a rewrite that reproduces the
 /// author's page space also reproduces `pages_amount`/`pages_maxid`,
 /// the four map-id fields, both FILEHEADER 0x80-block addresses (the
 /// author's convention: the AcDb:Header page's offset and the
 /// AcDb:Preview page's offset) and the whole pages-map byte stream
 /// (the (size, id) pairs, sizes and order, are hers by
-/// construction — its CRCs follow for free). `None` on every
+/// construction â€” its CRCs follow for free). `None` on every
 /// non-AC1021 format.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2208,18 +2240,18 @@ pub struct DwgAc21SectionPageShape {
     pub id: i64,
     /// The declared uncompressed chunk length.
     pub uncomp_size: u64,
-    /// The page's on-disk size from the pages map — the physical
+    /// The page's on-disk size from the pages map â€” the physical
     /// extent the mirror must reproduce.
     pub on_disk_size: i64,
 }
 
-/// The R13–R2000 SecondHeader summary — gold's `SecondHeader` shape
-/// (§19 H2's fourth sub-row). The second header is a sentinel-located
+/// The R13â€“R2000 SecondHeader summary â€” gold's `SecondHeader` shape
+/// (Â§19 H2's fourth sub-row). The second header is a sentinel-located
 /// structure near the file end (gold: `bit_search_sentinel
 /// (DWG_SENTINEL_2NDHEADER_BEGIN)` after the ObjFreeSpace read,
 /// decode.c:907; parsed by `secondheader_private` via `2ndheader.spec`).
 /// JSON shape: 7 scalars + the 6-record section table (nr/address/size)
-/// + the 14-record handle table (nr + the raw big-endian handle bytes —
+/// + the 14-record handle table (nr + the raw big-endian handle bytes â€”
 /// `num_hdl` itself does not print) + `junk_r14` (R14/R2000 only, the
 /// RLL after the CRC). `sections`/`num_handles` counts do not print.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2230,9 +2262,9 @@ pub struct DwgSecondHeaderSummary {
     pub version: String,
     pub maint_rel_version: u8,
     pub zero_one_or_three: u8,
-    /// The version bitfield — UNSIGNED on the wire and in gold's print
+    /// The version bitfield â€” UNSIGNED on the wire and in gold's print
     /// (TODO B1, 2026-10-01: the R2000 fixtures carry 0xFF21 which an
-    /// i16 read printed as −223 against gold's 65313 — the structure
+    /// i16 read printed as âˆ’223 against gold's 65313 â€” the structure
     /// axis's single systematic key-gap on every 2000-era file).
     pub dwg_versions: u16,
     pub codepage: i16,
@@ -2259,14 +2291,14 @@ pub struct DwgSecondHeaderHandle {
     pub hdl: Vec<u8>,
 }
 
-/// The R13c3+ AuxHeader summary — gold's `AuxHeader` shape (§19 H2's
+/// The R13c3+ AuxHeader summary â€” gold's `AuxHeader` shape (Â§19 H2's
 /// fifth sub-row). Read at the section-locator address when the
-/// FILEHEADER's `sections` count is 6 (gold: decode.c:373-405 — "no
+/// FILEHEADER's `sections` count is 6 (gold: decode.c:373-405 â€” "no
 /// sentinels, since R13c3"); byte-aligned fields per `auxheader.spec`.
 /// The R2000 JSON shape (25 keys): the observed values on sample_2000
 /// hand-decoded byte-for-byte before implementation. `TDCREATE`/
 /// `TDUPDATE` are TIMERLL pairs (days + milliseconds); `HANDSEED` is
-/// the raw 64-bit seed; R2004+ adds zero_7/zero_8 and R2018 zero_18 —
+/// the raw 64-bit seed; R2004+ adds zero_7/zero_8 and R2018 zero_18 â€”
 /// outside this R2000-only emission shape.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -2301,7 +2333,7 @@ pub struct DwgAuxHeaderSummary {
     pub zero_6: i32,
 }
 
-/// The Template section summary — gold's `Template` shape (§19 H4).
+/// The Template section summary â€” gold's `Template` shape (Â§19 H4).
 /// Present on every version (R2000 locator nr 4; R2004+ section map):
 /// `description` (T16 string) + `MEASUREMENT` (RS, 0=imperial, 1=metric).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2311,7 +2343,7 @@ pub struct DwgTemplateSummary {
     pub measurement: i16,
 }
 
-/// One FileDepList file-dependency record (§19 H4).
+/// One FileDepList file-dependency record (Â§19 H4).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DwgFileDepFileInfo {
@@ -2326,7 +2358,7 @@ pub struct DwgFileDepFileInfo {
     pub refcount: i32,
 }
 
-/// The FileDepList section summary — gold's `FileDepList` shape (§19
+/// The FileDepList section summary â€” gold's `FileDepList` shape (Â§19
 /// H4). `features` (TU32 strings) and the `files` records; the count
 /// fields (`num_features`/`num_files`) do not print.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2336,7 +2368,7 @@ pub struct DwgFileDepListSummary {
     pub files: Vec<DwgFileDepFileInfo>,
 }
 
-/// The RevHistory section summary — gold's `RevHistory` shape (§19 H4).
+/// The RevHistory section summary â€” gold's `RevHistory` shape (Â§19 H4).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DwgRevHistorySummary {
@@ -2345,7 +2377,7 @@ pub struct DwgRevHistorySummary {
     pub histories: Vec<i32>,
 }
 
-/// The Security section summary — gold's `Security` shape (§19 H4).
+/// The Security section summary â€” gold's `Security` shape (Â§19 H4).
 /// All-zero constants on the unprotected corpus files; `encr_buffer`
 /// is the `encr_size` bytes as uppercase hex (empty when 0).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2362,12 +2394,12 @@ pub struct DwgSecuritySummary {
     pub encr_buffer: String,
 }
 
-/// The ObjFreeSpace section summary — gold's `ObjFreeSpace` shape
-/// (§19 H4). Two wire shapes: ≤R2007 (incl. R2000) reads `objects_address`
+/// The ObjFreeSpace section summary â€” gold's `ObjFreeSpace` shape
+/// (Â§19 H4). Two wire shapes: â‰¤R2007 (incl. R2000) reads `objects_address`
 /// and plain `max*` (the FIELD_CAST zero/numhandles read 4-byte wires
 /// into 64-bit stores); R2010+ reads 64-bit `zero`/`numhandles`, drops
 /// `objects_address`, and splits each max into a 128-bit lo/hi pair
-/// (`max32_hi` etc. — "num types are not 64 bit, but 128"). The Option
+/// (`max32_hi` etc. â€” "num types are not 64 bit, but 128"). The Option
 /// fields carry the version-family gates: `None` drops the leaf so the
 /// axis compares exactly the keys gold emits per family.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2393,10 +2425,10 @@ pub struct DwgObjFreeSpaceSummary {
     pub maxrl_hi: Option<u64>,
 }
 
-/// The AppInfo section summary — gold's `AppInfo` shape (§19 H4): the
+/// The AppInfo section summary â€” gold's `AppInfo` shape (Â§19 H4): the
 /// WHOLE section as `size` + `unknown_bits` hex, plus the parsed
 /// fields. Version-gated parse (appinfo.spec): R2004 reads
-/// appinfo_name/comment/product_info/version (no class_version — the
+/// appinfo_name/comment/product_info/version (no class_version â€” the
 /// decoder sets it to 2 internally, unprinted); R2007+ reads
 /// class_version RL + the 16-byte checksums before each string. The
 /// Option fields drop the R2004-absent leaves.
@@ -2419,8 +2451,8 @@ pub struct DwgAppInfoSummary {
     pub product_info: String,
 }
 
-/// The AppInfoHistory section summary — gold's `AppInfoHistory` shape
-/// (§19 H4): the whole section as `size` + `unknown_bits` hex — gold's
+/// The AppInfoHistory section summary â€” gold's `AppInfoHistory` shape
+/// (Â§19 H4): the whole section as `size` + `unknown_bits` hex â€” gold's
 /// spec include for it is commented out (never parsed).
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -2429,20 +2461,20 @@ pub struct DwgAppInfoHistorySummary {
     pub unknown_bits: String,
 }
 
-/// The DWG file-header summary — gold's `FILEHEADER` shape (§19 H2 of the
+/// The DWG file-header summary â€” gold's `FILEHEADER` shape (Â§19 H2 of the
 /// harness plan). Field names match gold's JSON exactly (except `codepage`,
 /// kept as one word per gold) so the structure axis projects 1:1. Retained
 /// from the reader's `DwgFileHeaderInfo`; `None` on DXF-sourced or
 /// default-constructed documents.
 ///
 /// Version-family gates: the R2004+ tail (`unknown_0` through
-/// `r2004_header_address`) only exists on R2004+ files — the reader leaves
+/// `r2004_header_address`) only exists on R2004+ files â€” the reader leaves
 /// it at 0 on earlier versions and gold does not emit those leaves; the
 /// structure-axis projection drops them by version instead of comparing.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DwgFileHeaderSummary {
-    /// The 6-byte version string ("AC1015", "AC1032", …)
+    /// The 6-byte version string ("AC1015", "AC1032", â€¦)
     pub version: String,
     pub maint_rel_version: u8,
     pub zero_one_or_three: u8,
@@ -2462,14 +2494,14 @@ pub struct DwgFileHeaderSummary {
     pub r2004_header_address: i32,
 }
 
-/// The `AcDs` data-store section outline (§19 H5a) — gold's
+/// The `AcDs` data-store section outline (Â§19 H5a) â€” gold's
 /// `json_section_acds` shape over the `AcDb:AcDsPrototype_1b` section:
 /// the 13 header fields, the segment-index table, and the per-type
 /// segment sub-blocks (datidx/schidx/schdat/search). REPEAT counts
-/// (`num_segidx`, `datidx.num_entries`, …) are suppressed in gold's
+/// (`num_segidx`, `datidx.num_entries`, â€¦) are suppressed in gold's
 /// JSON and all its consumers come from the arrays; vectors
 /// (`sortedidx`, the inner `ididx`) print even when empty. Segments keep
-/// one array slot per index entry — zero-offset slots render as gold's
+/// one array slot per index entry â€” zero-offset slots render as gold's
 /// empty `{}` records (all-`None` here). `None` when the section is
 /// absent (the R2000 family) or its header unreadable.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2511,7 +2543,7 @@ pub struct DwgAcDsSegIdxEntry {
 }
 
 /// One data-store segment header (48 bytes on the wire). A zero-offset
-/// index slot prints as gold's empty `{}` — every field `None` then.
+/// index slot prints as gold's empty `{}` â€” every field `None` then.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DwgAcDsSegment {
@@ -2755,15 +2787,15 @@ pub struct CadDocument {
     pub notifications: crate::notification::NotificationCollection,
 
     /// All entities in the document (contiguous storage for cache locality).
-    /// Each entity is behind an `Arc` so cloning the whole document — the undo
-    /// snapshot on every edit — is O(entities) atomic bumps that structurally
+    /// Each entity is behind an `Arc` so cloning the whole document â€” the undo
+    /// snapshot on every edit â€” is O(entities) atomic bumps that structurally
     /// share the geometry, not an O(entities) deep copy. A single-entity edit
     /// (`get_entity_mut`) copies just that one entity out of the shared Arc
     /// (`Arc::make_mut`), so the snapshot and the live doc diverge only where
     /// they actually differ.
     pub(crate) entities: Vec<Arc<EntityType>>,
 
-    /// Handle → index mapping for O(1) entity lookup by handle.
+    /// Handle â†’ index mapping for O(1) entity lookup by handle.
     pub(crate) entity_index: ahash::AHashMap<Handle, usize>,
 
     /// All objects in the document (indexed by handle)
@@ -2779,11 +2811,11 @@ pub struct CadDocument {
     /// Annotation-scale handle for each annotative object-context leaf (an
     /// `*OBJECTCONTEXTDATA` object). A *side* view: the leaves stay verbatim in
     /// `objects` as `ObjectType::Unknown` for DWG round-trip. Maps the context
-    /// object handle → its `AcDbScale` handle (in `ACAD_SCALELIST`), so a
+    /// object handle â†’ its `AcDbScale` handle (in `ACAD_SCALELIST`), so a
     /// consumer can resolve an annotative entity's applied annotation scale.
     pub context_scales: HashMap<Handle, Handle>,
 
-    /// AcDbBlockRepresentationData link: representation-object handle → the
+    /// AcDbBlockRepresentationData link: representation-object handle â†’ the
     /// dynamic block-definition handle it represents (group code 340). Lets a
     /// consumer connect an anonymous evaluated block to its dynamic definition
     /// (and thus to that definition's visibility parameter). Side view; the
@@ -2794,11 +2826,11 @@ pub struct CadDocument {
     /// FIELD objects stay verbatim in `objects` as `ObjectType::Unknown` for DWG
     /// round-trip, while this exposes the evaluator id and field-code string so
     /// a consumer can (re-)evaluate dynamic text fields without decoding the raw
-    /// object stream. The container→child link is recovered from each field's
+    /// object stream. The containerâ†’child link is recovered from each field's
     /// `owner` (a child field is owned by its container field).
     pub fields: HashMap<Handle, FieldDef>,
 
-    /// Document summary information (Author, Title, Subject, …) from the DWG
+    /// Document summary information (Author, Title, Subject, â€¦) from the DWG
     /// SummaryInfo section. Backs the Document-category dynamic-text fields.
     pub summary_info: SummaryInfo,
 
@@ -2815,26 +2847,26 @@ pub struct CadDocument {
     pub dgn_ls_definitions: HashMap<Handle, crate::objects::DgnLsDefinition>,
 
     /// DGN line-style components (`AcDbLS{Compound,StrokePattern,Point,Symbol}
-    /// Component`), keyed by handle — the nodes of a [`crate::objects::DgnLsDefinition`]'s
+    /// Component`), keyed by handle â€” the nodes of a [`crate::objects::DgnLsDefinition`]'s
     /// component tree. Read-side view; objects stay verbatim as `Unknown`.
     pub dgn_ls_components: HashMap<Handle, crate::objects::DgnLsComponent>,
 
-    /// Raw EED blobs per handle — populated during DWG read, consumed during DWG write.
+    /// Raw EED blobs per handle â€” populated during DWG read, consumed during DWG write.
     /// Keyed by the object/table-entry handle. Not serialized.
     pub(crate) eed_by_handle: HashMap<Handle, Vec<(u64, Vec<u8>)>>,
 
-    /// Non-entity object xdictionary handles — populated during DWG read, consumed during DWG write.
+    /// Non-entity object xdictionary handles â€” populated during DWG read, consumed during DWG write.
     pub(crate) xdic_by_handle: HashMap<Handle, Handle>,
 
-    /// Non-entity object reactors — populated during DWG read, consumed during DWG write.
+    /// Non-entity object reactors â€” populated during DWG read, consumed during DWG write.
     pub(crate) reactors_by_handle: HashMap<Handle, Vec<Handle>>,
 
     /// Authored ownerhandle wire forms `(code, size, value)`, keyed by the
-    /// record's own handle — the raw-retention twin of the resolved owner
+    /// record's own handle â€” the raw-retention twin of the resolved owner
     /// (TODO A1, 2026-10-01): the authored ownerhandle CODE choice is a
     /// writer-genus convention (the ODA FileConverter 2018 set always
     /// writes the absolute code-4 form where the AutoCAD genus writes the
-    /// relative-iff-shorter form §19 H8d picks, and a recomputed choice
+    /// relative-iff-shorter form Â§19 H8d picks, and a recomputed choice
     /// cannot reproduce both), so the writer replays the captured form
     /// verbatim (`write_handle_form`) whenever it resolves to the same
     /// owner. Populated during DWG read, consumed during DWG write.
@@ -2842,29 +2874,29 @@ pub struct CadDocument {
     pub(crate) owner_handle_form_by_handle: HashMap<Handle, (u8, u8, u64)>,
 
     /// Authored entity-color (ENC) wire forms, keyed by the entity's own
-    /// handle — the raw-retention twin of the collapsed `Color` +
-    /// `Transparency` pair (§19 H8h-ext-17): the R2004+ flags/index BS
+    /// handle â€” the raw-retention twin of the collapsed `Color` +
+    /// `Transparency` pair (Â§19 H8h-ext-17): the R2004+ flags/index BS
     /// carries an ACI slot the collapsed model cannot derive (HatchG's
-    /// authored slot 112 vs the nearest-ACI 110 — author data), so the
+    /// authored slot 112 vs the nearest-ACI 110 â€” author data), so the
     /// writer replays the captured words verbatim whenever they still
     /// decode to the entity's current color. Populated during DWG read,
     /// consumed during DWG write. Wire-only state: not serialized.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) entity_color_raw_by_handle: HashMap<Handle, DwgRawEnc>,
 
-    /// Per-record TV wire forms (§19 H8h-ext-17, the A1 capture pattern at
+    /// Per-record TV wire forms (Â§19 H8h-ext-17, the A1 capture pattern at
     /// the TV scale): `true` when the record's authored pre-R2007 TVs
-    /// count the string exactly (no trailing NUL — the PolyLine2D
+    /// count the string exactly (no trailing NUL â€” the PolyLine2D
     /// author's genus), `false`/absent when they count the terminator
-    /// (the AutoCAD genus, §19 H8h-ext-15 — the constructed/deserialized
+    /// (the AutoCAD genus, Â§19 H8h-ext-15 â€” the constructed/deserialized
     /// default). Populated from the reader's per-record vote majority at
     /// commit; the writer replays the form per record.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) tv_plain_form_by_handle: HashMap<Handle, bool>,
 
-    /// The EXACT authored close-pad bits `(len, pattern)` per record (§19
+    /// The EXACT authored close-pad bits `(len, pattern)` per record (Â§19
     /// H8h-ext-17): some authors leave arbitrary leftover pad bits
-    /// (entities-3d's records pad F1/E3/89) — no zeros/ones genus at
+    /// (entities-3d's records pad F1/E3/89) â€” no zeros/ones genus at
     /// all. Captured per record at DWG read; the writer replays the
     /// pattern verbatim at the record close, the A1 document-level
     /// `close_pad_zeros` vote stays the fallback for uncaptured records.
@@ -2874,12 +2906,12 @@ pub struct CadDocument {
     /// The EXACT handle-stream slack `(walk_end, len, pattern)` per
     /// record (the gh44-error LEADER census, 2026-10-04): the unparsed
     /// bit-group an author parks between the walked main tail and the
-    /// frame's flag position — her LEADER records pad 2 bits (10 on
+    /// frame's flag position â€” her LEADER records pad 2 bits (10 on
     /// 8774) before the flag, nibble-aligning the RL, where the packed
     /// emission wrote the flag immediately after the main bits and
     /// slipped every handle position and the CRC. The bits are
     /// per-record author data (five records pad `00`, 8774 parks
-    /// `0000100000` — not a zeros/ones genus); the writer replays the
+    /// `0000100000` â€” not a zeros/ones genus); the writer replays the
     /// pattern verbatim between the main
     /// bits and the text/flag region, and ONLY when its own main end
     /// matches the captured walk end (an under-reading walk must not
@@ -2890,14 +2922,14 @@ pub struct CadDocument {
     /// The record-close pad genus captured at read (the majority sample of
     /// the authored records' close pads, TODO A1 2026-10-01): `true` pads
     /// the merged stream's final partial byte with 0s (measured on the
-    /// ODA FileConverter 2018 set — her records end `0x00` where the
+    /// ODA FileConverter 2018 set â€” her records end `0x00` where the
     /// AutoCAD genus ends `0x1F`-tailed on otherwise identical bytes),
-    /// `false` pads with 1s (the AutoCAD genus, §19 H8d — and the default
+    /// `false` pads with 1s (the AutoCAD genus, Â§19 H8d â€” and the default
     /// for constructed and deserialized documents).
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) close_pad_zeros: bool,
 
-    /// Raw undecoded record remainders, keyed by handle — gold's
+    /// Raw undecoded record remainders, keyed by handle â€” gold's
     /// `HANDLE_UNKNOWN_BITS` window (LibreDWG decode.c `dwg_decode_unknown_bits`):
     /// the bits from the end of the common prologue (after type code, size
     /// placeholder, handle, EED and the common entity/object data) to the
@@ -2908,7 +2940,7 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(default))]
     pub unknown_bits_by_handle: HashMap<Handle, String>,
 
-    /// Original BLOCK_HEADER entity handles from the DWG binary — includes sub-entity handles
+    /// Original BLOCK_HEADER entity handles from the DWG binary â€” includes sub-entity handles
     /// (vertices, faces, SEQENDs). Keyed by BlockRecord handle. Used by the writer to produce
     /// correct owned_object_count without re-expanding from the document model.
     pub(crate) block_entity_handles: HashMap<Handle, Vec<Handle>>,
@@ -2920,58 +2952,58 @@ pub struct CadDocument {
     /// `None` when not loaded from DWG (new/DXF).
     pub dwg_source_version: Option<DxfVersion>,
 
-    /// The DWG file-header summary (§19 H2): gold's `FILEHEADER` shape,
+    /// The DWG file-header summary (Â§19 H2): gold's `FILEHEADER` shape,
     /// retained from the reader's `DwgFileHeaderInfo` for the structure
     /// axis. `None` on DXF-sourced or default documents.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_file_header: Option<DwgFileHeaderSummary>,
 
-    /// The gold-JSON-mirror of the AcDb:Header variables (§19 H3): one
+    /// The gold-JSON-mirror of the AcDb:Header variables (Â§19 H3): one
     /// field per key of gold's HEADER JSON, retained verbatim by the DWG
     /// header reader. `None` on DXF-sourced or default documents (the
     /// `header` field above remains the modeled API surface).
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_header_raw: Option<DwgHeaderRaw>,
 
-    /// The R2004-format system-section summary (§19 H2): gold's
+    /// The R2004-format system-section summary (Â§19 H2): gold's
     /// `R2004_Header` shape, unmasked from the 120-byte encrypted block.
     /// `None` on R2007 files (the separate R2007_Header shape) and
     /// non-R2004 formats.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_r2004_header: Option<DwgR2004SystemHeader>,
 
-    /// The R2007-format system-section summary (§19 H2): gold's
+    /// The R2007-format system-section summary (Â§19 H2): gold's
     /// `R2007_Header` shape, projected from the container reader's
     /// `Dwg21CompressedMetadata`. `None` on every non-AC1021 format.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_r2007_header: Option<DwgR2007SystemHeader>,
 
-    /// The R13–R2000 SecondHeader summary (§19 H2): gold's
+    /// The R13â€“R2000 SecondHeader summary (Â§19 H2): gold's
     /// `SecondHeader` shape, from the sentinel-located second header.
-    /// `None` on R2004+ files (gold emits it R13–R2000 only).
+    /// `None` on R2004+ files (gold emits it R13â€“R2000 only).
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_second_header: Option<DwgSecondHeaderSummary>,
 
-    /// The R13c3+ AuxHeader summary (§19 H2): gold's `AuxHeader` shape
+    /// The R13c3+ AuxHeader summary (Â§19 H2): gold's `AuxHeader` shape
     /// (the R2000 emission), read at the section locator when the
     /// FILEHEADER carries 6 section records.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_aux_header: Option<DwgAuxHeaderSummary>,
 
-    /// The R2004-family container shape (§19 H7g): the author's page
+    /// The R2004-family container shape (Â§19 H7g): the author's page
     /// space (per-descriptor page boundaries, ids, physical order and
     /// the box-page identity), re-emitted on a same-version roundtrip
     /// when the write-time content-parity gate passes. Internal only.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) dwg_ac18_shape: Option<DwgAc18ContainerShape>,
-    /// The §19 H8 AC21 container shape: the AC1021 author's page
+    /// The Â§19 H8 AC21 container shape: the AC1021 author's page
     /// space (pages-map physical order + per-section page plans),
     /// re-emitted on a same-version roundtrip when the H8
     /// write-time content-parity gate passes. Internal only.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) dwg_ac21_shape: Option<DwgAc21ContainerShape>,
 
-    // ── The §19 H4 metadata-block summaries (gold-JSON-shaped) ──
+    // â”€â”€ The Â§19 H4 metadata-block summaries (gold-JSON-shaped) â”€â”€
     /// `Template` (all versions): description + MEASUREMENT.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_template: Option<DwgTemplateSummary>,
@@ -2993,8 +3025,8 @@ pub struct CadDocument {
     /// `AppInfoHistory` (R2004+): the raw section (never parsed by gold).
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_app_info_history: Option<DwgAppInfoHistorySummary>,
-    /// `AcDs` (R2004+): the data-store section outline — gold's
-    /// `AcDs` JSON shape (§19 H5a). `None` on the R2000 family and
+    /// `AcDs` (R2004+): the data-store section outline â€” gold's
+    /// `AcDs` JSON shape (Â§19 H5a). `None` on the R2000 family and
     /// DXF documents.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub dwg_acds: Option<DwgAcDsSummary>,
@@ -3007,7 +3039,7 @@ pub struct CadDocument {
     /// Modeler-entity handles (3DSOLID/REGION/BODY/SURFACE) whose geometry is
     /// stored as SAB blobs in the `AcDb:AcDsPrototype_1b` data-store section,
     /// in object-stream (file-offset) order. Populated by the DWG reader so the
-    /// blob→entity attach step pairs each SAB blob with the correct entity
+    /// blobâ†’entity attach step pairs each SAB blob with the correct entity
     /// regardless of the document's handle-sorted entity order. Transient DWG
     /// read artifact; empty for new/DXF documents.
     pub(crate) acis_sab_handles: Vec<Handle>,
@@ -3024,12 +3056,12 @@ pub struct CadDocument {
     pub(crate) raw_acds_fingerprint: Vec<(u64, usize, u64)>,
 
     /// The raw (decompressed) `AcDb:Classes` section bytes of the source
-    /// file (§19 H7 CLASSES row): re-emitted verbatim on a same-version
+    /// file (Â§19 H7 CLASSES row): re-emitted verbatim on a same-version
     /// roundtrip when the class table and the per-class object census are
     /// unchanged. The authored tables whose tail encoding desyncs gold's
     /// walk (the AutoCAD-2027.1 fixture set) can only round-trip gold's
-    /// garbage byte-exactly — any re-encoding desyncs the walk
-    /// differently — and the verbatim bytes also carry the author's
+    /// garbage byte-exactly â€” any re-encoding desyncs the walk
+    /// differently â€” and the verbatim bytes also carry the author's
     /// `num_instances`/zombie flags for classes whose instances re-emit
     /// through the raw-object passthrough (outside the write census).
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -3042,24 +3074,24 @@ pub struct CadDocument {
     pub(crate) raw_classes_fingerprint: u64,
 
     /// The raw (decompressed) `AcDb:AppInfo` section bytes of the source
-    /// file (§19 H7 AppInfo row): re-emitted verbatim on a same-version
+    /// file (Â§19 H7 AppInfo row): re-emitted verbatim on a same-version
     /// roundtrip. Gold prints the section unconditionally (zeroed when
     /// absent), so a source without one must not get the boilerplate
-    /// section materialized — the writer skips it then.
+    /// section materialized â€” the writer skips it then.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_app_info_data: Option<Arc<Vec<u8>>>,
 
-    /// The raw `AcDb:AppInfoHistory` section bytes (§19 H7): the section
-    /// was never written before this row — same verbatim/skip rule as
+    /// The raw `AcDb:AppInfoHistory` section bytes (Â§19 H7): the section
+    /// was never written before this row â€” same verbatim/skip rule as
     /// AppInfo.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_app_info_history_data: Option<Arc<Vec<u8>>>,
 
-    /// The raw `AcDb:ObjFreeSpace` section bytes (§19 H7e): re-emitted
+    /// The raw `AcDb:ObjFreeSpace` section bytes (Â§19 H7e): re-emitted
     /// verbatim on a same-version roundtrip. The content is authored
-    /// file state, not derived data — the author's numhandles (including
+    /// file state, not derived data â€” the author's numhandles (including
     /// the R2007+ 0xFFFF0000 pattern words), TDUPDATE, the R2000
-    /// objects_address, and the max constants — and gold's R2000 reader
+    /// objects_address, and the max constants â€” and gold's R2000 reader
     /// only accepts the section at the file position directly after the
     /// handles map (decode.c: `section[OBJFREESPACE].address == pvz`), so
     /// any rebuilt content is both value-divergent and, on R2000,
@@ -3069,39 +3101,39 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_obj_free_space_data: Option<Arc<Vec<u8>>>,
 
-    /// The raw (decompressed) `AcDb:XrefManifest` section bytes (§19
-    /// H7g): the R2013+ external-reference table — authored file
+    /// The raw (decompressed) `AcDb:XrefManifest` section bytes (Â§19
+    /// H7g): the R2013+ external-reference table â€” authored file
     /// state, not modeled in the document and not JSON-printed by
     /// gold. Re-emitted verbatim on a same-version roundtrip so the
     /// container mirror can reproduce the author's page space (the
-    /// section owns a data page in the fixtures that carry it —
+    /// section owns a data page in the fixtures that carry it â€”
     /// Box_2013/Revolve_2018); a source without the section writes
     /// none, and conversions never materialize one.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_xref_manifest_data: Option<Arc<Vec<u8>>>,
 
     /// The author's reconstructed `AcDb:AcDbObjects` section stream (the
-    /// decompressed pages concatenated — §19 H8d, the H8a-retention
+    /// decompressed pages concatenated â€” Â§19 H8d, the H8a-retention
     /// pattern): the mirror arm's raw-echo source. Her physical layout
-    /// is her editor's incremental-save allocation history — unmodelable
-    /// by rule — and the mirror's own doctrine for unmodelable authored
+    /// is her editor's incremental-save allocation history â€” unmodelable
+    /// by rule â€” and the mirror's own doctrine for unmodelable authored
     /// state is echo: the section re-emits her raw bytes verbatim, our
     /// own emission stays the conventional arm's.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acdb_objects_data: Option<Arc<Vec<u8>>>,
 
     /// The author's handle map for the echoed objects section above
-    /// (handle → offset in that stream, sorted): the echoed raw needs
+    /// (handle â†’ offset in that stream, sorted): the echoed raw needs
     /// her record addresses, not our compact emission's offsets.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acdb_objects_handles: Option<Arc<Vec<(u64, i64)>>>,
 
     /// The read-time document-state hash guarding every whole-file
-    /// echo (§19 H8g — the objects-stream echo, the AC21
+    /// echo (Â§19 H8g â€” the objects-stream echo, the AC21
     /// compressed-page echo, the R2000 and AC18-family whole-file
-    /// echoes): `io::dwg::document_state_fingerprint` — the sorted
+    /// echoes): `io::dwg::document_state_fingerprint` â€” the sorted
     /// per-part hash of the semantic inventory's visit plus the table
-    /// control handles and the retained metadata models — captured at
+    /// control handles and the retained metadata models â€” captured at
     /// the END of the read (after every section has loaded). The echo
     /// arms engage only when the same hash holds at the write gate:
     /// ANY edit, including in-place field edits (the issue-80 layer
@@ -3109,7 +3141,7 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) dwg_state_fingerprint: u64,
 
-    /// §19 H8e-2: the author's whole on-disk file — her bytes from 0
+    /// Â§19 H8e-2: the author's whole on-disk file â€” her bytes from 0
     /// to EOF as one blob: the 0x80 metadata block (identity bytes +
     /// addresses + her unknown-region tail), the 0x400 file-header
     /// page with her check data and MT-derive draws, every page of her
@@ -3117,7 +3149,7 @@ pub struct CadDocument {
     /// exactly as it sits in the file, RS coding included) and her
     /// trailing header2 copy. The compressed-page echo re-emits this
     /// verbatim when the combined identity gate holds (the document
-    /// universe + the classes fingerprint — the same doctrine as the
+    /// universe + the classes fingerprint â€” the same doctrine as the
     /// objects echo, extended to the whole container: her encoder's
     /// exact output is unmodelable by rule, the H8c refutation), so a
     /// same-version roundtrip of an unedited document reproduces her
@@ -3137,7 +3169,7 @@ pub struct CadDocument {
     pub(crate) dwg_data_store_handles: HashSet<Handle>,
 
     /// Gold `DIMSTYLE_CONTROL.morehandles` (dwg.spec 4177: `FIELD_RCu
-    /// (num_morehandles, 71)` SINCE R_2000b — a raw byte — then
+    /// (num_morehandles, 71)` SINCE R_2000b â€” a raw byte â€” then
     /// `HANDLE_VECTOR (morehandles, num_morehandles, 5, 340)`,
     /// "additional hard handles, undocumented"). Captured verbatim by the
     /// pass-1 reader and echoed by the DWG writer so both harness fidelity
@@ -3145,14 +3177,14 @@ pub struct CadDocument {
     #[cfg_attr(feature = "serde", serde(default))]
     pub dimstyle_morehandles: Vec<Handle>,
 
-    /// Authored table-control entry slots (§19 H8h-extension): the
+    /// Authored table-control entry slots (Â§19 H8h-extension): the
     /// entries vectors of the BLOCK/LTYPE/DIMSTYLE controls, captured
-    /// verbatim from the source DWG — the author's order plus any null
+    /// verbatim from the source DWG â€” the author's order plus any null
     /// deleted-slot tails (gold dwg.spec `entries` HANDLE_VECTOR; the
     /// H8h-extension survey showed the AutoCAD authors leave trailing
     /// `(2.0.0)` slots that re-derivation from the live table cannot
     /// know). Keyed by the control object's handle. The DWG writers echo
-    /// a captured vector only under a same-universe gate — its non-null
+    /// a captured vector only under a same-universe gate â€” its non-null
     /// set must equal the current table's handles, so a table edited
     /// after the read falls back to the model iteration. Wire-only
     /// state: not serialized, excluded from the semantic inventory.
@@ -3161,7 +3193,7 @@ pub struct CadDocument {
         std::collections::BTreeMap<Handle, Vec<Handle>>,
 
     /// Section-view style (`AcDbSectionViewStyle`) display fields, decoded from
-    /// the DWG for rendering section marks (arrow size, label height, …). A file
+    /// the DWG for rendering section marks (arrow size, label height, â€¦). A file
     /// normally has one; the first decoded is kept. `None` for new/DXF documents
     /// or files without section views.
     pub section_view_style: Option<crate::entities::SectionViewStyle>,
@@ -3169,13 +3201,13 @@ pub struct CadDocument {
     /// Model-documentation drawing-view graph, decoded from the DWG so section
     /// marks can derive their true viewing direction. Empty for new/DXF files.
     ///
-    /// `AcDbViewRep` handle → its object-specific handle references (they
+    /// `AcDbViewRep` handle â†’ its object-specific handle references (they
     /// include the view's `AcDbViewBorder` entity, its template viewport, its
-    /// block reference, and — for the parent of a section — the section
+    /// block reference, and â€” for the parent of a section â€” the section
     /// symbol).
     pub view_rep_refs: std::collections::HashMap<Handle, Vec<Handle>>,
 
-    /// `AcDbViewRep` handles that own an `AcDbViewRepSectionDefinition` —
+    /// `AcDbViewRep` handles that own an `AcDbViewRepSectionDefinition` â€”
     /// i.e. the section (result) views.
     pub section_view_reps: Vec<Handle>,
 
@@ -3545,7 +3577,7 @@ impl CadDocument {
         // object writer uses the same handles the header section references.
         // Without this, Table<T>.handle() returns Handle::NULL and every
         // table control is written with handle 0, not registered in the
-        // handle map, and unreachable by readers → "invalid data" for all objects.
+        // handle map, and unreachable by readers â†’ "invalid data" for all objects.
         self.block_records
             .set_handle(self.header.block_control_handle);
         self.layers.set_handle(self.header.layer_control_handle);
@@ -3648,7 +3680,7 @@ impl CadDocument {
         active_vport.set_handle(self.allocate_handle());
         self.vports.add(active_vport).ok();
 
-        // ── Standard dictionary objects (required for DWG format) ────
+        // â”€â”€ Standard dictionary objects (required for DWG format) â”€â”€â”€â”€
         // Allocate handles for core dictionaries
         self.header.acad_group_dict_handle = self.allocate_handle();
         self.header.acad_mlinestyle_dict_handle = self.allocate_handle();
@@ -3997,7 +4029,7 @@ impl CadDocument {
             return;
         }
         use crate::classes::{DxfClass, ProxyFlags};
-        // Erase | Cloning | DisablesProxyWarningDialog — the flags real files
+        // Erase | Cloning | DisablesProxyWarningDialog â€” the flags real files
         // carry on these proxy classes.
         let proxy_flags = ProxyFlags(
             ProxyFlags::ERASE_ALLOWED.0
@@ -4028,13 +4060,13 @@ impl CadDocument {
         // bumping `next_handle`, but it does fix `header.handle_seed` up to the
         // true max+1. Respect that as a floor so a post-load add (a new
         // linetype, a drawn entity) never re-issues a higher-handled existing
-        // object's handle — which silently overwrites it and corrupts the file.
+        // object's handle â€” which silently overwrites it and corrupts the file.
         if self.header.handle_seed > self.next_handle {
             self.next_handle = self.header.handle_seed;
         }
         let handle = Handle::new(self.next_handle);
         self.next_handle += 1;
-        // Keep HANDSEED in sync — DWG header requires this to be ≥ next_handle
+        // Keep HANDSEED in sync â€” DWG header requires this to be â‰¥ next_handle
         self.header.handle_seed = self.next_handle;
         handle
     }
@@ -4466,6 +4498,285 @@ impl CadDocument {
         reversed.reverse();
         Some(reversed)
     }
+
+
+    /// The active history as it evaluates, operands under the operation that
+    /// combines them. A boolean step has both solids it joined as operands.
+    pub fn solid_history_tree(&self, entity: Handle) -> Option<SolidHistoryTree> {
+        let graph = self.solid_history_graph(entity)?;
+        let evaluation = graph.evaluation_graph.and_then(|handle| match self.objects.get(&handle) {
+            Some(ObjectType::DynamicBlock(value)) => match &value.data {
+                DynamicBlockData::EvaluationGraph(evaluation) => Some(evaluation),
+                _ => None,
+            },
+            _ => None,
+        });
+        let Some(evaluation) = evaluation else {
+            // A parent-linked history is a chain: each step over the last.
+            let mut chain = self.solid_history_operations(entity)?.into_iter();
+            let mut tree = SolidHistoryTree {
+                operation: chain.next()?,
+                operands: Vec::new(),
+            };
+            for operation in chain {
+                tree = SolidHistoryTree {
+                    operation,
+                    operands: vec![tree],
+                };
+            }
+            return Some(tree);
+        };
+        let active = self.solid_history_active_node(&graph)?;
+        let index = evaluation
+            .nodes
+            .iter()
+            .position(|node| node.expression == active)?;
+        self.solid_history_subtree(evaluation, index, &mut Vec::new())
+    }
+
+    /// The node at `index` over the sources of its incoming edges, which run
+    /// from the node's first incoming edge through each edge's next one.
+    fn solid_history_subtree(
+        &self,
+        evaluation: &BlockEvaluationGraph,
+        index: usize,
+        path: &mut Vec<usize>,
+    ) -> Option<SolidHistoryTree> {
+        if path.contains(&index) {
+            return None;
+        }
+        path.push(index);
+        let node = evaluation.nodes.get(index)?;
+        let mut operands = Vec::new();
+        let mut edge_id = node.node_data[0];
+        while edge_id >= 0 {
+            if operands.len() > evaluation.edges.len() {
+                return None;
+            }
+            let edge = evaluation.edges.iter().find(|edge| edge.id == edge_id)?;
+            let source = evaluation
+                .nodes
+                .iter()
+                .position(|node| node.id == edge.source_node)?;
+            operands.push(self.solid_history_subtree(evaluation, source, path)?);
+            edge_id = edge.outgoing_edges[1];
+        }
+        path.pop();
+        let operation = self.solid_history_node_operation(node.expression)?.clone();
+        // The boolean names its first operand; edge order is only a fallback.
+        if let SolidHistoryOperation::Boolean(value) = &operation {
+            if operands.len() == 2
+                && operands[1]
+                    .operation
+                    .base()
+                    .is_some_and(|base| base.node_id() == value.first_operand)
+            {
+                operands.swap(0, 1);
+            }
+        }
+        Some(SolidHistoryTree {
+            operation,
+            operands,
+        })
+    }
+
+    /// Join `tool`'s history into `target`'s under a boolean step whose first
+    /// operand is `target`'s result and second `tool`'s; the boolean becomes
+    /// `target`'s active result and `tool` is left without a history.
+    ///
+    /// `operation` is a [`SolidHistoryBoolean`] code. The tool's nodes keep
+    /// their handles and move to the target's evaluation graph, renumbered
+    /// past the target's own.
+    pub fn merge_solid_history_boolean(
+        &mut self,
+        target: Handle,
+        tool: Handle,
+        operation: u8,
+    ) -> Option<SolidHistoryGraph> {
+        if target == tool {
+            return None;
+        }
+        let target_graph = self.ensure_solid_history_evaluation_graph(target)?;
+        let tool_graph = self.ensure_solid_history_evaluation_graph(tool)?;
+        let target_evaluation = target_graph.evaluation_graph?;
+        let tool_evaluation = tool_graph.evaluation_graph?;
+        let target_active = self.solid_history_active_node(&target_graph)?;
+        let tool_active = self.solid_history_active_node(&tool_graph)?;
+        let evaluation_data = |document: &Self, handle: Handle| match document.objects.get(&handle) {
+            Some(ObjectType::DynamicBlock(value)) => match &value.data {
+                DynamicBlockData::EvaluationGraph(evaluation) => Some(evaluation.clone()),
+                _ => None,
+            },
+            _ => None,
+        };
+        let mut merged = evaluation_data(self, target_evaluation)?;
+        let tool_data = evaluation_data(self, tool_evaluation)?;
+        // An active node is the latest result and so has no outgoing edge.
+        let latest = |data: &BlockEvaluationGraph, expression: Handle| {
+            data.nodes
+                .iter()
+                .find(|node| node.expression == expression)
+                .is_some_and(|node| node.node_data[2] < 0)
+        };
+        if !latest(&merged, target_active) || !latest(&tool_data, tool_active) {
+            return None;
+        }
+
+        let target_bases = target_graph
+            .nodes
+            .iter()
+            .filter_map(|handle| self.solid_history_node_operation(*handle)?.base())
+            .collect::<Vec<_>>();
+        // One offset for node and step ids keeps a node whose two ids agree
+        // in agreement: the history root names its active node by either.
+        let offset = target_bases
+            .iter()
+            .flat_map(|base| [base.step_id.max(0), base.eval.node_id.max(0)])
+            .max()?;
+        let graph_offset = merged.nodes.iter().map(|node| node.id).max()? + 1;
+        let edge_offset = merged.edges.iter().map(|edge| edge.id).max().map_or(0, |id| id + 1);
+        let shift = |value: i32, by: i32| if value >= 0 { value + by } else { value };
+
+        for mut node in tool_data.nodes {
+            node.id += graph_offset;
+            node.next_id += graph_offset;
+            node.node_data = node.node_data.map(|value| shift(value, edge_offset));
+            merged.nodes.push(node);
+        }
+        for mut edge in tool_data.edges {
+            edge.id += edge_offset;
+            edge.source_node += graph_offset;
+            edge.destination_node += graph_offset;
+            edge.outgoing_edges = edge.outgoing_edges.map(|value| shift(value, edge_offset));
+            merged.edges.push(edge);
+        }
+        let mut tool_active_id = None;
+        let mut highest = offset;
+        for handle in &tool_graph.nodes {
+            let ObjectType::DynamicBlock(value) = self.objects.get_mut(handle)? else {
+                return None;
+            };
+            value.owner = target_evaluation;
+            let DynamicBlockData::SolidHistoryNode(node) = &mut value.data else {
+                return None;
+            };
+            if let SolidHistoryOperation::Boolean(value) = node {
+                value.first_operand = shift(value.first_operand, offset);
+                value.second_operand = shift(value.second_operand, offset);
+            }
+            let base = node.base_mut()?;
+            if base.eval.node_id > 0 {
+                base.eval.node_id += offset;
+            }
+            if base.step_id > 0 {
+                base.step_id += offset;
+            }
+            highest = highest.max(base.step_id).max(base.eval.node_id);
+            if *handle == tool_active {
+                tool_active_id = Some(base.node_id());
+            }
+        }
+        let target_active_id = self
+            .solid_history_node_operation(target_active)?
+            .base()?
+            .node_id();
+
+        let id = merged.nodes.iter().map(|node| node.id).max()? + 1;
+        let first_edge = merged.edges.iter().map(|edge| edge.id).max().map_or(0, |id| id + 1);
+        let second_edge = first_edge + 1;
+        for (expression, edge) in [(target_active, first_edge), (tool_active, second_edge)] {
+            let node = merged
+                .nodes
+                .iter_mut()
+                .find(|node| node.expression == expression)?;
+            node.node_data[2] = edge;
+            node.node_data[3] = edge;
+            let source = node.id;
+            let mut link = Self::solid_history_edge(edge, source, id);
+            if edge == first_edge {
+                link.outgoing_edges[1] = second_edge;
+            } else {
+                link.outgoing_edges[0] = first_edge;
+            }
+            merged.edges.push(link);
+        }
+        let boolean = self.allocate_handle();
+        merged.nodes.push(BlockEvaluationNode {
+            id,
+            edge_flags: SOLID_HISTORY_NODE_FLAGS,
+            next_id: id + 1,
+            expression: boolean,
+            node_data: [first_edge, second_edge, -1, -1],
+            active_cycles: None,
+        });
+        merged.first_node_id = id + 1;
+        merged.first_node_id_copy = id + 1;
+
+        let boolean_id = highest + 1;
+        let base = SolidHistoryNodeBase::new(boolean_id);
+        let step = SolidHistoryOperation::Boolean(SolidHistoryBoolean {
+            base,
+            operation_major: 1,
+            operation,
+            first_operand: target_active_id,
+            second_operand: tool_active_id?,
+            ..SolidHistoryBoolean::default()
+        });
+        let (dxf_name, cpp_class_name) = step.class_names()?;
+        if !self.classes.contains(dxf_name) {
+            self.classes
+                .add_or_update(crate::classes::DxfClass::new(dxf_name, cpp_class_name));
+        }
+        let mut node_object = DynamicBlockObject::new(dxf_name, cpp_class_name);
+        node_object.handle = boolean;
+        node_object.owner = target_evaluation;
+        node_object.data = DynamicBlockData::SolidHistoryNode(step);
+        self.objects
+            .insert(boolean, ObjectType::DynamicBlock(node_object));
+        if let Some(ObjectType::DynamicBlock(value)) = self.objects.get_mut(&target_evaluation) {
+            value.data = DynamicBlockData::EvaluationGraph(merged);
+        }
+        if let Some(ObjectType::DynamicBlock(value)) = self.objects.get_mut(&target_graph.root) {
+            if let DynamicBlockData::SolidHistory(history) = &mut value.data {
+                history.history_node_id = boolean_id;
+            }
+        }
+        self.objects.remove(&tool_graph.root);
+        self.objects.remove(&tool_evaluation);
+        self.set_entity_history_handle(tool, None);
+        self.solid_history_graph(target)
+    }
+
+    /// Copy the native source-definition tag of an evaluated anonymous block.
+    /// Nonempty extension dictionaries need a full object-graph clone and are
+    /// deliberately rejected here rather than shared between block records.
+    pub fn copy_evaluated_block_metadata(&mut self, source: Handle, target: Handle) -> Result<()> {
+        for handle in [source, target] {
+            if !self.block_records.iter().any(|b| b.handle == handle && b.name.starts_with("*U")) {
+                return Err("Expected an evaluated anonymous block record".into());
+            }
+        }
+        let dictionary = if let Some(handle) = self.extension_dictionary_handle(source) {
+            match self.objects.get(&handle) {
+                Some(ObjectType::Dictionary(d)) if d.entries.is_empty() && d.xdictionary_handle.is_none() => Some(d.clone()),
+                _ => return Err("Evaluated block has additional object relationships".into()),
+            }
+        } else { None };
+        if let Some(data) = self.eed_by_handle.get(&source).cloned() {
+            self.eed_by_handle.insert(target, data);
+        }
+        if let Some(mut dictionary) = dictionary {
+            let handle = self.allocate_handle();
+            dictionary.handle = handle;
+            dictionary.owner = target;
+            dictionary.reactors.clear();
+            self.objects.insert(handle, ObjectType::Dictionary(dictionary));
+            self.xdic_by_handle.insert(target, handle);
+        }
+        Ok(())
+    }
+
+
 
     pub fn create_solid_history(
         &mut self,
@@ -4916,8 +5227,8 @@ impl CadDocument {
         };
         self.record_entity_before(handle, None);
 
-        // Default an unowned entity to model space — or paper space when it
-        // carries the paper-space flag (R12 code 67 → entity_mode 1). Without
+        // Default an unowned entity to model space â€” or paper space when it
+        // carries the paper-space flag (R12 code 67 â†’ entity_mode 1). Without
         // the paper-space branch, R12 paper-space entities (layout viewports,
         // etc.) fall into model space.
         let ms_handle = self.header.model_space_block_handle;
@@ -5130,7 +5441,7 @@ impl CadDocument {
     ///
     /// # Example
     /// ```ignore
-    /// use acadrust::entities::{Viewport, EntityType};
+    /// use opencadcodec::entities::{Viewport, EntityType};
     ///
     /// let vp = Viewport::new();
     /// document.add_entity_to_layout(EntityType::Viewport(vp), "Layout1")?;
@@ -5302,7 +5613,7 @@ impl CadDocument {
         }
 
         // Determine the next *Paper_Space block name.
-        // AutoCAD uses: *Paper_Space, *Paper_Space0, *Paper_Space1, …
+        // AutoCAD uses: *Paper_Space, *Paper_Space0, *Paper_Space1, â€¦
         let ps_count = self
             .block_records
             .iter()
@@ -5329,7 +5640,7 @@ impl CadDocument {
         layout.tab_order = ps_count as i16 + 1;
         layout.block_record = br_handle;
 
-        // Link block record → layout
+        // Link block record â†’ layout
         block_record.layout = layout_handle;
         self.block_records
             .add(block_record)
@@ -5371,7 +5682,7 @@ impl CadDocument {
 
     /// Get the number of entities.
     ///
-    /// Structural BLOCK/ENDBLK markers are not counted — they delimit block
+    /// Structural BLOCK/ENDBLK markers are not counted â€” they delimit block
     /// definitions and are emitted from block records, not the entity list.
     pub fn entity_count(&self) -> usize {
         self.entities().count()
@@ -5413,7 +5724,7 @@ impl CadDocument {
     /// Iterate over the entities belonging to a named block record.
     ///
     /// This is the set of entities a CAD application associates with that
-    /// block — for `*Model_Space` (and the `*Paper_Space*` layout records)
+    /// block â€” for `*Model_Space` (and the `*Paper_Space*` layout records)
     /// this is what gets drawn; for regular block names it is the geometry of
     /// the block *definition*, which is only rendered when the block is
     /// INSERTed (issue #52).
@@ -5425,7 +5736,7 @@ impl CadDocument {
             .filter_map(|handle| self.get_entity(*handle))
     }
 
-    /// Iterate over the model-space entities — the primary drawable set.
+    /// Iterate over the model-space entities â€” the primary drawable set.
     ///
     /// Equivalent to [`entities_in_block`](Self::entities_in_block) for
     /// `*Model_Space`. Block-definition geometry and paper-space entities are
@@ -5941,7 +6252,7 @@ impl CadDocument {
     ///
     /// Tables key entries by the normalized name captured at insertion.
     /// Assigning `layer.name` directly leaves the entry reachable only under
-    /// its old name, and every later name lookup misses — the DWG writer then
+    /// its old name, and every later name lookup misses â€” the DWG writer then
     /// emits a NULL layer hard pointer for entities on that layer, leaving an
     /// invalid drawing (issue #80). The DWG and
     /// DXF writers call this on their output copy; call it directly after an
@@ -6165,7 +6476,7 @@ impl CadDocument {
             }
         }
 
-        // Check table entries — without this, object handle remapping in
+        // Check table entries â€” without this, object handle remapping in
         // section 1d can assign handles that collide with table entry handles.
         macro_rules! scan_table {
             ($tbl:expr) => {
@@ -6350,7 +6661,7 @@ impl CadDocument {
         // Snapshot the handles used by NON-object records. Object keys are
         // unique in `self.objects`, so an object can only truly collide with a
         // record of a different kind (entity, table entry, block record). The
-        // object-collision pass (1d) must decide against THIS set — using the
+        // object-collision pass (1d) must decide against THIS set â€” using the
         // full `used_handles` (which also contains every object handle, added
         // just below) makes the check trivially true and remaps every object,
         // orphaning entity->object links like Underlay/RasterImage definitions.
@@ -7111,7 +7422,7 @@ impl CadDocument {
             })
             .collect();
 
-        // Block record entities — set owner handle on entities looked up from
+        // Block record entities â€” set owner handle on entities looked up from
         // the entity map. This MUST run before the model-space default below:
         // an R12 DXF carries no per-entity owner (code 330), so block content
         // starts null-owner; if the model-space default claimed it first, block
@@ -7138,7 +7449,7 @@ impl CadDocument {
 
         // Default owner for anything still unowned after block assignment:
         // paper space when the entity carried the R12 paper-space flag
-        // (code 67 → entity_mode 1), model space otherwise.
+        // (code 67 â†’ entity_mode 1), model space otherwise.
         for entity in self.entities.iter_mut() {
             let entity = Arc::make_mut(entity);
             let common = match entity {
@@ -7148,7 +7459,7 @@ impl CadDocument {
                 }
                 _ => {
                     // For all other entity types, use as_entity_mut().set_handle pattern
-                    // but we need &mut EntityCommon directly — use a helper
+                    // but we need &mut EntityCommon directly â€” use a helper
                     get_common_mut(entity)
                 }
             };
@@ -7168,7 +7479,7 @@ impl CadDocument {
             });
         }
 
-        // Paper-space entities — if an entity's owner is the paper space block,
+        // Paper-space entities â€” if an entity's owner is the paper space block,
         // the entity is already correctly assigned by the reader.
         // We just skip further assignment here.
 

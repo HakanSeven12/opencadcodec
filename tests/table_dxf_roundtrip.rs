@@ -1,4 +1,4 @@
-//! Synthetic DXF round-trip for ACAD_TABLE cell content (fixture-independent).
+﻿//! Synthetic DXF round-trip for ACAD_TABLE cell content (fixture-independent).
 //!
 //! Builds a small table with text cells, column widths and row heights, writes
 //! it to DXF and reads it back, asserting the structure and every cell's text
@@ -7,9 +7,9 @@
 
 use std::io::Cursor;
 
-use acadrust::entities::{EntityType, Table, TableCell};
-use acadrust::types::{DxfVersion, Vector3};
-use acadrust::{CadDocument, DxfReader, DxfWriter};
+use opencadcodec::entities::{EntityType, Table, TableCell};
+use opencadcodec::types::{DxfVersion, Vector3};
+use opencadcodec::{CadDocument, DxfReader, DxfWriter};
 
 #[test]
 fn table_cell_content_dxf_roundtrip() {
@@ -27,7 +27,7 @@ fn table_cell_content_dxf_roundtrip() {
     table.rows[1].cells[2] = TableCell::text("2.50");
 
     let mut doc = CadDocument::with_version(DxfVersion::AC1032);
-    doc.add_entity(EntityType::Table(table)).unwrap();
+    doc.add_entity(EntityType::Table(Box::new(table))).unwrap();
 
     let bytes = DxfWriter::new(&doc).write_to_vec().expect("DXF write");
     let rt = DxfReader::from_reader(Cursor::new(bytes))

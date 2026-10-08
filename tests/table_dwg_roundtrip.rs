@@ -1,18 +1,18 @@
-//! Synthetic DWG round-trip for ACAD_TABLE (fixture-independent).
+﻿//! Synthetic DWG round-trip for ACAD_TABLE (fixture-independent).
 //!
 //! Writes a table with text cells, column widths and row heights, reads it
-//! back, and checks the structure and every cell's text survive — at both a
+//! back, and checks the structure and every cell's text survive â€” at both a
 //! pre-R2010 version (flat format) and an R2010+ version (inline table
 //! content), exercising both writer and reader paths.
 
 use std::io::Cursor;
 
-use acadrust::entities::{EntityType, Table, TableCell};
-use acadrust::objects::{
+use opencadcodec::entities::{EntityType, Table, TableCell};
+use opencadcodec::objects::{
     CellStyleMap, DataObject, DataObjectData, NamedTableCellStyle, ObjectType, TableCellStyleData,
 };
-use acadrust::types::{DxfVersion, Handle, Vector3};
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::types::{DxfVersion, Handle, Vector3};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 
 fn sample_table() -> Table {
     let mut t = Table::new(Vector3::new(1.0, 2.0, 0.0), 2, 3);
@@ -32,13 +32,13 @@ fn sample_table() -> Table {
 
 fn roundtrip(version: DxfVersion) -> Table {
     let mut doc = CadDocument::with_version(version);
-    doc.add_entity(EntityType::Table(sample_table())).unwrap();
+    doc.add_entity(EntityType::Table(Box::new(sample_table()))).unwrap();
     let bytes = DwgWriter::write_to_vec(&doc).expect("DWG write");
     let rt = DwgReader::from_stream(Cursor::new(bytes))
         .read()
         .expect("DWG read");
     let found = rt.entities().find_map(|e| match e {
-        EntityType::Table(t) => Some(t.clone()),
+        EntityType::Table(t) => Some((**t).clone()),
         _ => None,
     });
     found.expect("table missing after DWG roundtrip")
@@ -62,14 +62,14 @@ fn assert_table(t: &Table, label: &str) {
 
 #[test]
 fn table_dwg_roundtrip_flat_r2007() {
-    // AC1021 = R2007 → pre-R2010 flat cell format.
+    // AC1021 = R2007 â†’ pre-R2010 flat cell format.
     let t = roundtrip(DxfVersion::AC1021);
     assert_table(&t, "R2007");
 }
 
 #[test]
 fn table_dwg_roundtrip_content_r2018() {
-    // AC1032 = R2018 → R2010+ inline table content.
+    // AC1032 = R2018 â†’ R2010+ inline table content.
     let t = roundtrip(DxfVersion::AC1032);
     assert_table(&t, "R2018");
 }
@@ -91,7 +91,7 @@ fn table_r2010_explicit_header_bit_is_preserved() {
         let mut doc = CadDocument::with_version(DxfVersion::AC1024);
         let mut table = sample_table();
         table.dwg_r2010_unknown_bit = Some(bit);
-        let handle = doc.add_entity(EntityType::Table(table)).unwrap();
+        let handle = doc.add_entity(EntityType::Table(Box::new(table))).unwrap();
         let bytes = DwgWriter::write_to_vec(&doc).unwrap();
         let loaded = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
         let Some(EntityType::Table(table)) = loaded.get_entity(handle) else {

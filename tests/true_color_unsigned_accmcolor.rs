@@ -1,4 +1,4 @@
-//! An `AcCmColor` true colour written in its unsigned spelling must survive a
+﻿//! An `AcCmColor` true colour written in its unsigned spelling must survive a
 //! DXF read.
 //!
 //! Group codes 420 and 421 carry a packed word, not a quantity: producers set a
@@ -12,10 +12,10 @@
 
 use std::io::Cursor;
 
-use acadrust::entities::{EntityType, Line};
-use acadrust::tables::Layer;
-use acadrust::types::{Color, DxfVersion};
-use acadrust::{CadDocument, DxfReader, DxfWriter};
+use opencadcodec::entities::{EntityType, Line};
+use opencadcodec::tables::Layer;
+use opencadcodec::types::{Color, DxfVersion};
+use opencadcodec::{CadDocument, DxfReader, DxfWriter};
 
 const ORANGE: Color = Color::Rgb {
     r: 255,

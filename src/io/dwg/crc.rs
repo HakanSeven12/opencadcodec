@@ -1,4 +1,4 @@
-//! CRC-16, CRC-32, and CRC-64 checksum functions for DWG format.
+﻿//! CRC-16, CRC-32, and CRC-64 checksum functions for DWG format.
 //!
 //! The DWG format uses three CRC algorithms:
 //!
@@ -30,7 +30,7 @@
 //! ## Byte reordering (ODA spec section 5.12)
 //!
 //! **Before** CRC computation, data bytes are reordered within each 8-byte
-//! (64-bit) block. This is **not** a standard CRC feature — it is specific to
+//! (64-bit) block. This is **not** a standard CRC feature â€” it is specific to
 //! the DWG format. The processing order within each 8-byte block is:
 //!
 //! ```text
@@ -43,7 +43,7 @@
 //! | Remainder | Processing order |
 //! |-----------|------------------|
 //! | 4 bytes   | `[2, 3, 0, 1]`  |
-//! | 1–3, 5–7  | sequential       |
+//! | 1â€“3, 5â€“7  | sequential       |
 //!
 //! ## Dynamic initialization vector
 //!
@@ -51,14 +51,14 @@
 //! IV is derived from the data length using a Linear Congruential Generator.
 //! Two LCG variants exist:
 //!
-//! - **`UpdateSeed2`** — used for file header metadata and compressed data CRCs:
+//! - **`UpdateSeed2`** â€” used for file header metadata and compressed data CRCs:
 //!   ```text
 //!   seed = (initial_seed + len) * 0x343FD + 0x269EC3
 //!   seed = seed * 0x1_000343FD + (len + 0x269EC3)
 //!   return !seed
 //!   ```
 //!
-//! - **`UpdateSeed1`** — used for system page and data page CRCs:
+//! - **`UpdateSeed1`** â€” used for system page and data page CRCs:
 //!   ```text
 //!   seed = (initial_seed + len) * 0x343FD + 0x269EC3
 //!   seed |= seed * (0x343FD << 32) + (0x269EC3 << 32)
@@ -165,7 +165,7 @@ pub const CRC32_TABLE: [u32; 256] = [
 ///
 /// # Examples
 /// ```
-/// use acadrust::io::dwg::crc::crc16;
+/// use opencadcodec::io::dwg::crc::crc16;
 /// let crc = crc16(0xC0C1, &[0x01, 0x02, 0x03]);
 /// ```
 pub fn crc16(seed: u16, data: &[u8]) -> u16 {
@@ -511,7 +511,7 @@ pub fn crc64(data: &[u8]) -> u64 {
 /// Compute DWG Mirrored CRC-64 (LSB-first) with a custom seed.
 ///
 /// Used for running CRC-64 over multiple chunks or with a non-zero initial value.
-/// This is the raw reflected CRC function — see [`dwg_ac21_mirrored_crc64`] for
+/// This is the raw reflected CRC function â€” see [`dwg_ac21_mirrored_crc64`] for
 /// the full DWG pipeline with byte reordering and IV derivation.
 pub fn crc64_with_seed(seed: u64, data: &[u8]) -> u64 {
     data.iter().fold(seed, |crc, &byte| {
@@ -521,7 +521,7 @@ pub fn crc64_with_seed(seed: u64, data: &[u8]) -> u64 {
 }
 
 // ---------------------------------------------------------------------------
-// CRC-64 Normal (MSB-first) — used by DWG AC1021 Header
+// CRC-64 Normal (MSB-first) â€” used by DWG AC1021 Header
 // ---------------------------------------------------------------------------
 
 /// Normal (non-reflected, MSB-first) ECMA-182 polynomial.
@@ -831,7 +831,7 @@ pub fn crc64_normal(seed: u64, data: &[u8]) -> u64 {
     })
 }
 
-/// ODA `UpdateSeed2` — dynamic IV for file header and compressed data CRCs.
+/// ODA `UpdateSeed2` â€” dynamic IV for file header and compressed data CRCs.
 ///
 /// The DWG AC1021 format does NOT use a fixed init value for CRC-64.
 /// Instead, it derives a per-block IV from the data length using this
@@ -862,7 +862,7 @@ pub fn update_seed2(initial_seed: u64, data_length: u32) -> u64 {
     !seed
 }
 
-/// ODA `UpdateSeed1` — dynamic IV for system page and data page CRCs.
+/// ODA `UpdateSeed1` â€” dynamic IV for system page and data page CRCs.
 ///
 /// # Algorithm (per ODA spec section 5.12)
 /// ```text
@@ -942,7 +942,7 @@ pub fn dwg_ac21_normal_crc64_seed1(seed: u64, data_length: u32, data: &[u8]) -> 
 /// - `data`: the raw data bytes (NOT pre-reordered).
 ///
 /// # Returns
-/// The CRC-64 value (NOT inverted — mirrored CRC does not invert).
+/// The CRC-64 value (NOT inverted â€” mirrored CRC does not invert).
 pub fn dwg_ac21_mirrored_crc64(seed: u64, data_length: u32, data: &[u8]) -> u64 {
     let reordered = reorder_for_crc(data);
     let iv = update_seed1(seed, data_length);
@@ -951,8 +951,8 @@ pub fn dwg_ac21_mirrored_crc64(seed: u64, data_length: u32, data: &[u8]) -> u64 
 
 /// Compute a Normal (MSB-first) CRC-64 for **check data** at offset 0x3D8.
 ///
-/// Per ODA spec §5.2.1.1.5, the check data Normal CRC uses `~random2`
-/// **directly** as the CRC initial value — it does NOT go through
+/// Per ODA spec Â§5.2.1.1.5, the check data Normal CRC uses `~random2`
+/// **directly** as the CRC initial value â€” it does NOT go through
 /// `UpdateSeed2`.
 ///
 /// 1. Reorder bytes per ODA spec section 5.12.
@@ -966,8 +966,8 @@ pub fn dwg_ac21_check_data_normal_crc64(random2: u64, data: &[u8]) -> u64 {
 
 /// Compute a Mirrored (LSB-first) CRC-64 for **check data** at offset 0x3D8.
 ///
-/// Per ODA spec §5.2.1.1.5, the check data Mirrored CRC uses `~random1`
-/// **directly** as the CRC initial value — it does NOT go through
+/// Per ODA spec Â§5.2.1.1.5, the check data Mirrored CRC uses `~random1`
+/// **directly** as the CRC initial value â€” it does NOT go through
 /// `UpdateSeed1`.
 ///
 /// 1. Reorder bytes per ODA spec section 5.12.
@@ -982,7 +982,7 @@ pub fn dwg_ac21_check_data_mirrored_crc64(random1: u64, data: &[u8]) -> u64 {
 /// Reorder bytes for DWG AC1021 CRC-64 computation per ODA spec section 5.12.
 ///
 /// The CRC-64 does **not** process bytes left-to-right. Within each 8-byte
-/// block, the processing order is `[6,7,4,5,2,3,0,1]` — this reverses the
+/// block, the processing order is `[6,7,4,5,2,3,0,1]` â€” this reverses the
 /// order of 16-bit words within each 64-bit value.
 ///
 /// ```text
@@ -995,8 +995,8 @@ pub fn dwg_ac21_check_data_mirrored_crc64(random1: u64, data: &[u8]) -> u64 {
 /// | Remainder | Processing order   |
 /// |-----------|--------------------|  
 /// | 4 bytes   | `[2, 3, 0, 1]`    |
-/// | 1–3 bytes | sequential         |
-/// | 5–7 bytes | sequential         |
+/// | 1â€“3 bytes | sequential         |
+/// | 5â€“7 bytes | sequential         |
 pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
     let mut result = Vec::with_capacity(data.len());
     let full_blocks = data.len() / 8;
@@ -1018,14 +1018,14 @@ pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
     // Process remainder per ODA spec 5.12 table
     //
     // The spec defines a recursive byte reordering:
-    //   1 byte  → 1[0]                         = [0]
-    //   2 bytes → 1[0], 1[1]                   = [0,1]
-    //   3 bytes → 2[0], 1[2]                   = [0,1,2]
-    //   4 bytes → 2[2], 2[0]                   = [2,3,0,1]
-    //   5 bytes → 4[0], 1[4]                   = [2,3,0,1,4]
-    //   6 bytes → 4[0], 2[4]                   = [2,3,0,1,4,5]
-    //   7 bytes → 4[0], 3[4]                   = [2,3,0,1,4,5,6]
-    //   8 bytes → 4[4], 4[0]                   = [6,7,4,5,2,3,0,1]
+    //   1 byte  â†’ 1[0]                         = [0]
+    //   2 bytes â†’ 1[0], 1[1]                   = [0,1]
+    //   3 bytes â†’ 2[0], 1[2]                   = [0,1,2]
+    //   4 bytes â†’ 2[2], 2[0]                   = [2,3,0,1]
+    //   5 bytes â†’ 4[0], 1[4]                   = [2,3,0,1,4]
+    //   6 bytes â†’ 4[0], 2[4]                   = [2,3,0,1,4,5]
+    //   7 bytes â†’ 4[0], 3[4]                   = [2,3,0,1,4,5,6]
+    //   8 bytes â†’ 4[4], 4[0]                   = [6,7,4,5,2,3,0,1]
     //
     // Cases 5-7 apply the 4-byte reorder [2,3,0,1] to the first 4 bytes,
     // then process remaining bytes sequentially.
@@ -1045,14 +1045,14 @@ pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
             result.push(data[base + 2]);
         }
         4 => {
-            // 2[2], 2[0] → [2,3,0,1]
+            // 2[2], 2[0] â†’ [2,3,0,1]
             result.push(data[base + 2]);
             result.push(data[base + 3]);
             result.push(data[base + 0]);
             result.push(data[base + 1]);
         }
         5 => {
-            // 4[0], 1[4] → [2,3,0,1,4]
+            // 4[0], 1[4] â†’ [2,3,0,1,4]
             result.push(data[base + 2]);
             result.push(data[base + 3]);
             result.push(data[base + 0]);
@@ -1060,7 +1060,7 @@ pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
             result.push(data[base + 4]);
         }
         6 => {
-            // 4[0], 2[4] → [2,3,0,1,4,5]
+            // 4[0], 2[4] â†’ [2,3,0,1,4,5]
             result.push(data[base + 2]);
             result.push(data[base + 3]);
             result.push(data[base + 0]);
@@ -1069,7 +1069,7 @@ pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
             result.push(data[base + 5]);
         }
         7 => {
-            // 4[0], 3[4] → [2,3,0,1,4,5,6]
+            // 4[0], 3[4] â†’ [2,3,0,1,4,5,6]
             result.push(data[base + 2]);
             result.push(data[base + 3]);
             result.push(data[base + 0]);
@@ -1091,29 +1091,29 @@ pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
 /// # Algorithm (per ODA spec sections 5.2.1.2 and 5.12)
 ///
 /// ```text
-/// ┌──────────────────────────────────────────────────┐
-/// │  0x110 bytes of decompressed file header metadata │
-/// │  [0x108..0x110] = CRC field (zeroed before calc)  │
-/// └───────────────┬──────────────────────────────────┘
-///                 │
-///        ┌────────▼────────┐
-///        │  Reorder bytes  │  [6,7,4,5,2,3,0,1] per 8-byte block
-///        └────────┬────────┘
-///                 │
-///     ┌───────────▼───────────┐
-///     │  IV = UpdateSeed2     │  seed=0, len=0x110
-///     │  = 0xFC61189A45A9E6E5 │
-///     └───────────┬───────────┘
-///                 │
-///    ┌────────────▼────────────┐
-///    │  CRC-64 Normal (MSB)    │  poly=0x42F0E1EBA9EA3693
-///    └────────────┬────────────┘
-///                 │
-///         ┌───────▼───────┐
-///         │  NOT result   │  bitwise inversion
-///         └───────┬───────┘
-///                 │
-///                 ▼
+/// â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+/// â”‚  0x110 bytes of decompressed file header metadata â”‚
+/// â”‚  [0x108..0x110] = CRC field (zeroed before calc)  â”‚
+/// â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+///                 â”‚
+///        â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”
+///        â”‚  Reorder bytes  â”‚  [6,7,4,5,2,3,0,1] per 8-byte block
+///        â””â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+///                 â”‚
+///     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+///     â”‚  IV = UpdateSeed2     â”‚  seed=0, len=0x110
+///     â”‚  = 0xFC61189A45A9E6E5 â”‚
+///     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+///                 â”‚
+///    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+///    â”‚  CRC-64 Normal (MSB)    â”‚  poly=0x42F0E1EBA9EA3693
+///    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+///                 â”‚
+///         â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”
+///         â”‚  NOT result   â”‚  bitwise inversion
+///         â””â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”˜
+///                 â”‚
+///                 â–¼
 ///          header_crc64
 /// ```
 ///
@@ -1125,7 +1125,7 @@ pub fn reorder_for_crc(data: &[u8]) -> Vec<u8> {
 /// The computed CRC-64 value that should match the stored `HeaderCRC64`.
 ///
 /// # Verified
-/// Tested against 75 real DWG files (AC1015–AC1032). All match.
+/// Tested against 75 real DWG files (AC1015â€“AC1032). All match.
 pub fn dwg_ac21_header_crc64(metadata: &[u8]) -> u64 {
     assert!(
         metadata.len() >= 0x110,
@@ -1152,7 +1152,7 @@ pub fn dwg_ac21_header_crc64(metadata: &[u8]) -> u64 {
     !crc
 }
 
-/// Compute the AC21 Adler-32 variant page checksum per ODA spec §5.4.1.
+/// Compute the AC21 Adler-32 variant page checksum per ODA spec Â§5.4.1.
 ///
 /// This is a modified Adler-32 that:
 /// 1. Derives initial `sum1`/`sum2` from a seed computation using data length
@@ -1166,7 +1166,7 @@ pub fn dwg_ac21_header_crc64(metadata: &[u8]) -> u64 {
 /// # Returns
 /// 32-bit checksum value (stored in a u64 field in the section map)
 pub fn dwg_ac21_page_checksum(seed: u32, data: &[u8]) -> u32 {
-    // ODA spec §5.4.1 — Modified Adler-32 with LCG seed transformation
+    // ODA spec Â§5.4.1 â€” Modified Adler-32 with LCG seed transformation
     // and byte reordering within 8-byte blocks.
     //
     // Step 1: Transform seed using LCG that incorporates data length.
@@ -1179,7 +1179,7 @@ pub fn dwg_ac21_page_checksum(seed: u32, data: &[u8]) -> u32 {
     let mut sum1: u32 = (seed64 & 0xFFFF) as u32;
     let mut sum2: u32 = ((seed64 >> 16) & 0xFFFF) as u32;
 
-    const CHUNK_SIZE: usize = 0x15B0; // 5552 — prevents u32 overflow in Adler accumulation
+    const CHUNK_SIZE: usize = 0x15B0; // 5552 â€” prevents u32 overflow in Adler accumulation
     const MODULUS: u32 = 0xFFF1; // Largest prime < 2^16
 
     let mut offset: usize = 0;
@@ -1217,11 +1217,11 @@ pub fn dwg_ac21_page_checksum(seed: u32, data: &[u8]) -> u32 {
             i += 8;
         }
 
-        // Handle remaining bytes (< 8) per ODA spec §5.12 recursive decomposition.
+        // Handle remaining bytes (< 8) per ODA spec Â§5.12 recursive decomposition.
         // For remainder >= 4: apply [2,3,0,1] reordering to first 4 bytes,
         //                     then process any remaining bytes sequentially.
         // For remainder < 4: process sequentially.
-        // This matches `reorder_for_crc` and the §5.12 byte count table.
+        // This matches `reorder_for_crc` and the Â§5.12 byte count table.
         let remaining = chunk.len() - i;
         let r = &chunk[i..];
         if remaining >= 4 {
@@ -1240,7 +1240,7 @@ pub fn dwg_ac21_page_checksum(seed: u32, data: &[u8]) -> u32 {
                 sum2 += sum1;
             }
         } else {
-            // 1–3 remaining bytes: sequential
+            // 1â€“3 remaining bytes: sequential
             for j in 0..remaining {
                 sum1 += r[j] as u32;
                 sum2 += sum1;
@@ -1405,9 +1405,9 @@ mod tests {
     fn test_crc64_normal_table_generated_correctly() {
         // T[0] must be 0
         assert_eq!(CRC64_TABLE_NORMAL[0], 0x0000000000000000);
-        // T[1] should be poly itself (byte 0x01 shifted left 56 → one XOR)
+        // T[1] should be poly itself (byte 0x01 shifted left 56 â†’ one XOR)
         // Actually: for i=1: crc = 1<<56, top bit is 0 for first 7 shifts,
-        // then bit 63 is set → one XOR.
+        // then bit 63 is set â†’ one XOR.
         // Let's just verify via regeneration.
     }
 
@@ -1441,7 +1441,7 @@ mod tests {
     fn test_update_seed2_for_0x110() {
         // Verify the IV for the standard 0x110-byte header
         let iv = update_seed2(0, 0x110);
-        // This should be deterministic — verify it's non-zero and consistent
+        // This should be deterministic â€” verify it's non-zero and consistent
         let iv2 = update_seed2(0, 0x110);
         assert_eq!(iv, iv2);
         assert_ne!(iv, 0);

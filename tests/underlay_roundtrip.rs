@@ -1,4 +1,4 @@
-//! DWG round-trip coverage for UNDERLAY references (PDF / DWF / DGN).
+﻿//! DWG round-trip coverage for UNDERLAY references (PDF / DWF / DGN).
 //!
 //! Locks in the AcDbUnderlayReference encoder/decoder pair: the object-data
 //! fields (normal, insertion, rotation, x/y/z scale, display flags, contrast,
@@ -9,11 +9,11 @@
 
 use std::io::Cursor;
 
-use acadrust::entities::underlay::{Underlay, UnderlayDisplayFlags, UnderlayType};
-use acadrust::entities::EntityType;
-use acadrust::objects::{ObjectType, UnderlayDefinition};
-use acadrust::types::{DxfVersion, Handle, Vector2, Vector3};
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
+use opencadcodec::entities::underlay::{Underlay, UnderlayDisplayFlags, UnderlayType};
+use opencadcodec::entities::EntityType;
+use opencadcodec::objects::{ObjectType, UnderlayDefinition};
+use opencadcodec::types::{DxfVersion, Handle, Vector2, Vector3};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
 
 fn dwg_roundtrip(doc: &CadDocument) -> CadDocument {
     let bytes = DwgWriter::write_to_vec(doc).expect("DWG write failed");

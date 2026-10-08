@@ -76,7 +76,7 @@ pub use dynamic_block::{
     SolidHistoryProfileCircle, SolidHistoryProfilePolyline, SolidHistoryPyramid,
     SolidHistoryRevolve,
     SolidHistoryRevolveTail, SolidHistorySphere, SolidHistorySweep, SolidHistorySweepTail,
-    SolidHistoryTorus,
+    SolidHistoryTorus, SolidHistoryTree,
 };
 pub(crate) use dynamic_block::primitive_center_shift;
 pub use field::{Field, FieldChildValue, FieldList};

@@ -1,22 +1,22 @@
-/// Generate a single DWG file containing all supported entity types.
+﻿/// Generate a single DWG file containing all supported entity types.
 ///
 /// Output: gen_all_entities_all_versions.dwg (AC1032 / R2018)
 ///
 /// This is a variant of `gen_all_entities_all_versions.rs` that creates one
 /// document and writes every generated entity into a single file instead of
 /// producing a file per version per entity type.
-use acadrust::entities::acis::{SatDocument, SatPointer, SatToken, Sense, Sidedness};
-use acadrust::entities::dimension::DimensionLinear;
-use acadrust::entities::hatch::{
+use opencadcodec::entities::acis::{SatDocument, SatPointer, SatToken, Sense, Sidedness};
+use opencadcodec::entities::dimension::DimensionLinear;
+use opencadcodec::entities::hatch::{
     BoundaryEdge, BoundaryPath, BoundaryPathFlags, LineEdge, PolylineEdge,
 };
-use acadrust::entities::mesh::Mesh;
-use acadrust::entities::mline::MLine;
-use acadrust::entities::multileader::MultiLeader;
-use acadrust::entities::polyface_mesh::PolyfaceMesh;
-use acadrust::entities::*;
-use acadrust::types::{DxfVersion, Vector2, Vector3};
-use acadrust::{
+use opencadcodec::entities::mesh::Mesh;
+use opencadcodec::entities::mline::MLine;
+use opencadcodec::entities::multileader::MultiLeader;
+use opencadcodec::entities::polyface_mesh::PolyfaceMesh;
+use opencadcodec::entities::*;
+use opencadcodec::types::{DxfVersion, Vector2, Vector3};
+use opencadcodec::{
     BlockRecord, CadDocument, DimStyle, DwgWriter, LineWeight, TableEntry, TextStyle,
     Transparency,
 };
@@ -90,7 +90,7 @@ const MLEADER_PROXY_GRAPHIC: &[u8] = &[
 /// Address 5283, payload bytes [7..571)). Twelve records
 /// (0x3A99 selector, zero state, 208-byte type-38 header,
 /// selectors/0x7FFF, type-20, the 3-vertex type-7 leader line,
-/// 0x1389, two type-32 blocks) — the same fixture as
+/// 0x1389, two type-32 blocks) â€” the same fixture as
 /// `proxy_graphics.rs`'s byte-roundtrip test. With this specimen every
 /// constructed-mleader wire component is derivable from the gold tree:
 /// the 9-bit tail group and the 0/32/4786 attach stance also exist in
@@ -152,7 +152,7 @@ fn main() {
     let mut fail = 0u32;
     let mut skip = 0u32;
 
-    // ── Simple geometry ─────────────────────────────────────────
+    // â”€â”€ Simple geometry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -242,7 +242,7 @@ fn main() {
         },
     );
 
-    // ── Solid / Surface ─────────────────────────────────────────
+    // â”€â”€ Solid / Surface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -276,7 +276,7 @@ fn main() {
         },
     );
 
-    // ── Text ────────────────────────────────────────────────────
+    // â”€â”€ Text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -301,7 +301,7 @@ fn main() {
         },
     );
 
-    // ── Polylines ───────────────────────────────────────────────
+    // â”€â”€ Polylines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -368,17 +368,17 @@ fn main() {
         },
     );
 
-    // ── Annotations ─────────────────────────────────────────────
+    // â”€â”€ Annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // BricsCAD's strict (plain-open) loader rejects the constructed bare
     // leader record ("Object improperly read: <AcDbLeader>"), tolerating
     // it only under RECOVER, while both local decoders read it
     // spec-exact. GENALL_LEADER_MODE selects a variant for isolating the
-    // audit: "plain" (default) — annot_type 3 with the null association,
-    // the TS1-attested authored-null form; "annot" — the authored
+    // audit: "plain" (default) â€” annot_type 3 with the null association,
+    // the TS1-attested authored-null form; "annot" â€” the authored
     // WithText form with a real MTEXT association (ergo the leader's
     // handle shifts, which also disambiguates BricsCAD's "(40)" as
-    // handle vs status code); "skip" — no leader record at all.
+    // handle vs status code); "skip" â€” no leader record at all.
     let leader_mode = std::env::var("GENALL_LEADER_MODE").unwrap_or_default();
     if leader_mode.eq_ignore_ascii_case("skip") {
         println!("  SKIP LEADER (GENALL_LEADER_MODE=skip)");
@@ -412,7 +412,7 @@ fn main() {
     } else {
         // Plain-class leader construction: WithText + a real MTEXT
         // association, spline path, authored arrowhead/box values, scale,
-        // weight and transparency — but NO named-linetype reference: a
+        // weight and transparency â€” but NO named-linetype reference: a
         // named real linetype deep-resolves its table record, and a
         // constructed doc has no real dash description for it (the deep
         // loader drops the resolving entity). Continuous = no ltype slot.
@@ -439,10 +439,10 @@ fn main() {
                 // Consistent plain-leader class: no EED (the Annotative
                 // marks imply an annotation-scale context with an
                 // extension dictionary our constructed document does not
-                // provide — the deep loader drops the mismatched
+                // provide â€” the deep loader drops the mismatched
                 // annotative leader), standard DIMSTYLE, and a real
                 // linetype only when the table can back it (here:
-                // continuous — the plainest legal class).
+                // continuous â€” the plainest legal class).
                 leader.dimension_style = "Standard".to_string();
                 leader.common.linetype = "Continuous".to_string();
                 leader.common.line_weight = LineWeight::Value(5);
@@ -499,7 +499,7 @@ fn main() {
     );
 
     // A SHAPE needs both a style whose font is a shape (.shx) file and a
-    // nonzero shape number — a strict audit (BricsCAD) rejects the record
+    // nonzero shape number â€” a strict audit (BricsCAD) rejects the record
     // with both unset. ltypeshp.shx is the classic AutoCAD shape library;
     // 130 selects a glyph in it (the style/number pair is what the loader
     // validates; the glyph itself is cosmetic).
@@ -533,7 +533,7 @@ fn main() {
 
     add_insert(&mut doc, &mut ok, &mut fail, &mut skip);
 
-    // ── Hatch ───────────────────────────────────────────────────
+    // â”€â”€ Hatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -584,7 +584,7 @@ fn main() {
         },
     );
 
-    // ── MLine ───────────────────────────────────────────────────
+    // â”€â”€ MLine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -601,7 +601,7 @@ fn main() {
         },
     );
 
-    // ── PolyfaceMesh ────────────────────────────────────────────
+    // â”€â”€ PolyfaceMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -621,20 +621,20 @@ fn main() {
         },
     );
 
-    // ── MultiLeader ───────────────────────────────────────────────
+    // â”€â”€ MultiLeader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // GENALL_MLEADER_MODE=skip omits the MULTILEADER record (BricsCAD
     // strict-load probe; see the leader mode note above).
     // GENALL_MLEADER_MODE=default builds the host-analogue record: the
     // pure `MultiLeader::new()` stance, no explicit stamps and no
-    // proxy blob (add one with GENALL_PROXY_BLOB=bcad|oda) — exactly
+    // proxy blob (add one with GENALL_PROXY_BLOB=bcad|oda) â€” exactly
     // what out-of-tree constructors such as OpenCADStudio's MLEADER
     // command produce after the 2026-09-22 native-stance default fix.
     let mleader_mode = std::env::var("GENALL_MLEADER_MODE").unwrap_or_default();
     if mleader_mode.eq_ignore_ascii_case("skip") {
         println!("  SKIP MULTILEADER (GENALL_MLEADER_MODE=skip)");
     } else {
-        // A native AcDbMLeader must reference a resolvable MLEADERSTYLE —
+        // A native AcDbMLeader must reference a resolvable MLEADERSTYLE â€”
         // BricsCAD's audit reports "LeaderStyle Id is Null" otherwise.
         // The default-mode probe resolves the document's seeded
         // Standard style (created by CadDocument::new()); the native
@@ -642,7 +642,7 @@ fn main() {
         // the mutable doc borrow moves into add_entity.
         let standard_mlstyle_handle = if mleader_mode.eq_ignore_ascii_case("default") {
             doc.objects.iter().find_map(|(h, o)| match o {
-                acadrust::objects::ObjectType::MultiLeaderStyle(m)
+                opencadcodec::objects::ObjectType::MultiLeaderStyle(m)
                     if m.name == "Standard" =>
                 {
                     Some(*h)
@@ -674,15 +674,15 @@ fn main() {
                         };
                         ml.common.graphic_data = Some(blob.to_vec());
                     }
-                    return EntityType::MultiLeader(ml);
+                    return EntityType::MultiLeader(Box::new(ml));
                 }
                 // Native-author stance (the gold tree's AutoCAD-authored
                 // gh44-error.dwg carries the same 0/32/4786 trio and
-                // extended-to-text state) — identical to the
+                // extended-to-text state) â€” identical to the
                 // `MultiLeader::new()` defaults since the 2026-09-22
                 // fix; kept explicit so the byte record stays
                 // self-describing. The proxy-graphics blob defaults to
-                // the gold tree's ODA-authored specimen (2018/Leader.dwg â€”
+                // the gold tree's ODA-authored specimen (2018/Leader.dwg Ã¢â‚¬â€
                 // BricsCAD-verified 2026-09-21, round seven);
                 // GENALL_PROXY_BLOB=bcad selects the round-six
                 // BricsCAD-authored fallback.
@@ -697,12 +697,12 @@ fn main() {
                 ml.dwg_attach_top = 32;
                 ml.dwg_attach_bottom = 4786;
                 ml.extend_leader_to_text = true;
-                EntityType::MultiLeader(ml)
+                EntityType::MultiLeader(Box::new(ml))
             },
         );
     }
 
-    // ── Mesh ────────────────────────────────────────────────────
+    // â”€â”€ Mesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -720,16 +720,16 @@ fn main() {
                 &[(0, 1, 2)],
             );
             // Authored-wire population invariants (2004/Surface.dwg's
-            // MESH 0x2D0 and every authored specimen): wire bit 72 —
+            // MESH 0x2D0 and every authored specimen): wire bit 72 â€”
             // which the model calls blend_crease and gold decodes as
-            // is_watertight — is 0, and the trailing unknown_b1 is 1.
+            // is_watertight â€” is 0, and the trailing unknown_b1 is 1.
             mesh.blend_crease = false;
             mesh.unknown_b1 = true;
             EntityType::Mesh(mesh)
         },
     );
 
-    // ── ACIS entities (3DSOLID, REGION, BODY) ───────────────────
+    // â”€â”€ ACIS entities (3DSOLID, REGION, BODY) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     add_entity(
         &mut doc,
@@ -738,15 +738,15 @@ fn main() {
         &mut fail,
         &mut skip,
         || {
-            // §20 the last pending genus row (the BFS ordering packet):
+            // Â§20 the last pending genus row (the BFS ordering packet):
             // the hand-built seam cylinder's only straight-curve hung on
-            // the seam edge, whose BFS walk lands after the vertex walks —
+            // the seam edge, whose BFS walk lands after the vertex walks â€”
             // its points preceded the straight-curve (genus: point always
             // after straight-curve), and the shape had no authored
             // counterpart (Cylinder_2018 has no vertical seam). The
             // battery now carries the authored-convention shape the
             // fixtures use (the seam-less two-loop lateral face).
-            let sat_doc = acadrust::entities::acis::primitives::build_cylinder(
+            let sat_doc = opencadcodec::entities::acis::primitives::build_cylinder(
                 [0.0, 0.0, 0.0], 5.0, 10.0,
             );
             EntityType::Solid3D(Solid3D::from_sat(&sat_doc.to_sat_string()))
@@ -762,7 +762,7 @@ fn main() {
         || {
             // A valid planar region built through the SatDocument API: a
             // single plane face with a closed four-edge outer loop (an open
-            // sheet — every edge has exactly one coedge, so partners stay
+            // sheet â€” every edge has exactly one coedge, so partners stay
             // null), all back-pointers wired. The earlier hand-typed SAT
             // string had degenerate records (single-vertex edges,
             // self-partnered coedges) that strict modelers reject as an
@@ -781,15 +781,15 @@ fn main() {
         || {
             // AcDbBody accepts any modeler body; reuse the same
             // authored-convention cylinder the 3DSOLID carries (the
-            // §20 BFS ordering packet — the seam-cylinder shape left).
-            let sat_doc = acadrust::entities::acis::primitives::build_cylinder(
+            // Â§20 BFS ordering packet â€” the seam-cylinder shape left).
+            let sat_doc = opencadcodec::entities::acis::primitives::build_cylinder(
                 [0.0, 0.0, 0.0], 5.0, 10.0,
             );
             EntityType::Body(Body::from_sat(&sat_doc.to_sat_string()))
         },
     );
 
-    // ── Write the single DWG file ─────────────────────────────────
+    // â”€â”€ Write the single DWG file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let path = "gen_all_entities_all_versions.dwg";
     match DwgWriter::write_to_file(path, &doc) {
@@ -880,13 +880,13 @@ fn add_insert(doc: &mut CadDocument, ok: &mut u32, _fail: &mut u32, skip: &mut u
     *ok += 1;
 }
 
-/// A minimal valid planar region: body → lump → shell → one plane face
-/// with a closed four-edge outer loop. An open sheet — every edge has
-/// exactly one coedge (partners null) — and every back-pointer wired
-/// (edge → its coedge, vertex → its edge, body → its lump). The 2026-09-30
+/// A minimal valid planar region: body â†’ lump â†’ shell â†’ one plane face
+/// with a closed four-edge outer loop. An open sheet â€” every edge has
+/// exactly one coedge (partners null) â€” and every back-pointer wired
+/// (edge â†’ its coedge, vertex â†’ its edge, body â†’ its lump). The 2026-09-30
 /// record-identity session replaced the original CCW-wound sheet with the
 /// FULL RAW-STREAM MIRROR of the authored plain R2018 region (the same
-/// topology as genus_constructed's build_region_sat — her CW canonical
+/// topology as genus_constructed's build_region_sat â€” her CW canonical
 /// ring walked CCW by four reversed coedges, the sheet sidedness double,
 /// her vertex backptrs, the plane origin at the centre, the face
 /// containment completing at the SAB boundary, the vertex int 2).
@@ -901,12 +901,12 @@ fn build_region_sat() -> SatDocument {
     let p_tl = sat.add_point(0.0, 10.0, 0.0);
     let p_tr = sat.add_point(10.0, 10.0, 0.0);
 
-    // The plane origin at the rectangle's centre — the authored
+    // The plane origin at the rectangle's centre â€” the authored
     // convention (her surface origin = her rectangle's centre).
     let surf = sat.add_plane_surface([5.0, 5.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
 
     // Side curves, each canonicalized at its edge's START vertex and
-    // directed at the end — her c16/c19/c24/c21.
+    // directed at the end â€” her c16/c19/c24/c21.
     let c_top = sat.add_straight_curve([0.0, 10.0, 0.0], [1.0, 0.0, 0.0]);
     let c_left = sat.add_straight_curve([0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
     let c_bottom = sat.add_straight_curve([10.0, 0.0, 0.0], [-1.0, 0.0, 0.0]);
@@ -917,8 +917,8 @@ fn build_region_sat() -> SatDocument {
     let v18 = sat.add_vertex(SatPointer::NULL, ptr(p_bl));
     let v20 = sat.add_vertex(SatPointer::NULL, ptr(p_br));
 
-    // Her canonical ring, CW as a cycle: top L→R, left B→T,
-    // bottom R→L, right T→B.
+    // Her canonical ring, CW as a cycle: top Lâ†’R, left Bâ†’T,
+    // bottom Râ†’L, right Tâ†’B.
     let e_top = sat.add_edge(
         ptr(v14),
         0.0,
@@ -964,7 +964,7 @@ fn build_region_sat() -> SatDocument {
     let shell_idx = base + 6;
     let lump_idx = base + 7;
 
-    // Her chain: co(top) → co(left) → co(bottom) → co(right), every
+    // Her chain: co(top) â†’ co(left) â†’ co(bottom) â†’ co(right), every
     // coedge REVERSED over the CW canonicals (the CCW walk) and the
     // partner null (an open sheet).
     let edges = [e_top, e_left, e_bottom, e_right];
@@ -988,7 +988,7 @@ fn build_region_sat() -> SatDocument {
         Sense::Forward,
         Sidedness::Double,
     );
-    // The authored SHEET face's ninth token — the solid faces are
+    // The authored SHEET face's ninth token â€” the solid faces are
     // 8-token (the authored Box census); her plain R2018 region face
     // carries the third bool (the fixed-width SAB reader is
     // positional). Added on the region only, never class-wide.
@@ -1002,7 +1002,7 @@ fn build_region_sat() -> SatDocument {
         body_rec.tokens[1] = SatToken::Pointer(ptr(lump_idx));
     }
 
-    // Back-pointers: edge → its chain coedge; vertex → its edge after
+    // Back-pointers: edge â†’ its chain coedge; vertex â†’ its edge after
     // HER mapping, and the authored sheet vertex int 2.
     let coedges = [co(0), co(1), co(2), co(3)];
     for i in 0..4usize {

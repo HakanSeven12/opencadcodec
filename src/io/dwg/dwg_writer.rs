@@ -1,4 +1,4 @@
-//! Top-level DWG file writer
+﻿//! Top-level DWG file writer
 //!
 //! Orchestrates all section writers to produce a complete DWG binary file.
 //! Supports three file formats:
@@ -10,8 +10,8 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use acadrust::document::CadDocument;
-//! use acadrust::io::dwg::DwgWriter;
+//! use opencadcodec::document::CadDocument;
+//! use opencadcodec::io::dwg::DwgWriter;
 //!
 //! let doc = CadDocument::new();
 //! DwgWriter::write_to_file("output.dwg", &doc).unwrap();
@@ -35,9 +35,9 @@ use super::file_headers::{
     section_names, DwgFileHeaderWriterAC15, DwgFileHeaderWriterAC18, DwgFileHeaderWriterAC21,
 };
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Public API
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// DWG binary file writer.
 ///
@@ -61,27 +61,27 @@ impl DwgWriter {
 
     /// Write a DWG file to any `Write + Seek` output.
     pub fn write_to_writer<W: Write + Seek>(mut output: W, document: &CadDocument) -> Result<()> {
-        // ── §19 H8g: the whole-file echo — every container family ──
+        // â”€â”€ Â§19 H8g: the whole-file echo â€” every container family â”€â”€
         // The H8e-2/H8f/H8g doctrine unified: when the document came
         // from a same-version DWG read, her whole on-disk file is
-        // retained, and the document-state hash holds (§19 H8g: the
-        // full semantic content, so ANY edit — including in-place
-        // field edits — declines), the rewrite re-emits her bytes
+        // retained, and the document-state hash holds (Â§19 H8g: the
+        // full semantic content, so ANY edit â€” including in-place
+        // field edits â€” declines), the rewrite re-emits her bytes
         // verbatim. The gate runs BEFORE the prepare pipeline (the
-        // writer's own fixups — table-key resync, database-reference
-        // repair, surface-class preparation — are not user edits) and
+        // writer's own fixups â€” table-key resync, database-reference
+        // repair, surface-class preparation â€” are not user edits) and
         // before any emission work. Edited documents and conversions
         // never reach this arm; the mirrored and conventional paths
         // stay for every other case, and the read axis (0/0
         // corpus-wide) independently verifies the model the echo
         // bypasses.
         // The pre-prepare state verdict (computed once): the AC21
-        // objects echo and the whole-file echo below both consume it —
+        // objects echo and the whole-file echo below both consume it â€”
         // the impls run after the prepare pipeline, which may repair
         // the document, and those repairs are not user edits.
-        // `DWG_NO_ECHO` (§19 H8h diagnostics): force every echo arm
-        // to decline so the conventional compressed emission runs —
-        // the record-level study path (the α-era measurement form).
+        // `DWG_NO_ECHO` (Â§19 H8h diagnostics): force every echo arm
+        // to decline so the conventional compressed emission runs â€”
+        // the record-level study path (the Î±-era measurement form).
         let state_matches = document.dwg_state_fingerprint != 0
             && super::document_state_fingerprint(document)
                 == document.dwg_state_fingerprint
@@ -91,7 +91,7 @@ impl DwgWriter {
                 if state_matches {
                     if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
                         eprintln!(
-                            "[dwg-echo] full echo ENGAGED — her file {} bytes",
+                            "[dwg-echo] full echo ENGAGED â€” her file {} bytes",
                             tail.len()
                         );
                     }
@@ -101,7 +101,7 @@ impl DwgWriter {
                     return Ok(());
                 }
                 if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
-                    eprintln!("[dwg-echo] full echo DECLINED — document state changed");
+                    eprintln!("[dwg-echo] full echo DECLINED â€” document state changed");
                 }
             }
         }
@@ -131,16 +131,16 @@ impl DwgWriter {
                 owned.assign_table_entry_handles();
             }
             if owned.version < DxfVersion::AC1027 {
-                // A same-version DWG→DWG round trip must keep the source
+                // A same-version DWGâ†’DWG round trip must keep the source
                 // file's class table VERBATIM: document.classes was read
                 // from that very file and every class-indirected object
                 // (ACSH_* shells, evaluation graphs, render entries,
-                // dynamic-block evaluation nodes, …) resolves by its
+                // dynamic-block evaluation nodes, â€¦) resolves by its
                 // ORIGINAL class number. The legacy-table prune below
                 // renumbers survivors via add_or_update and leaves the
                 // pruned classes' records falling back to type 500
                 // (ACDBDICTIONARYWDFLT), re-typing every such object in
-                // the re-read file (harness class: DYB→WDFLT counterfeits,
+                // the re-read file (harness class: DYBâ†’WDFLT counterfeits,
                 // 186 records on ATMOS-DC22S alone).
                 let same_version_roundtrip =
                     owned.dwg_source_version == Some(owned.version);
@@ -167,10 +167,10 @@ impl DwgWriter {
                 // but if they have live instances they must remain so the writer
                 // can emit the correct type code instead of falling back to 500.
                 // TODO B2 (2026-10-01): the ACDBASSOC* family belongs in the
-                // same required scan — a constructed document at a legacy
+                // same required scan â€” a constructed document at a legacy
                 // version (< AC1027) whose class table gets pruned otherwise
                 // falls to the 500 (ACDBDICTIONARYWDFLT) counterfeit for every
-                // associative record (the DYB→WDFLT class of bug this guard
+                // associative record (the DYBâ†’WDFLT class of bug this guard
                 // documents above).
                 let required_object_classes: Vec<_> = owned
                     .objects
@@ -364,7 +364,7 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
                 if mleader.style_handle.is_none_or(|handle| handle.is_null()) =>
             {
                 // A native AcDbMLeader references a resolvable MLEADERSTYLE
-                // — a null pointer is an invalid authored state that both
+                // â€” a null pointer is an invalid authored state that both
                 // loaders' audits repair (the gen_all canonical's verdict:
                 // "LeaderStyle Id is Null", 3 fixed at every open). Resolve
                 // the document's current/Standard style through the
@@ -397,15 +397,15 @@ pub(crate) fn prepare_database_references(document: &mut std::borrow::Cow<'_, Ca
             EntityType::MText(mtext) if mtext.ignore_attachment == 0 => {
                 // The R2018+ redundant-block header BL repeats the
                 // ABSOLUTE ATTACHMENT POINT (despite gold's misleading
-                // `ignore_attachment` name — the census measured the
-                // authored genus: TopLeft→1, MiddleCenter→5). A
+                // `ignore_attachment` name â€” the census measured the
+                // authored genus: TopLeftâ†’1, MiddleCenterâ†’5). A
                 // DWG-read captures the raw value verbatim; a
-                // CONSTRUCTED MText carries the default 0 — a corrupt
+                // CONSTRUCTED MText carries the default 0 â€” a corrupt
                 // repetition AutoCAD's audit repairs at every open
                 // (2026-09-30: "AcDbMText(3B)/(40) was repaired / 2
                 // fixed"; the audit-repaired staged copy carried
                 // ignore_attachment=1 = TopLeft, the true repeat).
-                // Normalize only the degenerate zero — non-zero
+                // Normalize only the degenerate zero â€” non-zero
                 // captures write verbatim (the corpus record identity
                 // holds; the era census re-verification is the gate).
                 let repeated = mtext.attachment_point as i32;
@@ -660,7 +660,7 @@ fn prepare_surface_classes(document: &mut std::borrow::Cow<'_, CadDocument>) {
 /// assigns `layer.name` through `layers.iter_mut()` leaves the entry reachable
 /// only under its old name. The entity writer resolves an entity's layer by
 /// name, so every entity on that layer would be written with a NULL layer hard
-/// pointer — a required reference — and produces an invalid drawing (issue
+/// pointer â€” a required reference â€” and produces an invalid drawing (issue
 /// #80). Repair the output copy only; the caller's document is untouched.
 ///
 /// Shared with the DXF writer: the stale key desyncs the same name lookups
@@ -734,9 +734,9 @@ fn prepare_legacy_document(document: &mut CadDocument) {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Validation
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Validate that the document version is supported for DWG writing.
 fn validate_version(version: DxfVersion) -> Result<()> {
@@ -807,10 +807,10 @@ fn acds_data<'a>(
         }
     }
     // The thumbnail record's owner: the Model Layout object (her row 0's
-    // handle IS her layout object's — measured 2026-09-30, Box_2018 +
+    // handle IS her layout object's â€” measured 2026-09-30, Box_2018 +
     // example_2018 both at 0x22). The 2026-09-30 ACAD re-probe evidence:
     // AutoCAD's open-time validation prompts RECOVER at the empty
-    // schema-0 search block — the block is empty only because the
+    // schema-0 search block â€” the block is empty only because the
     // container carries no thumbnail row.
     let thumbnail = document
         .objects
@@ -824,12 +824,12 @@ fn acds_data<'a>(
     std::borrow::Cow::Owned(build_acds_prototype(sab_entries, version, thumbnail))
 }
 
-/// §19 H7 CLASSES row: the section bytes — verbatim re-emission of the
+/// Â§19 H7 CLASSES row: the section bytes â€” verbatim re-emission of the
 /// source file's class table when the same-version roundtrip left the
 /// class table and the per-class object census unchanged (the state
 /// hash matches `raw_classes_fingerprint`). The authored desync bytes
-/// reproduce gold's walk exactly — any re-encoding desyncs it
-/// differently — and the bytes carry the author's `num_instances`/
+/// reproduce gold's walk exactly â€” any re-encoding desyncs it
+/// differently â€” and the bytes carry the author's `num_instances`/
 /// zombie flags for classes whose instances re-emit through the
 /// raw-object passthrough (outside the write census). Falls back to
 /// the sane encoding on any change or version conversion.
@@ -855,7 +855,7 @@ fn classes_section_data<'a>(
 /// Whether the version uses the AC21 (R2007) file format.
 ///
 /// AC1021 uses RS-encoded pages, LZ77 AC21 compression, and CRC-64
-/// checksums — distinct from both the AC18 and AC15 formats.
+/// checksums â€” distinct from both the AC18 and AC15 formats.
 fn uses_ac21_format(version: DxfVersion) -> bool {
     version == DxfVersion::AC1021
 }
@@ -887,7 +887,7 @@ fn prepare_header(
         !handle.is_null() && handle_map.iter().any(|(value, _)| *value == handle.value())
     };
 
-    // ── Sync table control handles from actual table objects ──
+    // â”€â”€ Sync table control handles from actual table objects â”€â”€
     // The tables always have valid handles from initialize_defaults(),
     // but the header might have NULL handles after a DWG read.
     h.block_control_handle = document.block_records.handle();
@@ -900,7 +900,7 @@ fn prepare_header(
     h.appid_control_handle = document.app_ids.handle();
     h.dimstyle_control_handle = document.dim_styles.handle();
 
-    // ── Sync root dictionary handle ──
+    // â”€â”€ Sync root dictionary handle â”€â”€
     // Find the root dictionary by scanning document.objects for a
     // Dictionary with owner == NULL. Prefer non-0x0C handles (file's
     // root dict) over the initialize_defaults() one.
@@ -911,12 +911,12 @@ fn prepare_header(
     if !h.named_objects_dict_handle.is_null()
         && !document.objects.contains_key(&h.named_objects_dict_handle)
     {
-        // Handle points to nonexistent object — try to find the real root dict
+        // Handle points to nonexistent object â€” try to find the real root dict
         h.named_objects_dict_handle = find_root_dict_handle(&document.objects);
     }
 
-    // ── Sync child dictionary handles from root dict entries ──
-    // Always overwrite — reader may produce garbage handles.
+    // â”€â”€ Sync child dictionary handles from root dict entries â”€â”€
+    // Always overwrite â€” reader may produce garbage handles.
     // If root dict doesn't have an entry, set handle to NULL.
     let root_dict_entries = match document.objects.get(&h.named_objects_dict_handle) {
         Some(crate::objects::ObjectType::Dictionary(root_dict)) => Some(root_dict),
@@ -947,7 +947,7 @@ fn prepare_header(
         .and_then(|d| d.get("ACAD_VISUALSTYLE"))
         .unwrap_or(Handle::NULL);
 
-    // ── Sync linetype handles by name ──
+    // â”€â”€ Sync linetype handles by name â”€â”€
     if let Some(lt) = document.line_types.get("ByLayer") {
         h.bylayer_linetype_handle = lt.handle;
     }
@@ -958,7 +958,7 @@ fn prepare_header(
         h.continuous_linetype_handle = lt.handle;
     }
 
-    // ── Sync model/paper space block handles ──
+    // â”€â”€ Sync model/paper space block handles â”€â”€
     if let Some(br) = document.block_records.get("*Model_Space") {
         h.model_space_block_handle = br.handle;
     }
@@ -966,7 +966,7 @@ fn prepare_header(
         h.paper_space_block_handle = br.handle;
     }
 
-    // ── Sync current style handles (validate against actual objects) ──
+    // â”€â”€ Sync current style handles (validate against actual objects) â”€â”€
     // CLAYER: must point to an actual layer; fall back to "0" if invalid
     {
         let clayer_valid = !h.current_layer_handle.is_null()
@@ -1070,7 +1070,7 @@ fn prepare_header(
         }
     }
 
-    // R2007+: current_material_handle — validate against emitted objects.
+    // R2007+: current_material_handle â€” validate against emitted objects.
     // Unsupported raw materials may be dropped during a version conversion.
     {
         if !emitted(h.current_material_handle) {
@@ -1078,7 +1078,7 @@ fn prepare_header(
         }
     }
 
-    // dim_text_style_handle — validate against text styles
+    // dim_text_style_handle â€” validate against text styles
     {
         let dts_valid = !h.dim_text_style_handle.is_null()
             && document
@@ -1094,7 +1094,7 @@ fn prepare_header(
         }
     }
 
-    // UCS ortho ref handles — validate against UCS table
+    // UCS ortho ref handles â€” validate against UCS table
     {
         let ucs_valid = |handle: Handle| -> bool {
             handle.is_null() || document.ucss.iter().any(|u| u.handle == handle)
@@ -1107,7 +1107,7 @@ fn prepare_header(
         }
     }
 
-    // ── Validate dim linetype handles against actual linetypes ──
+    // â”€â”€ Validate dim linetype handles against actual linetypes â”€â”€
     // These can become corrupt during header read/write due to stream alignment.
     {
         let valid_lt = |h: Handle| -> bool {
@@ -1124,11 +1124,11 @@ fn prepare_header(
         }
     }
 
-    // ── Correct HANDSEED ──
+    // â”€â”€ Correct HANDSEED â”€â”€
     // Only for programmatic documents: a read document preserves the
     // author's seed even when the file's own max handle reaches past it
-    // (the 2000/PolyLine2D quirk: HANDSEED 975 < max 978 — gold writes
-    // it back unchanged; §19 H7). Entity additions still grow the seed
+    // (the 2000/PolyLine2D quirk: HANDSEED 975 < max 978 â€” gold writes
+    // it back unchanged; Â§19 H7). Entity additions still grow the seed
     // through the document API's own bump.
     if document.dwg_header_raw.is_none() {
         let max_handle = handle_map.iter().map(|&(ha, _)| ha).max().unwrap_or(0);
@@ -1137,9 +1137,9 @@ fn prepare_header(
         }
     }
 
-    // ── Update model-space extents ──
+    // â”€â”€ Update model-space extents â”€â”€
     // Only for programmatic documents: a read document carries the
-    // author's saved extents in the raw mirror (§19 H7) — recomputing
+    // author's saved extents in the raw mirror (Â§19 H7) â€” recomputing
     // would replace them with silver's own bounds and break the
     // write-target preservation row (EXTMIN/EXTMAX).
     if document.dwg_header_raw.is_none() {
@@ -1185,9 +1185,9 @@ fn find_root_dict_handle(
     best_handle
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  AC15 format (R13/R14/R2000) — linear file layout
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  AC15 format (R13/R14/R2000) â€” linear file layout
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn write_ac15<W: Write + Seek>(
     output: &mut W,
@@ -1206,23 +1206,23 @@ fn write_ac15<W: Write + Seek>(
     fhw.set_code_page(crate::io::dxf::code_page::dwg_code_page_index(
         &document.header.code_page,
     ));
-    // §19 H7f: a same-version roundtrip re-emits the author's
+    // Â§19 H7f: a same-version roundtrip re-emits the author's
     // dwg_version/maint_version pair at 0x11/0x12 ("of app which stored
-    // it / the actual dwg version" — per-release bytes; the corpus R2000
-    // authors wrote 0x17..0x21 × 0..0x1D) instead of the fixed pair.
+    // it / the actual dwg version" â€” per-release bytes; the corpus R2000
+    // authors wrote 0x17..0x21 Ã— 0..0x1D) instead of the fixed pair.
     if document.dwg_source_version == Some(version) {
         if let Some(fh) = document.dwg_file_header.as_ref() {
             fhw.set_source_version_pair(fh.dwg_version, fh.maint_version);
         }
     }
 
-    // §19 H8f's whole-file echo is HOISTED to `write_to_writer` (it
+    // Â§19 H8f's whole-file echo is HOISTED to `write_to_writer` (it
     // fires before the prepare pipeline on the pre-prepare state
-    // verdict); reaching here means it did not engage — the
+    // verdict); reaching here means it did not engage â€” the
     // conventional flat-container emission below serves every other
     // case.
 
-    // ── Phase 1: Compute objects FIRST to get handle map ──
+    // â”€â”€ Phase 1: Compute objects FIRST to get handle map â”€â”€
     let objects_started = web_time::Instant::now();
     let obj_writer = DwgObjectWriter::new(document)?;
     let (
@@ -1242,10 +1242,10 @@ fn write_ac15<W: Write + Seek>(
         );
     }
 
-    // ── Phase 2: Prepare header (sync handles + correct HANDSEED) ──
+    // â”€â”€ Phase 2: Prepare header (sync handles + correct HANDSEED) â”€â”€
     let corrected_header = prepare_header(document, &handle_map_u32, &extents);
 
-    // ── Section: Header (uses synced + corrected header) ──
+    // â”€â”€ Section: Header (uses synced + corrected header) â”€â”€
     let maint = document.maintenance_version;
     let header_encoding =
         crate::io::dxf::code_page::encoding_from_code_page(&document.header.code_page)
@@ -1259,21 +1259,21 @@ fn write_ac15<W: Write + Seek>(
     );
     fhw.add_section(section_names::HEADER, header_data);
 
-    // ── Section: Classes ──
+    // â”€â”€ Section: Classes â”€â”€
     let classes = reconciled_classes(document, &class_instance_counts, class_counts_complete);
     let classes_data =
         classes_section_data(document, version, &classes, maint, header_encoding);
     fhw.add_section(section_names::CLASSES, classes_data.into_owned());
 
-    // ── Section: AcDbObjects (pre-computed) ──
+    // â”€â”€ Section: AcDbObjects (pre-computed) â”€â”€
     fhw.add_section(section_names::ACDB_OBJECTS, obj_data);
 
-    // ── Section: ObjFreeSpace ──
-    // §19 H7e: gold reads the R2000 section only at the position
+    // â”€â”€ Section: ObjFreeSpace â”€â”€
+    // Â§19 H7e: gold reads the R2000 section only at the position
     // directly after the handles map (the AC15 writer's record order
-    // pins the placement), so the content must be the author's own —
+    // pins the placement), so the content must be the author's own â€”
     // verbatim on a same-version roundtrip, a NUL locator record
-    // (seeker 0 — the author's own absent form) when the source
+    // (seeker 0 â€” the author's own absent form) when the source
     // carried no section, and the historical rebuild only for
     // programmatic documents and version conversions.
     if document.dwg_source_version == Some(version) {
@@ -1285,22 +1285,22 @@ fn write_ac15<W: Write + Seek>(
         fhw.add_section(section_names::OBJ_FREE_SPACE, obj_free_space);
     }
 
-    // ── Section: Template ──
+    // â”€â”€ Section: Template â”€â”€
     let template = build_template(&[], document.header.measurement)?;
     fhw.add_section(section_names::TEMPLATE, template);
 
-    // ── Section: AuxHeader (uses corrected HANDSEED) ──
+    // â”€â”€ Section: AuxHeader (uses corrected HANDSEED) â”€â”€
     let aux_data = aux_header_writer::write_aux_header(version, &corrected_header);
     fhw.add_section(section_names::AUX_HEADER, aux_data);
 
-    // ── Section: Handles (must be last — needs objects offset) ──
+    // â”€â”€ Section: Handles (must be last â€” needs objects offset) â”€â”€
     let section_offset = fhw.handle_section_offset() as i32;
     let handle_map_i64: Vec<(u64, i64)> =
         handle_map_u32.iter().map(|&(h, o)| (h, o as i64)).collect();
     let handles_data = handle_writer::write_handles(&handle_map_i64, section_offset);
     fhw.add_section(section_names::HANDLES, handles_data);
 
-    // ── Section: Preview ──
+    // â”€â”€ Section: Preview â”€â”€
     // Preview is the last section, so its file offset is known now; the
     // container's image `start` fields are absolute file offsets relative to it.
     let preview_base = fhw.pending_section_offset() as u64;
@@ -1308,25 +1308,25 @@ fn write_ac15<W: Write + Seek>(
         crate::io::dwg::preview::build_preview(document.preview.as_ref(), preview_base);
     fhw.add_section(section_names::PREVIEW, preview_data);
 
-    // ── Write final file ──
+    // â”€â”€ Write final file â”€â”€
     fhw.write_file(output)?;
 
     Ok(())
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  AC18 format (R2004/R2010/R2013/R2018) — page-based with LZ77
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  AC18 format (R2004/R2010/R2013/R2018) â€” page-based with LZ77
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn write_ac18<W: Write + Seek>(
     output: &mut W,
     document: &CadDocument,
     version: DxfVersion,
 ) -> Result<()> {
-    // §19 H8g's whole-file echo is HOISTED to `write_to_writer` (it
+    // Â§19 H8g's whole-file echo is HOISTED to `write_to_writer` (it
     // fires before the prepare pipeline on the pre-prepare state
-    // verdict — the maintainer's AC18 decision, 2026-09-27); reaching
-    // here means it did not engage — the H7g mirror and the
+    // verdict â€” the maintainer's AC18 decision, 2026-09-27); reaching
+    // here means it did not engage â€” the H7g mirror and the
     // conventional paged emission below serve every other case.
 
     // The maintenance-release version must match the value the AuxHeader
@@ -1337,10 +1337,10 @@ fn write_ac18<W: Write + Seek>(
     // stream unreadable in AutoCAD/TrueView. Use the canonical per-version
     // value so R2013 files are always well-formed.
     //
-    // §19 H7f: a same-version roundtrip re-emits the AUTHOR's maint byte
-    // instead of the canonical — it is file identity (gold prints it as
+    // Â§19 H7f: a same-version roundtrip re-emits the AUTHOR's maint byte
+    // instead of the canonical â€” it is file identity (gold prints it as
     // FILEHEADER.maint_version) and the layout gate is layout-stable for
-    // every corpus class (R2004 never reads the extra RL — its header
+    // every corpus class (R2004 never reads the extra RL â€” its header
     // vars go through dwg_decode_header_variables which reads no
     // bitsize_hi; the R2010/R2013 authors' bytes are all > 3 like the
     // canonical; R2018's gate has the `|| >= R2018` arm). The five
@@ -1377,7 +1377,7 @@ fn write_ac18<W: Write + Seek>(
     // Smaller page for metadata-style sections
     const SMALL_PAGE: usize = 0x80;
 
-    // ── Phase 1: Compute objects FIRST to get handle map ──
+    // â”€â”€ Phase 1: Compute objects FIRST to get handle map â”€â”€
     let objects_started = web_time::Instant::now();
     let obj_writer = DwgObjectWriter::new(document)?;
     let (
@@ -1397,10 +1397,10 @@ fn write_ac18<W: Write + Seek>(
         );
     }
 
-    // ── Phase 2: Prepare header (sync handles + correct HANDSEED) ──
+    // â”€â”€ Phase 2: Prepare header (sync handles + correct HANDSEED) â”€â”€
     let corrected_header = prepare_header(document, &handle_map_u32, &extents);
 
-    // ── Section: Header (uses synced + corrected header) ──
+    // â”€â”€ Section: Header (uses synced + corrected header) â”€â”€
     let header_encoding =
         crate::io::dxf::code_page::encoding_from_code_page(&document.header.code_page)
             .unwrap_or(encoding_rs::WINDOWS_1252);
@@ -1412,10 +1412,10 @@ fn write_ac18<W: Write + Seek>(
         document.dwg_header_raw.as_ref(),
     );
 
-    // ── Build the remaining section buffers up front (§19 H7g) ──
+    // â”€â”€ Build the remaining section buffers up front (Â§19 H7g) â”€â”€
     // The container-shape mirror gates on the content lengths and may
     // emit in the author's physical order, so every section is
-    // constructed before anything is written — the builders are pure,
+    // constructed before anything is written â€” the builders are pure,
     // only `add_section` moves the output stream, so the conventional
     // path below writes byte-identical output to the historical
     // interleaved emission. The preview content is the one lazy
@@ -1423,19 +1423,19 @@ fn write_ac18<W: Write + Seek>(
     // is built at emission time.
     let same_origin = document.dwg_source_version == Some(version);
 
-    // ── Section: Classes ──
+    // â”€â”€ Section: Classes â”€â”€
     let classes = reconciled_classes(document, &class_instance_counts, class_counts_complete);
     let classes_data =
         classes_section_data(document, version, &classes, maint, header_encoding).into_owned();
 
-    // ── Section: SummaryInfo ──
-    // The presence-coupling gate (§19 H7 review): gold emits SummaryInfo
+    // â”€â”€ Section: SummaryInfo â”€â”€
+    // The presence-coupling gate (Â§19 H7 review): gold emits SummaryInfo
     // only when the original's summaryinfo_address was set (out_json.c:2663)
-    // — a document read from a file whose author carried no section keeps
+    // â€” a document read from a file whose author carried no section keeps
     // its zeroed model and the writer must not materialize a section out
     // of nothing (gh209_1: address 0, no section, no gold key). The
-    // escape hatch: a programmatically modified summary (≠ the default)
-    // writes the section — user intent wins over roundtrip presence.
+    // escape hatch: a programmatically modified summary (â‰  the default)
+    // writes the section â€” user intent wins over roundtrip presence.
     let summary_orig_present = document
         .dwg_file_header
         .as_ref()
@@ -1449,10 +1449,10 @@ fn write_ac18<W: Write + Seek>(
             None
         };
 
-    // ── Section: Preview ──
+    // â”€â”€ Section: Preview â”€â”€
     // The image `start` fields are absolute file offsets, so the preview page's
     // data position must be known BEFORE building the container (the ODA page
-    // checksum covers the final bytes — patching offsets afterward would break
+    // checksum covers the final bytes â€” patching offsets afterward would break
     // it). `add_section` aligns via `write_magic_number` (pads by `pos % 0x20`)
     // then writes a 0x20 page header; the header's preview seeker points at
     // `page + 0x20`, which is where the container lands. The content itself is
@@ -1462,9 +1462,9 @@ fn write_ac18<W: Write + Seek>(
         p => crate::io::dwg::preview::build_preview(p, 0).len(),
     };
 
-    // ── Section: AppInfo ── (§19 H7: verbatim from the source when the
+    // â”€â”€ Section: AppInfo â”€â”€ (Â§19 H7: verbatim from the source when the
     // same-version roundtrip carried one; SKIPPED when the source had
-    // none — gold prints the section unconditionally (zeroed when
+    // none â€” gold prints the section unconditionally (zeroed when
     // absent), so materializing the boilerplate there would diverge.
     // Programmatic documents and version conversions keep the
     // historical boilerplate.)
@@ -1474,8 +1474,8 @@ fn write_ac18<W: Write + Seek>(
         Some(app_info_writer::write_app_info(version))
     };
 
-    // ── Section: AppInfoHistory ── (§19 H7: never written before this
-    // row — same verbatim/skip rule; a source without the section keeps
+    // â”€â”€ Section: AppInfoHistory â”€â”€ (Â§19 H7: never written before this
+    // row â€” same verbatim/skip rule; a source without the section keeps
     // gold's zeroed print on both sides.)
     let app_info_history_section: Option<Vec<u8>> = if same_origin {
         document
@@ -1486,16 +1486,16 @@ fn write_ac18<W: Write + Seek>(
         None
     };
 
-    // ── Section: FileDepList ──
+    // â”€â”€ Section: FileDepList â”€â”€
     let file_dep_data = build_file_dep_list();
 
-    // ── Section: RevHistory ──
+    // â”€â”€ Section: RevHistory â”€â”€
     let rev_history_data = build_rev_history();
 
-    // ── Section: AuxHeader (uses corrected HANDSEED) ──
+    // â”€â”€ Section: AuxHeader (uses corrected HANDSEED) â”€â”€
     let aux_data = aux_header_writer::write_aux_header(version, &corrected_header);
 
-    // ── Section: AcDsPrototype_1b (AC1027+ ACIS SAB storage) ──
+    // â”€â”€ Section: AcDsPrototype_1b (AC1027+ ACIS SAB storage) â”€â”€
     let acds_section: Option<Vec<u8>> =
         if !sab_entries.is_empty() || (same_origin && document.raw_acds_data.is_some()) {
             Some(acds_data(document, version, &sab_entries).into_owned())
@@ -1503,12 +1503,12 @@ fn write_ac18<W: Write + Seek>(
             None
         };
 
-    // ── Section: ObjFreeSpace ──
-    // §19 H7e: the content is authored file state (the author's
-    // numhandles pattern words, TDUPDATE, the max constants) — verbatim
+    // â”€â”€ Section: ObjFreeSpace â”€â”€
+    // Â§19 H7e: the content is authored file state (the author's
+    // numhandles pattern words, TDUPDATE, the max constants) â€” verbatim
     // on a same-version roundtrip; a source without the section gets
     // none materialized (gold prints the section unconditionally on
-    // R2004+, zeroed when absent — both sides match then); programmatic
+    // R2004+, zeroed when absent â€” both sides match then); programmatic
     // documents and version conversions keep the historical rebuild.
     let obj_free_space_section: Option<Vec<u8>> = if same_origin {
         document
@@ -1519,8 +1519,8 @@ fn write_ac18<W: Write + Seek>(
         Some(build_obj_free_space(version, document, handle_map_u32.len()))
     };
 
-    // ── Section: XrefManifest ──
-    // §19 H7g: the R2013+ external-reference table — raw verbatim on a
+    // â”€â”€ Section: XrefManifest â”€â”€
+    // Â§19 H7g: the R2013+ external-reference table â€” raw verbatim on a
     // same-version roundtrip (authored state, unmodeled, unprinted by
     // gold); never materialized otherwise. The mirror-only emission
     // keeps the conventional path byte-identical to the historical
@@ -1534,10 +1534,10 @@ fn write_ac18<W: Write + Seek>(
         None
     };
 
-    // ── Section: Template ──
+    // â”€â”€ Section: Template â”€â”€
     let template = build_template(&[], document.header.measurement)?;
 
-    // ── Section: Handles (needs objects data) ──
+    // â”€â”€ Section: Handles (needs objects data) â”€â”€
     let section_offset = fhw.handle_section_offset() as i32;
     let handle_map_i64: Vec<(u64, i64)> =
         handle_map_u32.iter().map(|&(h, o)| (h as u64, o as i64)).collect();
@@ -1560,7 +1560,7 @@ fn write_ac18<W: Write + Seek>(
         handles: &handles_data,
     };
 
-    // ── The §19 H7g container-shape mirror gate and emission ──
+    // â”€â”€ The Â§19 H7g container-shape mirror gate and emission â”€â”€
     // One root closes three census families at once when it holds:
     // `numsections` IS the page-map entry count and the id fields
     // (@0x28 `last_section_id`, @0x50 `section_map_id`, @0x5C
@@ -1573,12 +1573,12 @@ fn write_ac18<W: Write + Seek>(
     // addresses are page-data positions, seeker+0x20) and the preview
     // chain's absolute image offsets (the THUMBNAILIMAGE identity).
     // The gate falls back to the conventional sequential layout on
-    // ANY divergence — an author section our content does not fit, a
+    // ANY divergence â€” an author section our content does not fit, a
     // presence divergence, gap entries, interleaved pages: the
     // rewrite stays valid everywhere, the residue rows stay open on
     // the files it declines.
     // DWG_NO_MIRROR (diagnostics): force the container-shape mirror to
-    // decline so the conventional sequential layout writes the file —
+    // decline so the conventional sequential layout writes the file â€”
     // the isolation switch for bisecting the two emission arms.
     let mirror_disabled = std::env::var_os("DWG_NO_MIRROR").is_some();
     let mirror_plan = match (
@@ -1609,7 +1609,7 @@ fn write_ac18<W: Write + Seek>(
             let sec = &shape.sections[sec_index];
             if sec.name != section_names::PREVIEW {
                 // The gate verified the content parity; 0-page sections
-                // carry no bytes (our writer skipped them — the author's
+                // carry no bytes (our writer skipped them â€” the author's
                 // shape drives the presence).
                 let data: &[u8] = sections.get(&sec.name).unwrap_or(&[]);
                 fhw.add_section_shaped(
@@ -1626,7 +1626,7 @@ fn write_ac18<W: Write + Seek>(
             // The preview page lands at the author's `thumbnail_address`
             // exactly when the pages before it (the byte-faithful
             // summary-prefix) kept the author's on-disk sizes; then the
-            // retained raw container re-emits verbatim — its embedded
+            // retained raw container re-emits verbatim â€” its embedded
             // offsets are the author's, and they are still the correct
             // absolute addresses in our file. Otherwise the container
             // is rebuilt around OUR actual address (honest bytes; the
@@ -1676,7 +1676,7 @@ fn write_ac18<W: Write + Seek>(
         let preview_data =
             crate::io::dwg::preview::build_preview(document.preview.as_ref(), preview_base);
         // Keep the whole preview in one contiguous page (a split would scatter the
-        // container across page headers): a decompressed size ≥ its length, rounded
+        // container across page headers): a decompressed size â‰¥ its length, rounded
         // up to a 0x20 multiple so the uncompressed page needs no compression pad.
         let preview_page = ((preview_data.len() + 0x1F) & !0x1F).max(0x20);
         fhw.add_section(
@@ -1755,20 +1755,20 @@ fn write_ac18<W: Write + Seek>(
         )?;
     }
 
-    // ── Write file header, section map, and page map ──
+    // â”€â”€ Write file header, section map, and page map â”€â”€
     fhw.write_file(output)?;
 
     Ok(())
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  AC18 container-shape mirror (§19 H7g)
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  AC18 container-shape mirror (Â§19 H7g)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-/// The pre-built AC18 section buffers (§19 H7g), with the writer's own
+/// The pre-built AC18 section buffers (Â§19 H7g), with the writer's own
 /// presence gates applied: `None` on an `Option` field = the section
 /// is skipped (the verbatim/skip arms); the preview section is
-/// excluded — its container embeds its own page-data address, so it is
+/// excluded â€” its container embeds its own page-data address, so it is
 /// built at emission time.
 struct Ac18Sections<'a> {
     header: &'a [u8],
@@ -1811,14 +1811,14 @@ impl Ac18Sections<'_> {
     }
 }
 
-/// The §19 H7g mirror emission plan: the shape-section indices to
+/// The Â§19 H7g mirror emission plan: the shape-section indices to
 /// emit, in the author's physical order (0-page descriptor-only
 /// sections appended).
 struct Ac18MirrorPlan {
     order: Vec<usize>,
 }
 
-/// The §19 H7g content-parity gate. Every check is a fall-back-to-
+/// The Â§19 H7g content-parity gate. Every check is a fall-back-to-
 /// conventional trigger: the author's page space is mirrored only when
 /// our re-encoded content demonstrably fits it and the author's layout
 /// is one our writer can reproduce. Set `AC18_MIRROR_DEBUG` to trace
@@ -1858,7 +1858,7 @@ fn ac18_mirror_plan(
         decline!("incoherent retained ids");
     }
     // The core sections: a shape without any of them is not a
-    // mirrorable container — rewriting must never drop one.
+    // mirrorable container â€” rewriting must never drop one.
     for must in [
         section_names::HEADER,
         section_names::CLASSES,
@@ -1995,7 +1995,7 @@ fn ac18_mirror_plan(
         decline!("a paged section is missing from the physical page walk");
     }
     // The 0-page descriptors (the unnamed AcDs) emit descriptor-table
-    // entries only — appended after the data sections.
+    // entries only â€” appended after the data sections.
     for (index, sec) in shape.sections.iter().enumerate() {
         if sec.pages.is_empty() {
             order.push(index);
@@ -2011,9 +2011,9 @@ fn ac18_mirror_plan(
     Some(Ac18MirrorPlan { order })
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  AC21 format (R2007) — RS-encoded pages with LZ77 AC21 compression
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  AC21 format (R2007) â€” RS-encoded pages with LZ77 AC21 compression
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn write_ac21<W: Write + Seek>(
     output: &mut W,
@@ -2034,10 +2034,10 @@ fn write_ac21_impl<W: Write + Seek>(
     // AC21 writer reserves 0x480 bytes at file start (0x80 metadata + 0x400 file header)
     let mut fhw = DwgFileHeaderWriterAC21::new(version, output)?;
     fhw.skip_lz77 = skip_lz77;
-    // §19 H7f: a same-version roundtrip re-emits the author's FILEHEADER
+    // Â§19 H7f: a same-version roundtrip re-emits the author's FILEHEADER
     // identity bytes (the R2007 metadata hardcodes 0x19/0x1B/0x19/30
     // before this row; the corpus R2007 authors wrote e.g. 50/33/255/30
-    // per build — Box_2007: maint_rel 50, maint 255, app pair 33/255).
+    // per build â€” Box_2007: maint_rel 50, maint 255, app pair 33/255).
     // R2007's section layout has no maint-gated arms (its reader path
     // never reads the extra RL), so the mirror is layout-neutral.
     if document.dwg_source_version == Some(version) {
@@ -2052,8 +2052,8 @@ fn write_ac21_impl<W: Write + Seek>(
                 fh.app_maint_version,
             );
         }
-        // §19 H7g: the author's `random_seed` — the AC21 CRC encoder's
-        // seed — on the same-version roundtrip (decode-inert; the
+        // Â§19 H7g: the author's `random_seed` â€” the AC21 CRC encoder's
+        // seed â€” on the same-version roundtrip (decode-inert; the
         // derived crc-seed fields follow the author's RNG sequence).
         // Gated on the author's `crc_seed` matching our fixed 0 (the
         // spec constant), so the draws stay the deterministic author
@@ -2062,12 +2062,12 @@ fn write_ac21_impl<W: Write + Seek>(
             if sys.crc_seed == 0 {
                 fhw.set_source_random_seed(sys.random_seed);
                 // TODO A2 (2026-10-01): the author's stored derive-family
-                // draws replay verbatim on the same-content rewrite — the
+                // draws replay verbatim on the same-content rewrite â€” the
                 // 2026-10-01 pinning proved silver's engine table and the
                 // draw ORDER are the author's, but the author's pre-draw
-                // walk consumption (36–71 table words per file) has no
+                // walk consumption (36â€“71 table words per file) has no
                 // pinned formula, so the three R2007_Header draws replay
-                // instead of re-deriving (inert seed values; the §19 H7
+                // instead of re-deriving (inert seed values; the Â§19 H7
                 // verbatim-capture pattern).
                 fhw.set_source_crc_seed_draws(
                     sys.sections_map_crc_seed,
@@ -2078,7 +2078,7 @@ fn write_ac21_impl<W: Write + Seek>(
         }
     }
 
-    // ── Phase 1: Compute objects FIRST to get handle map ──
+    // â”€â”€ Phase 1: Compute objects FIRST to get handle map â”€â”€
     let objects_started = web_time::Instant::now();
     let obj_writer = DwgObjectWriter::new(document)?;
     let (
@@ -2098,21 +2098,21 @@ fn write_ac21_impl<W: Write + Seek>(
         );
     }
     if std::env::var_os("DWG_RECORD_TRACE").is_some() {
-        // §19 H8h diagnostics: our record map — (handle, offset into
-        // the compact conventional objects stream) — paired with the
+        // Â§19 H8h diagnostics: our record map â€” (handle, offset into
+        // the compact conventional objects stream) â€” paired with the
         // reader trace for record-level autopsy.
         for &(h, o) in &handle_map_u32 {
             eprintln!("[record-trace our] {h:X} {o}");
         }
     }
 
-    // ── Phase 2: Prepare header (sync handles + correct HANDSEED) ──
+    // â”€â”€ Phase 2: Prepare header (sync handles + correct HANDSEED) â”€â”€
     let corrected_header = prepare_header(document, &handle_map_u32, &extents);
 
-    // ── The section buffers, all built up front (§19 H8b) ──
+    // â”€â”€ The section buffers, all built up front (Â§19 H8b) â”€â”€
     // The AC21 container-shape mirror gates on the content lengths and
     // emits in the author's physical order, so every section is
-    // constructed before anything is written — the builders are pure,
+    // constructed before anything is written â€” the builders are pure,
     // only `add_section` moves the output stream, so the conventional
     // path below writes byte-identical output to the historical
     // interleaved emission. The preview content is the one lazy
@@ -2121,10 +2121,10 @@ fn write_ac21_impl<W: Write + Seek>(
     // the current stream position on the conventional path).
     let same_origin = document.dwg_source_version == Some(version);
 
-    // SummaryInfo — the same presence-coupling gate as the AC18 writer
-    // (§19 H7 review): skip the section when the original read carried
+    // SummaryInfo â€” the same presence-coupling gate as the AC18 writer
+    // (Â§19 H7 review): skip the section when the original read carried
     // summaryinfo_address 0 and the model still holds the default
-    // (a modified summary writes the section — user intent wins).
+    // (a modified summary writes the section â€” user intent wins).
     let summary_orig_present = document
         .dwg_file_header
         .as_ref()
@@ -2138,8 +2138,8 @@ fn write_ac21_impl<W: Write + Seek>(
             None
         };
 
-    // AppInfo (§19 H7: verbatim from the source on a same-version
-    // roundtrip; SKIPPED when the source had none — gold prints the
+    // AppInfo (Â§19 H7: verbatim from the source on a same-version
+    // roundtrip; SKIPPED when the source had none â€” gold prints the
     // section unconditionally, so the boilerplate would diverge there.
     // Programmatic documents and version conversions keep the
     // historical boilerplate.)
@@ -2149,7 +2149,7 @@ fn write_ac21_impl<W: Write + Seek>(
         Some(app_info_writer::write_app_info(version))
     };
 
-    // AppInfoHistory (§19 H7: never written before this row — verbatim
+    // AppInfoHistory (Â§19 H7: never written before this row â€” verbatim
     // when the same-version source carried one, skipped otherwise.)
     let app_info_history_section: Option<Vec<u8>> = if same_origin {
         document
@@ -2176,7 +2176,7 @@ fn write_ac21_impl<W: Write + Seek>(
     };
 
     // ObjFreeSpace
-    // §19 H7e: verbatim from the same-version source (the author's
+    // Â§19 H7e: verbatim from the same-version source (the author's
     // pattern words / TDUPDATE / max constants); SKIPPED when the
     // source had none (gold's zeroed print then matches on both
     // sides); programmatic documents and conversions keep the rebuild.
@@ -2219,7 +2219,7 @@ fn write_ac21_impl<W: Write + Seek>(
         document.dwg_header_raw.as_ref(),
     );
 
-    // ── The §19 H8b container-shape mirror gate and emission ──
+    // â”€â”€ The Â§19 H8b container-shape mirror gate and emission â”€â”€
     // One root closes three census families at once when it holds:
     // the author's pages-map (size, id) pairs re-emitted in her
     // physical order reproduce her tiling exactly (a running sum from
@@ -2227,16 +2227,16 @@ fn write_ac21_impl<W: Write + Seek>(
     // 0x80-block addresses and the THUMBNAILIMAGE identity land hers
     // wherever our re-encoded content demonstrably fits her page
     // slots. The gate falls back to the conventional layout on ANY
-    // divergence — a section our content does not fit, our-extra
+    // divergence â€” a section our content does not fit, our-extra
     // content with no page space, a terminator pair inside her map
     // bytes, an over-slot RS form: the rewrite stays valid everywhere
     // and the residue rows stay open on the files it declines.
     //
-    // §19 H8d: the objects-stream raw echo — her reconstructed section
+    // Â§19 H8d: the objects-stream raw echo â€” her reconstructed section
     // re-emits verbatim in her slots when the document's object
     // identity is unchanged (the classes-verbatim fingerprint
     // doctrine). Her physical layout is her editor's incremental-save
-    // allocation history — unmodelable by rule — and the mirror's own
+    // allocation history â€” unmodelable by rule â€” and the mirror's own
     // doctrine for unmodelable authored state is echo. The echoed
     // section needs her record addresses, so the handle map re-emits
     // from the captured pairs (her offsets into her stream), not our
@@ -2249,7 +2249,7 @@ fn write_ac21_impl<W: Write + Seek>(
             let her_handles_data = handle_writer::write_handles(her_handles, 0);
             if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
                 eprintln!(
-                    "[ac21-mirror] objects echo ENGAGED — her raw {} bytes, {} handles",
+                    "[ac21-mirror] objects echo ENGAGED â€” her raw {} bytes, {} handles",
                     her_raw.len(),
                     her_handles.len()
                 );
@@ -2260,11 +2260,11 @@ fn write_ac21_impl<W: Write + Seek>(
             if std::env::var_os("AC21_MIRROR_DEBUG").is_some()
                 && document.raw_acdb_objects_data.is_some()
             {
-                // §19 H8g: the state-hash gate — the decline means the
+                // Â§19 H8g: the state-hash gate â€” the decline means the
                 // document changed between read and write (any edit,
                 // including in-place field edits).
                 eprintln!(
-                    "[ac21-mirror] objects echo DECLINED — document state changed"
+                    "[ac21-mirror] objects echo DECLINED â€” document state changed"
                 );
             }
             None
@@ -2274,9 +2274,9 @@ fn write_ac21_impl<W: Write + Seek>(
         Some((raw, her_handles_data)) => (&raw[..], &her_handles_data[..]),
         None => (&obj_data[..], &handles_data[..]),
     };
-    // §19 H8e-2's full-file echo is HOISTED to `write_to_writer` (it
+    // Â§19 H8e-2's full-file echo is HOISTED to `write_to_writer` (it
     // fires before the prepare pipeline, on the pre-prepare state
-    // verdict); reaching here means it did not engage — the mirror
+    // verdict); reaching here means it did not engage â€” the mirror
     // fit-gate path below serves the files the whole-file echo
     // cannot (a missing tail retention, or a same-origin document
     // whose state still holds but whose tail is absent).
@@ -2336,19 +2336,19 @@ fn write_ac21_impl<W: Write + Seek>(
     if let Some(plan) = mirror_plan {
         fhw.write_mirrored_pages(output, &plan)?;
         fhw.write_file_mirrored(output)?;
-        // The §19 H8b debug oracle: the derived 0x80-block addresses
+        // The Â§19 H8b debug oracle: the derived 0x80-block addresses
         // must equal the retained author values under the mirrored
-        // layout (they land naturally — nothing is forced but the
+        // layout (they land naturally â€” nothing is forced but the
         // layout itself; AC21_MIRROR_DEBUG carries the trace).
         if std::env::var_os("AC21_MIRROR_DEBUG").is_some() {
             if let Some(fh) = document.dwg_file_header.as_ref() {
                 eprintln!(
-                    "[ac21-mirror] 0x80 addresses — summaryinfo derived {} retained {}",
+                    "[ac21-mirror] 0x80 addresses â€” summaryinfo derived {} retained {}",
                     fhw.section_page_address(section_names::SUMMARY_INFO),
                     fh.summaryinfo_address
                 );
                 eprintln!(
-                    "[ac21-mirror] 0x80 addresses — thumbnail derived {} retained {}",
+                    "[ac21-mirror] 0x80 addresses â€” thumbnail derived {} retained {}",
                     fhw.section_page_address(section_names::PREVIEW),
                     fh.thumbnail_address
                 );
@@ -2357,9 +2357,9 @@ fn write_ac21_impl<W: Write + Seek>(
         return Ok(());
     }
 
-    // ── Sections in spec §5.1 stream order (the conventional
-    // sequential layout — byte-identical to the historical emission
-    // for every non-mirrored file) ──
+    // â”€â”€ Sections in spec Â§5.1 stream order (the conventional
+    // sequential layout â€” byte-identical to the historical emission
+    // for every non-mirrored file) â”€â”€
     if let Some(summary_data) = &summary_section {
         fhw.add_section(output, section_names::SUMMARY_INFO, summary_data)?;
     }
@@ -2394,15 +2394,15 @@ fn write_ac21_impl<W: Write + Seek>(
     fhw.add_section(output, section_names::AUX_HEADER, &aux_data)?;
     fhw.add_section(output, section_names::HEADER, &header_data)?;
 
-    // ── Finalize: section map, page map, file header, metadata ──
+    // â”€â”€ Finalize: section map, page map, file header, metadata â”€â”€
     fhw.write_file(output)?;
 
     Ok(())
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Section data builders for simple/metadata sections
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Build ObjFreeSpace section data.
 ///
@@ -2433,7 +2433,7 @@ fn build_obj_free_space(
 
     // UInt8: number of 64-bit values that follow (ODA writes 4)
     data.push(4);
-    // 4 × (u32 + u32) = 4 × 8 bytes of fixed ODA values
+    // 4 Ã— (u32 + u32) = 4 Ã— 8 bytes of fixed ODA values
     data.extend_from_slice(&0x00000032u32.to_le_bytes());
     data.extend_from_slice(&0x00000000u32.to_le_bytes());
     data.extend_from_slice(&0x00000064u32.to_le_bytes());
@@ -2468,16 +2468,16 @@ fn build_template(description: &[u8], measurement: i16) -> Result<Vec<u8>> {
 
 /// Build SummaryInfo section data (AC18+ only).
 ///
-/// Writes the document's summary info (§19 H7: the values the H4 read
-/// retained — a default document emits the historical all-empty block).
+/// Writes the document's summary info (Â§19 H7: the values the H4 read
+/// retained â€” a default document emits the historical all-empty block).
 ///
 /// **AC1018 (R2004)**: Windows-1252 (ANSI) strings.
 ///   Format: UInt16(byte_count_incl_null) + bytes + null.
-///   Empty → UInt16(1) + 0x00 = 3 bytes.
+///   Empty â†’ UInt16(1) + 0x00 = 3 bytes.
 ///
 /// **AC1021 (R2007)**: UTF-16LE strings.
 ///   Format: UInt16(char_count_incl_null) + UTF-16LE chars.
-///   Empty → UInt16(1) + 0x00 0x00 = 4 bytes.
+///   Empty â†’ UInt16(1) + 0x00 0x00 = 4 bytes.
 fn build_summary_info(version: DxfVersion, si: &crate::document::SummaryInfo) -> Vec<u8> {
     let is_utf16 = version >= DxfVersion::AC1021;
 
@@ -2515,15 +2515,15 @@ fn build_summary_info(version: DxfVersion, si: &crate::document::SummaryInfo) ->
         push_string(&mut data, s);
     }
 
-    // Total editing time: 2 × u32 (days, ms)
+    // Total editing time: 2 Ã— u32 (days, ms)
     data.extend_from_slice(&si.tdindwg[0].to_le_bytes());
     data.extend_from_slice(&si.tdindwg[1].to_le_bytes());
 
-    // Created date: 2 × u32
+    // Created date: 2 Ã— u32
     data.extend_from_slice(&si.tdcreate[0].to_le_bytes());
     data.extend_from_slice(&si.tdcreate[1].to_le_bytes());
 
-    // Modified date: 2 × u32
+    // Modified date: 2 Ã— u32
     data.extend_from_slice(&si.tdupdate[0].to_le_bytes());
     data.extend_from_slice(&si.tdupdate[1].to_le_bytes());
 
@@ -2534,7 +2534,7 @@ fn build_summary_info(version: DxfVersion, si: &crate::document::SummaryInfo) ->
         push_string(&mut data, val);
     }
 
-    // 2 × u32 trailing (gold's unknown1/unknown2)
+    // 2 Ã— u32 trailing (gold's unknown1/unknown2)
     data.extend_from_slice(&si.unknown1.to_le_bytes());
     data.extend_from_slice(&si.unknown2.to_le_bytes());
 
@@ -2555,7 +2555,7 @@ fn build_file_dep_list() -> Vec<u8> {
 
 /// Build RevHistory section data (AC18+ only).
 ///
-/// Empty revision history (3 × Int32 zeros).
+/// Empty revision history (3 Ã— Int32 zeros).
 fn build_rev_history() -> Vec<u8> {
     let mut data = Vec::with_capacity(16);
     data.extend_from_slice(&0u32.to_le_bytes());
@@ -2603,9 +2603,9 @@ enum AcDsSegKind {
     Freesp,
 }
 
-/// The AcDs container genus per era (§20.2 G-C): the authored-specimen
+/// The AcDs container genus per era (Â§20.2 G-C): the authored-specimen
 /// invariants measured live from the sh_history fixtures on 2026-09-28
-/// — ds_version, the fixed 91/97-row scales, the slot allocations (the
+/// â€” ds_version, the fixed 91/97-row scales, the slot allocations (the
 /// tail cluster plus the early schdat and the fixed schidx/schdat
 /// slots), the named pointers, and the physical emission order. The
 /// genus is the reader-visible pattern; segment interior sizes beyond
@@ -2622,17 +2622,17 @@ struct AcDsEraProfile {
     slot_schdat_b: usize,
     slot_search: usize,
     slot_freesp: Option<usize>,
-    /// Per-segment ds_version — the 2026-09-30 wrapper-arm round-2
+    /// Per-segment ds_version â€” the 2026-09-30 wrapper-arm round-2
     /// measurement (Box_2013/Box_2018/Cone/Sphere-2018, the
     /// MODELED Form-A specimens): every authored container's
-    /// SEGMENTS agree with its file-level ds_version — the tail
+    /// SEGMENTS agree with its file-level ds_version â€” the tail
     /// (segidx, datidx, _data_, prvsav, search, freesp) carries
     /// the save-era value (17 for R2013, 16 for R2018), while the
     /// schdat-A slot keeps 1 and the schema pair (schidx +
-    /// schdat-B) carry 16 in BOTH eras — those two live inside the
+    /// schdat-B) carry 16 in BOTH eras â€” those two live inside the
     /// captured template bytes natively. The constructed container
     /// had hardcoded 1 in EVERY segment against the 16/17 file
-    /// header — an incoherence neither authored form carries,
+    /// header â€” an incoherence neither authored form carries,
     /// invisible to the G-C gate set (the per-segment fields were
     /// never pinned) and a modeler-reject candidate ("Data stream
     /// is empty").
@@ -2714,23 +2714,23 @@ fn build_acds_prototype(
     }
     let profile = acds_era_profile(dxf_version);
 
-    // ── Content segments (the fixed datastore schema + the SAB records) ──
+    // â”€â”€ Content segments (the fixed datastore schema + the SAB records) â”€â”€
     // The 2026-09-30 wrapper-arm round-2 measured set: the segment-id
     // fields carry the SEGIDX SLOT numbers (the authored containers'
-    // 84-90 / 91-96 ids — the old builders wrote a 1-9 convention
+    // 84-90 / 91-96 ids â€” the old builders wrote a 1-9 convention
     // the modelers' resid lookup would not resolve), the per-segment
     // ds_version must agree with the file-level value (16/17), and
-    // the schema pair is the authored Form-A bytes verbatim —
+    // the schema pair is the authored Form-A bytes verbatim â€”
     // schdat-B defines the EIGHT-column ASM_Data schema the _data_
     // record rows reference (the old 448-byte IntelliCAD-era capture
     // defined seven columns: a ds-16 modeler resolving a record
-    // against the wrong schema walks away empty-handed — "Data
+    // against the wrong schema walks away empty-handed â€” "Data
     // stream is empty").
     //
     // The 2026-09-30 thumbnail-row packet: her `_data_` row 0 is
     // ALWAYS the Model Layout's preview record (the PNG chunk,
     // handle = the layout object's) and the ASM records follow at
-    // rows 1..n — the entry list below prepends the thumbnail so the
+    // rows 1..n â€” the entry list below prepends the thumbnail so the
     // generic row/locator logic shifts every ASM row +1 exactly as
     // her containers carry them, and the datidx/search builders emit
     // the row-0 record (schidx 0 / the schema-0 search entry).
@@ -2757,7 +2757,7 @@ fn build_acds_prototype(
     );
     // schdat-A keeps its native id 5 / ds 1 / align 14 (both eras,
     // identical bytes); schdat-B and schidx carry their native slot
-    // ids (89/88) and ds 16 — the captured bytes need no patching.
+    // ids (89/88) and ds 16 â€” the captured bytes need no patching.
     let schdat_a = ACDS_SCHDAT_A_TEMPLATE.to_vec();
     let schdat_b = ACDS_SCHDAT_B_TEMPLATE.to_vec();
     let schidx = ACDS_SCHIDX_TEMPLATE.to_vec();
@@ -2780,8 +2780,8 @@ fn build_acds_prototype(
         .slot_freesp
         .map(|slot| build_acds_empty_segment(b"freesp", slot as u32, 128, profile.seg_ds_tail));
 
-    // ── Layout: the jard header (128) then the segidx FIRST (the
-    // authored segidx-first genus), then the physical order above ──
+    // â”€â”€ Layout: the jard header (128) then the segidx FIRST (the
+    // authored segidx-first genus), then the physical order above â”€â”€
     let segidx_offset = 0x80usize;
     let segidx_size = align16(48 + profile.num_segidx * 12);
     let mut segidx = {
@@ -2815,8 +2815,8 @@ fn build_acds_prototype(
     }
     let total_size = off;
 
-    // ── The 91/97-row index table: zeroed rows except the allocated
-    // slots (the unused rows are offset 0 — the reader's empty slots) ──
+    // â”€â”€ The 91/97-row index table: zeroed rows except the allocated
+    // slots (the unused rows are offset 0 â€” the reader's empty slots) â”€â”€
     let slot_for = |kind: AcDsSegKind| -> usize {
         match kind {
             AcDsSegKind::SchdatA => profile.slot_schdat_a,
@@ -2841,10 +2841,10 @@ fn build_acds_prototype(
         pos += 12;
     }
 
-    // ── Jard header ──────────────────────────────────────────────
+    // â”€â”€ Jard header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let header = build_acds_jard_header(profile, total_size as u32);
 
-    // ── Assemble ─────────────────────────────────────────────────
+    // â”€â”€ Assemble â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut result = Vec::with_capacity(total_size);
     result.extend_from_slice(&header);
     debug_assert_eq!(result.len(), segidx_offset);
@@ -2870,7 +2870,7 @@ fn build_acds_prototype(
 }
 
 /// An empty content segment of a fixed total size: the 48-byte seg
-/// header (the reader only maps names to kinds) plus a zero body —
+/// header (the reader only maps names to kinds) plus a zero body â€”
 /// honest semantics for the sections a fresh file carries no data in
 /// (prvsav: no previous save; freesp: an empty free-space list).
 fn build_acds_empty_segment(
@@ -2898,7 +2898,7 @@ fn build_acds_empty_segment(
 /// names follow libredwg's `acds.spec`), then zero padding to 128 bytes. A
 /// strict reader validates these; a wrong `ds_version` in particular made
 /// the whole section read as "invalid data". The values are the
-/// authored-specimen genus per era (§20.2 G-C): file_header_size 65664,
+/// authored-specimen genus per era (Â§20.2 G-C): file_header_size 65664,
 /// unknown_1 8, ds_version 16/17, segidx FIRST at offset 128, the era's
 /// row scale, and the named pointers into the era's slot allocation.
 fn build_acds_jard_header(profile: &AcDsEraProfile, file_size: u32) -> Vec<u8> {
@@ -2909,7 +2909,7 @@ fn build_acds_jard_header(profile: &AcDsEraProfile, file_size: u32) -> Vec<u8> {
     h[12..16].copy_from_slice(&2u32.to_le_bytes()); // version
     h[16..20].copy_from_slice(&0u32.to_le_bytes()); // unknown_2
     h[20..24].copy_from_slice(&profile.ds_version.to_le_bytes()); // ds_version
-    h[24..28].copy_from_slice(&0x80u32.to_le_bytes()); // segidx_offset — segidx-first
+    h[24..28].copy_from_slice(&0x80u32.to_le_bytes()); // segidx_offset â€” segidx-first
     h[28..32].copy_from_slice(&0u32.to_le_bytes()); // segidx_unknown
     h[32..36].copy_from_slice(&(profile.num_segidx as u32).to_le_bytes()); // num_segidx
     h[36..40].copy_from_slice(&(profile.slot_schidx as u32).to_le_bytes()); // schidx_segidx
@@ -2921,15 +2921,15 @@ fn build_acds_jard_header(profile: &AcDsEraProfile, file_size: u32) -> Vec<u8> {
     h
 }
 
-/// A minimal valid PNG (1×1, white, 8-bit RGB) — the datastore's
+/// A minimal valid PNG (1Ã—1, white, 8-bit RGB) â€” the datastore's
 /// layout-preview record content (the 2026-09-30 thumbnail-row packet).
 ///
 /// Her `_data_` row 0 is ALWAYS the Model Layout's preview record (a
-/// PNG chunk, handle = the layout object's — measured: Box_2018's
+/// PNG chunk, handle = the layout object's â€” measured: Box_2018's
 /// 896-byte PNG, example_2018's 2017-byte one), and the 2026-09-30
 /// ACAD re-probe proved AutoCAD's open-time validation rejects its
 /// absence (the RECOVER prompt at the empty schema-0 search block).
-/// The preview is document sugar, not author identity — the writer
+/// The preview is document sugar, not author identity â€” the writer
 /// does not render, so the record carries a structurally valid
 /// placeholder image (signature + IHDR + a stored-deflate IDAT +
 /// IEND, with the crc32/adler32 checksums computed in-place).
@@ -2969,14 +2969,14 @@ fn acds_thumbnail_png() -> Vec<u8> {
 
     let mut png = Vec::with_capacity(68);
     png.extend_from_slice(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
-    // IHDR: 1×1 pixels, 8-bit truecolor RGB, no interlace.
+    // IHDR: 1Ã—1 pixels, 8-bit truecolor RGB, no interlace.
     let mut ihdr = Vec::with_capacity(13);
     ihdr.extend_from_slice(&1u32.to_be_bytes());
     ihdr.extend_from_slice(&1u32.to_be_bytes());
     ihdr.extend_from_slice(&[8, 2, 0, 0, 0]);
     push_chunk(b"IHDR", &ihdr, &mut png);
     // IDAT: a zlib stream over the scanline (filter byte 0 + one white
-    // RGB pixel) using a single final stored-deflate block — no
+    // RGB pixel) using a single final stored-deflate block â€” no
     // compressor dependency, still a structurally valid stream.
     let raw = [0x00u8, 0xFF, 0xFF, 0xFF];
     let mut idat = Vec::with_capacity(15);
@@ -2993,17 +2993,17 @@ fn acds_thumbnail_png() -> Vec<u8> {
 
 /// Build `_data_` segment id=2 containing one SAB record per ACIS entity.
 ///
-/// **HER record-row form (the 2026-09-30 row-locator fix — measured on
+/// **HER record-row form (the 2026-09-30 row-locator fix â€” measured on
 /// example_2018 [4 rows: LOCs 0 / 0x7e5 / 0xe96 / 0x30f8] and Box_2018
 /// [LOCs 0 / 0x384] against the chunk chain)**: a contiguous 20-byte
-/// record table —
+/// record table â€”
 ///
 /// ```text
 /// (col0 = 0x14 = the row's own size, 1, the owner handle, 0,
 ///  LOC = the row's chunk offset within the aligned blob area)
 /// ```
 ///
-/// — then 0x62 alignment fill to the blob area (her own filler byte),
+/// â€” then 0x62 alignment fill to the blob area (her own filler byte),
 /// then the length-prefixed chunks `[len u32][blob]` in row order at
 /// `blob_base + LOC_i`. LOC_0 is 0 and each LOC is the cumulative sum
 /// of the previous chunks' total sizes (4-byte prefix + blob), so row
@@ -3013,7 +3013,7 @@ fn acds_thumbnail_png() -> Vec<u8> {
 ///
 /// The multi-record writer defect this row form closes: our old table
 /// wrote 16-byte rows with NO locator, so the modeler walking the
-/// author's 20-byte stride landed its row reads misaligned — the
+/// author's 20-byte stride landed its row reads misaligned â€” the
 /// record resolution collapsed to near-sequence-zero garbage (the
 /// A-2 audit: 37D rendered row 0's blob, 176/2E1 "Data stream is
 /// empty").
@@ -3045,7 +3045,7 @@ fn build_acds_data2_segment(
     seg.extend_from_slice(&[0x55; 8]); // fill "UUUUUUUU"
 
     // The 20-byte record rows (five u32 words) with the per-row chunk
-    // locators — the handle is a plain u32 word (her rows: the value's
+    // locators â€” the handle is a plain u32 word (her rows: the value's
     // high word is always zero).
     let mut loc: u32 = 0;
     for (handle, sab_data) in entries {
@@ -3074,7 +3074,7 @@ fn build_acds_data2_segment(
 
 /// Write the 48-byte AcDs segment header (signature + 6-char name + the fixed
 /// field block: segment_idx, is_blob01=0, segsize, unknown_2=0, the era's
-/// ds_version, unknown_3=0, align offsets=0, 8× 0x55 fill).
+/// ds_version, unknown_3=0, align offsets=0, 8Ã— 0x55 fill).
 fn acds_segment_header(seg: &mut [u8], name: &[u8; 6], segment_idx: u32, ds_version: u32) {
     let seg_len = seg.len() as u64;
     seg[0..2].copy_from_slice(&[0xAC, 0xD5]);
@@ -3088,18 +3088,18 @@ fn acds_segment_header(seg: &mut [u8], name: &[u8; 6], segment_idx: u32, ds_vers
     seg[40..48].copy_from_slice(&[0x55; 8]); // fill
 }
 
-/// Build the `datidx` segment — one index entry per ACIS record.
+/// Build the `datidx` segment â€” one index entry per ACIS record.
 ///
 /// Layout (the authored Form-A genus, measured 2026-09-30 on
-/// Box_2018/Box_2013 — the datidx audit): the 48-byte header, then
+/// Box_2018/Box_2013 â€” the datidx audit): the 48-byte header, then
 /// `num_entries` (RL), `di_unknown` (RL = 0), then one 12-byte entry
-/// per record — `(segidx = THE _data_ SEGIDX SLOT (86 in the 2018
-/// profile / 93 in the 2013 profile — the old builder wrote the
+/// per record â€” `(segidx = THE _data_ SEGIDX SLOT (86 in the 2018
+/// profile / 93 in the 2013 profile â€” the old builder wrote the
 /// 1-9-convention id 2, an EMPTY row in the 91/97-slot table: a
-/// loader following our datidx resolved to NOTHING — the modeler's
+/// loader following our datidx resolved to NOTHING â€” the modeler's
 /// "Data stream is empty" and the blank screen the maintainer saw),
 /// offset = i*20 (the record row), schidx = 5 (the
-/// AcDb3DSolid_ASM_Data schema — slot 5 in the era-shared schidx
+/// AcDb3DSolid_ASM_Data schema â€” slot 5 in the era-shared schidx
 /// template's schema list; her thumbnail row uses 0)`.
 fn build_acds_datidx(
     num_records: usize,
@@ -3109,7 +3109,7 @@ fn build_acds_datidx(
     thumbnail: bool,
 ) -> Vec<u8> {
     // With the thumbnail record (the 2026-09-30 packet): row 0 is the
-    // Model Layout's preview (schidx 0 — the layout/thumbnail schema)
+    // Model Layout's preview (schidx 0 â€” the layout/thumbnail schema)
     // and the ASM records follow at rows 1..n (her Box_2018: rows
     // (86, 0, 0) + (86, 20, 5)).
     let num = num_records + usize::from(thumbnail);
@@ -3127,13 +3127,13 @@ fn build_acds_datidx(
     // position in the record table).
     let row_base = usize::from(thumbnail);
     if thumbnail {
-        seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (→ the real _data_ slot)
+        seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (â†’ the real _data_ slot)
         seg[pos + 4..pos + 8].copy_from_slice(&0u32.to_le_bytes()); // offset (row 0)
         seg[pos + 8..pos + 12].copy_from_slice(&0u32.to_le_bytes()); // schidx 0 (the layout schema)
         pos += 12;
     }
     for i in 0..num_records {
-        seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (→ the real _data_ slot)
+        seg[pos..pos + 4].copy_from_slice(&data_slot.to_le_bytes()); // segidx (â†’ the real _data_ slot)
         seg[pos + 4..pos + 8]
             .copy_from_slice(&(((i + row_base) as u32) * 20).to_le_bytes()); // offset (the record row)
         seg[pos + 8..pos + 12].copy_from_slice(&ACDS_ASM_SCHEMA_IDX.to_le_bytes()); // schidx (the ASM_Data schema)
@@ -3142,7 +3142,7 @@ fn build_acds_datidx(
     seg
 }
 
-/// Build `search` segment id=7 — the datastore's per-schema lookup indexes,
+/// Build `search` segment id=7 â€” the datastore's per-schema lookup indexes,
 /// HER authored layout (the 2026-09-30 search-format packet).
 ///
 /// Empirically decoded from the authored corpus (97 specimens extracted;
@@ -3151,32 +3151,32 @@ fn build_acds_datidx(
 /// header carries `num_search (RL)`, then one block per datastore schema:
 ///
 /// ```text
-/// RL  schema_namidx   — the schidx slot the block indexes (0 = the
+/// RL  schema_namidx   â€” the schidx slot the block indexes (0 = the
 ///                       AcDb_Thumbnail/layout schema, 5 = the ASM_Data)
-/// RL  num_sortedidx   — the record-row key count
-/// RLL sortedidx[num]  — (record row) << 32, the per-schema row keys
-/// RL  num_ididxs = 0  — her constant
-/// RL  unknown = 1     — her constant in EVERY block (all schemas, all 97)
+/// RL  num_sortedidx   â€” the record-row key count
+/// RLL sortedidx[num]  â€” (record row) << 32, the per-schema row keys
+/// RL  num_ididxs = 0  â€” her constant
+/// RL  unknown = 1     â€” her constant in EVERY block (all schemas, all 97)
 /// RL  zero = 0
-/// RL  num_handles     — the handle-entry count
-/// (RLL handle, RLL 1, RLL row) × num_handles — in row order, the i-th
+/// RL  num_handles     â€” the handle-entry count
+/// (RLL handle, RLL 1, RLL row) Ã— num_handles â€” in row order, the i-th
 ///                       entry's row = the i-th key's row (the positional
-///                       pairing the modeler resolves handle→record
+///                       pairing the modeler resolves handleâ†’record
 ///                       through)
 /// ```
 ///
 /// The multi-record writer defect this fixes: the modeler parses the
 /// search with HER grammar (schema order + the per-block key/handle
-/// interior) — our old form (namidx=1 first + handle-sorted triples +
+/// interior) â€” our old form (namidx=1 first + handle-sorted triples +
 /// a 24-byte tail) landed the modeler on garbage, resolving handle
 /// 0x37D to record 0 in the A-2 audit (entity A rendered entity B's
 /// B-rep in every edited multi-solid document).
 ///
-/// Our containers carry the thumbnail record (the 2026-09-30 packet —
+/// Our containers carry the thumbnail record (the 2026-09-30 packet â€”
 /// the ACAD re-probe's RECOVER evidence: AutoCAD's open-time validation
 /// rejects the empty layout-schema block) plus the ASM records, so the
 /// schema-0 block indexes the Model Layout's preview at row 0 and the
-/// ASM block carries the SAB rows at 1..n — the same rows the datidx
+/// ASM block carries the SAB rows at 1..n â€” the same rows the datidx
 /// declares (segidx slot, offset (i+1)*20, schidx 5). Without a
 /// resolvable Model Layout the schema-0 block stays empty (her Arc
 /// empty-block form) and the ASM rows keep their 0-based numbering.
@@ -3190,7 +3190,7 @@ fn build_acds_search_segment(
     let mut content: Vec<u8> = Vec::new();
     content.extend_from_slice(&2u32.to_le_bytes()); // num_search (her ds-SAB genus)
 
-    // Block 1 — schema 0 (the thumbnail/layout schema): the Model
+    // Block 1 â€” schema 0 (the thumbnail/layout schema): the Model
     // Layout's preview record at row 0 (her Box_2018 form).
     content.extend_from_slice(&0u32.to_le_bytes()); // schema_namidx
     match thumbnail {
@@ -3214,8 +3214,8 @@ fn build_acds_search_segment(
         }
     }
 
-    // Block 2 — schema 5 (AcDb3DSolid_ASM_Data, the datidx rows' schidx):
-    // the record-row keys + the handle triples, in row order — shifted
+    // Block 2 â€” schema 5 (AcDb3DSolid_ASM_Data, the datidx rows' schidx):
+    // the record-row keys + the handle triples, in row order â€” shifted
     // past the thumbnail record when it is present.
     let row_base = u64::from(thumbnail.is_some());
     content.extend_from_slice(&ACDS_ASM_SCHEMA_IDX.to_le_bytes()); // schema_namidx
@@ -3235,7 +3235,7 @@ fn build_acds_search_segment(
 
     // The authored search allocation is FIXED: the Form-A specimens
     // (Box_2018/Cone_2018/Sphere_2018, one handle each; Box_2013)
-    // all carry a 256-byte search segment — the size is the slot
+    // all carry a 256-byte search segment â€” the size is the slot
     // allocation, not content-computed (the 2026-09-30 size-gate
     // finding: our 192/208 forms ranked against the authored 256).
     let raw = 48 + content.len();
@@ -3247,7 +3247,7 @@ fn build_acds_search_segment(
 }
 
 /// Write one segidx entry: (offset u32, pad u32 = 0, size u32). Unused
-/// rows stay all-zero — the reader's empty-slot convention (offset 0).
+/// rows stay all-zero â€” the reader's empty-slot convention (offset 0).
 fn write_segidx_entry(buf: &mut [u8], pos: usize, offset: u32, size: u32) {
     buf[pos..pos + 4].copy_from_slice(&offset.to_le_bytes());
     buf[pos + 4..pos + 8].copy_from_slice(&0u32.to_le_bytes());
@@ -3260,7 +3260,7 @@ fn align16(n: usize) -> usize {
 }
 
 /// The `AcDb3DSolid_ASM_Data` schema's slot in the era-shared schidx
-/// template — the schema the `_data_` record rows belong to (her
+/// template â€” the schema the `_data_` record rows belong to (her
 /// datidx entries point schidx = this slot; her search's ASM block
 /// carries it as its `schema_namidx`).
 const ACDS_ASM_SCHEMA_IDX: u32 = 5;
@@ -3390,9 +3390,9 @@ const ACDS_SCHIDX_TEMPLATE: &[u8] = &[
     0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
 ];
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Tests
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[cfg(test)]
 mod tests {
@@ -3436,7 +3436,7 @@ mod tests {
                 );
                 // the 5th word = the row's chunk locator (the 2026-09-30
                 // row-form fix: her rows carry the CUMULATIVE chunk offsets
-                // — measured on example_2018 [LOCs 0/0x7e5/0xe96/0x30f8]
+                // â€” measured on example_2018 [LOCs 0/0x7e5/0xe96/0x30f8]
                 // and Box_2018 [0/0x384]); row 0 is always 0 and every
                 // locator equals the chain's row-wise cumulative position
                 assert_eq!(read_u32(&data, record + 16), blob_cursor);
@@ -3479,7 +3479,7 @@ mod tests {
         };
         let read_u64 = |b: &[u8], o: usize| u64::from_le_bytes(b[o..o + 8].try_into().unwrap());
 
-        // the datidx: 3 rows — the thumbnail (row 0, the layout schema)
+        // the datidx: 3 rows â€” the thumbnail (row 0, the layout schema)
         // then the ASM rows at their shifted row positions.
         assert_eq!(read_u32(&index, 48), 3);
         assert_eq!(read_u32(&index, 56), 86); // row 0: the _data_ slot
@@ -3645,20 +3645,20 @@ mod tests {
         use crate::entities::{EntityType, MultiLeader};
 
         // CadDocument seeds the ACAD_MLEADERSTYLE dictionary with the
-        // Standard MultiLeaderStyle — the audit-repair stance mirrors it:
+        // Standard MultiLeaderStyle â€” the audit-repair stance mirrors it:
         // a native AcDbMLeader with a null style pointer is an invalid
         // authored state (the loaders' audits report "LeaderStyle Id is
         // Null" and repair it at every open).
         let mut document = CadDocument::with_version(DxfVersion::AC1032);
         let mleader_handle = document
-            .add_entity(EntityType::MultiLeader(MultiLeader::with_text(
+            .add_entity(EntityType::MultiLeader(Box::new(MultiLeader::with_text(
                 "Label",
                 crate::types::Vector3::new(20.0, 20.0, 0.0),
                 vec![
                     crate::types::Vector3::new(0.0, 0.0, 0.0),
                     crate::types::Vector3::new(10.0, 10.0, 0.0),
                 ],
-            )))
+            ))))
             .expect("mleader");
 
         let mut prepared = std::borrow::Cow::Borrowed(&document);
@@ -3687,7 +3687,7 @@ mod tests {
 
         // The R2018+ redundant block repeats the ABSOLUTE attachment
         // point; a constructed MText's default 0 is a corrupt
-        // repetition (AutoCAD's audit repairs it — "AcDbMText was
+        // repetition (AutoCAD's audit repairs it â€” "AcDbMText was
         // repaired / 2 fixed" at every open of the canonical). The
         // output-copy repair fills the repeat; the caller's document
         // stays untouched.
@@ -3778,8 +3778,8 @@ mod tests {
         assert!(roundtripped.dwg_data_store_handles.contains(&layout_handle));
     }
 
-    /// The §20 G-C container genus: a constructed data store must parse
-    /// back with the authored-specimen invariants for its era — the
+    /// The Â§20 G-C container genus: a constructed data store must parse
+    /// back with the authored-specimen invariants for its era â€” the
     /// jard header values, the row scale, the slot allocation, the named
     /// pointers, and (beyond the gate's row view) a surviving SAB blob.
     fn assert_constructed_acds_genus(version: DxfVersion, profile: &super::AcDsEraProfile) {
@@ -3902,7 +3902,7 @@ mod tests {
     #[test]
     fn test_build_summary_info_ac18() {
         let d = build_summary_info(DxfVersion::AC1018, &crate::document::SummaryInfo::default());
-        // 8 × 3 bytes (u16(1) + ANSI null) + 8 + 16 + 2 + 8 = 58
+        // 8 Ã— 3 bytes (u16(1) + ANSI null) + 8 + 16 + 2 + 8 = 58
         assert_eq!(d.len(), 58);
         assert_eq!(u16::from_le_bytes([d[0], d[1]]), 1);
         assert_eq!(d[2], 0);
@@ -3913,7 +3913,7 @@ mod tests {
     #[test]
     fn test_build_summary_info_ac21() {
         let d = build_summary_info(DxfVersion::AC1021, &crate::document::SummaryInfo::default());
-        // 8 × 4 bytes (u16(1) + UTF-16LE null) + 8 + 16 + 2 + 8 = 66
+        // 8 Ã— 4 bytes (u16(1) + UTF-16LE null) + 8 + 16 + 2 + 8 = 66
         assert_eq!(d.len(), 66);
         // First string: u16(1) + 00 00
         assert_eq!(u16::from_le_bytes([d[0], d[1]]), 1);
@@ -4253,7 +4253,7 @@ mod tests {
         assert!(bytes.len() > 200, "Output should be non-trivial");
     }
 
-    // ── File-level DWG roundtrip tests for 3DSOLID / REGION / BODY ──
+    // â”€â”€ File-level DWG roundtrip tests for 3DSOLID / REGION / BODY â”€â”€
 
     fn make_sat_sample() -> &'static str {
         include_str!("../../../examples/entity_atlas_assets/region.sat")
@@ -4361,7 +4361,7 @@ mod tests {
             })
             .collect();
         assert_eq!(solids.len(), 1, "should have exactly one Solid3D");
-        // R2007 should use SAT text format since we provided SAT text —
+        // R2007 should use SAT text format since we provided SAT text â€”
         // the version in acis_data controls what's written, not the DWG version alone.
         assert!(solids[0].acis_data.has_data(), "should have ACIS data");
     }

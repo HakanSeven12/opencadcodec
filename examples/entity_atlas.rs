@@ -1,4 +1,4 @@
-//! One spatially separated entity atlas in every supported DWG/DXF encoding.
+﻿//! One spatially separated entity atlas in every supported DWG/DXF encoding.
 //! cargo run --example entity_atlas -- [output directory]
 
 use std::collections::BTreeMap;
@@ -6,14 +6,14 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use acadrust::entities::acis::primitives;
-use acadrust::entities::*;
-use acadrust::objects::{
+use opencadcodec::entities::acis::primitives;
+use opencadcodec::entities::*;
+use opencadcodec::objects::{
     Dictionary, ImageDefinition as ImageDef, ImageDefinitionReactor, ObjectType,
 };
-use acadrust::tables::{Layer, TextStyle, View};
-use acadrust::types::{Color, DxfVersion, Handle, Vector2, Vector3};
-use acadrust::{BlockRecord, CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
+use opencadcodec::tables::{Layer, TextStyle, View};
+use opencadcodec::types::{Color, DxfVersion, Handle, Vector2, Vector3};
+use opencadcodec::{BlockRecord, CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
 use serde_json::{json, Value};
 
 const VERSIONS: [DxfVersion; 8] = [
@@ -294,7 +294,7 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
         })
         .collect();
     helix.spline = Spline::from_control_points(1, points);
-    s.add("HELIX", AC1021, EntityType::Helix(helix));
+    s.add("HELIX", AC1021, EntityType::Helix(Box::new(helix)));
     s.add(
         "TEXT",
         AC1012,
@@ -440,11 +440,11 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
     s.add(
         "MULTILEADER",
         AC1021,
-        EntityType::MultiLeader(MultiLeader::with_text(
+        EntityType::MultiLeader(Box::new(MultiLeader::with_text(
             "Leader",
             p(70., 55.),
             vec![p(20., 20.), p(50., 55.)],
-        )),
+        ))),
     );
     s.add(
         "MLINE",
@@ -499,7 +499,7 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
         row.cells[0] = TableCell::text(&format!("Row {i}"));
         row.cells[1] = TableCell::text(&format!("{}", i * 10));
     }
-    s.add("TABLE", AC1018, EntityType::Table(table));
+    s.add("TABLE", AC1018, EntityType::Table(Box::new(table)));
     for (name, sat) in [
         (
             "3DSOLID_BOX",
@@ -552,7 +552,7 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
         s.add(
             &format!("SURFACE_{kind:?}").to_uppercase(),
             AC1021,
-            EntityType::Surface(surface),
+            EntityType::Surface(Box::new(surface)),
         );
     }
     for (name, kind) in [("LIGHT_POINT", 2), ("LIGHT_SPOT", 3), ("LIGHT_DISTANT", 1)] {
@@ -667,17 +667,17 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
         let mut common = EntityCommon::default();
         common.layer = layer;
         s.doc
-            .add_entity(EntityType::Extended(ExtendedEntity {
+            .add_entity(EntityType::Extended(Box::new(ExtendedEntity {
                 common,
                 data: ExtendedEntityData::Camera { view_handle: vh },
-            }))
+            })))
             .unwrap();
         s.cases.last_mut().unwrap()["expected"] = json!(["CAMERA"]);
     }
     s.add(
         "SECTIONOBJECT",
         AC1021,
-        EntityType::Extended(ExtendedEntity {
+        EntityType::Extended(Box::new(ExtendedEntity {
             common: Default::default(),
             data: ExtendedEntityData::SectionObject(SectionObjectData {
                 state: 1,
@@ -692,12 +692,12 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
                 back_line_vertices: vec![],
                 settings_handle: Handle::NULL,
             }),
-        }),
+        })),
     );
     s.add(
         "RTEXT",
         AC1014,
-        EntityType::Extended(ExtendedEntity {
+        EntityType::Extended(Box::new(ExtendedEntity {
             common: Default::default(),
             data: ExtendedEntityData::RemoteText(RemoteTextData {
                 position: p(20., 40.),
@@ -709,12 +709,12 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
                 flags: 0,
                 text: "Remote text".into(),
             }),
-        }),
+        })),
     );
     s.add(
         "POSITIONMARKER",
         AC1027,
-        EntityType::Extended(ExtendedEntity {
+        EntityType::Extended(Box::new(ExtendedEntity {
             common: Default::default(),
             data: ExtendedEntityData::GeoPositionMarker(GeoPositionMarkerData {
                 class_version: 0,
@@ -727,12 +727,12 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
                 enable_frame_text: false,
                 embedded_mtext: None,
             }),
-        }),
+        })),
     );
     s.add(
         "ARCALIGNEDTEXT",
         AC1014,
-        EntityType::Extended(ExtendedEntity {
+        EntityType::Extended(Box::new(ExtendedEntity {
             common: Default::default(),
             data: ExtendedEntityData::ArcAlignedText(ArcAlignedTextData {
                 text: "Arc text".into(),
@@ -764,7 +764,7 @@ fn build(version: DxfVersion, assets: &Path) -> Sheet {
                 wizard_flag: false,
                 arc_handle: Handle::NULL,
             }),
-        }),
+        })),
     );
     let (layer, _, _) = s.slot("VIEWPORT", AC1012, "Located on Layout1 in paper space");
     let mut overall = Viewport::new();

@@ -1,7 +1,7 @@
-use acadrust::entities::Line;
-use acadrust::tables::Layer;
-use acadrust::xdata::{ExtendedDataRecord, XDataValue};
-use acadrust::{CadDocument, EntityType, Handle};
+﻿use opencadcodec::entities::Line;
+use opencadcodec::tables::Layer;
+use opencadcodec::xdata::{ExtendedDataRecord, XDataValue};
+use opencadcodec::{CadDocument, EntityType, Handle};
 
 #[test]
 fn rename_layer_updates_references_and_current_handle() {
@@ -29,11 +29,11 @@ fn rename_layer_updates_references_and_current_handle() {
 #[test]
 fn rename_layer_allows_unicode_case_change() {
     let mut document = CadDocument::new();
-    document.layers.add(Layer::new("é")).unwrap();
+    document.layers.add(Layer::new("Ã©")).unwrap();
 
-    document.rename_layer("é", "É").unwrap();
+    document.rename_layer("Ã©", "Ã‰").unwrap();
 
-    assert_eq!(document.layers.get("é").unwrap().name, "É");
+    assert_eq!(document.layers.get("Ã©").unwrap().name, "Ã‰");
 }
 
 #[test]

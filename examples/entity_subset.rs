@@ -1,11 +1,11 @@
-//! The §20 second-poison bisect: rewrite example_2018 with only a
-//! SUBSET of its entities to localize which entity's read→rewrite
+﻿//! The Â§20 second-poison bisect: rewrite example_2018 with only a
+//! SUBSET of its entities to localize which entity's readâ†’rewrite
 //! emission poisons the file for the strict loaders.
 //!
 //! Modes:
-//!   first N  — keep the first N entities (document order), drop the rest
-//!   3d       — keep only the 3DSOLID/REGION/BODY entities
-//!   drop3d   — keep everything EXCEPT the 3D entities
+//!   first N  â€” keep the first N entities (document order), drop the rest
+//!   3d       â€” keep only the 3DSOLID/REGION/BODY entities
+//!   drop3d   â€” keep everything EXCEPT the 3D entities
 //!
 //! Usage: cargo run --example entity_subset --features serde --
 //!        <src.dwg> <out.dwg> <mode> [param]
@@ -13,8 +13,8 @@
 use std::fs;
 use std::io::Cursor;
 
-use acadrust::entities::EntityType;
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::entities::EntityType;
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 
 fn read_dwg(path: &str) -> CadDocument {
     let bytes = fs::read(path).unwrap_or_else(|e| panic!("read {path}: {e}"));
@@ -43,7 +43,7 @@ fn main() {
     let total = handles.len();
 
     // Compute the keep-set upfront (no closure borrowing during removal).
-    let keep_set: std::collections::HashSet<acadrust::types::Handle> = match mode.as_str() {
+    let keep_set: std::collections::HashSet<opencadcodec::types::Handle> = match mode.as_str() {
         "3d" => handles
             .iter()
             .copied()

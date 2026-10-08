@@ -1,6 +1,6 @@
-//! The gh44-error record-identity packet (TODO A9 item 5, 2026-10-04):
+﻿//! The gh44-error record-identity packet (TODO A9 item 5, 2026-10-04):
 //! the pathological 2013 specimen's 18 record-census rows, closed by
-//! five per-record fixes — the LEADER handle-stream slack (6), the
+//! five per-record fixes â€” the LEADER handle-stream slack (6), the
 //! HATCH EED block order (5), the LTYPE xref binding (4), the DIMASSOC
 //! intsectobj ref code (2), the LTYPE 16A5 sequential-text/shapecode
 //! (1). These pins hold the measured wire facts and the
@@ -8,16 +8,16 @@
 //!
 //! The specimen lives in the libredwg test-data tree (not the fixtures
 //! corpus); the tests skip when GOLD_TESTDATA is unset or the file is
-//! missing — the battery exports it.
+//! missing â€” the battery exports it.
 
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
 fn specimen() -> Option<CadDocument> {
     let data_dir = std::env::var_os("GOLD_TESTDATA")?;
     let path = std::path::Path::new(&data_dir).join("2013/gh44-error.dwg");
     if !path.exists() {
-        eprintln!("gh44-error.dwg missing — skipping");
+        eprintln!("gh44-error.dwg missing â€” skipping");
         return None;
     }
     let mut reader = DwgReader::from_file(&path).ok()?;
@@ -33,10 +33,10 @@ fn rewrite(document: &CadDocument) -> Option<CadDocument> {
 #[test]
 fn leader_handle_slack_pins() {
     // Her six LEADER records park an unparsed bit-group between the
-    // walked main tail and the flag bit — nibble-aligning the RL
+    // walked main tail and the flag bit â€” nibble-aligning the RL
     // (1412/1348/1476/1524 all %4==0 where the packed emission wrote
     // 1410/1346/1474/1514). Five records pad two zero bits; 8774 parks
-    // ten (0000000010). The capture is per-record author data — the
+    // ten (0000000010). The capture is per-record author data â€” the
     // merge replays it only when the writer's main end matches the
     // captured walk end.
     let Some(document) = specimen() else { return };
@@ -51,11 +51,11 @@ fn leader_handle_slack_pins() {
     for (handle, walk_end, len, bits) in expected {
         let captured = document
             .handle_slack_by_handle
-            .get(&acadrust::types::Handle::new(*handle))
+            .get(&opencadcodec::types::Handle::new(*handle))
             .unwrap_or_else(|| panic!("no slack captured for LEADER {handle:X}"));
         assert_eq!(captured, &(*walk_end, *len, *bits), "LEADER {handle:X}");
     }
-    // The slack map is sparse — only records with a genuine gap enter it
+    // The slack map is sparse â€” only records with a genuine gap enter it
     // (plus inert entries from under-reading walks, which the merge-time
     // walk-end guard disarms).
     assert!(document.handle_slack_by_handle.len() < 64);
@@ -77,7 +77,7 @@ fn leader_slack_survives_the_conventional_rewrite() {
     for (handle, (walk_end, len, bits)) in &before {
         let recaptured = rewritten
             .handle_slack_by_handle
-            .get(&acadrust::types::Handle::new(*handle));
+            .get(&opencadcodec::types::Handle::new(*handle));
         assert_eq!(
             recaptured,
             Some(&(*walk_end, *len, *bits)),
@@ -90,7 +90,7 @@ fn leader_slack_survives_the_conventional_rewrite() {
 fn hatch_eed_block_order_pins() {
     // Her five HATCH records carry the ACAD app's block FIRST
     // ([ACAD(25B), 16CA(17B)]); the remove-and-append reordered every
-    // rewrite to [16CA, ACAD] — the keep-position fix preserves the
+    // rewrite to [16CA, ACAD] â€” the keep-position fix preserves the
     // authored order.
     let Some(document) = specimen() else { return };
     for handle in [0x1C0Eu64, 0x1CDC, 0x1D26, 0x1E22, 0x1E47] {
@@ -170,10 +170,10 @@ fn ltype_16a5_sequential_text_and_shapecode_pins() {
 #[test]
 fn dimassoc_intersection_objects_pin() {
     // The intsectobj vector: gold's dwg2.spec declares code 5, but the
-    // authored wire carries code 4 (soft) — the ref-code lesson; the
+    // authored wire carries code 4 (soft) â€” the ref-code lesson; the
     // model retains the handles and the writer emits SoftPointer.
     let Some(document) = specimen() else { return };
-    use acadrust::objects::{AssociativeData, ObjectType};
+    use opencadcodec::objects::{AssociativeData, ObjectType};
     let mut found = 0;
     for object in document.objects.values() {
         let ObjectType::Associative(assoc) = object else {

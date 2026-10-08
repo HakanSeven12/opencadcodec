@@ -1,18 +1,18 @@
-//! Repro for issue #80: a document read from DWG, mutated in place, then
+﻿//! Repro for issue #80: a document read from DWG, mutated in place, then
 //! written back contains invalid layer references.
 //!
 //! The reporter renamed a layer through `layers.iter_mut()`. Tables key entries
 //! by the normalized name captured at insertion, so assigning `layer.name`
 //! directly leaves the entry reachable only under its *old* name. Every
 //! name-based lookup then misses, and the writer emitted a NULL layer hard
-//! pointer for each entity on that layer — a required reference.
+//! pointer for each entity on that layer â€” a required reference.
 
 use std::io::Cursor;
 
-use acadrust::entities::{EntityType, Line};
-use acadrust::tables::Layer;
-use acadrust::types::{DxfVersion, Handle};
-use acadrust::{CadDocument, DwgReader, DwgWriter, DxfWriter};
+use opencadcodec::entities::{EntityType, Line};
+use opencadcodec::tables::Layer;
+use opencadcodec::types::{DxfVersion, Handle};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfWriter};
 
 /// A drawing on disk: one layer besides "0", carrying one entity.
 fn source_document(version: DxfVersion) -> CadDocument {
@@ -62,7 +62,7 @@ fn assert_layers_resolve(doc: &CadDocument, label: &str) {
 fn repro_issue80_in_place_layer_rename_survives_dwg_roundtrip() {
     // A rename with no new references happens to survive even unfixed: the
     // entities still carry the old name, and the stale key still resolves it.
-    // Kept as a guard that the repair does not disturb this working case —
+    // Kept as a guard that the repair does not disturb this working case â€”
     // `repro_issue80_rename_plus_added_entity` is the one that corrupts.
     let mut doc = source_document(DxfVersion::AC1027);
     rename_in_place(&mut doc, "OLD_NAME", "NEW_NAME");

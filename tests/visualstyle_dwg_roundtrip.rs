@@ -1,4 +1,4 @@
-//! Regression test for AcDbVisualStyle pre-R2010 DWG serialization.
+﻿//! Regression test for AcDbVisualStyle pre-R2010 DWG serialization.
 //!
 //! The legacy (pre-R2010) VisualStyle writer consumes a 24-element property
 //! vector in a fixed order.  The final element (`bd2007_45`) is version-gated:
@@ -9,14 +9,14 @@
 
 use std::io::Cursor;
 
-use acadrust::objects::{
+use opencadcodec::objects::{
     ObjectType, VisualStyle, VisualStyleProperty, VisualStylePropertyValue,
 };
-use acadrust::types::{Color, DxfVersion};
-use acadrust::{CadDocument, DwgReader, DwgWriter};
+use opencadcodec::types::{Color, DxfVersion};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 
 /// Build a VisualStyle with the full 24-element legacy property bag.
-fn make_style(doc: &mut CadDocument) -> acadrust::types::Handle {
+fn make_style(doc: &mut CadDocument) -> opencadcodec::types::Handle {
     let mut style = VisualStyle::new();
     style.handle = doc.allocate_handle();
     let style_handle = style.handle;
@@ -65,7 +65,7 @@ fn make_style(doc: &mut CadDocument) -> acadrust::types::Handle {
     style_handle
 }
 
-/// The first 23 legacy properties are version-independent (R2000–R2007).
+/// The first 23 legacy properties are version-independent (R2000â€“R2007).
 fn expected_common_properties() -> Vec<VisualStylePropertyValue> {
     vec![
         VisualStylePropertyValue::Double(0.75),
@@ -94,7 +94,7 @@ fn expected_common_properties() -> Vec<VisualStylePropertyValue> {
     ]
 }
 
-fn roundtrip(version: DxfVersion) -> (VisualStyle, acadrust::types::Handle) {
+fn roundtrip(version: DxfVersion) -> (VisualStyle, opencadcodec::types::Handle) {
     let mut doc = CadDocument::with_version(version);
     let style_handle = make_style(&mut doc);
     let bytes = DwgWriter::write_to_vec(&doc).expect("DWG write failed");
