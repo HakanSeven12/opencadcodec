@@ -1220,7 +1220,14 @@ pub struct AssocEdgeActionParam {
     /// 23 LINESEG3D), `None` otherwise and for DXF-built documents
     /// (the writer then emits the captured raw region, if any, and
     /// otherwise no subcurve region).
-    #[cfg_attr(feature = "serde", serde(default))]
+    ///
+    /// Serde-invisible: the raw-capture model is internal wire state
+    /// (the DWG reader/writer own it end to end), and the host's
+    /// type-registry tracer follows the serde surface — keeping the
+    /// fork-only model out of it lets the host build against either
+    /// codec (this crate with the capture model, or upstream before
+    /// the fork merges).
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub subcurve: Option<AssocSubcurve>,
     /// TODO B2 (2026-10-01): the verbatim subcurve region for the
     /// action types without a typed model ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â NURB3D (42: a ~1300-bit
