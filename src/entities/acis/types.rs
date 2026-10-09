@@ -1759,19 +1759,29 @@ impl<'a> SatPCurve<'a> {
                 tokens = document.subtype_tokens(reference)?;
             }
         }
-        let parametric = tokens
-            .iter()
-            .any(|token| token.as_ident() == Some("par_int_cur"));
-        let blocks: Vec<usize> = tokens
-            .iter()
-            .enumerate()
-            .filter_map(|(index, token)| {
-                matches!(token.as_ident(), Some("nubs" | "nurbs")).then_some(index)
-            })
-            .collect();
+        // An intersection curve saves its 3D spline and then its two
+        // pcurves, each a spline block or `nullbs`, all at the level of the
+        // curve's own definition: slot 0 is the 3D curve, the selector names
+        // the pcurve. Blocks nested inside an inline surface are skipped.
+        let mut depth = 0usize;
+        let mut level = None;
+        let mut slots = Vec::new();
+        for (index, token) in tokens.iter().enumerate() {
+            match token.as_ident() {
+                Some("{") => depth += 1,
+                Some("}") => depth = depth.saturating_sub(1),
+                Some("nubs" | "nurbs" | "nullbs") if *level.get_or_insert(depth) == depth => {
+                    slots.push(index)
+                }
+                _ => {}
+            }
+        }
         let support = selector.unsigned_abs().max(1) as usize;
-        let block = support.checked_sub(usize::from(parametric))?;
-        let spline = Self::bspline_at(tokens, *blocks.get(block)?)?;
+        let start = *slots.get(support)?;
+        if tokens[start].as_ident() == Some("nullbs") {
+            return None;
+        }
+        let spline = Self::bspline_at(tokens, start)?;
         let reversed = (selector < 0) ^ (target.token_sense(1) == Sense::Reversed);
         Some((spline, reversed))
     }
