@@ -556,6 +556,31 @@ impl DwgMergedReader {
         self.tv_form_votes = Some(votes);
     }
 
+    /// Snapshot the main/text/handle stream positions, for a try-parse
+    /// with fallback (the typed constraint-group read: on failure the
+    /// reader rewinds to the flat walk + verbatim capture).
+    pub fn positions_snapshot(&self) -> (i64, Option<i64>, i64) {
+        let text = self
+            .text
+            .as_ref()
+            .map(|reader| reader.position_in_bits());
+        (self.main.position_in_bits(), text, self.handle_position_in_bits())
+    }
+
+    /// Restore a [`positions_snapshot`]. The text position is `None` for
+    /// pre-R2007 records (inline text).
+    pub fn restore_positions(&mut self, snapshot: (i64, Option<i64>, i64)) {
+        self.main.set_position_in_bits(snapshot.0);
+        if let Some(text) = snapshot.1 {
+            if let Some(ref mut text_reader) = self.text {
+                text_reader.set_position_in_bits(text);
+            }
+        }
+        if let Some(ref mut handle_reader) = self.handle {
+            handle_reader.set_position_in_bits(snapshot.2);
+        }
+    }
+
     /// Bits remaining after the currently decoded fields in the separate
     /// R2007+ text stream.
     pub fn text_remaining_bits(&self) -> i64 {

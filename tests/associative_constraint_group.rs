@@ -1,4 +1,4 @@
-﻿use std::io::Cursor;
+use std::io::Cursor;
 
 use opencadcodec::objects::{
     Assoc2dConstraintGroup, AssocAction, AssocConstraintNode, AssocConstraintNodeData,
@@ -67,7 +67,14 @@ fn dwg_constraint_group_counts_only_registered_nodes() {
     // AcConstraintGroupNode_fields 5576 â€” nodeid/status/connections
     // only): the registry/class channel is a DXF-side semantic and does
     // not survive a DWG round-trip.
-    assert_eq!(group.nodes[1].class_name, "");
+    // The typed registry round-trip (root + class table + registry +
+    // per-node common/typed arms) keeps the class channel; only the
+    // real-file flat wire (the author records) stays capture-replayed.
+    assert_eq!(group.nodes[1].class_name, "AcFixedConstraint");
+    assert!(matches!(
+        group.nodes[1].data,
+        AssocConstraintNodeData::Geometrical { is_active: true, .. }
+    ));
 }
 
 fn document_with_axis_and_rigid_set() -> CadDocument {
@@ -297,10 +304,14 @@ fn axis_constraint_and_rigid_set_round_trip_in_dwg_and_dxf() {
         assert_eq!(group.nodes.len(), 8);
         let ids: Vec<i32> = group.nodes.iter().map(|n| n.node_id).collect();
         assert_eq!(ids, vec![0, 1, 2, 3, 4, 5, 6, 7]);
-        for node in &group.nodes {
-            assert!(node.class_name.is_empty());
-            assert!(matches!(node.data, AssocConstraintNodeData::None));
-        }
+        // The typed registry round-trip keeps the class channel and the
+        // typed arms for every registered node.
+        assert!(group.nodes[1..]
+            .iter()
+            .all(|node| !node.class_name.is_empty()));
+        assert!(group.nodes[1..]
+            .iter()
+            .any(|node| !matches!(node.data, AssocConstraintNodeData::None)));
     }
 
     let dxf = DxfReader::from_reader(Cursor::new(

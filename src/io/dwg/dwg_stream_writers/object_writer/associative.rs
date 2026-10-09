@@ -416,6 +416,320 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
+    fn write_geometrical_constraint(&mut self, owner_id: i32, is_implied: bool, is_active: bool) {
+        self.writer.write_bit_long(owner_id);
+        self.writer.write_bit(is_implied);
+        self.writer.write_bit(is_active);
+    }
+
+    fn write_explicit_constraint(
+        &mut self,
+        owner_id: i32,
+        is_implied: bool,
+        is_active: bool,
+        value_dependency: Handle,
+        dimension_dependency: Handle,
+    ) {
+        self.write_geometrical_constraint(owner_id, is_implied, is_active);
+        self.write_assoc_handle(DwgReferenceType::HardPointer, value_dependency);
+        self.write_assoc_handle(DwgReferenceType::HardPointer, dimension_dependency);
+    }
+
+    fn write_constraint_node_data(&mut self, data: &AssocConstraintNodeData) {
+        match data {
+            AssocConstraintNodeData::None => {}
+            AssocConstraintNodeData::Geometrical {
+                owner_id,
+                is_implied,
+                is_active,
+            } => self.write_geometrical_constraint(*owner_id, *is_implied, *is_active),
+            AssocConstraintNodeData::Composite {
+                owner_id,
+                is_implied,
+                is_active,
+                owned_constraint_ids,
+            } => {
+                self.write_geometrical_constraint(*owner_id, *is_implied, *is_active);
+                self.writer
+                    .write_bit_long(owned_constraint_ids.len() as i32);
+                for constraint_id in owned_constraint_ids {
+                    self.writer.write_bit_long(*constraint_id);
+                }
+            }
+            AssocConstraintNodeData::HelpParameter { value, reserved } => {
+                self.writer.write_bit_double(*value);
+                self.writer.write_bit(*reserved);
+            }
+            AssocConstraintNodeData::Angle {
+                owner_id,
+                is_implied,
+                is_active,
+                value_dependency,
+                dimension_dependency,
+                sector_type,
+            } => {
+                self.write_explicit_constraint(
+                    *owner_id,
+                    *is_implied,
+                    *is_active,
+                    *value_dependency,
+                    *dimension_dependency,
+                );
+                self.writer.write_byte(*sector_type);
+            }
+            AssocConstraintNodeData::Parallel {
+                owner_id,
+                is_implied,
+                is_active,
+                datum_line_index,
+            } => {
+                self.write_geometrical_constraint(*owner_id, *is_implied, *is_active);
+                if let Some(datum_line_index) = datum_line_index {
+                    self.writer.write_bit_long(*datum_line_index);
+                }
+            }
+            AssocConstraintNodeData::Distance {
+                owner_id,
+                is_implied,
+                is_active,
+                value_dependency,
+                dimension_dependency,
+                direction_type,
+                distance,
+            } => {
+                self.write_explicit_constraint(
+                    *owner_id,
+                    *is_implied,
+                    *is_active,
+                    *value_dependency,
+                    *dimension_dependency,
+                );
+                self.writer.write_byte(*direction_type);
+                if *direction_type != 0 {
+                    self.writer
+                        .write_3bit_double(distance.unwrap_or(crate::types::Vector3::ZERO));
+                }
+            }
+            AssocConstraintNodeData::RadiusDiameter {
+                owner_id,
+                is_implied,
+                is_active,
+                value_dependency,
+                dimension_dependency,
+                mode,
+            } => {
+                self.write_explicit_constraint(
+                    *owner_id,
+                    *is_implied,
+                    *is_active,
+                    *value_dependency,
+                    *dimension_dependency,
+                );
+                self.writer.write_byte(*mode);
+            }
+            AssocConstraintNodeData::ImplicitPoint {
+                geometry_dependency,
+                geometry_node_id,
+                point,
+                point_type,
+                point_index,
+                curve_id,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                if !geometry_dependency.is_null() {
+                    self.writer
+                        .write_3bit_double(point.unwrap_or(crate::types::Vector3::ZERO));
+                }
+                self.writer.write_byte(*point_type);
+                self.writer.write_bit_long(*point_index);
+                self.writer.write_bit_long(*curve_id);
+            }
+            AssocConstraintNodeData::Point {
+                geometry_dependency,
+                geometry_node_id,
+                point,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                if !geometry_dependency.is_null() {
+                    self.writer
+                        .write_3bit_double(point.unwrap_or(crate::types::Vector3::ZERO));
+                }
+            }
+            AssocConstraintNodeData::RigidSet {
+                geometry_dependency,
+                geometry_node_id,
+                reserved,
+                transform,
+                geometry_ids,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_bit(*reserved);
+                for value in transform {
+                    self.writer.write_bit_double(*value);
+                }
+                self.writer.write_bit_long(geometry_ids.len() as i32);
+                for geometry_id in geometry_ids {
+                    self.writer.write_bit_long(*geometry_id);
+                }
+            }
+            AssocConstraintNodeData::Line {
+                geometry_dependency,
+                geometry_node_id,
+                point,
+                direction,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_3bit_double(*point);
+                self.writer.write_3bit_double(*direction);
+            }
+            AssocConstraintNodeData::BoundedLine {
+                geometry_dependency,
+                geometry_node_id,
+                point,
+                direction,
+                is_ray,
+                start_point,
+                end_point,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_3bit_double(*point);
+                self.writer.write_3bit_double(*direction);
+                self.writer.write_bit(*is_ray);
+                self.writer.write_3bit_double(*start_point);
+                self.writer.write_3bit_double(*end_point);
+            }
+            AssocConstraintNodeData::Circle {
+                geometry_dependency,
+                geometry_node_id,
+                center,
+                normal,
+                direction,
+                radius,
+                start_parameter,
+                end_parameter,
+                reserved,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_3bit_double(*center);
+                self.writer.write_3bit_double(*normal);
+                self.writer.write_3bit_double(*direction);
+                self.writer.write_bit_double(*radius);
+                self.writer.write_bit_double(*start_parameter);
+                self.writer.write_bit_double(*end_parameter);
+                self.writer.write_bit_double(*reserved);
+            }
+            AssocConstraintNodeData::Arc {
+                geometry_dependency,
+                geometry_node_id,
+                center,
+                normal,
+                direction,
+                radius,
+                start_parameter,
+                end_parameter,
+                reserved,
+                start_point,
+                end_point,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_3bit_double(*center);
+                self.writer.write_3bit_double(*normal);
+                self.writer.write_3bit_double(*direction);
+                self.writer.write_bit_double(*radius);
+                self.writer.write_bit_double(*start_parameter);
+                self.writer.write_bit_double(*end_parameter);
+                self.writer.write_bit_double(*reserved);
+                self.writer.write_3bit_double(*start_point);
+                self.writer.write_3bit_double(*end_point);
+            }
+            AssocConstraintNodeData::Ellipse {
+                geometry_dependency,
+                geometry_node_id,
+                center,
+                major_axis,
+                axis_ratio,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_3bit_double(*center);
+                self.writer.write_3bit_double(*major_axis);
+                self.writer.write_bit_double(*axis_ratio);
+            }
+            AssocConstraintNodeData::BoundedEllipse {
+                geometry_dependency,
+                geometry_node_id,
+                center,
+                major_axis,
+                axis_ratio,
+                start_point,
+                end_point,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_3bit_double(*center);
+                self.writer.write_3bit_double(*major_axis);
+                self.writer.write_bit_double(*axis_ratio);
+                self.writer.write_3bit_double(*start_point);
+                self.writer.write_3bit_double(*end_point);
+            }
+            AssocConstraintNodeData::Spline {
+                geometry_dependency,
+                geometry_node_id,
+                rational,
+                periodic,
+                degree,
+                knot_tolerance,
+                knot_physical_length,
+                knot_grow_length,
+                knots,
+                weight_physical_length,
+                weight_grow_length,
+                weights,
+                control_point_physical_length,
+                control_point_grow_length,
+                control_points,
+                implicit_point_ids,
+            } => {
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, *geometry_dependency);
+                self.writer.write_bit_long(*geometry_node_id);
+                self.writer.write_bit(*rational);
+                self.writer.write_bit(*periodic);
+                self.writer.write_bit_long(*degree);
+                self.writer.write_bit_double(*knot_tolerance);
+                self.writer.write_bit_long(knots.len() as i32);
+                self.writer.write_bit_long(*knot_physical_length);
+                self.writer.write_bit_long(*knot_grow_length);
+                for knot in knots {
+                    self.writer.write_bit_double(*knot);
+                }
+                self.writer.write_bit_long(weights.len() as i32);
+                self.writer.write_bit_long(*weight_physical_length);
+                self.writer.write_bit_long(*weight_grow_length);
+                for weight in weights {
+                    self.writer.write_bit_double(*weight);
+                }
+                self.writer.write_bit_long(control_points.len() as i32);
+                self.writer.write_bit_long(*control_point_physical_length);
+                self.writer.write_bit_long(*control_point_grow_length);
+                for point in control_points {
+                    self.writer.write_3bit_double(*point);
+                }
+                self.writer.write_bit_long(implicit_point_ids.len() as i32);
+                for point_id in implicit_point_ids {
+                    self.writer.write_bit_long(*point_id);
+                }
+            }
+        }
+    }
+
+
     fn write_constraint_node_common(&mut self, node: &AssocConstraintNode) {
         self.writer.write_bit_long(node.node_id);
         if !self.version.r2013_plus(self.dxf_version) {
@@ -737,9 +1051,6 @@ impl<'a> DwgObjectWriter<'a> {
                 // gold dwg2.spec ASSOC2DCONSTRAINTGROUP: num_nodes BL
                 // then the FLAT per-node REPEAT (nodeid BLd + status RC
                 // era-gated around num_connections + the BL vector) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
-                // write_constraint_node_common is exactly that shape;
-                // mirrors the reader.
-                self.writer.write_bit_long(value.nodes.len() as i32);
                 // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-8: DWG-read AC1021 records re-emit their
                 // captured node region verbatim ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the per-node
                 // class-name TUs into the text stream (walk order),
@@ -796,10 +1107,54 @@ impl<'a> DwgObjectWriter<'a> {
                         }
                         self.writer.write_handle_bits(&bytes, bit_len);
                     }
-                } else {
-                    for node in &value.nodes {
-                        self.write_constraint_node_common(node);
+                } else if let Some(first) = value.nodes.first() {
+                    // The typed registry form (mirrors the reader's
+                    // try_read_registry_nodes): num_nodes counts the
+                    // registered nodes; the root carries only its id,
+                    // connections and a single status bit.
+                    let registered: Vec<&AssocConstraintNode> = value
+                        .nodes
+                        .iter()
+                        .skip(1)
+                        .filter(|node| !node.class_name.is_empty())
+                        .collect();
+                    self.writer.write_bit_long(registered.len() as i32);
+                    self.writer.write_bit_long(first.node_id);
+                    self.writer.write_bit_long(first.connections.len() as i32);
+                    for connection in &first.connections {
+                        self.writer.write_bit_long(*connection);
                     }
+                    self.writer.write_bit(first.status != 0);
+                    let mut class_types: Vec<&str> = Vec::new();
+                    for node in &registered {
+                        if !class_types
+                            .iter()
+                            .any(|name| name.eq_ignore_ascii_case(&node.class_name))
+                        {
+                            class_types.push(&node.class_name);
+                        }
+                    }
+                    self.writer.write_bit_long(class_types.len() as i32);
+                    for class_name in &class_types {
+                        self.writer.write_variable_text(class_name);
+                    }
+                    self.writer.write_bit_long(registered.len() as i32);
+                    for node in &registered {
+                        self.writer.write_bit(node.registry_flag);
+                        let class_index = class_types
+                            .iter()
+                            .position(|name| name.eq_ignore_ascii_case(&node.class_name))
+                            .map(|index| index as i32 + 1)
+                            .unwrap_or(0);
+                        self.writer.write_bit_long(class_index);
+                        self.writer.write_bit_long(node.node_id);
+                    }
+                    for node in registered {
+                        self.write_constraint_node_common(node);
+                        self.write_constraint_node_data(&node.data);
+                    }
+                } else {
+                    self.writer.write_bit_long(0);
                 }
             }
             AssociativeData::Variable(value) => {

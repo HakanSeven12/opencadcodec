@@ -108,6 +108,390 @@ fn read_dependency(reader: &mut DwgMergedReader) -> AssocDependency {
     }
 }
 
+fn read_constraint_node_common(
+    reader: &mut DwgMergedReader,
+    version: DwgVersion,
+    dxf_version: DxfVersion,
+) -> AssocConstraintNode {
+    let node_id = reader.read_bit_long();
+    let status_before = !version.r2013_plus(dxf_version);
+    let mut status = if status_before { reader.read_byte() } else { 0 };
+    let connection_count = safe_count(reader.read_bit_long());
+    let mut connections = Vec::with_capacity(connection_count as usize);
+    for _ in 0..connection_count {
+        connections.push(reader.read_bit_long());
+    }
+    if !status_before {
+        status = reader.read_byte();
+    }
+    AssocConstraintNode {
+        node_id,
+        status,
+        connections,
+        class_name: String::new(),
+        registry_flag: false,
+        data: AssocConstraintNodeData::None,
+    }
+}
+
+fn is_plain_geometrical_constraint(class_name: &str) -> bool {
+    matches!(
+        class_name.to_ascii_uppercase().as_str(),
+        "ACCENTERPOINTCONSTRAINT"
+            | "ACCOLINEARCONSTRAINT"
+            | "ACCONCENTRICCONSTRAINT"
+            | "ACEQUALCURVATURECONSTRAINT"
+            | "ACEQUALDISTANCECONSTRAINT"
+            | "ACEQUALHELPPARAMETERCONSTRAINT"
+            | "ACEQUALLENGTHCONSTRAINT"
+            | "ACEQUALRADIUSCONSTRAINT"
+            | "ACFIXEDCONSTRAINT"
+            | "ACMIDPOINTCONSTRAINT"
+            | "ACNORMALCONSTRAINT"
+            | "ACPERPENDICULARCONSTRAINT"
+            | "ACPOINTCOINCIDENCECONSTRAINT"
+            | "ACPOINTCURVECONSTRAINT"
+            | "ACSYMMETRICCONSTRAINT"
+            | "ACTANGENTCONSTRAINT"
+    )
+}
+
+fn read_geometrical_constraint(reader: &mut DwgMergedReader) -> (i32, bool, bool) {
+    (reader.read_bit_long(), reader.read_bit(), reader.read_bit())
+}
+
+fn read_explicit_constraint(reader: &mut DwgMergedReader) -> (i32, bool, bool, Handle, Handle) {
+    let (owner_id, is_implied, is_active) = read_geometrical_constraint(reader);
+    (
+        owner_id,
+        is_implied,
+        is_active,
+        handle(reader),
+        handle(reader),
+    )
+}
+
+fn read_constraint_node_data(
+    reader: &mut DwgMergedReader,
+    class_name: &str,
+) -> AssocConstraintNodeData {
+    match class_name.to_ascii_uppercase().as_str() {
+        "ACG2SMOOTHCONSTRAINT" => {
+            let (owner_id, is_implied, is_active) = read_geometrical_constraint(reader);
+            let count = safe_count(reader.read_bit_long());
+            let mut owned_constraint_ids = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                owned_constraint_ids.push(reader.read_bit_long());
+            }
+            AssocConstraintNodeData::Composite {
+                owner_id,
+                is_implied,
+                is_active,
+                owned_constraint_ids,
+            }
+        }
+        "ACHELPPARAMETER" => AssocConstraintNodeData::HelpParameter {
+            value: reader.read_bit_double(),
+            reserved: reader.read_bit(),
+        },
+        "ACCONSTRAINEDCIRCLE" => AssocConstraintNodeData::Circle {
+            geometry_dependency: handle(reader),
+            geometry_node_id: reader.read_bit_long(),
+            center: reader.read_3bit_double(),
+            normal: reader.read_3bit_double(),
+            direction: reader.read_3bit_double(),
+            radius: reader.read_bit_double(),
+            start_parameter: reader.read_bit_double(),
+            end_parameter: reader.read_bit_double(),
+            reserved: reader.read_bit_double(),
+        },
+        "ACCONSTRAINEDARC" => AssocConstraintNodeData::Arc {
+            geometry_dependency: handle(reader),
+            geometry_node_id: reader.read_bit_long(),
+            center: reader.read_3bit_double(),
+            normal: reader.read_3bit_double(),
+            direction: reader.read_3bit_double(),
+            radius: reader.read_bit_double(),
+            start_parameter: reader.read_bit_double(),
+            end_parameter: reader.read_bit_double(),
+            reserved: reader.read_bit_double(),
+            start_point: reader.read_3bit_double(),
+            end_point: reader.read_3bit_double(),
+        },
+        "ACCONSTRAINEDIMPLICITPOINT" => {
+            let geometry_dependency = handle(reader);
+            AssocConstraintNodeData::ImplicitPoint {
+                geometry_dependency,
+                geometry_node_id: reader.read_bit_long(),
+                point: (!geometry_dependency.is_null()).then(|| reader.read_3bit_double()),
+                point_type: reader.read_byte(),
+                point_index: reader.read_bit_long(),
+                curve_id: reader.read_bit_long(),
+            }
+        }
+        "ACCONSTRAINEDPOINT" => {
+            let geometry_dependency = handle(reader);
+            AssocConstraintNodeData::Point {
+                geometry_dependency,
+                geometry_node_id: reader.read_bit_long(),
+                point: (!geometry_dependency.is_null()).then(|| reader.read_3bit_double()),
+            }
+        }
+        "ACCONSTRAINEDRIGIDSET" => {
+            let geometry_dependency = handle(reader);
+            let geometry_node_id = reader.read_bit_long();
+            let reserved = reader.read_bit();
+            let mut transform = [0.0; 16];
+            for value in &mut transform {
+                *value = reader.read_bit_double();
+            }
+            let count = safe_count(reader.read_bit_long());
+            let mut geometry_ids = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                geometry_ids.push(reader.read_bit_long());
+            }
+            AssocConstraintNodeData::RigidSet {
+                geometry_dependency,
+                geometry_node_id,
+                reserved,
+                transform,
+                geometry_ids,
+            }
+        }
+        "ACCONSTRAINEDLINE"
+        | "ACCONSTRAINEDCONSTRUCTIONLINE"
+        | "ACCONSTRAINED2POINTSCONSTRUCTIONLINE"
+        | "ACCONSTRAINEDDATUMLINE" => AssocConstraintNodeData::Line {
+            geometry_dependency: handle(reader),
+            geometry_node_id: reader.read_bit_long(),
+            point: reader.read_3bit_double(),
+            direction: reader.read_3bit_double(),
+        },
+        "ACCONSTRAINEDBOUNDEDLINE" => AssocConstraintNodeData::BoundedLine {
+            geometry_dependency: handle(reader),
+            geometry_node_id: reader.read_bit_long(),
+            point: reader.read_3bit_double(),
+            direction: reader.read_3bit_double(),
+            is_ray: reader.read_bit(),
+            start_point: reader.read_3bit_double(),
+            end_point: reader.read_3bit_double(),
+        },
+        "ACANGLECONSTRAINT" | "AC3POINTANGLECONSTRAINT" => {
+            let (owner_id, is_implied, is_active, value_dependency, dimension_dependency) =
+                read_explicit_constraint(reader);
+            AssocConstraintNodeData::Angle {
+                owner_id,
+                is_implied,
+                is_active,
+                value_dependency,
+                dimension_dependency,
+                sector_type: reader.read_byte(),
+            }
+        }
+        "ACPARALLELCONSTRAINT" | "ACHORIZONTALCONSTRAINT" | "ACVERTICALCONSTRAINT" => {
+            let (owner_id, is_implied, is_active) = read_geometrical_constraint(reader);
+            AssocConstraintNodeData::Parallel {
+                owner_id,
+                is_implied,
+                is_active,
+                datum_line_index: (!class_name.eq_ignore_ascii_case("AcParallelConstraint"))
+                    .then(|| reader.read_bit_long()),
+            }
+        }
+        "ACDISTANCECONSTRAINT" => {
+            let (owner_id, is_implied, is_active, value_dependency, dimension_dependency) =
+                read_explicit_constraint(reader);
+            let direction_type = reader.read_byte();
+            AssocConstraintNodeData::Distance {
+                owner_id,
+                is_implied,
+                is_active,
+                value_dependency,
+                dimension_dependency,
+                direction_type,
+                distance: (direction_type != 0).then(|| reader.read_3bit_double()),
+            }
+        }
+        "ACRADIUSDIAMETERCONSTRAINT" => {
+            let (owner_id, is_implied, is_active, value_dependency, dimension_dependency) =
+                read_explicit_constraint(reader);
+            AssocConstraintNodeData::RadiusDiameter {
+                owner_id,
+                is_implied,
+                is_active,
+                value_dependency,
+                dimension_dependency,
+                mode: reader.read_byte(),
+            }
+        }
+        "ACCONSTRAINEDELLIPSE" => AssocConstraintNodeData::Ellipse {
+            geometry_dependency: handle(reader),
+            geometry_node_id: reader.read_bit_long(),
+            center: reader.read_3bit_double(),
+            major_axis: reader.read_3bit_double(),
+            axis_ratio: reader.read_bit_double(),
+        },
+        "ACCONSTRAINEDBOUNDEDELLIPSE" => AssocConstraintNodeData::BoundedEllipse {
+            geometry_dependency: handle(reader),
+            geometry_node_id: reader.read_bit_long(),
+            center: reader.read_3bit_double(),
+            major_axis: reader.read_3bit_double(),
+            axis_ratio: reader.read_bit_double(),
+            start_point: reader.read_3bit_double(),
+            end_point: reader.read_3bit_double(),
+        },
+        "ACCONSTRAINEDSPLINE" => {
+            let geometry_dependency = handle(reader);
+            let geometry_node_id = reader.read_bit_long();
+            let rational = reader.read_bit();
+            let periodic = reader.read_bit();
+            let degree = reader.read_bit_long();
+            let knot_tolerance = reader.read_bit_double();
+            let knot_count = safe_count(reader.read_bit_long());
+            let knot_physical_length = reader.read_bit_long();
+            let knot_grow_length = reader.read_bit_long();
+            let mut knots = Vec::with_capacity(knot_count as usize);
+            for _ in 0..knot_count {
+                knots.push(reader.read_bit_double());
+            }
+            let weight_count = safe_count(reader.read_bit_long());
+            let weight_physical_length = reader.read_bit_long();
+            let weight_grow_length = reader.read_bit_long();
+            let mut weights = Vec::with_capacity(weight_count as usize);
+            for _ in 0..weight_count {
+                weights.push(reader.read_bit_double());
+            }
+            let control_point_count = safe_count(reader.read_bit_long());
+            let control_point_physical_length = reader.read_bit_long();
+            let control_point_grow_length = reader.read_bit_long();
+            let mut control_points = Vec::with_capacity(control_point_count as usize);
+            for _ in 0..control_point_count {
+                control_points.push(reader.read_3bit_double());
+            }
+            let implicit_point_count = safe_count(reader.read_bit_long());
+            let mut implicit_point_ids = Vec::with_capacity(implicit_point_count as usize);
+            for _ in 0..implicit_point_count {
+                implicit_point_ids.push(reader.read_bit_long());
+            }
+            AssocConstraintNodeData::Spline {
+                geometry_dependency,
+                geometry_node_id,
+                rational,
+                periodic,
+                degree,
+                knot_tolerance,
+                knot_physical_length,
+                knot_grow_length,
+                knots,
+                weight_physical_length,
+                weight_grow_length,
+                weights,
+                control_point_physical_length,
+                control_point_grow_length,
+                control_points,
+                implicit_point_ids,
+            }
+        }
+        _ if is_plain_geometrical_constraint(class_name) => {
+            let (owner_id, is_implied, is_active) = read_geometrical_constraint(reader);
+            AssocConstraintNodeData::Geometrical {
+                owner_id,
+                is_implied,
+                is_active,
+            }
+        }
+        _ => AssocConstraintNodeData::None,
+    }
+}
+
+
+/// The typed registry form this crate writes for programmatic
+/// constraint-group records: a root node (its status a single bit), a
+/// class-name table, a registry of (flag, class index, node id), then the
+/// per-node common + typed arms. Strictly validated: any out-of-range
+/// count, class index or stream overrun returns `None` (the caller
+/// rewinds and takes the flat walk + verbatim capture), and the parse
+/// must land within the record's trailing pad of the main-data end.
+#[allow(clippy::too_many_lines)]
+fn try_read_registry_nodes(
+    reader: &mut DwgMergedReader,
+    version: DwgVersion,
+    dxf_version: DxfVersion,
+    node_count: i32,
+) -> Option<Vec<AssocConstraintNode>> {
+    if !(1..=100_000).contains(&node_count) {
+        return None;
+    }
+    // Root node: id, connections, status as a single bit.
+    let root_id = reader.read_bit_long();
+    let connection_count = safe_count(reader.read_bit_long());
+    if !(0..=100_000).contains(&connection_count) {
+        return None;
+    }
+    let mut root_connections = Vec::with_capacity(connection_count as usize);
+    for _ in 0..connection_count {
+        root_connections.push(reader.read_bit_long());
+    }
+    let root_status = u8::from(reader.read_bit());
+    let mut nodes = vec![AssocConstraintNode {
+        node_id: root_id,
+        status: root_status,
+        connections: root_connections,
+        class_name: String::new(),
+        registry_flag: false,
+        data: AssocConstraintNodeData::None,
+    }];
+    // Class-name table.
+    let class_type_count = reader.read_bit_long();
+    if !(1..=4096).contains(&class_type_count) {
+        return None;
+    }
+    let mut class_types = Vec::with_capacity(class_type_count as usize);
+    for _ in 0..class_type_count {
+        if reader.text_remaining_bits() < 0 {
+            return None;
+        }
+        class_types.push(reader.read_variable_text());
+    }
+    // Registry: flag, class index, node id per registered node.
+    let registered_count = reader.read_bit_long();
+    if registered_count < 0 || registered_count > node_count {
+        return None;
+    }
+    let mut registry = Vec::with_capacity(registered_count as usize);
+    for _ in 0..registered_count {
+        let registry_flag = reader.read_bit();
+        let class_index = reader.read_bit_long();
+        if class_index < 1 || class_index > class_type_count {
+            return None;
+        }
+        let node_id = reader.read_bit_long();
+        let class_name = class_types
+            .get((class_index - 1) as usize)
+            .cloned()
+            .unwrap_or_default();
+        registry.push((class_name, node_id, registry_flag));
+    }
+    for (class_name, registered_node_id, registry_flag) in registry {
+        let mut node = read_constraint_node_common(reader, version, dxf_version);
+        if node.node_id == 0 {
+            node.node_id = registered_node_id;
+        }
+        node.data = read_constraint_node_data(reader, &class_name);
+        node.class_name = class_name;
+        node.registry_flag = registry_flag;
+        nodes.push(node);
+    }
+    // The parse must land within the record's trailing pad of the
+    // main-data end (the merged writer closes on the byte boundary).
+    let position = reader.position_in_bits();
+    let end = reader.main_data_end();
+    if position > end || end - position > 7 {
+        return None;
+    }
+    Some(nodes)
+}
+
 fn read_action(reader: &mut DwgMergedReader) -> AssocAction {
     let class_version = reader.read_bit_short();
     let geometry_status = reader.read_bit_long();
@@ -207,9 +591,9 @@ fn read_parameter_body(
 /// ("bit_read_RC buffer overflow"), which out_json prints as the [0,0]
 /// pair. The 2004/Surface.dwg ORIG record is truncated mid-payload: 23
 /// data bytes whose handle region carries exactly [owner (8.0.0)][deps
-/// ((3.2)Ã¢â€ â€™1294)][pab.assocdep ((4.2)Ã¢â€ â€™1293)] plus one leftover bit, so the
-/// sab.assocdep form starts at that very last bit Ã¢â‚¬â€ the zero-filling
-/// reader would turn it into code 8, counter 0 and resolve `refÃ¢Ë†â€™1`
+/// ((3.2)ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢1294)][pab.assocdep ((4.2)ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢1293)] plus one leftover bit, so the
+/// sab.assocdep form starts at that very last bit ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the zero-filling
+/// reader would turn it into code 8, counter 0 and resolve `refÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢1`
 /// garbage (1291) where gold reads NULL. Intact records (silver's own
 /// rewrite and every non-truncated action-body record) keep every handle
 /// slot inside the record, so the guard never fires on them.
@@ -223,7 +607,7 @@ fn surface_bounded_handle(reader: &mut DwgMergedReader) -> Handle {
 /// BitLong with LibreDWG's object-dat end bound (the action-body tails).
 ///
 /// Gold's `bit_read_BL` consumes the 2-bit code and then refuses the
-/// value bytes that would cross the record's data end, printing 0 Ã¢â‚¬â€ the
+/// value bytes that would cross the record's data end, printing 0 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the
 /// truncated 2004/Surface record reads pbsab_status as '01' + a byte
 /// starting at the last data bit (0-padded read would give 128) and
 /// class_version as a code starting past the end; both print 0. The
@@ -647,11 +1031,11 @@ fn read_static_pers_subent_manager(reader: &mut DwgMergedReader) -> PersSubentMa
             subents.push(reader.read_bit_long());
         }
     }
-    // Ã‚Â§19 H8h-ext-6: the undocumented tail after the subents vector Ã¢â‚¬â€
+    // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the undocumented tail after the subents vector ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
     // a variable BL run captured verbatim (the loft specimens carry
     // two; the Chamfer/Fillet 2DF records carry the ~1224-BL history
     // blob; the count-0 records carry none). The run ends flush at the
-    // main content end Ã¢â‚¬â€ the bit after the content is the merged
+    // main content end ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the bit after the content is the merged
     // stream's no-text flag, never a record field (the H8h-ext-5
     // lesson). See PersSubentManager::tail_bls.
     let mut tail_bls = Vec::new();
@@ -689,13 +1073,13 @@ pub fn read_associative_data(
             let dependency = read_dependency(reader);
             let class_version = reader.read_bit_short();
             let enabled = reader.read_bit();
-            // Ã‚Â§19 H8h-ext-15: capture the text stream's PRESENCE at the
-            // classname TU Ã¢â‚¬â€ the author's PER-RECORD form: her R2013
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-15: capture the text stream's PRESENCE at the
+            // classname TU ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the author's PER-RECORD form: her R2013
             // Constraints geomdeps carry has_strings: 0 (no stream; the
             // TU read returns "" at 0 bits) while the AC1021 corpus
             // authors write has_strings: 1 even with empty-only
             // streams. The writer skips the TU on a no-stream record so
-            // the merge emits no stream. Gated to R2007+ Ã¢â‚¬â€ the
+            // the merge emits no stream. Gated to R2007+ ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the
             // pre-2007 classname is an inline main TV (no text
             // streams exist; the flag stays false and the write is
             // the normal inline form).
@@ -703,8 +1087,8 @@ pub fn read_associative_data(
                 dxf_version >= DxfVersion::AC1021 && reader.text_remaining_bits() <= 0;
             let class_name = reader.read_variable_text();
             let dependent_on_compound_object = reader.read_bit();
-            // Ã‚Â§19 H8h-ext-10: capture the undocumented persubent-id
-            // tail Ã¢â‚¬â€ the main-stream bits after dependent_on_compound_
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-10: capture the undocumented persubent-id
+            // tail ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the main-stream bits after dependent_on_compound_
             // object that gold's spec block (dwg2.spec 3148) does not
             // cover and its own -v9 walk parks as unknown (example_
             // 2007 h=396: 46 bits; the handle stream holds only the
@@ -808,7 +1192,7 @@ pub fn read_associative_data(
             ))
         }
         "ASSOCPERSSUBENTMANAGER" => {
-            // Ã‚Â§19 H8h-ext-6: the gold dwg2.spec field order Ã¢â‚¬â€
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the gold dwg2.spec field order ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
             // class_version, unknown_3/0/2 (the markers), unknown_bl1,
             // unknown_bl2, num_steps, steps, num_subents, subents, and
             // the class_version-2 tail (unknown_bl3 + B). The old parse
@@ -840,13 +1224,13 @@ pub fn read_associative_data(
                 }
                 result
             };
-            // Ã‚Â§19 H8h-ext-6: the undocumented tail after the subents
-            // vector Ã¢â‚¬â€ a variable BL run (captured verbatim; the gold
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the undocumented tail after the subents
+            // vector ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â a variable BL run (captured verbatim; the gold
             // spec declares only the cv2 [BL][B] pair, but the cv=1
             // corpus records carry more there, e.g. LoftCSurf/LoftM
             // 2DD's [0,0,0,1,1,0]), then the trailing B (the last
             // content bit). The bit after the content is the merged
-            // stream's no-text flag Ã¢â‚¬â€ never a record field (the
+            // stream's no-text flag ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â never a record field (the
             // H8h-ext-5 lesson).
             let mut tail_bls = Vec::new();
             while reader.main_remaining_bits() > 1 {
@@ -878,21 +1262,21 @@ pub fn read_associative_data(
                 27 => AssocSubcurveKind::Curve3d,
                 _ => AssocSubcurveKind::None,
             };
-            // Ã‚Â§19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
             // geometry region after action_type. The typed forms:
-            // ARC (11) Ã¢â‚¬â€ twelve BDs: center, normal, x-axis (3BD
+            // ARC (11) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â twelve BDs: center, normal, x-axis (3BD
             // each), radius, start/end angles (the H8h-ext-4
             // reverse-engineering); the R2013+ frames append a
             // constant two-bit `10` trailing form but the read stops
             // at the twelfth BD (the tail is a write-side emission,
-            // see the writer arm). ELLIPSE (17) Ã¢â‚¬â€ thirteen BDs:
+            // see the writer arm). ELLIPSE (17) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â thirteen BDs:
             // center, major/minor-axis unit vectors, major/minor
             // radii, start/end angles (the B2 authored quads + the
-            // 2004/Surface.dwg corpus specimens). LINESEG3D (23) Ã¢â‚¬â€
+            // 2004/Surface.dwg corpus specimens). LINESEG3D (23) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
             // six BDs: start/end points (same double-source
-            // evidence). The remaining kinds Ã¢â‚¬â€ NURB3D (42, a
+            // evidence). The remaining kinds ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â NURB3D (42, a
             // ~1300-bit parameterized form), the gold-unknown 47 and
-            // any future 19/27 Ã¢â‚¬â€ stay unread and their region is
+            // any future 19/27 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â stay unread and their region is
             // captured verbatim for same-version replay (the
             // H8h-ext-8 `nodes_wire_main` pattern).
             let mut subcurve = None;
@@ -984,7 +1368,7 @@ pub fn read_associative_data(
                             reader.peek_window_bytes(region_start, count)
                         {
                             // TODO A8 (2026-10-02): the NURB3D (42)
-                            // region parses TYPED Ã¢â‚¬â€ the measured
+                            // region parses TYPED ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the measured
                             // grammar (see `AssocNurb3dSubcurve`):
                             // fully self-delimiting and era-stable
                             // (bit-identical 2007/2018 regions on
@@ -1005,7 +1389,7 @@ pub fn read_associative_data(
                                 }
                             } else if action_type == 47 {
                                 // TODO A8 (2026-10-03): the composite
-                                // (47) region parses TYPED Ã¢â‚¬â€ the
+                                // (47) region parses TYPED ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the
                                 // segment-list grammar (see
                                 // `AssocCompositeSubcurve`): BL count +
                                 // per segment BS kind (23 line
@@ -1066,7 +1450,7 @@ pub fn read_associative_data(
             let actions = read_handles(reader, count);
             let node_count = safe_count(reader.read_bit_long());
             // gold dwg2.spec ASSOC2DCONSTRAINTGROUP (5682 + AcConstraint
-            // GroupNode_fields 5576): num_nodes BL then a FLAT REPEAT Ã¢â‚¬â€
+            // GroupNode_fields 5576): num_nodes BL then a FLAT REPEAT ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
             // per node: nodeid BLd, [pre-R2013b: status RC], num_
             // connections BL, connections BL-vector, [R2013b+: status
             // RC]. The old root-node + class-registry shape misparsed the
@@ -1074,37 +1458,60 @@ pub fn read_associative_data(
             // signed BLs) and lost the node count: gold reads 9 nodes on
             // Constraints.dwg where this read 1, 129 where this read 113.
             let node_region_start = reader.position_in_bits();
-            let mut nodes: Vec<AssocConstraintNode> =
-                Vec::with_capacity(node_count as usize);
-            for _ in 0..node_count {
-                let node_id = reader.read_bit_long();
-                let mut status = 0u8;
-                if !version.r2013_plus(dxf_version) {
-                    status = reader.read_byte();
+            // Records this crate authored (the programmatic graph the
+            // host builds, or a reload of one) carry the typed registry
+            // form: a root node, a class-name table, a registry, then the
+            // per-node common + typed arms. Real-file records (the
+            // author's wire) fail its strict validation and fall through
+            // to the flat walk + verbatim capture below, unchanged.
+            let snapshot = reader.positions_snapshot();
+            let mut nodes = Vec::new();
+            let mut typed = false;
+            if node_count > 0 {
+                if let Some(typed_nodes) = try_read_registry_nodes(
+                    reader,
+                    version,
+                    dxf_version,
+                    node_count,
+                ) {
+                    nodes = typed_nodes;
+                    typed = true;
+                } else {
+                    reader.restore_positions(snapshot);
                 }
-                let num_connections = safe_count(reader.read_bit_long());
-                let mut connections = Vec::with_capacity(num_connections as usize);
-                for _ in 0..num_connections {
-                    connections.push(reader.read_bit_long());
-                }
-                if version.r2013_plus(dxf_version) {
-                    status = reader.read_byte();
-                }
-                nodes.push(AssocConstraintNode {
-                    node_id,
-                    status,
-                    connections,
-                    class_name: String::new(),
-                    registry_flag: false,
-                    data: AssocConstraintNodeData::None,
-                });
             }
-            // Ã‚Â§19 H8h-ext-8: the node-region wire capture. Gold's flat
-            // REPEAT misparses the authored records Ã¢â‚¬â€ on the 2007/
+            if !typed {
+                nodes = Vec::with_capacity(node_count as usize);
+                for _ in 0..node_count {
+                    let node_id = reader.read_bit_long();
+                    let mut status = 0u8;
+                    if !version.r2013_plus(dxf_version) {
+                        status = reader.read_byte();
+                    }
+                    let num_connections = safe_count(reader.read_bit_long());
+                    let mut connections = Vec::with_capacity(num_connections as usize);
+                    for _ in 0..num_connections {
+                        connections.push(reader.read_bit_long());
+                    }
+                    if version.r2013_plus(dxf_version) {
+                        status = reader.read_byte();
+                    }
+                    nodes.push(AssocConstraintNode {
+                        node_id,
+                        status,
+                        connections,
+                        class_name: String::new(),
+                        registry_flag: false,
+                        data: AssocConstraintNodeData::None,
+                    });
+                }
+            }
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-8: the node-region wire capture. Gold's flat
+            // REPEAT misparses the authored records ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â on the 2007/
             // Constraints.dwg group (h 3E3, nine nodes) gold's own -v9
             // walk desyncs at node[1] and parks 5249 unknown bits. The
             // real wire (cross-verified against the R2000/R2004
-            // ancestors of the same drawing Ã¢â‚¬â€ the circle node's data
+            // ancestors of the same drawing ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the circle node's data
             // region is bit-identical across eras once the inline
             // class-name TV of the pre-2007 records is discounted)
             // carries, per node: a class-name TU consumed from the
@@ -1112,7 +1519,7 @@ pub fn read_associative_data(
             // "AcConstrainedImplicitPoint", "AcCenterPointConstraint",
             // ...), a class data arm (the circle: connection BLs, the
             // center 3BD, normal/x-axis 3BD shorts, radius BD, 0.0,
-            // 2Ãâ‚¬; the implicit points: connection BLs, point_idx BLd
+            // 2ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬; the implicit points: connection BLs, point_idx BLd
             // -1, curve_id BLd; ...) and per-node geometry handles in
             // the HANDLE stream (two soft pointers into the group's
             // two ASSOCGEOMDEPENDENCYs plus three inline nulls). None
@@ -1126,28 +1533,28 @@ pub fn read_associative_data(
             // includes her closing 1s pad; the merged writer's own pad
             // is a no-op once aligned).
             //
-            // Ã‚Â§19 H8h-ext-13: the capture extends to the TwoStream
-            // eras (AC1015/AC1018) Ã¢â‚¬â€ the same drawing's R2000/R2004
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-13: the capture extends to the TwoStream
+            // eras (AC1015/AC1018) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the same drawing's R2000/R2004
             // specimens carry the node class names INLINE as main TVs
             // (inside the captured region, so no separate names
             // capture), and their handle streams are bit-continuous
-            // at the RL (the authored Ã‚Â§19.4.C frame our merge already
+            // at the RL (the authored ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19.4.C frame our merge already
             // mirrors). DXF/programmatic reads keep the naive modeled
             // emission (`nodes_wire_main` stays `None`).
             //
-            // Ã‚Â§19 H8h-ext-14: the capture extends to the R2010/R2013
-            // frames (AC1024/AC1027 Ã¢â‚¬â€ the MC handle-bits header, the
-            // BOT type, the flag at handle_startÃ¢Ë†â€™1). Their text
+            // ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-14: the capture extends to the R2010/R2013
+            // frames (AC1024/AC1027 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the MC handle-bits header, the
+            // BOT type, the flag at handle_startÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢1). Their text
             // streams (has_strings: 1) hold content this campaign
-            // never decoded Ã¢â‚¬â€ the AC21 raw-stream dump instrument
-            // does not cover the R2010+ containers Ã¢â‚¬â€ so the region
+            // never decoded ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the AC21 raw-stream dump instrument
+            // does not cover the R2010+ containers ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â so the region
             // is retained VERBATIM (the ext-12 TABLECONTENT
             // `wire_text` pattern) instead of re-encoding class-name
             // TUs; AC1021 keeps the decoded-names path (verified
             // 58/58). The naive walk desyncs on these records exactly
             // as on AC1021 (gold's own -v9 walk errors at node[1]:
             // nconn 2800028726 / 68456580), but the capture is
-            // peek-based Ã¢â‚¬â€ the bounds come from the frame, not the
+            // peek-based ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the bounds come from the frame, not the
             // walk.
             let mut nodes_wire_names: Vec<String> = Vec::new();
             let mut nodes_wire_main: Option<Vec<u8>> = None;
@@ -1157,14 +1564,14 @@ pub fn read_associative_data(
             let mut nodes_wire_text: Option<Vec<u8>> = None;
             let mut nodes_wire_text_bit_len: u32 = 0;
             // TODO A5 family 2 (2026-10-01): AC1032 (2018) joins the
-            // captured frames Ã¢â‚¬â€ the Dynblocks specimen's two
+            // captured frames ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the Dynblocks specimen's two
             // ACDBASSOC2DCONSTRAINTGROUP records (0xBB1B/0xBB81) have
             // the same R2010+ container shape (the MC handle-bits
-            // header, the BOT type, the flag at handle_startÃ¢Ë†â€™1, an
+            // header, the BOT type, the flag at handle_startÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢1, an
             // undecoded text region); without the capture the naive
             // typed REPEAT balloons (200k phantom nodes read from her
-            // ~170-node region) and the rewrite explodes 2948Ã¢â€ â€™29650
-            // bytes. The capture is peek-based Ã¢â‚¬â€ the bounds come from
+            // ~170-node region) and the rewrite explodes 2948ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢29650
+            // bytes. The capture is peek-based ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the bounds come from
             // the frame, not the walk.
             let era_wire = matches!(
                 dxf_version,
@@ -1175,7 +1582,7 @@ pub fn read_associative_data(
                     | DxfVersion::AC1027
                     | DxfVersion::AC1032
             );
-            if era_wire && node_count > 0 {
+            if era_wire && node_count > 0 && !typed {
                 let node_region_end = reader.main_data_end();
                 if node_region_end > node_region_start {
                     let count = (node_region_end - node_region_start) as u32;
@@ -1189,7 +1596,7 @@ pub fn read_associative_data(
                 // The class-name TUs, in walk order, bounded by what
                 // the record's text stream actually holds (the
                 // dissected corpus specimen carries exactly nine).
-                // TwoStream eras: the names are inline main TVs Ã¢â‚¬â€
+                // TwoStream eras: the names are inline main TVs ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
                 // already inside the captured region.
                 if dxf_version == DxfVersion::AC1021 {
                     for _ in 0..node_count {
@@ -1220,9 +1627,9 @@ pub fn read_associative_data(
                     }
                 }
                 let handle_from = reader.handle_position_in_bits();
-                // Trim the author's closing 1s pad (Ã‚Â§19.4: the record's
+                // Trim the author's closing 1s pad (ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19.4: the record's
                 // final partial byte is the 1s pad; our merged writer
-                // re-creates it at close). The pad is at most 7 bits Ã¢â‚¬â€
+                // re-creates it at close). The pad is at most 7 bits ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â
                 // a wider run means real handle bits, not padding.
                 let mut handle_to = reader.record_end_bits();
                 let mut pad_bits: i64 = 0;
@@ -1491,7 +1898,7 @@ pub fn read_associative_data(
 }
 
 /// TODO A8 (2026-10-02): the typed NURB3D (action_type 42) region
-/// parser Ã¢â‚¬â€ the measured grammar (see AssocNurb3dSubcurve for the
+/// parser ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the measured grammar (see AssocNurb3dSubcurve for the
 /// dissection record): a 12-bit header constant, the knot-tolerance
 /// BD, a 4-bit constant, the 6 flag bits, BL num_knots + a constant
 /// BL 8, the knot array (BD[]; 0.0 as the 2-bit short), the gap (BL
@@ -1590,7 +1997,7 @@ fn parse_nurb3d_region(bytes: &[u8], bit_len: u32) -> Option<AssocNurb3dSubcurve
         let z = bits.bd()?;
         control_points.push(Vector3::new(x, y, z));
     }
-    // the region must close exactly Ã¢â‚¬â€ the typed form's own gate
+    // the region must close exactly ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the typed form's own gate
     if bits.pos != bit_len {
         return None;
     }
@@ -1603,14 +2010,14 @@ fn parse_nurb3d_region(bytes: &[u8], bit_len: u32) -> Option<AssocNurb3dSubcurve
     })
 }
 
-/// Parse the composite (47) subcurve region Ã¢â‚¬â€ TODO A8 (2026-10-03).
+/// Parse the composite (47) subcurve region ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â TODO A8 (2026-10-03).
 ///
 /// The grammar (measured on the ExtrudePline/Extrude3DPoly/
 /// RevolvePline/LoftMixed quads, all four eras; gold's spec has no
-/// case 47 Ã¢â‚¬â€ the corpus is the authority): `BL num_segments`, then
+/// case 47 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the corpus is the authority): `BL num_segments`, then
 /// per segment `BS kind` + the kind's own typed form. The measured
-/// kinds: 23 (LINESEG3D Ã¢â‚¬â€ six BDs: absolute start 3BD + delta 3BD)
-/// and 11 (ARC Ã¢â‚¬â€ the twelve-BD arc form, plus the constant two-bit
+/// kinds: 23 (LINESEG3D ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â six BDs: absolute start 3BD + delta 3BD)
+/// and 11 (ARC ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the twelve-BD arc form, plus the constant two-bit
 /// `10` trailing form on the R2013+ frames, exactly like the
 /// standalone ARC region). Gates on the segment count, the known
 /// kinds, and exact closure; any deviation (a future kind, a variant
@@ -1703,7 +2110,7 @@ fn parse_composite47_region(
                 let start_angle = bits.bd()?;
                 let end_angle = bits.bd()?;
                 if r2013_plus && bits.raw(2)? != 0b10 {
-                    // the R2013+ arc tail is the constant `10` Ã¢â‚¬â€ any
+                    // the R2013+ arc tail is the constant `10` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â any
                     // other two bits mean a variant: fall to the net.
                     return None;
                 }
@@ -1716,11 +2123,11 @@ fn parse_composite47_region(
                     end_angle,
                 }));
             }
-            // an unmeasured kind (17, 42, 19, 27, Ã¢â‚¬Â¦) Ã¢â‚¬â€ the net.
+            // an unmeasured kind (17, 42, 19, 27, ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the net.
             _ => return None,
         }
     }
-    // the region must close exactly Ã¢â‚¬â€ the typed form's own gate.
+    // the region must close exactly ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â the typed form's own gate.
     if bits.pos != bit_len {
         return None;
     }
