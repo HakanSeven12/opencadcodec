@@ -282,6 +282,35 @@ struct ClassNames {
 /// parameter/grip entities, TABLE, RTEXT, ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦) are deliberately absent
 /// ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold surfaces those as UNKNOWN_OBJ when its class-table walk
 /// desyncs, and the gold-shadow mirror keeps that route.
+/// Whether a class's records dispatch on the entity path (the reader's
+/// own class-table parse is the authority; the gold shadow's numeric
+/// item_class_id is trusted only when the own parse agrees - the
+/// shadow's walk desyncs on some tables and misreads in BOTH
+/// directions: the MESH fixture reads 41985, and the 2026-10-09
+/// AutoCAD-audit case read the ENTITY id 0x1f2 for the object classes
+/// past the desync, which decoded ACDBDETAILVIEWSTYLE and
+/// ACDBSECTIONVIEWSTYLE records as unknown entities and linked them
+/// into the model-space entity chain - the reference audit rejects
+/// that as "invalid class found in space").
+fn class_dispatches_as_entity(
+    class: &crate::classes::DxfClass,
+    version: crate::types::DxfVersion,
+) -> bool {
+    if class.class_number < 500 {
+        return false;
+    }
+    match class.gold_shadow.as_ref() {
+        Some(sh) => {
+            (sh.item_class_id == crate::classes::ENTITY_ITEM_CLASS_ID as u16
+                && (class.is_an_entity
+                    || class.item_class_id == crate::classes::ENTITY_ITEM_CLASS_ID))
+                || (version >= crate::types::DxfVersion::AC1021
+                    && gold_types_entity_class(&class.dxf_name)
+                    && class.is_an_entity)
+        }
+        None => class.is_an_entity,
+    }
+}
 fn gold_types_entity_class(dxf_name: &str) -> bool {
     matches!(
         dxf_name,
@@ -738,21 +767,7 @@ impl DwgDocumentBuilder {
         let entity_class_numbers: std::collections::HashSet<i16> = document
             .classes
             .iter()
-            .filter(|c| {
-                if c.class_number < 500 {
-                    return false;
-                }
-                match c.gold_shadow.as_ref() {
-                    Some(sh) => {
-                        sh.item_class_id == crate::classes::ENTITY_ITEM_CLASS_ID as u16
-                            || (document.version
-                                >= crate::types::DxfVersion::AC1021
-                                && gold_types_entity_class(&c.dxf_name)
-                                && c.is_an_entity)
-                    }
-                    None => c.is_an_entity,
-                }
-            })
+            .filter(|c| class_dispatches_as_entity(c, document.version))
             .map(|c| c.class_number)
             .collect();
         // TODO B1 (2026-10-01): the pre-R2007 desync mirror's object side ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
@@ -8361,6 +8376,66 @@ fn anonymous_block_names(entries: &[u64], names: &std::collections::HashMap<u64,
 mod tests {
     use super::*;
     use crate::classes::DxfClass;
+    #[test]
+    fn class_dispatch_entity_needs_own_parse_agreement() {
+        // The 2026-10-09 AutoCAD-audit case: the gold-shadow walk
+        // desynced and read the ENTITY item id for the object classes
+        // past the derail; the own parse (is_an_entity=false,
+        // item_class_id=0x1f3) must win, or the style records decode as
+        // unknown entities and land in the model-space chain.
+        let mut object_class = DxfClass::new("ACDBSECTIONVIEWSTYLE", "AcDbSectionViewStyle");
+        object_class.class_number = 692;
+        object_class.is_an_entity = false;
+        object_class.item_class_id = 0x1F3;
+        object_class.gold_shadow = Some(crate::classes::DwgClassGoldShadow {
+            item_class_id: 0x1F2,
+            ..Default::default()
+        });
+        assert!(!class_dispatches_as_entity(
+            &object_class,
+            crate::types::DxfVersion::AC1032
+        ));
+
+        // A genuine entity class the shadow agrees on stays on the
+        // entity path.
+        let mut entity_class = DxfClass::new("WIPEOUT", "AcDbWipeout");
+        entity_class.class_number = 508;
+        entity_class.is_an_entity = true;
+        entity_class.item_class_id = 0x1F2;
+        entity_class.gold_shadow = Some(crate::classes::DwgClassGoldShadow {
+            item_class_id: 0x1F2,
+            ..Default::default()
+        });
+        assert!(class_dispatches_as_entity(
+            &entity_class,
+            crate::types::DxfVersion::AC1032
+        ));
+
+        // The shadow's garbage-miss (the MESH fixture's 41985) still
+        // reaches the entity set through the stable-name clause.
+        let mut mesh_class = DxfClass::new("MESH", "AcDbSubDMesh");
+        mesh_class.class_number = 506;
+        mesh_class.is_an_entity = true;
+        mesh_class.item_class_id = 0x1F2;
+        mesh_class.gold_shadow = Some(crate::classes::DwgClassGoldShadow {
+            item_class_id: 41985,
+            ..Default::default()
+        });
+        assert!(class_dispatches_as_entity(
+            &mesh_class,
+            crate::types::DxfVersion::AC1032
+        ));
+
+        // Without a shadow the own parse decides alone.
+        let mut plain = DxfClass::new("DICTIONARYVAR", "AcDbDictionaryVar");
+        plain.class_number = 501;
+        plain.is_an_entity = false;
+        plain.item_class_id = 0x1F3;
+        assert!(!class_dispatches_as_entity(
+            &plain,
+            crate::types::DxfVersion::AC1032
+        ));
+    }
 
     #[test]
     fn unknown_object_type_name_uses_class_dxf_name() {
