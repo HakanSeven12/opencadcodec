@@ -1300,7 +1300,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_double(40, style.height)?;
         self.writer.write_double(41, style.width_factor)?;
         self.writer.write_double(50, style.oblique_angle)?;
-        self.writer.write_i16(71, 0)?; // Text generation flags
+        // Text generation flags: 2 = backward, 4 = upside down.
+        let mut generation: i16 = 0;
+        if style.flags.backward {
+            generation |= 2;
+        }
+        if style.flags.upside_down {
+            generation |= 4;
+        }
+        self.writer.write_i16(71, generation)?;
                                        // Last height used ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â must be > 0 for CAD validation
         self.writer
             .write_double(42, style.effective_last_height())?;
