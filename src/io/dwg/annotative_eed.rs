@@ -16,7 +16,7 @@ const ANNOTATIVE_DATA: &str = "AnnotativeData";
 
 /// Build the `AcadAnnotative` EED data-item bytes for `flag`.
 /// `wide` selects the R2007+ UTF-16 string encoding.
-pub(crate) fn encode(wide: bool, flag: bool) -> Vec<u8> {
+pub fn encode(wide: bool, flag: bool) -> Vec<u8> {
     let mut b = Vec::new();
 
     // code 0: string "AnnotativeData"

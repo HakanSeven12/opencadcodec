@@ -20,6 +20,36 @@ pub struct DynamicBlockObject {
     pub dxf_name: String,
     pub cpp_class_name: String,
     pub data: DynamicBlockData,
+    /// Byte-captured provenance: true when the DWG reader decoded this
+    /// record from an authored stream. The SH save-guard
+    /// (elided_solid_history_class) writes only captured records of the
+    /// calibrated classes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â constructed trees (assembled by
+    /// CadDocument::create_solid_history) elide until a constructed probe
+    /// passes a strict loader (2026-09-28 cylinder verdict: the
+    /// constructed ACSH_HISTORY_CLASS record ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â payload owner duplicating
+    /// the ownerhandle, a dangling node id, the 1/0 genus ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â audits as
+    /// "Duplicate ownership of reference" and drags its solid out with
+    /// it; the native tree interposes an eval graph and carries 33/427,
+    /// a genus the factory does not model).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub captured: bool,
+    /// The authored merged-record window, verbatim (TODO A5 family 1,
+    /// 2026-10-01 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the DATATABLE precedent, scoped to the action
+    /// classes gold itself does not model ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â gold decodes
+    /// BLOCKSTRETCHACTION/BLOCKMOVEACTION/BLOCKSCALEACTION as
+    /// `unknown_bits`, so silver's typed layout is its own invention and
+    /// drifted +58 main bits on every Dynblocks action record). The
+    /// writer replays it whole on a same-version write; the typed model
+    /// stays the DXF/programmatic/conversion fallback.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_data: Option<Vec<u8>>,
+    /// The handle-region bit length of the raw capture above
+    /// (register_raw_object's split point).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub raw_dwg_handle_bits: i64,
+    /// The version the raw capture came from ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the replay gate.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_version: Option<crate::types::DxfVersion>,
 }
 
 impl DynamicBlockObject {
@@ -87,6 +117,7 @@ pub enum DynamicBlockData {
     LookupAction(BlockLookupAction),
     StretchAction(BlockStretchAction),
     PolarStretchAction(BlockPolarStretchAction),
+    PropertiesTable,
     AlignmentParameterEntity,
     BasePointParameterEntity,
     FlipParameterEntity,
@@ -177,6 +208,7 @@ impl DynamicBlockData {
     pub(crate) fn visit_handles_mut(&mut self, visit: &mut impl FnMut(&mut Handle)) {
         match self {
             Self::Unknown
+            | Self::PropertiesTable
             | Self::AlignmentParameterEntity
             | Self::BasePointParameterEntity
             | Self::FlipParameterEntity
@@ -283,9 +315,6 @@ impl DynamicBlockData {
                 visit_block_action(&mut value.action, visit);
                 for handle in &mut value.handles {
                     visit(handle);
-                }
-                for item in &mut value.bindings {
-                    visit(&mut item.handle);
                 }
             }
             Self::AngularConstraintParameterEntity(value) => {
@@ -408,7 +437,7 @@ fn visit_solid_history_operation(
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockEvalExpression {
     pub parent_id: i32,
@@ -420,23 +449,8 @@ pub struct BlockEvalExpression {
 }
 
 impl BlockEvalExpression {
-    /// Parent id the reference application stores in DWG for an expression
-    /// without a parent. DXF does not carry the parent id, so expressions read
-    /// from DXF get this value; a 0 parent makes the drawing unreadable there.
+    /// Parent id of a root evaluation node.
     pub const NO_PARENT: i32 = -1;
-}
-
-impl Default for BlockEvalExpression {
-    fn default() -> Self {
-        Self {
-            parent_id: Self::NO_PARENT,
-            major: 0,
-            minor: 0,
-            value_code: 0,
-            value: BlockEvalValue::default(),
-            node_id: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -673,6 +687,7 @@ pub struct BlockLookupParameter {
     pub index: i32,
     pub lookup_name: String,
     pub lookup_description: String,
+    pub unknown_text: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -827,11 +842,8 @@ pub struct BlockPolarStretchAction {
     pub connections: [BlockConnection; 6],
     pub points: Vec<Vector2>,
     pub handles: Vec<Handle>,
-    pub bindings: Vec<BlockStretchHandle>,
-    pub codes: Vec<BlockStretchCode>,
-    pub distance_multiplier: f64,
-    pub angle_offset: f64,
-    pub extra: Vec<i32>,
+    pub handle_flags: Vec<i16>,
+    pub codes: Vec<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -870,9 +882,6 @@ pub struct BlockEvaluationGraph {
 pub struct SolidHistory {
     pub major: i32,
     pub minor: i32,
-    /// DXF 360: the hard-owned evaluation graph (AcDbEvalGraph) that links
-    /// the history nodes. Histories written by older releases of this crate
-    /// stored the solid here.
     pub owner: Handle,
     pub history_node_id: i32,
     pub show_history: bool,
@@ -885,7 +894,6 @@ pub struct SolidHistoryNodeBase {
     pub eval: BlockEvalExpression,
     pub major: i32,
     pub minor: i32,
-    /// Column-major 4x4 matrix (translation in elements 12, 13, 14).
     pub transform: [f64; 16],
     pub color: Color,
     pub step_id: i32,
@@ -908,12 +916,46 @@ impl SolidHistoryNodeBase {
         }
     }
 
+    /// The evaluation header as stored on disk. The reference application
+    /// rejects the whole drawing when a history node's expression has
+    /// parent 0 or value code 0 without a value; it writes -1 and -9999.
+    /// Nodes built with those defaults by earlier releases of this crate
+    /// are saved in the reference form.
+    pub(crate) fn saved_eval(&self) -> BlockEvalExpression {
+        let mut eval = self.eval.clone();
+        if eval.parent_id == 0 {
+            eval.parent_id = Self::ROOT_PARENT;
+        }
+        if eval.value_code == 0 && eval.value == BlockEvalValue::None {
+            eval.value_code = Self::NO_VALUE;
+        }
+        eval
+    }
+
+    /// Move the frame origin along the transform's own basis by `center`
+    /// (signed: `+1.0` shifts to the authored centre form, `-1.0` back to
+    /// the base-at-origin form). Only the translation column changes: the
+    /// frame's axes are what the shift is measured along.
+    ///
+    /// The transform is the crate's column-major glam convention ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â basis
+    /// x at [0..3], y at [4..7], z at [8..11], translation at
+    /// [12..15].
+    #[allow(dead_code)]
+    pub(crate) fn translate_frame(&mut self, center: [f64; 3], sign: f64) {
+        for row in 0..3 {
+            let mut delta = 0.0;
+            for axis in 0..3 {
+                delta += self.transform[axis * 4 + row] * center[axis];
+            }
+            self.transform[12 + row] += sign * delta;
+        }
+    }
+
     pub fn new(step_id: i32) -> Self {
         Self {
             eval: BlockEvalExpression {
                 parent_id: Self::ROOT_PARENT,
                 major: 1,
-                value_code: Self::NO_VALUE,
                 node_id: step_id,
                 ..BlockEvalExpression::default()
             },
@@ -925,21 +967,30 @@ impl SolidHistoryNodeBase {
             ..Self::default()
         }
     }
+}
 
-    /// The evaluation header as stored on disk. The reference application
-    /// rejects the whole drawing when a history node's expression has parent
-    /// 0 or value code 0 without a value; it writes -1 and -9999. Nodes built
-    /// with those defaults by earlier releases of this crate are saved in the
-    /// reference form.
-    pub(crate) fn saved_eval(&self) -> BlockEvalExpression {
-        let mut eval = self.eval.clone();
-        if eval.parent_id == 0 {
-            eval.parent_id = Self::ROOT_PARENT;
-        }
-        if eval.value_code == 0 && eval.value == BlockEvalValue::None {
-            eval.value_code = Self::NO_VALUE;
-        }
-        eval
+/// The local-frame centre of a primitive history node ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the point the
+/// authored node genus carries its transform translation at (measured on
+/// the gold `sh_history` fixtures: the authored cylinder/box/cone/
+/// pyramid/wedge nodes translate to the solid's world centre, and their
+/// local bodies hang centred on the frame origin).
+///
+/// This crate's hosts build those primitives base-at-origin instead, so
+/// the writer shifts a constructed node's translation by this centre and
+/// the reader shifts it back ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â every family outside the primitive set
+/// (sphere and torus are already centred, the profile and derived
+/// families keep their own conventions) answers zero and passes through
+/// untouched.
+pub(crate) fn primitive_center_shift(operation: &SolidHistoryOperation) -> [f64; 3] {
+    match operation {
+        // The hosts anchor Box and Wedge frames at the solid's centre and
+        // Cylinder, Cone and Pyramid at the base centre, while the authored
+        // wire carries the solid's world centre in every family: the frame
+        // translation the write shift produces and the read un-shift expects.
+        SolidHistoryOperation::Cylinder(value) => [0.0, 0.0, value.height * 0.5],
+        SolidHistoryOperation::Cone(value) => [0.0, 0.0, value.height * 0.5],
+        SolidHistoryOperation::Pyramid(value) => [0.0, 0.0, value.height * 0.5],
+        _ => [0.0; 3],
     }
 }
 
@@ -1146,8 +1197,8 @@ impl SolidHistoryTree {
             || self.operands.iter().any(Self::has_boolean)
     }
 
-    /// The operations with no operands — the primitives and profiles the
-    /// solid was built from — in operand order.
+    /// The operations with no operands ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the primitives and profiles the
+    /// solid was built from ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â in operand order.
     pub fn leaves(&self) -> Vec<&SolidHistoryOperation> {
         if self.operands.is_empty() {
             return vec![&self.operation];
@@ -1191,13 +1242,29 @@ pub struct SolidHistoryChamfer {
     pub base_face: i32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SolidHistorySweep {
     pub base: SolidHistoryNodeBase,
     pub operation_major: i32,
     pub operation_minor: i32,
     pub direction: Vector3,
+    pub shsw_method: i32,
+    pub shsw_text: Vec<u8>,
+    pub shsw_bl93: i32,
+    pub shsw_text2: Vec<u8>,
+    /// Raw post-`op.minor` payload of a DWG-read sweep/extrusion record,
+    /// MSB-packed. Phase A raw retention: the AcDbShSweepBase/AcDbShSweep
+    /// tail layout is undocumented (gold compiles these classes out and
+    /// refuses the walk ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â "Unstable Class"; the shsw blob guess of the
+    /// debug spec does not match the authored wires, where the size fields
+    /// read 0 while ~130-1700 bits of option/transform/flag content
+    /// follow). The DWG writer emits these bits verbatim; the modeled
+    /// fields below are used only when the tail is empty (DXF reads).
+    pub shsw_raw_tail: Vec<u8>,
+    /// Exact bit length of `shsw_raw_tail`; trailing pad bits in the last
+    /// byte are zero and never written.
+    pub shsw_raw_tail_bit_len: u32,
     pub sweep_entity: Option<crate::entities::EmbeddedEntity>,
     pub path_entity: Option<crate::entities::EmbeddedEntity>,
     pub draft_angle: f64,
@@ -1206,66 +1273,145 @@ pub struct SolidHistorySweep {
     pub scale_factor: f64,
     pub twist_angle: f64,
     pub align_angle: f64,
-    /// Column-major 4x4 matrix (translation in elements 12, 13, 14).
     pub sweep_entity_transform: [f64; 16],
-    /// Column-major 4x4 matrix (translation in elements 12, 13, 14).
     pub path_entity_transform: [f64; 16],
     pub align_option: u8,
     pub miter_option: u8,
-    /// DXF group 290; the reference application sets it on every solid
-    /// sweep it records.
     pub has_align_start: bool,
     /// DXF group 292: align the profile at the path start (the sweep
     /// options' align-start setting, set by default).
     pub align_start: bool,
-    /// DXF group 293: bank the profile along a non-planar path.
     pub bank: bool,
-    /// DXF groups 294, 295 and 296. The reference application sets 295 and
-    /// 296 on every sweep it records: 295 says `sweep_entity` is already
-    /// placed on the path start and aligned to it (the profile is used as
-    /// stored, `sweep_entity_transform` identity). A sweep node with
-    /// 295 clear fails to evaluate there and the drawing is rejected.
+    pub check_intersections: bool,
     pub flags_294_296: [bool; 3],
-    /// DXF group 11.
     pub reference_point: Vector3,
-    /// Vector stored only in DWG, between flags 295 and 296. The reference
-    /// application writes (1, 1, 1) and does not export it to DXF.
-    #[cfg_attr(feature = "serde", serde(default = "unit_xyz"))]
-    pub dwg_vector: Vector3,
+    /// Phase B typed view of `shsw_raw_tail` (see `SolidHistorySweepTail`).
+    /// Populated on DWG reads whose tail matches the pinned anchor layout;
+    /// `None` for modeled/DXF records or tails the autopsy grammar does
+    /// not fully explain. The raw tail stays the write authority.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_decode: Option<SolidHistorySweepTail>,
 }
 
-#[cfg(feature = "serde")]
-fn unit_xyz() -> Vector3 {
-    Vector3::new(1.0, 1.0, 1.0)
+/// Phase B decode of a sweep/extrusion raw tail (`shsw_raw_tail`).
+///
+/// The autopsy (Extrude/Polysolid x 4 DWG versions, all bit-identical)
+/// found a mixed bitcode stream: a 3BD direction head, an all-short BD
+/// option run whose `BD('01')` member is the sweep scale factor (1.0 in
+/// every specimen), a mid-region of raw BD entries carrying the sweep
+/// frame, and byte-aligned LE64 blocks carrying the profile geometry.
+/// Only the cross-specimen-confirmed anchors are typed; the rest of the
+/// tail stays opaque and is re-emitted verbatim.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SolidHistorySweepTail {
+    /// The six sweep-option BDs after the direction, in the
+    /// SweepOptions order (the libredwg macro + the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7 ExtrudeT
+    /// differential: the 15ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° draft lands as a raw BD in slot 0, and
+    /// the 1.0 default sits in the scale slot):
+    /// [draft_angle][draft_start_distance][draft_end_distance]
+    /// [twist_angle][scale_factor][align_angle].
+    pub draft_angle: Option<f64>,
+    pub draft_start_distance: Option<f64>,
+    pub draft_end_distance: Option<f64>,
+    pub twist_angle: Option<f64>,
+    pub scale_factor: Option<f64>,
+    pub align_angle: Option<f64>,
+    /// All-short BD run after the six named slots (the Polysolid
+    /// sweep carries two trailing zeros; extrusion tails carry none ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// their pre-profile region starts with a reserved pair).
+    pub option_doubles: Vec<f64>,
+    /// Raw BD ('00'-marked LE64) entries of the mid-region: the sweep
+    /// frame/transform components. The Polysolid specimen stores the
+    /// path unit direction there ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â [+u_y, -u_x, -u_x, -u_y], twice ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// confirmed against the live-oracle anchor geometry, and the
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7 PolysolidX/D quads confirmed the slots on a second and
+    /// third direction.
+    pub raw_doubles: Vec<f64>,
+    /// Byte-aligned LE64 `(x, height)` corner pairs of the swept profile
+    /// (Polysolid rectangle: [(2.5, 0), (-2.5, 0), (-2.5, 2), (2.5, 2)];
+    /// gold's 3DSOLID wireframe anchor z = 1.0 is the pair-height mid).
+    pub profile_corners: Vec<[f64; 2]>,
+    /// Trailing unpaired entry of the corner block (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7's post-corner
+    /// singles walk): the record constant 4.00024414192312, bit-identical
+    /// across every corpus Polysolid profile (width/height/path
+    /// differentials) and across the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7 confirmation quads ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// authored record state, third-confirmed by the P-probes.
+    pub record_constant: Option<f64>,
+    /// The post-corner single of the gap between the corner block and
+    /// the segment-end block (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7's singles stream): a '00'-marked BD
+    /// frame preceded by four zero pad bits and closed by a short-BD
+    /// pair. Its value carries the width coupling of the profile
+    /// (PolysolidX/L/D 32.0625 = 32 + 2/32, PolysolidW 32.21875 =
+    /// 32 + 7/32, Polysolid 32.15625 = 32 + 5/32 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the fraction tracks
+    /// the authored width on W/PS and the widthÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢1 offset on the
+    /// X-profile family; path/direction inert: the diagonal-direction
+    /// PolysolidD is bit-identical to X there). The earlier scan-level
+    /// aliases of this region ("2.0109", the "width single" 3.0/7.0,
+    /// the 8.06-class reads at overlapping offsets) derive from the
+    /// same zero-heavy bits ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â this field pins the disjoint frame.
+    pub post_corner_single: Option<f64>,
+    /// Final byte-aligned LE64 pair ending at the tail end: the sweep
+    /// path's segment end in the record frame (the Polysolid ends at
+    /// (3065.007936309483, 1463.5113930448078); gold's R2010 wireframe
+    /// anchor point reads exactly its half ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the live-oracle overlap).
+    pub segment_end: Option<[f64; 2]>,
+    /// The embedded PROFILE sub-entity of an extrusion tail (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7
+    /// ExtrudeR/P evidence): `[BL type][BL bit-length][body]` closing
+    /// at `bit_len - 2`. Type 18 = OBJ_CIRCLE (the body is
+    /// `[center 3BD][radius BD][normal 3BD]` + 2 flag bits, exactly
+    /// the revolve's profile grammar); type 77 = OBJ_LWPOLYLINE (the
+    /// packed vertex array; the body stays verbatim until the
+    /// header grammar is decoded). `None` on sweep tails (their
+    /// profile is the packed `profile_corners`).
+    pub profile: Option<SolidHistoryProfileCall>,
 }
 
-impl Default for SolidHistorySweep {
-    fn default() -> Self {
-        Self {
-            base: Default::default(),
-            operation_major: 0,
-            operation_minor: 0,
-            direction: Vector3::ZERO,
-            sweep_entity: None,
-            path_entity: None,
-            draft_angle: 0.0,
-            start_draft_distance: 0.0,
-            end_draft_distance: 0.0,
-            scale_factor: 0.0,
-            twist_angle: 0.0,
-            align_angle: 0.0,
-            sweep_entity_transform: [0.0; 16],
-            path_entity_transform: [0.0; 16],
-            align_option: 0,
-            miter_option: 0,
-            has_align_start: false,
-            align_start: true,
-            bank: false,
-            flags_294_296: [false; 3],
-            reference_point: Vector3::ZERO,
-            dwg_vector: Vector3::new(1.0, 1.0, 1.0),
-        }
-    }
+/// The embedded profile sub-entity of an extrusion tail.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SolidHistoryProfileCall {
+    /// The embedded-entity type code (18 = OBJ_CIRCLE, 77 =
+    /// OBJ_LWPOLYLINE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the object readers' common constants).
+    pub kind: i64,
+    /// The CALL's bit-length (covers the body plus two flag bits).
+    pub bit_len: i64,
+    /// The circle body, for `kind == 18`.
+    pub circle: Option<SolidHistoryProfileCircle>,
+    /// The polyline body, for `kind == 77` (the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18 ExtrudeP walk:
+    /// the CALL body decodes through the embedded-LWPOLYLINE grammar ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// `read_embedded_lwpolyline` in the object readers ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â with the
+    /// raw-points vertex arms).
+    pub polyline: Option<SolidHistoryProfilePolyline>,
+}
+
+/// The embedded LWPOLYLINE profile body of an extrusion CALL
+/// (`kind == 77`; the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18 ExtrudeP rectangle witness: flag 512
+/// closed, four raw (x, y) vertices (0,0) (4,0) (4,3) (0,3)).
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct SolidHistoryProfilePolyline {
+    /// The polyline flag word (512 closed, 16 bulges, 32 widths,
+    /// 0x400 vertex ids ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the common LWPOLYLINE bit flags).
+    pub flag: i32,
+    /// The vertex count.
+    pub num_points: i64,
+    /// The raw (x, y) vertex pairs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the embedded body writes both
+    /// components as plain 64-bit LE doubles per vertex (the
+    /// raw-points arm of `read_embedded_lwpolyline`).
+    pub points: Vec<[f64; 2]>,
+    /// The bulge values (flag & 16).
+    pub bulges: Vec<f64>,
+}
+
+/// The embedded profile circle: `[center 3BD][radius BD][normal 3BD]`.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SolidHistoryProfileCircle {
+    pub center: [f64; 3],
+    pub radius: f64,
+    pub normal: [f64; 3],
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1280,67 +1426,74 @@ pub struct SolidHistoryLoft {
     /// The native history stream remains unchanged for other consumers.
     #[cfg_attr(feature = "serde", serde(default))]
     pub parameters: Option<SolidHistoryLoftParameters>,
-    /// Path curve stored in the native record (DXF 98/99).
+    /// Raw post-`op.minor` payload of a DWG-read loft record, MSB-packed
+    /// (Phase A raw retention ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â same rationale and boundary as
+    /// `SolidHistorySweep::shsw_raw_tail`: the tail layout is
+    /// gold-undocumented and the modeled fields above are the DXF /
+    /// modeled-fallback channel only).
+    pub raw_tail: Vec<u8>,
+    /// Exact bit length of `raw_tail`; trailing pad bits are zero.
+    pub raw_tail_bit_len: u32,
+    /// Phase B typed view of `raw_tail` (see `SolidHistoryLoftTail`).
+    /// Populated on DWG reads whose tail matches the pinned anchor
+    /// layout; the raw tail stays the write authority.
     #[cfg_attr(feature = "serde", serde(default))]
-    pub path_entity: Option<crate::entities::EmbeddedEntity>,
-    /// Remaining native record fields (DXF 70, 41..44, 290..297).
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub options: SolidHistoryLoftOptions,
+    pub tail_decode: Option<SolidHistoryLoftTail>,
 }
 
-impl SolidHistoryLoft {
-    /// Path and native options as saved. Settings in `parameters` win for the
-    /// fields both describe, so lofts built with parameters save them natively.
-    pub(crate) fn native(
-        &self,
-    ) -> (
-        Option<&crate::entities::EmbeddedEntity>,
-        SolidHistoryLoftOptions,
-    ) {
-        let mut options = self.options.clone();
-        let Some(parameters) = &self.parameters else {
-            return (self.path_entity.as_ref(), options);
-        };
-        options.start_draft_angle = parameters.start_draft_angle;
-        options.end_draft_angle = parameters.end_draft_angle;
-        options.start_magnitude = parameters.start_magnitude;
-        options.end_magnitude = parameters.end_magnitude;
-        (
-            parameters.path_entity.as_ref().or(self.path_entity.as_ref()),
-            options,
-        )
-    }
+/// Phase B decode of a loft raw tail (`SolidHistoryLoft::raw_tail`).
+///
+/// The autopsy (Loft x 4 DWG versions, bit-identical tails) found an
+/// all-short BD head followed by a run of raw BD ('00'-marked LE64)
+/// entries: the specimen carries [2.0, 2.0, 5.0, 0.3, pi/2, pi/2] ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the
+/// loft top height 5.0 and the two 90-degree draft angles match the
+/// live-oracle wire geometry. The entries are exposed positionally.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SolidHistoryLoftTail {
+    /// All-short BD head run ([1.0] in every specimen).
+    pub option_doubles: Vec<f64>,
+    /// The per-section fields, walked and named from the raw frame
+    /// stream (the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18 loft container walk): every section that
+    /// contributes raw frames lands here with its
+    /// `[center.x][center.y][height][radius]` fields in frame order,
+    /// `None` for the elided canonical shorts. A fully elided section
+    /// (an origin section at (0, 0, 0, 1): Loft_, LoftH/R/3's bottom
+    /// circles) contributes no raw frames at all ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â it lives only in
+    /// the shorts of the leading region, which the walk keeps
+    /// documented-verbatim.
+    pub sections: Vec<SolidHistoryLoftSection>,
+    /// The trailing draft-angle pair (`[pi/2, pi/2]` in every corpus
+    /// specimen ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the LoftD authored-settings row is DEAD: no reachable
+    /// authoring lever confirmed; the closed ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.6 reading names the
+    /// two final contiguous frames provisionally).
+    pub draft_angles: [Option<f64>; 2],
+    /// Raw BD entries in stream order (Loft fixtures:
+    /// [2.0, 2.0, 5.0, 0.3, pi/2, pi/2]).
+    pub raw_doubles: Vec<f64>,
 }
 
-/// Native loft record fields. The default is what the reference application
-/// stores for a loft made with its default settings.
-#[derive(Debug, Clone, PartialEq)]
+/// One cross-section of a loft tail's raw frame stream, named from the
+/// closed ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.6/ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7 reading (the LoftC world differential: raws parse
+/// as per-section `[center.x][center.y][height][radius]`). The wire
+/// elides a canonical `0.0` center component or height ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â and a
+/// canonical `1.0` radius ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â as 2-bit short pairs between the raw
+/// frames, so an elided field is `None` here while its neighbors keep
+/// their '00'-marked 66-bit frames (LoftC's section 1:
+/// center (3, 4), the z=0.0 short elided, radius 1.5).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct SolidHistoryLoftOptions {
-    /// DXF 70.
-    pub surface_option: i32,
-    /// DXF 41/42, radians.
-    pub start_draft_angle: f64,
-    pub end_draft_angle: f64,
-    /// DXF 43/44.
-    pub start_magnitude: f64,
-    pub end_magnitude: f64,
-    /// DXF 290..297.
-    pub flags: [bool; 8],
-}
-
-impl Default for SolidHistoryLoftOptions {
-    fn default() -> Self {
-        Self {
-            surface_option: 0,
-            start_draft_angle: std::f64::consts::FRAC_PI_2,
-            end_draft_angle: std::f64::consts::FRAC_PI_2,
-            start_magnitude: 0.0,
-            end_magnitude: 0.0,
-            flags: [false, true, true, true, false, true, false, true],
-        }
-    }
+pub struct SolidHistoryLoftSection {
+    /// The section circle's (x, y); `None` when elided as the canonical
+    /// origin short.
+    pub center: [Option<f64>; 2],
+    /// The section's z (its height along the loft); `None` when elided
+    /// as the canonical z=0.0 short.
+    pub height: Option<f64>,
+    /// The section circle's radius; `None` when elided as the
+    /// canonical r=1.0 short.
+    pub radius: Option<f64>,
 }
 
 /// Parametric loft settings. Angles are radians; magnitudes are nonnegative.
@@ -1408,4 +1561,79 @@ pub struct SolidHistoryRevolve {
     pub flag_290: bool,
     pub close_to_axis: bool,
     pub sweep_entity: Option<crate::entities::EmbeddedEntity>,
+    /// Raw post-`op.minor` payload of a DWG-read revolve record,
+    /// MSB-packed (Phase A raw retention ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â same rationale and boundary
+    /// as `SolidHistorySweep::shsw_raw_tail`: the tail layout is
+    /// gold-undocumented; the modeled fields above are the DXF /
+    /// modeled-fallback channel only. The guessed walk was disproven by
+    /// budget alone ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the fixed 192-bit raw-direction triple exceeds the
+    /// entire remaining tail of every Revolve fixture record).
+    pub raw_tail: Vec<u8>,
+    /// Exact bit length of `raw_tail`; trailing pad bits are zero.
+    pub raw_tail_bit_len: u32,
+    /// Phase B typed view of `raw_tail` (see `SolidHistoryRevolveTail`).
+    /// Populated on DWG reads whose tail matches the pinned anchor
+    /// layout; the raw tail stays the write authority.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_decode: Option<SolidHistoryRevolveTail>,
+}
+
+/// Phase B decode of a revolve raw tail (`SolidHistoryRevolve::raw_tail`).
+///
+/// CLOSED 2026-09-23 by the full-tree libredwg scan (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.6): the
+/// tail is [axis_pt 3BD][axis_vec 3BD][revolve_angle BD][six all-
+/// short BD options][PROFILE CALL: BL 18 = OBJ_CIRCLE, BL bit-
+/// length, then the embedded circle's center 3BD / radius BD /
+/// normal 3BD][2 flag bits] ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â every landed specimen accounts
+/// bit-exactly. The original's circle is center (1.0, 0, 0) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â an
+/// exactly-1.0 x in the two-bit short BD ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â radius 0.2, normal
+/// (0,0,1): the profile AS DRAWN.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SolidHistoryRevolveTail {
+    /// The revolution axis point, as the head's first 3BD -
+    /// [axis_pt (0,0,0)] in every landed specimen (the axis passes
+    /// through the origin). Settled by the full-tree scan: the
+    /// REVOLVEDSURFACE spec twin reads axis_point *before*
+    /// axis_vector *before* revolve_angle - the same order this tail
+    /// carries - and the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7 RevolveO stem (offset axis) drives the
+    /// raw form here.
+    pub axis_point: Option<[f64; 3]>,
+    /// The revolution axis direction, as the head's second 3BD -
+    /// [axis_vector (0,1,0)] in every landed specimen: the '01' pair
+    /// is dir.Y, ALL three are +Y-axis revolutions (wire-regression
+    /// verified, ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.6/ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7). The earlier scale-factor reading is
+    /// dead: this is the axis pair, displaced only when RevolveO/T
+    /// vary the axis.
+    pub axis_vector: Option<[f64; 3]>,
+    /// The revolve sweep angle in radians - CONFIRMED on two
+    /// independent values (the original's 3*pi/2 = 270 degrees, the
+    /// typed RevolveA/R quads' pi = 180 degrees).
+    pub revolve_angle: Option<f64>,
+    /// The six all-short BDs between the angle and the profile CALL -
+    /// all zeros in every landed specimen (candidates: start_angle /
+    /// draft_angle / draft distances / twist - the REVOLVEDSURFACE
+    /// twin's post-angle field list; the ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§18.7 stems with nonzero
+    /// drafts would name them).
+    pub option_doubles: Vec<f64>,
+    /// The embedded PROFILE sub-entity (a CALL: [BL type = 18 =
+    /// OBJ_CIRCLE][BL bit-length][circle]) - the circle's center
+    /// 3BD. The full-tree scan resolved the whole family: A/R =
+    /// (2.0, 0, 0); the original = (1.0, 0, 0), a two-bit SHORT form
+    /// (BD '01' encodes exactly 1.0) which is why the earlier
+    /// raw-scan read its radius as the center and saw a "different
+    /// form" that never existed.
+    pub profile_center: Option<[f64; 3]>,
+    /// The profile circle's radius: RevolveA 0.8 / RevolveR 1.25 /
+    /// the original 0.2 - for the original this is the raw BD the
+    /// Phase B raw-scan mislabeled as "the 0.2 entry"; there is no
+    /// separate bore/major parameter, the record stores the profile
+    /// AS DRAWN.
+    pub profile_radius: Option<f64>,
+    /// The profile circle's plane normal, the CALL's closing 3BD -
+    /// (0, 0, 1) in every landed specimen (plan-drawn circles). NOTE
+    /// this replaces the earlier 'trailing_triple' reading - the
+    /// scan+BL-len accounting proves the trio is INSIDE the embedded
+    /// circle's span, not an axis-direction candidate.
+    pub profile_normal: Option<[f64; 3]>,
 }

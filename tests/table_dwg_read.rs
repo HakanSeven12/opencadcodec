@@ -1,9 +1,9 @@
-//! Verifies the ACAD_TABLE DWG reader against a real, AutoCAD-authored fixture.
+﻿//! Verifies the ACAD_TABLE DWG reader against a real, AutoCAD-authored fixture.
 //!
 //! A table is INSERT-derived: its insert base positions it and links it to the
 //! block that renders its cells, and the inline table body carries the columns,
-//! rows and cell contents. This reads both — the placement and the actual cell
-//! text — from a real R2007 drawing (two schedules).
+//! rows and cell contents. This reads both â€” the placement and the actual cell
+//! text â€” from a real R2007 drawing (two schedules).
 
 use std::io::Cursor;
 
@@ -17,7 +17,7 @@ fn load_doc() -> Option<CadDocument> {
         "/tests/roundtrip/blocks_and_tables_metric.dwg"
     );
     if !std::path::Path::new(path).exists() {
-        eprintln!("fixture blocks_and_tables_metric.dwg missing — skipping");
+        eprintln!("fixture blocks_and_tables_metric.dwg missing â€” skipping");
         return None;
     }
     let mut reader = DwgReader::from_file(path).expect("open fixture");

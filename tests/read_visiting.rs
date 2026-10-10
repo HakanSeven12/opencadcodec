@@ -1,4 +1,4 @@
-//! Visitor hook: drop decoded entities before they are stored on the document.
+﻿//! Visitor hook: drop decoded entities before they are stored on the document.
 
 use std::io::Cursor;
 

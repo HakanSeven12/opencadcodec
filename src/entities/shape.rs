@@ -107,7 +107,14 @@ impl Shape {
             insertion_point: Vector3::ZERO,
             size: 1.0,
             shape_name: String::new(),
-            shape_number: 0,
+            // Nonzero by default (2026-09-22 census fix): a SHAPE needs
+            // a style whose font is a shape (.shx) file plus a nonzero
+            // shape number — strict audits (BricsCAD) reject the record
+            // with both unset. 130 selects the BOX glyph of the census
+            // LTYPESHP specimen; the style-name link remains the
+            // caller's to wire (the constructor cannot reach the
+            // document's text-style table).
+            shape_number: 130,
             rotation: 0.0,
             relative_x_scale: 1.0,
             oblique_angle: 0.0,

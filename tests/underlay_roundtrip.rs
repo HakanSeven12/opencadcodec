@@ -1,4 +1,4 @@
-//! DWG round-trip coverage for UNDERLAY references (PDF / DWF / DGN).
+﻿//! DWG round-trip coverage for UNDERLAY references (PDF / DWF / DGN).
 //!
 //! Locks in the AcDbUnderlayReference encoder/decoder pair: the object-data
 //! fields (normal, insertion, rotation, x/y/z scale, display flags, contrast,

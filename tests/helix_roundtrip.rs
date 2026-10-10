@@ -1,4 +1,4 @@
-//! Round-trip coverage for the HELIX entity (AcDbHelix).
+﻿//! Round-trip coverage for the HELIX entity (AcDbHelix).
 //!
 //! A helix is a spline plus generating parameters, so the wire record is the
 //! full spline record followed by the helix fields. These tests lock in both

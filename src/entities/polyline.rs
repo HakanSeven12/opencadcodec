@@ -145,6 +145,34 @@ pub struct Vertex2D {
     pub curve_tangent: f64,
     /// Vertex ID (R2010+)
     pub id: i32,
+    /// The wire handle of the VERTEX_2D sub-entity record this vertex was
+    /// decoded from, retained verbatim on the DWG read path (the records do
+    /// not always follow the parent handle sequentially — a foreign
+    /// block-chain record can interleave). Absent on constructed documents
+    /// and on the DXF path.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handle: Option<u64>,
+    /// The wire `nolinks` bit of the VERTEX_2D sub-entity record (the
+    /// pre-R2004 entity chain), retained verbatim at DWG read: the
+    /// authored corpus splits between full-chain files (libredwg's
+    /// 2000/PolyLine2D.dwg chains every vertex) and head-only files
+    /// (the golden Polyline2D_AC1015 chains only the first vertex; the
+    /// rest carry nolinks=1) — the chain is author data, not a
+    /// convention. Absent on constructed documents and the DXF path.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_nolinks: Option<bool>,
+    /// The wire prev/next entity-chain handles, present when
+    /// `wire_nolinks` is `Some(false)`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_prev_entity: Option<u64>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_next_entity: Option<u64>,
+    /// The wire `isbylayerlt` bit of the R13/R14 VERTEX_2D sub-entity
+    /// record (§19 H8h-ext-17): the authored bit is per-record data —
+    /// derived at the attach as `linetype_flags != 3` (the reader's
+    /// r13_14 arm), None on other eras and constructed content.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_isbylayerlt: Option<bool>,
 }
 
 impl Vertex2D {
@@ -157,6 +185,11 @@ impl Vertex2D {
             bulge: 0.0,
             curve_tangent: 0.0,
             id: 0,
+            wire_handle: None,
+            wire_nolinks: None,
+            wire_prev_entity: None,
+            wire_next_entity: None,
+            wire_isbylayerlt: None,
         }
     }
 
@@ -223,6 +256,30 @@ pub struct Polyline2D {
     pub normal: Vector3,
     /// Vertices
     pub vertices: Vec<Vertex2D>,
+    /// Handle of the trailing SEQEND record of the wire chain
+    /// (retained from the read; keeps the dump/normalizer and the
+    /// rewrite faithful to gold's record layout).
+    pub seqend_handle: Option<Handle>,
+    /// The chain's wire SEQEND record's own plotstyle_flags (retained from
+    /// the SEQEND entity's common data; gold re-emits it verbatim).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_plotstyle_flags: u8,
+    /// The chain's wire SEQEND record's own shadow_flags (R2007+).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_shadow_flags: u8,
+    /// The chain's wire SEQEND record's own R13/R14 `isbylayerlt` bit
+    /// (§19 H8h-ext-17): the authored bit is per-record data — the
+    /// normalizer projects it for the synthesized SEQEND kid; the writer
+    /// re-derives it from the seqend's linetype on the R13/R14 arm.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_isbylayerlt: bool,
+    /// The chain's wire SEQEND record's own plotstyle HANDLE (§19
+    /// H8h-ext-17): pulled on the wire when plotstyle_flags == 3 — the
+    /// authored target is per-record data (the golden files' SEQENDs
+    /// target the MATERIAL object where the example corpus carries the
+    /// null ref). The raw value; None when absent.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_plotstyle_handle: Option<u64>,
 }
 
 impl Polyline2D {
@@ -237,6 +294,11 @@ impl Polyline2D {
             elevation: 0.0,
             normal: Vector3::new(0.0, 0.0, 1.0),
             vertices: Vec::new(),
+            seqend_handle: None,
+            seqend_plotstyle_flags: 0,
+            seqend_shadow_flags: 0,
+            seqend_isbylayerlt: false,
+            seqend_plotstyle_handle: None,
         }
     }
 

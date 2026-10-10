@@ -108,17 +108,20 @@ pub fn read_visual_style(
                 enabled: 1,
             });
         }
-        // Group 45 is in the binary record only from R2007 on; R2004 ends
-        // with the internal-use flag. Keep the 24-entry legacy list complete.
-        let group_45 = if version.r2007_plus() {
-            reader.read_bit_double()
-        } else {
-            0.0
-        };
-        value.properties.push(VisualStyleProperty {
-            value: VisualStylePropertyValue::Double(group_45),
-            enabled: 1,
-        });
+        // bd2007_45 is only present in R2007 and later (gold spec: SINCE
+        // R_2007a). Reading it for R2000/R2004 would consume the
+        // internal_use_only bit and desynchronize the stream.
+        if version.r2007_plus() {
+            value.properties.push(VisualStyleProperty {
+                value: VisualStylePropertyValue::Double(reader.read_bit_double()),
+                enabled: 1,
+            });
+        }
+        // §19 H8h-ext-15: the pre-R2007 model keeps its faithful 23
+        // wire properties (the semantic projections see 23, matching
+        // gold); `legacy_properties()` synthesizes the never-emitted
+        // 24th slot at access time so the writer re-emits the READ
+        // values instead of its core defaults.
         value.internal_use_only = reader.read_bit();
         return value;
     }
@@ -458,15 +461,39 @@ pub fn read_table_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Ta
     value.modern_unknown_byte = reader.read_byte();
     value.name = reader.read_variable_text();
     value.modern_unknown_long1 = reader.read_bit_long();
-    // The R2010+ table style flags (title / header suppressed).
-    value.flags =
-        crate::objects::TableStyleFlags::from_bits_retain(value.modern_unknown_long1 as i16);
     value.modern_unknown_long2 = reader.read_bit_long();
     value.modern_cell_style_handle = Handle::from(reader.read_handle());
     let modern_style = read_named_table_cell_style(reader);
     value.horizontal_margin = modern_style.cell_style.horizontal_margin;
     value.vertical_margin = modern_style.cell_style.vertical_margin;
-    apply_cell_style_to_row(&mut value.data_row_style, &modern_style.cell_style);
+    value.data_row_style.data_type = modern_style.cell_style.content_format.value_data_type;
+    value.data_row_style.unit_type = modern_style.cell_style.content_format.value_unit_type;
+    value.data_row_style.format_string = modern_style
+        .cell_style
+        .content_format
+        .value_format_string
+        .clone();
+    value.data_row_style.alignment = crate::objects::CellAlignment::from(
+        modern_style.cell_style.content_format.cell_alignment as i16,
+    );
+    value.data_row_style.text_color = modern_style.cell_style.content_format.content_color;
+    value.data_row_style.text_style_handle =
+        (!modern_style.cell_style.content_format.text_style.is_null())
+            .then_some(modern_style.cell_style.content_format.text_style);
+    value.data_row_style.text_height = modern_style.cell_style.content_format.text_height;
+    value.data_row_style.fill_color = modern_style.cell_style.background_color;
+    value.data_row_style.fill_enabled = modern_style.cell_style.data_flags != 0;
+    for grid in &modern_style.cell_style.borders {
+        match grid.index_mask {
+            1 => value.data_row_style.top_border = grid.border.clone(),
+            2 => value.data_row_style.right_border = grid.border.clone(),
+            4 => value.data_row_style.bottom_border = grid.border.clone(),
+            8 => value.data_row_style.left_border = grid.border.clone(),
+            16 => value.data_row_style.horizontal_inside_border = grid.border.clone(),
+            32 => value.data_row_style.vertical_inside_border = grid.border.clone(),
+            _ => {}
+        }
+    }
     value.modern_style = Some(modern_style);
     let override_count = safe_count(reader.read_bit_long()).min(64);
     value.modern_overrides.reserve(override_count as usize);
@@ -476,55 +503,7 @@ pub fn read_table_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Ta
             .modern_overrides
             .push((key, read_named_table_cell_style(reader)));
     }
-    // The title, header and data rows of the pre-R2010 record are the named
-    // cell styles of the R2010+ record; a save to an older version writes
-    // the rows.
-    for (_, style) in &value.modern_overrides {
-        let row = match style.name.as_str() {
-            "_TITLE" => &mut value.title_row_style,
-            "_HEADER" => &mut value.header_row_style,
-            "_DATA" => &mut value.data_row_style,
-            _ => continue,
-        };
-        apply_cell_style_to_row(row, &style.cell_style);
-    }
     value
-}
-
-fn apply_cell_style_to_row(
-    row: &mut crate::objects::RowCellStyle,
-    style: &crate::objects::TableCellStyleData,
-) {
-    let format = &style.content_format;
-    row.data_type = format.value_data_type;
-    row.unit_type = format.value_unit_type;
-    row.format_string = format.value_format_string.clone();
-    row.alignment = crate::objects::CellAlignment::from(format.cell_alignment as i16);
-    row.text_color = format.content_color;
-    row.text_style_handle = (!format.text_style.is_null()).then_some(format.text_style);
-    row.text_height = format.text_height;
-    // No background color means an unfilled row; the row keeps its default
-    // fill color.
-    row.fill_enabled = style.background_color != crate::types::Color::None;
-    if row.fill_enabled {
-        row.fill_color = style.background_color;
-    }
-    // Grid edges in R2010+ order: top, horizontal inside, bottom, left,
-    // vertical inside, right. The grid's stored flag is set for a hidden
-    // edge, the reverse of what `is_invisible` holds for it.
-    for grid in &style.borders {
-        let mut border = grid.border.clone();
-        border.is_invisible = !border.is_invisible;
-        match grid.index_mask {
-            1 => row.top_border = border,
-            2 => row.horizontal_inside_border = border,
-            4 => row.bottom_border = border,
-            8 => row.left_border = border,
-            16 => row.vertical_inside_border = border,
-            32 => row.right_border = border,
-            _ => {}
-        }
-    }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -536,6 +515,15 @@ fn apply_cell_style_to_row(
 pub struct DictionaryEntry {
     pub name: String,
     pub handle: u64,
+    /// The verbatim pre-2007 wire form of the name (§19 H8h-ext-17, the
+    /// MTEXT wire-text precedent at the dictionary scale): the authored
+    /// escape form of a non-ASCII key is author data (PolyLine2D's
+    /// "Аннотативный" carries the 12-escape `\U+0410…` form where a
+    /// re-encode writes raw CP1251 bytes — 96 vs 12 wire chars). The
+    /// writer replays it verbatim on same-version writes. Serde-default
+    /// plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -782,23 +770,31 @@ pub struct WipeoutVariablesData {
 //  Reader functions
 // ════════════════════════════════════════════════════════════════════════
 
-/// Dictionary keys are ASCII identifiers ([A-Z0-9_:]). R13/R14 mis-sizes the
-/// key string, appending a few control/high bytes from the following field
-/// ("ACAD_FILTER\u{80}0…"), which broke exact-name lookups (xclip filters,
-/// gradient round-trip records). The trailing garbage is always non-printable
-/// or high-bit, so cut the key at the first such byte.
-/// Trim a dictionary key at the first control character.
-///
-/// Keys are arbitrary user text: material, page-setup, layer-state and
-/// dictionary-variable names routinely contain non-ASCII letters (Swedish
-/// "GRÅ", "LIMTRÄ", "VITMÅLAD" ...). Cutting at the first byte above 0x7E,
-/// as this used to do, collapsed such keys ("R" three times in one
-/// ACAD_MATERIAL dictionary) and the collision was then written back to the
-/// file. Only control characters can never be part of a key.
+/// Dictionary keys are ASCII identifiers ([A-Z0-9_:]) in the R13/R14
+/// corpus, where the reader mis-sizes the key string, appending a few
+/// control/high bytes from the following field
+/// ("ACAD_FILTER\u{80}0…"), which broke exact-name lookups (xclip
+/// filters, gradient round-trip records). The trailing garbage is always
+/// non-printable or high-bit, so cut the key at the first such byte.
+/// §19 H8h-ext-9: the cut is GATED to the mis-sized era — R2000+ keys
+/// are exact-length strings that may legitimately carry non-ASCII text
+/// (the Russian ATMOS-DC22S drawing's "_Схема-1" image-dictionary keys;
+/// the ungated cut truncated them to "_"). The same lesson as the
+/// H8h-ext-7 SEQEND flags: an era-verified convention is not a law.
 fn clean_dict_key(name: String) -> String {
-    match name.find(|c: char| (c as u32) < 0x20) {
+    match name.find(|c: char| (c as u32) < 0x20 || (c as u32) > 0x7e) {
         Some(pos) => name[..pos].to_string(),
         None => name,
+    }
+}
+
+/// The per-era dictionary-key cleaner: the R13/R14 mis-sized-key cut,
+/// exact keys everywhere else.
+fn dict_key(version: DwgVersion, name: String) -> String {
+    if version.r13_14_only() {
+        clean_dict_key(name)
+    } else {
+        name
     }
 }
 
@@ -816,9 +812,17 @@ pub fn read_dictionary(reader: &mut DwgMergedReader, version: DwgVersion) -> Dic
 
     let mut entries = Vec::with_capacity(num_entries as usize);
     for _ in 0..num_entries {
-        let name = clean_dict_key(reader.read_variable_text());
+        // §19 H8h-ext-17 (the MTEXT wire-text precedent): retain the
+        // verbatim wire form of the key — the authored escape form of a
+        // non-ASCII name is author data.
+        let (raw_name, wire_name) = reader.read_variable_text_with_wire();
+        let name = dict_key(version, raw_name);
         let handle = reader.read_handle();
-        entries.push(DictionaryEntry { name, handle });
+        entries.push(DictionaryEntry {
+            name,
+            handle,
+            wire_name,
+        });
     }
 
     DictionaryData {
@@ -828,16 +832,24 @@ pub fn read_dictionary(reader: &mut DwgMergedReader, version: DwgVersion) -> Dic
     }
 }
 
-pub fn read_dictionary_with_default(reader: &mut DwgMergedReader) -> DictionaryWithDefaultData {
+pub fn read_dictionary_with_default(
+    reader: &mut DwgMergedReader,
+    version: DwgVersion,
+) -> DictionaryWithDefaultData {
     let num_entries = safe_count(reader.read_bit_long());
     let duplicate_cloning = reader.read_bit_short();
     let hard_owner = reader.read_byte() != 0;
 
     let mut entries = Vec::with_capacity(num_entries as usize);
     for _ in 0..num_entries {
-        let name = clean_dict_key(reader.read_variable_text());
+        let (raw_name, wire_name) = reader.read_variable_text_with_wire();
+        let name = dict_key(version, raw_name);
         let handle = reader.read_handle();
-        entries.push(DictionaryEntry { name, handle });
+        entries.push(DictionaryEntry {
+            name,
+            handle,
+            wire_name,
+        });
     }
 
     let default_handle = reader.read_handle();
@@ -1445,6 +1457,10 @@ fn decode_xrecord_entries(raw: &[u8], unicode: bool) -> (Vec<XRecordEntry>, bool
         }
         let code = read_u16(position) as i16 as i32;
         position += 2;
+        // §19 H8h-ext-17: a pre-R2007 string item's authored wire code
+        // page, set by the string arm below (the blob's codepage byte is
+        // author data).
+        let mut wire_code_page = None;
         let value = match code {
             code if code < 0
                 || code == 5
@@ -1483,6 +1499,10 @@ fn decode_xrecord_entries(raw: &[u8], unicode: bool) -> (Vec<XRecordEntry>, bool
                     require!(1usize.saturating_add(length));
                     let code_page = raw[position] as u16;
                     position += 1;
+                    // §19 H8h-ext-17: retain the authored per-string wire
+                    // code page — the blob's codepage byte is author data
+                    // (the document header's codepage may differ).
+                    wire_code_page = Some(code_page);
                     let value = crate::io::dxf::code_page::encoding_from_dwg_code_page(code_page)
                         .decode(&raw[position..position + length])
                         .0
@@ -1551,7 +1571,11 @@ fn decode_xrecord_entries(raw: &[u8], unicode: bool) -> (Vec<XRecordEntry>, bool
                 break;
             }
         };
-        entries.push(XRecordEntry { code, value });
+        entries.push(XRecordEntry {
+            code,
+            value,
+            wire_code_page,
+        });
     }
     if position != raw.len() {
         complete = false;

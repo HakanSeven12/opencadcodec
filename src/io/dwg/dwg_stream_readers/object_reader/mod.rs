@@ -71,6 +71,14 @@ pub struct EntityCommonData {
     pub entity_mode: u8,
     /// Owner handle (only if entity_mode == 0)
     pub owner_handle: u64,
+    /// The ownerhandle's authored wire form `(code, size, value)` (only if
+    /// entity_mode == 0) — the raw-retention twin of `owner_handle` (TODO
+    /// A1, 2026-10-01): the authored ownerhandle code choice is a
+    /// writer-genus convention, so the writer replays the captured tuple
+    /// verbatim instead of recomputing the choice. Serde-skipped —
+    /// roundtrip plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub owner_handle_form: Option<(u8, u8, u64)>,
     /// Reactor handles
     pub reactors: Vec<u64>,
     /// XDictionary handle (if present)
@@ -79,6 +87,13 @@ pub struct EntityCommonData {
     pub color: Color,
     /// Transparency
     pub transparency: Transparency,
+    /// The authored ENC wire form (§19 H8h-ext-17) — the raw-retention
+    /// twin of the collapsed pair: the flags/index BS (whose ACI slot is
+    /// author data), the true-color BL and the transparency BL, plus the
+    /// decoded pair for the writer's replay gate. Serde-skipped —
+    /// roundtrip plumbing, not model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub color_raw: Option<crate::document::DwgRawEnc>,
     /// Line weight (raw DWG index)
     pub line_weight: u8,
     /// Linetype scale
@@ -113,6 +128,8 @@ pub struct EntityCommonData {
     pub face_visual_style_handle: Option<u64>,
     /// Edge visual-style override handle — R2010+
     pub edge_visual_style_handle: Option<u64>,
+    /// Pre-R2004 NOLINKS bit value (None for R2004+ where the bit is absent).
+    pub nolinks: Option<bool>,
     /// R2013+ `has_ds_data` bit: the entity's geometry lives in the AcDs
     /// (Autodesk Data Store) section. For a 3DSOLID/REGION/BODY/SURFACE this
     /// signals that a SAB blob in `AcDb:AcDsPrototype_1b` belongs to it; the
@@ -128,11 +145,30 @@ pub struct NonEntityCommonData {
     pub common: ObjectCommonData,
     /// Owner handle
     pub owner_handle: u64,
+    /// The ownerhandle's authored wire form `(code, size, value)` — the
+    /// raw-retention twin of `owner_handle` (TODO A1, 2026-10-01): the
+    /// authored ownerhandle code choice is a writer-genus convention, so
+    /// the writer replays the captured tuple verbatim instead of
+    /// recomputing the choice. Serde-skipped — roundtrip plumbing, not
+    /// model data.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub owner_handle_form: Option<(u8, u8, u64)>,
     /// Reactor handles
     pub reactors: Vec<u64>,
     /// XDictionary handle (if present)
     pub xdictionary_handle: Option<u64>,
     pub has_ds_data: bool,
+    /// The common-object-handle-data decode ABORTED (gold's num_reactors
+    /// availability check, common_object_handle_data.spec 23-33: the count
+    /// × the 8-bit HANDLE max-size exceeds the handle stream's remaining
+    /// bits → DWG_ERR_VALUEOUTOFBOUNDS): every field above carries the
+    /// failed-decode ZEROED defaults, and the record's common data is
+    /// dead — gold falls the whole record to the unknown handler and the
+    /// JSON emits the zeroed struct (is_xdic_missing 0, the null
+    /// ownerhandle [0,0], no reactors). The malformed WIPEOUT_2004 record
+    /// (the invalid BL '11' code → the error value 256 against a 33-bit
+    /// handle stream) is the measured carrier.
+    pub parse_failed: bool,
 }
 
 /// DWG Object Reader — iterates the object section by handle map.
@@ -147,6 +183,13 @@ pub struct DwgObjectReader {
     handle_map: HashMap<u64, i64>,
     /// Document code page used by pre-R2007 object strings.
     encoding: &'static encoding_rs::Encoding,
+    /// The document-wide per-record TV-form vote map (§19 H8h-ext-17,
+    /// the A1 capture pattern at the TV scale): every record reader
+    /// threads this Arc and tallies each pre-R2007 TV's wire form
+    /// (does the length count the string exactly, or the terminator?).
+    /// The builder drains it at commit into
+    /// `CadDocument::tv_plain_form_by_handle`.
+    tv_form_votes: Arc<std::sync::Mutex<HashMap<u64, (u32, u32)>>>,
 }
 
 impl DwgObjectReader {
@@ -177,6 +220,7 @@ impl DwgObjectReader {
             dxf_version,
             handle_map,
             encoding,
+            tv_form_votes: Arc::new(std::sync::Mutex::new(HashMap::new())),
         })
     }
 
@@ -335,6 +379,7 @@ impl DwgObjectReader {
             reader.set_handle_bits(handle_bits);
             reader.set_handle_start(handle_start);
             reader.set_main_data_end(main_data_end);
+            reader.set_tv_form_votes(Arc::clone(&self.tv_form_votes));
             return Ok((type_code, reader));
         }
 
@@ -395,11 +440,24 @@ impl DwgObjectReader {
         );
         reader.set_handle_start(handle_start_bits);
         reader.set_main_data_end(handle_start_bits);
+        reader.set_tv_form_votes(Arc::clone(&self.tv_form_votes));
 
         // 6. Read the type code from the reader
         let type_code = reader.read_object_type();
 
         Ok((type_code, reader))
+    }
+
+    /// Drain the document-wide TV-form votes (§19 H8h-ext-17): the
+    /// per-record `(plain, nul)` tallies collected by every record
+    /// reader's pre-R2007 `read_variable_text`. The builder folds them
+    /// into `CadDocument::tv_plain_form_by_handle` (the per-record
+    /// majority; the AutoCAD NUL genus is the tie and the default).
+    pub fn take_tv_form_votes(&self) -> HashMap<u64, (u32, u32)> {
+        self.tv_form_votes
+            .lock()
+            .map(|mut map| std::mem::take(&mut *map))
+            .unwrap_or_default()
     }
 
     /// Read common data shared by all objects (entities and non-entities).
@@ -472,11 +530,13 @@ impl DwgObjectReader {
         // Entity mode (2 bits)
         let entity_mode = reader.main_mut().read_2bits();
 
-        // Owner handle (if entity_mode == 0)
-        let owner_handle = if entity_mode == 0 {
-            reader.read_handle()
+        // Owner handle (if entity_mode == 0) — captured with its authored
+        // wire form (TODO A1, 2026-10-01)
+        let (owner_handle, owner_handle_form) = if entity_mode == 0 {
+            let (resolved, form) = reader.read_handle_with_form();
+            (resolved, form)
         } else {
-            0
+            (0, None)
         };
 
         // Reactor count + handles
@@ -527,10 +587,12 @@ impl DwgObjectReader {
         }
 
         // Pre-R2004: Nolinks + prev/next (R13/R14 and R2000-R2002)
+        let mut nolinks_value = None;
         let mut prev_entity_handle = None;
         let mut next_entity_handle = None;
         if !self.version.r2004_plus() {
             let nolinks = reader.read_bit();
+            nolinks_value = Some(nolinks);
             if !nolinks {
                 prev_entity_handle = Some(reader.read_handle());
                 next_entity_handle = Some(reader.read_handle());
@@ -538,10 +600,10 @@ impl DwgObjectReader {
         }
 
         // Color
-        let (color, transparency, has_color_handle) = if self.version.r2000_plus() {
+        let (color, transparency, has_color_handle, color_raw) = if self.version.r2000_plus() {
             reader.read_en_color()
         } else {
-            (reader.read_cm_color(), Transparency::default(), false)
+            (reader.read_cm_color(), Transparency::default(), false, None)
         };
 
         // R2004+: Color book color handle (hard pointer) — only if flagged
@@ -565,10 +627,12 @@ impl DwgObjectReader {
                 graphic_data,
                 entity_mode,
                 owner_handle,
+                owner_handle_form,
                 reactors,
                 xdictionary_handle,
                 color,
                 transparency,
+                color_raw,
                 line_weight: 0,
                 linetype_scale,
                 invisible,
@@ -586,6 +650,7 @@ impl DwgObjectReader {
                 full_visual_style_handle: None,
                 face_visual_style_handle: None,
                 edge_visual_style_handle: None,
+                nolinks: nolinks_value,
                 has_ds_data,
             };
         }
@@ -603,28 +668,47 @@ impl DwgObjectReader {
             linetype_handle = reader.read_handle();
         }
 
-        // R2007+: material flags + shadow flags
+        // R2000+: plotstyle_flags COMES AFTER ltype_flags (libredwg
+        // common_entity_data.spec 507-511: ltype_flags FIELD_BB then
+        // plotstyle_flags FIELD_BB). Reading material/shadow first swaps
+        // the labels inside an isochronous 12-bit window — the pairs
+        // mislabel the wrong fields without desyncing (2007 example_2007's
+        // LWPOLYLINE carried its real plotstyle 1893 under `material`).
+        // The HANDLE PULLS keep the handle-stream order
+        // (common_entity_handle_data.spec 127-134: material, shadow,
+        // plotstyle).
+        let mut plotstyle_flags = 0u8;
+        let mut plotstyle_handle: Option<u64> = None;
+        if self.version.r2000_plus() {
+            plotstyle_flags = reader.main_mut().read_2bits();
+        }
+
+        // R2007+: material flags (BB) then shadow flags (RC0)
         let mut material_flags = 0u8;
         let mut material_handle: Option<u64> = None;
         let mut shadow_flags = 0u8;
         if self.version.r2007_plus() {
             material_flags = reader.main_mut().read_2bits();
-            // Material handle (hard pointer) — present when flags == 0b11
+            // Material handle (hard pointer) — present when flags == 0b11;
+            // pull order: after ltype, before shadow/plotstyle.
             if material_flags == 0b11 {
                 material_handle = Some(reader.read_handle());
             }
             shadow_flags = reader.read_byte();
+            // Shadow handle — present when flags == 3. Consume its
+            // handle-stream slot unconditionally when set (gold pulls
+            // it between material and plotstyle); the logical model has
+            // no shadow slot (every corpus record carries the null form),
+            // so the value is read-and-dropped here.
+            if shadow_flags == 0b11 {
+                let _shadow_handle = reader.read_handle();
+            }
         }
 
-        // R2000+: Plotstyle flags (00=bylayer, 01=byblock, 11=handle present)
-        let mut plotstyle_flags = 0u8;
-        let mut plotstyle_handle: Option<u64> = None;
-        if self.version.r2000_plus() {
-            plotstyle_flags = reader.main_mut().read_2bits();
-            if plotstyle_flags == 0b11 {
-                // Plotstyle handle (hard pointer)
-                plotstyle_handle = Some(reader.read_handle());
-            }
+        // plotstyle handle pull — LAST of the three R2000+/R2007+ pairs
+        // (handle-stream order: material, shadow, then plotstyle).
+        if plotstyle_flags == 0b11 {
+            plotstyle_handle = Some(reader.read_handle());
         }
 
         // R2010+: visual style bits — each bit conditionally followed by a handle
@@ -659,10 +743,12 @@ impl DwgObjectReader {
             graphic_data,
             entity_mode,
             owner_handle,
+            owner_handle_form,
             reactors,
             xdictionary_handle,
             color,
             transparency,
+            color_raw,
             line_weight,
             linetype_scale,
             invisible,
@@ -680,6 +766,7 @@ impl DwgObjectReader {
             full_visual_style_handle,
             face_visual_style_handle,
             edge_visual_style_handle,
+            nolinks: nolinks_value,
             has_ds_data,
         }
     }
@@ -699,11 +786,34 @@ impl DwgObjectReader {
             reader.reposition_handle_reader(main_size_bits);
         }
 
-        // Owner handle (soft pointer)
-        let owner_handle = reader.read_handle();
-
-        // Reactor count + handles
+        // Reactor count — gold reads it BEFORE the ownerhandle
+        // (common_object_handle_data.spec 21) and gates the whole
+        // common-object-handle-data decode on its availability (the
+        // DECODER check, spec 23-33): num_reactors ×
+        // dwg_bits_size[BITS_HANDLE] (8) > AVAIL_BITS(hdl_dat) →
+        // num_reactors = 0, return DWG_ERR_VALUEOUTOFBOUNDS — the
+        // record's common data is dead, the caller falls it to the
+        // unknown handler, and the JSON emits the zeroed struct. The
+        // entity side carries the same class of check with a coarser
+        // bound (common_entity_handle_data.spec 42-50:
+        // num_reactors > 100000); no entity carrier is measured.
         let reactor_count = safe_count(reader.read_bit_long());
+        if reactor_count as i64 * 8 > reader.handle_stream_avail_bits() {
+            return NonEntityCommonData {
+                common,
+                owner_handle: 0,
+                owner_handle_form: None,
+                reactors: Vec::new(),
+                xdictionary_handle: None,
+                has_ds_data: false,
+                parse_failed: true,
+            };
+        }
+
+        // Owner handle (soft pointer) — captured with its authored wire
+        // form (TODO A1, 2026-10-01)
+        let (owner_handle, owner_handle_form) = reader.read_handle_with_form();
+
         let mut reactors = Vec::new();
         for _ in 0..reactor_count {
             reactors.push(reader.read_handle());
@@ -734,9 +844,11 @@ impl DwgObjectReader {
         NonEntityCommonData {
             common,
             owner_handle,
+            owner_handle_form,
             reactors,
             xdictionary_handle,
             has_ds_data,
+            parse_failed: false,
         }
     }
 
@@ -760,6 +872,11 @@ impl DwgObjectReader {
             let mut data = Vec::with_capacity(size_u);
             for _ in 0..size_u {
                 data.push(reader.read_byte());
+            }
+            if std::env::var_os("DWG_EED_TRACE").is_some() {
+                // §19 H8h diagnostics: the EED blocks as parsed from
+                // the source record — (app handle, data len) pairs.
+                eprintln!("[eed-trace read] app {app_handle:X} size {size_u}");
             }
             result.push((app_handle, data));
         }

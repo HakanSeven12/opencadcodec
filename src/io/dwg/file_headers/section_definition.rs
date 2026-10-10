@@ -12,6 +12,12 @@ pub mod names {
     pub const ACDB_OBJECTS: &str = "AcDb:AcDbObjects";
     pub const ACDS_PROTOTYPE: &str = "AcDb:AcDsPrototype_1b";
     pub const APP_INFO: &str = "AcDb:AppInfo";
+    /// The R2004+ AppInfoHistory section. Located in the section map by
+    /// its wire name (gold's internal lookup is by section TYPE 12, but
+    /// the map entry carries this name — pinned by the -v4 trace on
+    /// sample_2018: `name: "AcDb:AppInfoHistory"`); the historical
+    /// registry omission is the §19.1 named gap.
+    pub const APP_INFO_HISTORY: &str = "AcDb:AppInfoHistory";
     pub const AUX_HEADER: &str = "AcDb:AuxHeader";
     pub const HEADER: &str = "AcDb:Header";
     pub const CLASSES: &str = "AcDb:Classes";
@@ -25,6 +31,42 @@ pub mod names {
     pub const SECURITY: &str = "AcDb:Security";
     pub const VBA_PROJECT: &str = "AcDb:VBAProject";
     pub const SIGNATURE: &str = "AcDb:Signature";
+    /// R2013+ external-reference table. Not modeled in the document
+    /// and not JSON-printed by gold (no census row); the raw bytes are
+    /// retained (§19 H7g) so a same-version roundtrip's container
+    /// mirror can re-emit the author's page verbatim — its page is
+    /// part of the author's page space (Box_2013/Revolve_2018).
+    pub const XREF_MANIFEST: &str = "AcDb:XrefManifest";
+
+    /// The R2004+ data-section TYPE → name table (gold's `DWG_SECTION_TYPE`
+    /// order, include/dwg.h). Some writers (the R2004 corpus files' AcDs
+    /// sections) leave the map descriptor's 64-byte name field EMPTY and
+    /// the section is locatable only by its type id — gold's own lookups
+    /// (`read_2004_compressed_section`) are type-based. Returns `None`
+    /// for the container types (INFO/SYSTEM_MAP) and unknown ids — those
+    /// stay out of the name-keyed registry.
+    pub fn name_from_section_type(id: u32) -> Option<&'static str> {
+        Some(match id {
+            1 => HEADER,
+            2 => AUX_HEADER,
+            3 => CLASSES,
+            4 => HANDLES,
+            5 => TEMPLATE,
+            6 => OBJ_FREE_SPACE,
+            7 => ACDB_OBJECTS,
+            8 => REV_HISTORY,
+            9 => SUMMARY_INFO,
+            10 => PREVIEW,
+            11 => APP_INFO,
+            12 => APP_INFO_HISTORY,
+            13 => FILE_DEP_LIST,
+            14 => SECURITY,
+            15 => VBA_PROJECT,
+            16 => SIGNATURE,
+            17 => ACDS_PROTOTYPE,
+            _ => return None,
+        })
+    }
 }
 
 /// Start sentinels for sections (16 bytes each).
@@ -80,6 +122,7 @@ pub enum DwgSectionHash {
     FileDepList = 0x6C4205CA,
     VbaProject = 0x586E0544,
     AppInfo = 0x3FA0043E,
+    AppInfoHistory = 0x96DE0737,
     Preview = 0x40AA0473,
     SummaryInfo = 0x717A060F,
     RevHistory = 0x60A205B3,
@@ -117,9 +160,19 @@ pub mod ac21_section_info {
             names::SUMMARY_INFO => Some(0x717A060F),
             names::PREVIEW => Some(0x40AA0473),
             names::APP_INFO => Some(0x3FA0043E),
+            names::APP_INFO_HISTORY => Some(0x96DE0737),
             names::FILE_DEP_LIST => Some(0x6C4205CA),
             names::SECURITY => Some(0x4A0204EA),
             names::VBA_PROJECT => Some(0x586E0544),
+            // The DataStore section (R2013+). No authored R2007 precedent
+            // exists — the section never rides an authored AC21 (R2007)
+            // file, so no ODA §5.2 hash value is published for it — and
+            // the hash is inert anyway: every reader resolves sections
+            // from the map by NAME (gold: dwg_section_wtype(name); this
+            // reader: section_descriptors by name). The 0 is the
+            // diagnostic registration for the `--no-lz77` conventional
+            // arm on 2013+ documents (TODO A6).
+            names::ACDS_PROTOTYPE => Some(0),
             _ => None,
         }
     }
@@ -143,6 +196,9 @@ pub mod ac21_section_info {
             names::APP_INFO => Some(0x300),
             names::FILE_DEP_LIST => Some(0x100),
             names::SECURITY => Some(0xF800),
+            // The DataStore section's authored page size (gold
+            // decode_r2007.c: "compressed, pagesize 0x7400").
+            names::ACDS_PROTOTYPE => Some(0x7400),
             // VBAProject has variable page size — caller must supply it
             names::VBA_PROJECT => None,
             _ => None,
@@ -171,9 +227,17 @@ pub mod ac21_section_info {
             names::SUMMARY_INFO
             | names::PREVIEW
             | names::APP_INFO
+            | names::APP_INFO_HISTORY
             | names::FILE_DEP_LIST
             | names::SECURITY
             | names::VBA_PROJECT => Some(1),
+
+            // The DataStore section is compressed in its authored
+            // (R2013+) form — gold's own decode comment. Under the
+            // `--no-lz77` diagnostic arm the per-page compression is
+            // driven by `skip_lz77`, the same mechanism as every other
+            // encoding=4 section.
+            names::ACDS_PROTOTYPE => Some(4),
 
             _ => None,
         }

@@ -1,4 +1,4 @@
-use std::io::Cursor;
+﻿use std::io::Cursor;
 
 use opencadcodec::entities::{EntityType, Line};
 use opencadcodec::objects::{BookColor, ObjectType};

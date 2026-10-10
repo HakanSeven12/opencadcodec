@@ -1,4 +1,4 @@
-//! Repro for issue #64: a DXF round-trip writes a ByBlock linetype handle
+﻿//! Repro for issue #64: a DXF round-trip writes a ByBlock linetype handle
 //! as the DIMSTYLE text style (group 340).
 
 use opencadcodec::entities::EntityType;
@@ -9,7 +9,7 @@ use opencadcodec::{CadDocument, DxfReader, DxfWriter};
 fn repro_issue64() {
     // Input mirroring the reporter's file: a Standard text style at #11,
     // a ByBlock linetype at #14 (which collides with the handle that
-    // opencadcodec's DEFAULT Standard dimstyle uses for its text style), and
+    // acadrust's DEFAULT Standard dimstyle uses for its text style), and
     // no Standard dimstyle of its own (the default one survives).
     let mut doc = CadDocument::with_version(DxfVersion::AC1024);
 

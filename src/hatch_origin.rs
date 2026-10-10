@@ -15,6 +15,28 @@ fn origin_index(record: &ExtendedDataRecord) -> Option<usize> {
     None
 }
 
+/// The top-level (unbraced) 1010 point of a decoded EED value list —
+/// gold's LTYPE/HATCH text-assignment shape applied to the ACAD block:
+/// the writer compares the retained block's origin against the model's
+/// before deciding verbatim-vs-re-encode (the gh44-error HATCH census,
+/// 2026-10-04).
+pub(crate) fn origin_from_values(values: &[XDataValue]) -> Option<Vector2> {
+    let mut depth = 0usize;
+    for value in values {
+        match value {
+            XDataValue::ControlString(text) if text == "{" => depth += 1,
+            XDataValue::ControlString(text) if text == "}" => depth = depth.saturating_sub(1),
+            XDataValue::Point3D(point) if depth == 0 => {
+                if point.x.is_finite() && point.y.is_finite() {
+                    return Some(Vector2::new(point.x, point.y));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 impl Hatch {
     /// Pattern origin recorded as the top-level ACAD 1010 point, in hatch coordinates.
     pub fn stored_pattern_origin(&self) -> Option<Vector2> {

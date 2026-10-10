@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "opencadcodec"
 version = "0.6.0"
 edition = "2021"
@@ -13,12 +13,13 @@ categories = ["parser-implementations", "encoding"]
 
 [features]
 default = []
-serde = ["dep:serde", "bitflags/serde", "indexmap/serde"]
+serde = ["dep:serde", "dep:serde_json", "bitflags/serde", "indexmap/serde"]
 import = ["dep:quick-xml"]
+gold-harness = ["serde"]
 
 [dependencies]
 # Error handling
-thiserror = "2"
+thiserror = "1.0"
 anyhow = "1.0"
 
 # Binary parsing
@@ -30,13 +31,14 @@ flate2 = "1.0"
 
 # Collections
 indexmap = "2.0"
-foldhash = "0.2"
+ahash = { version = "0.8", features = ["serde"] }
 
 # Encoding
 encoding_rs = "0.8"
 
 # Serialization (optional)
 serde = { version = "1", features = ["derive", "rc"], optional = true }
+serde_json = { version = "1", optional = true }
 
 # XML parsing (optional, for COLLADA import)
 quick-xml = { version = "0.36", optional = true }
@@ -57,7 +59,6 @@ rayon = "1"
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.4"
-serde_json = "1"
 
 [profile.release]
 opt-level = 3
@@ -66,3 +67,12 @@ codegen-units = 1
 
 [profile.bench]
 inherits = "release"
+
+# The gold_harness bins live in the excluded tests/gold_harness tree
+# (this branch drops the corpus); their [[bin]] declarations went with
+# it - the package builds standalone again.
+
+# Consumes serde_json unconditionally; skip under feature-less builds.
+[[example]]
+name = "entity_atlas"
+required-features = ["serde"]

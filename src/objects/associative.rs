@@ -19,6 +19,38 @@ pub struct AssociativeObject {
     pub data: AssociativeData,
     #[cfg_attr(feature = "serde", serde(skip))]
     pub source_version: Option<DxfVersion>,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§20 the R2018 record-identity packet: the wire capture for the
+    /// classes whose typed re-encode drifts from the author's bytes.
+    /// ACDBASSOCALIGNEDDIMACTIONBODY (520) is first: gold has no decoder
+    /// for the class ("Unhandled Class object 520"), the ODA spec
+    /// documents nothing, and the modeled emission loses form bits the
+    /// model never retained (example_2018 h=392: her bitsize 55, our
+    /// rewrite 53). A DWG read captures the class body verbatim ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the
+    /// main bits after the common fields, the text region, and the
+    /// handle tail ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â so the conventional rewrite re-emits her bytes;
+    /// the modeled emission stays the DXF/programmatic fallback
+    /// (`wire_main` absent).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_main: Option<Vec<u8>>,
+    /// Exact bit width of `wire_main`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_main_bit_len: u32,
+    /// MSB-first packed text-region bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_text: Option<Vec<u8>>,
+    /// Exact bit width of `wire_text`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_text_bit_len: u32,
+    /// MSB-first packed handle-stream tail bits.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handles: Option<Vec<u8>>,
+    /// Exact bit width of `wire_handles`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_handles_bit_len: u32,
+    /// The DxfVersion whose reader frame the `wire_*` captures came
+    /// from (the writer's replay gate).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_dxf_version: Option<DxfVersion>,
 }
 
 impl AssociativeObject {
@@ -90,8 +122,8 @@ pub enum AssociativeData {
     ViewRepHatchManager(AssocViewRepHatchManager),
     ViewRepHatchActionParam(AssocViewRepHatchActionParam),
     ViewLabelActionParam(AssocViewLabelActionParam),
-    /// Center mark and center line action bodies (`AcDbCenterMarkActionBody`,
-    /// `AcDbCenterLineActionBody`).
+    /// Center mark and center line action bodies (AcDbCenterMarkActionBody,
+    /// AcDbCenterLineActionBody).
     SmartCenterActionBody(AssocSmartCenterActionBody),
 }
 
@@ -604,44 +636,31 @@ pub struct AssocValueDependency {
     pub value: AssocEvalVariant,
 }
 
-/// Persistent subentity id of a geometry dependency. DWG writes a flag,
-/// the class code, the class's integer fields and the compound-object bit;
-/// DXF writes the class name, the fields (90) and the bit (290).
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssocPersistentSubentId {
     pub class_name: String,
     pub dependent_on_compound_object: bool,
-    /// DWG class code: 1 single edge, 5 modeler-body subentity.
-    pub class_code: i32,
-    /// Class fields; a modeler-body subentity has three.
-    pub values: Vec<i32>,
-    /// DWG bit before the class code (clear in reference output).
-    pub leading_flag: bool,
-}
-
-/// DWG class codes of persistent subentity ids and their DXF class names.
-const PERS_SUBENT_CLASSES: [(i32, &str); 2] = [
-    (1, "AcDbAssocSingleEdgePersSubentId"),
-    (5, "AcDbAssocAsmBasedEntityPersSubentId"),
-];
-
-impl AssocPersistentSubentId {
-    /// DXF class name for a DWG class code.
-    pub fn class_name_for_code(code: i32) -> Option<&'static str> {
-        PERS_SUBENT_CLASSES
-            .iter()
-            .find(|(value, _)| *value == code)
-            .map(|(_, name)| *name)
-    }
-
-    /// DWG class code for a DXF class name.
-    pub fn code_for_class_name(name: &str) -> Option<i32> {
-        PERS_SUBENT_CLASSES
-            .iter()
-            .find(|(_, value)| value.eq_ignore_ascii_case(name))
-            .map(|(code, _)| *code)
-    }
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-10: the undocumented persubent-id tail. Gold's spec
+    /// for the ASSOCGEOMDEPENDENCY's persubent id (dwg2.spec 3148)
+    /// ends at `dependent_on_compound_object`, but the authored
+    /// records carry more main-stream bits after it (example_2007
+    /// h=396: 46 bits gold parks as unknown). A DWG read captures
+    /// them verbatim so the rewrite re-emits her bytes; the modeled
+    /// emission (no tail) stays the DXF/programmatic fallback.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bits: Option<Vec<u8>>,
+    /// Exact bit width of `tail_bits`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bit_len: u32,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-15: the author's record carried NO text stream
+    /// (has_strings: 0) at the classname TU ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â PER-RECORD wire state:
+    /// the R2013 Constraints specimen's geomdeps omit the stream while
+    /// the AC1021 corpus authors write has_strings: 1 with empty-only
+    /// streams (the blanket all-empty drop regressed those; reverted).
+    /// The writer skips the classname TU so the merge emits no stream.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_no_text_stream: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -844,11 +863,31 @@ pub struct AssocAnnotationActionBody {
 pub struct AssocPersSubentManager {
     pub class_version: i32,
     pub markers: [i32; 3],
-    /// The integers after the markers, in file order. Their grouping
-    /// depends on the class version: version 1 records hold
-    /// `next id, 0, 0, 0`, version 2 records add count-prefixed id lists.
-    pub values: Vec<i32>,
-    pub final_flag: bool,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: gold dwg2.spec `unknown_bl1`/`unknown_bl2` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the
+    /// two BLs between the markers and `num_steps`. Our old parse skipped
+    /// them, desyncing the record (the Chamfer/Fillet 2DE reads pulled
+    /// garbage steps and hit the 2-bit-code-11 branch's 256); the loft
+    /// records only roundtripped because their misparse was symmetric.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub bl1: i32,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub bl2: i32,
+    pub steps: Vec<i32>,
+    pub subents: Vec<i32>,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the undocumented BLs after the subents vector,
+    /// captured verbatim (the gold spec declares only the cv2 [BL][B]
+    /// tail, but the cv=1 corpus records carry a variable BL run there ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// e.g. LoftCSurf/LoftM 2DD's [0,0,0,1,1,0]; the simple records carry
+    /// none). Read until one bit remains (the trailing B); re-emitted
+    /// in order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bls: Vec<i32>,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the trailing B at the main content end (the last
+    /// content bit; the gold spec's `unknown_b4`). The bit after it is
+    /// the merged stream's no-text flag ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â never a record field (the
+    /// H8h-ext-5 lesson).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub trailing_b: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -871,7 +910,6 @@ pub struct AssocSmartCenterActionBody {
     pub parameter_body: AssocParamBasedActionBody,
     pub version: i32,
 }
-
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssocViewRepActionBody {
@@ -950,23 +988,139 @@ pub enum AssocSubcurveKind {
     Curve3d,
 }
 
+/// The ACDBASSOCEDGEACTIONPARAM subcurve geometry (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-4).
+///
+/// Undocumented in gold (its `CALL_SUBCURVE` spec macro is an empty TODO
+/// stub) and in the ODA PDF; reverse-engineered from the seven corpus
+/// specimens (all action_type 11 = ARC, the ExtrudeCSurf/ExtrudeM/
+/// RevolveM/LoftCSurf/LoftM fixtures): the region after `action_type` is
+/// exactly twelve BDs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â center, normal, x-axis (three 3BD each), radius,
+/// start angle, end angle ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â each in the standard BD forms (0.0/1.0 as the
+/// 2-bit shorts, other values as the full 66-bit LE double). The
+/// specimens' centers and radii match their source CIRCLE entities
+/// exactly; all seven are full circles (start 0.0, end 2ÃƒÆ’Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬) in the XY
+/// plane (normal (0,0,1), x-axis (1,0,0)).
+///
+/// TODO B2 (2026-10-01): on R2013+ frames (AC1027/AC1032) the twelve
+/// BDs are followed by a two-bit trailing form `10` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â a constant across
+/// every measured ARC record (28 corpus + the authored quad; the
+/// 2007/2010 frames end at the twelfth BD). The bit pair decodes
+/// equally as BD 0.0, BS 0 or BL 0 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the wire cannot name its field ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+/// so the model stores nothing and the writer emits a BD 0.0 after the
+/// geometry when the target frame is R2013+ (the pre-B2 writer omitted
+/// it: a latent 2-bit conventional-emission drift invisible to the
+/// corpus diff ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â gold surfaces the record as UNKNOWN_OBJ ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â and hidden
+/// by the default write path's objects-stream echo).
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct AssocEdgeActionParam {
-    pub single_dependency: AssocSingleDependencyActionParam,
-    pub parameter: Handle,
-    pub has_action: bool,
-    pub action_type: i32,
-    pub subcurve_kind: AssocSubcurveKind,
-    /// The referenced edge's curve, stored after the action type, value by
-    /// value. Arc (11): centre, normal, reference axis, radius, start and end
-    /// angle, one more real. Ellipse (17): centre, major and minor axis
-    /// directions, major and minor radius, start and end parameter, one more
-    /// real. Line segment (23): start point, vector to the end. NURBS (42):
-    /// two flags, degree, tolerance, then knots, weights and control points,
-    /// each as length, physical length, grow length and the items. Composite
-    /// (47): count, then a type and its curve for each part.
-    pub curve: Vec<AssocCurveValue>,
+pub struct AssocArcSubcurve {
+    pub center: Vector3,
+    pub normal: Vector3,
+    pub x_axis: Vector3,
+    pub radius: f64,
+    pub start_angle: f64,
+    pub end_angle: f64,
+}
+
+/// The ELLIPSE subcurve (action_type 17), TODO B2 (2026-10-01).
+///
+/// Wire-reverse-engineered from the authored ExtrudeEllipse quads
+/// (2007/2010/2013/2018) and cross-validated on the independent corpus
+/// specimens (2004/Surface.dwg handles 739/1295 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â anchor-scanned walks
+/// closing the region exactly): thirteen BDs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â center, major-axis unit
+/// vector, minor-axis unit vector (three 3BD), major radius, minor
+/// radius, start angle, end angle. Like the ARC form, an R2013+ frame
+/// appends the two-bit `10` trailing form (see `AssocArcSubcurve`).
+/// The corpus specimens' axis vectors are orthogonal units and the
+/// full-ellipse records close at start 0.0 / end 2ÃƒÆ’Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocEllipseSubcurve {
+    pub center: Vector3,
+    pub major_axis: Vector3,
+    pub minor_axis: Vector3,
+    pub major_radius: f64,
+    pub minor_radius: f64,
+    pub start_angle: f64,
+    pub end_angle: f64,
+}
+
+/// The LINESEG3D subcurve (action_type 23), TODO B2 (2026-10-01).
+///
+/// Wire-reverse-engineered from the authored ExtrudeLine quads (a LINE
+/// profile extruded as a surface ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the edge is the bounded segment) and
+/// cross-validated on the corpus specimen (2004/Surface.dwg handle
+/// 1049): six BDs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â start point 3BD, end point 3BD. Unlike the ARC and
+/// ELLIPSE forms there is no R2013+ trailing form (the region closes at
+/// the sixth BD on every measured frame: 76 bits authored across all
+/// four versions, 204 bits on the 2004 corpus record).
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocLineSegment3dSubcurve {
+    pub start_point: Vector3,
+    pub end_point: Vector3,
+}
+
+/// The NURB3D subcurve (action_type 42), TODO A8 (2026-10-02).
+///
+/// Wire-reverse-engineered from five specimens ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the four B2 extrude
+/// quads (ExtrudeSpline/ExtrudeSpline2 closed, ExtrudeSplineOpen open,
+/// ExtrudeHelix the CV-form) plus the SweepSurfSpline quad (the
+/// 2026-10-02 surface-mode sweep path, the differential that cracked
+/// it) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â every record closing its region exactly, era-stable (the
+/// 2007 and 2018 regions are bit-identical per specimen). The
+/// measured grammar, fully self-delimiting:
+///
+/// ```text
+/// [12-bit hdr 0x103][BD knot_tolerance][4 bits 0x4]
+/// [flags 6][BL num_knots][BL 8]
+/// [knots BD x num_knots]
+/// [BL 0][BL 0][BL 8][BL num_ctrl][BL gap_b][BL 8]
+/// [control points 3BD x num_ctrl]   <- closes at main_data_end
+/// ```
+///
+/// The knots are the clamped chord-length parameterization (verified
+/// against the source entities' own knot lists ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the helix's 58
+/// knots match value-for-value; the fit-form specimens' cumulative
+/// chord lengths reproduce the wire values exactly). The 6 flag bits
+/// carry partially unnamed semantics: bit 4 separates the measured
+/// extrusion profiles from the sweep path, bit 5 tracks closed on
+/// the extrude-form specimens, bits 0-1 mark the helix (the only
+/// CV-form source); they are stored verbatim. `gap_b` is the gap's
+/// one variable field ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 8 on every fit-form specimen, 54 (the
+/// control-point count) on the helix ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â semantics unnamed, stored
+/// verbatim. The constants (the 12-bit header, the 4-bit field, the
+/// BL 8s and the 1e-09 knot tolerance measured on all five) are
+/// emitted by the writer and verified by the reader's typed-parse
+/// gate; any deviation falls back to the verbatim capture+replay
+/// net (`subcurve_wire`).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocNurb3dSubcurve {
+    /// The measured 6-bit flag field (verbatim; see the form docs).
+    pub flags: u8,
+    /// The knot tolerance (the BD after the 12-bit header; 1e-09 on
+    /// every measured specimen).
+    pub knot_tolerance: f64,
+    /// The knot vector (BD[] on the wire; 0.0 encodes as the 2-bit
+    /// short form).
+    pub knots: Vec<f64>,
+    /// The gap's variable BL field (verbatim; see the form docs).
+    pub gap_b: i32,
+    /// The control points (3BD[]; the array closes the region).
+    pub control_points: Vec<Vector3>,
+}
+
+impl Default for AssocNurb3dSubcurve {
+    fn default() -> Self {
+        Self {
+            flags: 0,
+            knot_tolerance: 1e-9,
+            knots: Vec::new(),
+            gap_b: 8,
+            control_points: Vec::new(),
+        }
+    }
 }
 
 /// One stored value of an edge action parameter's curve: DXF groups 70, 90,
@@ -977,7 +1131,124 @@ pub enum AssocCurveValue {
     Bool(bool),
     Int(i32),
     Real(f64),
-    Point(Vector3),
+    Point(crate::types::Vector3),
+}
+
+/// One segment of the composite (47) subcurve ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â TODO A8 (2026-10-03).
+///
+/// The composite region is a SEGMENT LIST: `BL num_segments` then per
+/// segment `BS kind` + the kind's own typed form. The measured kinds
+/// (the ExtrudePline/Extrude3DPoly/RevolvePline/LoftMixed quads, all
+/// four eras, plus the 2004/Surface.dwg corpus records):
+///
+/// - kind 23 (LINESEG3D): six BDs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the segment's ABSOLUTE start point
+///   (3BD) and its displacement (3BD; start + delta = the segment's
+///   end). Every authored line segment carries both.
+/// - kind 11 (ARC): the full ARC subcurve form inline (twelve BDs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+///   center, normal, x-axis, radius, start/end angles), with the same
+///   constant two-bit `10` trailing form on the R2013+ frames the
+///   standalone ARC region carries (RevolvePline_2018: 816 bits vs
+///   2007's 814 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the arc segment's tail is the delta).
+///
+/// Other kinds (17, 42, 19, 27, ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦) have no measured carrier inside a
+/// composite ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â a future specimen rides the verbatim capture+replay
+/// net (the parser gates on the known kinds and falls back whole).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AssocCompositeSegment {
+    /// kind 23: absolute start + displacement.
+    Line {
+        start: crate::types::Vector3,
+        delta: crate::types::Vector3,
+    },
+    /// kind 11: the ARC form inline.
+    Arc(AssocArcSubcurve),
+}
+
+/// The composite (47) subcurve ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â TODO A8 (2026-10-03): the polyline
+/// profile as a segment list. Gold's spec switch has no case 47 (its
+/// default arm errors "Unknown action_type") ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the corpus measurement
+/// is the authority, exactly as for the NURB3D (42) form. The region:
+/// `BL num_segments`, then per segment `BS kind` + the kind's form.
+/// Verified bit-exact against every measured carrier: the rectangle
+/// profiles (ExtrudePline/LoftMixed ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â four line segments, each
+/// absolute start + delta), the 3D profiles (Extrude3DPoly ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â two
+/// segments with true 3D deltas), and the mixed profile (RevolvePline
+/// ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â line, ARC (the semicircle cap), line, line). Era-stable except
+/// the arc segments' R2013+ trailing form.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocCompositeSubcurve {
+    pub segments: Vec<AssocCompositeSegment>,
+}
+
+/// The typed subcurve geometries the DWG reader models; the ladder's
+/// remaining rungs (CURVE3D, Line) stay untyped ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â see
+/// `AssocEdgeActionParam::subcurve_wire`.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AssocSubcurve {
+    Arc(AssocArcSubcurve),
+    Ellipse(AssocEllipseSubcurve),
+    LineSegment3d(AssocLineSegment3dSubcurve),
+    Nurb3d(AssocNurb3dSubcurve),
+    Composite(AssocCompositeSubcurve),
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssocEdgeActionParam {
+    pub single_dependency: AssocSingleDependencyActionParam,
+    pub parameter: Handle,
+    pub has_action: bool,
+    pub action_type: i32,
+    /// The referenced edge's curve as generic stored values: Arc (11):
+    /// centre, normal, reference axis, radius, start and end angle, one
+    /// more real. Ellipse (17): centre, major and minor axis directions,
+    /// major and minor radius, start and end parameter, one more real.
+    /// Line segment (23): start point, vector to the end. NURBS (42):
+    /// two flags, degree, tolerance, then knots, weights and control
+    /// points, each as length, physical length, grow length and the
+    /// items. Composite (47): count, then a type and its curve for each
+    /// part. Authored by hosts that build the values directly; empty when
+    /// the record was captured (the `subcurve` model then applies).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub curve: Vec<AssocCurveValue>,
+    pub subcurve_kind: AssocSubcurveKind,
+    /// The subcurve geometry; populated by the DWG reader for the
+    /// action types whose wire forms are modeled (11 ARC, 17 ELLIPSE,
+    /// 23 LINESEG3D), `None` otherwise and for DXF-built documents
+    /// (the writer then emits the captured raw region, if any, and
+    /// otherwise no subcurve region).
+    ///
+    /// Serde-invisible: the raw-capture model is internal wire state
+    /// (the DWG reader/writer own it end to end), and the host's
+    /// type-registry tracer follows the serde surface — keeping the
+    /// fork-only model out of it lets the host build against either
+    /// codec (this crate with the capture model, or upstream before
+    /// the fork merges).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub subcurve: Option<AssocSubcurve>,
+    /// TODO B2 (2026-10-01): the verbatim subcurve region for the
+    /// action types without a typed model ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â NURB3D (42: a ~1300-bit
+    /// parameterized nurb form with an inspected-but-unnamed header),
+    /// the gold-unknown 47 (a delta-encoded polyline/composite: the
+    /// ExtrudePline/Extrude3DPoly/RevolvePline/LoftMixed quads and
+    /// the 2004/Surface.dwg records), and any future 19/27 specimen.
+    /// Captured from after `action_type` to the record's main-data
+    /// end and replayed bit-for-bit on a same-version rewrite (the
+    /// H8h-ext-8 `nodes_wire_main` pattern); never emitted on
+    /// cross-version conversions (the era forms differ).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve_wire: Option<Vec<u8>>,
+    /// Exact bit width of `subcurve_wire` (the final byte may carry
+    /// padding bits below the MSB).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve_wire_bit_len: u32,
+    /// The DxfVersion whose reader frame the `subcurve_wire` capture
+    /// came from (the writer's same-version replay gate).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub subcurve_wire_dxf_version: Option<DxfVersion>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1147,6 +1418,44 @@ pub struct Assoc2dConstraintGroup {
     pub dependency: Handle,
     pub actions: Vec<Handle>,
     pub nodes: Vec<AssocConstraintNode>,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-8: the AC1021 node-region wire captures. Gold's flat
+    /// per-node REPEAT (dwg2.spec 5682) misparses the authored records:
+    /// the real node wire carries a class-name TU per node (consumed from
+    /// the record's text stream in walk order), per-class data arms and
+    /// per-node geometry-dependency handle reads ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â none documented in
+    /// the ODA spec or libredwg. A DWG read captures the region
+    /// verbatim ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the main bits from the end of num_nodes to the
+    /// record's main-data end, the per-node class-name TUs, and the
+    /// handle bits from the drain position after the record's own head
+    /// handles to the record end ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â so the conventional rewrite re-emits
+    /// her bytes bit-exact. The naive modeled emission stays the DXF
+    /// and generator fallback (`nodes_wire_main` absent).
+    pub nodes_wire_names: Vec<String>,
+    /// MSB-first packed main-content bits of the node region.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_main: Option<Vec<u8>>,
+    /// Exact bit width of `nodes_wire_main` (the final byte may carry
+    /// unused low bits).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_main_bit_len: u32,
+    /// MSB-first packed handle-stream tail bits (AC1021 only).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_handles: Option<Vec<u8>>,
+    /// Exact bit width of `nodes_wire_handles`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_handles_bit_len: u32,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-14: the R2010+ raw text-region capture. The R2010/
+    /// R2013 specimens' text streams (has_strings: 1) hold content this
+    /// campaign never decoded (the AC21 raw-stream dump instrument does
+    /// not cover the R2010+ containers), so the capture retains the
+    /// whole region verbatim instead of re-encoding class-name TUs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// the ext-12 TABLECONTENT `wire_text` pattern. AC1021 keeps the
+    /// decoded-names path (verified 58/58).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_text: Option<Vec<u8>>,
+    /// Exact bit width of `nodes_wire_text`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub nodes_wire_text_bit_len: u32,
 }
 
 impl Default for Assoc2dConstraintGroup {
@@ -1159,6 +1468,13 @@ impl Default for Assoc2dConstraintGroup {
             dependency: Handle::NULL,
             actions: Vec::new(),
             nodes: Vec::new(),
+            nodes_wire_names: Vec::new(),
+            nodes_wire_main: None,
+            nodes_wire_main_bit_len: 0,
+            nodes_wire_handles: None,
+            nodes_wire_handles_bit_len: 0,
+            nodes_wire_text: None,
+            nodes_wire_text_bit_len: 0,
         }
     }
 }
@@ -1310,13 +1626,6 @@ pub struct AssocArrayActionBody {
     pub parameter_body: AssocParamBasedActionBody,
     pub version: i32,
     pub parameter_block: String,
-    /// Version of the item list that follows the parameters class name.
-    pub item_list_version: i32,
-    /// Class name of the items (`AcDbAssocArrayItem`).
-    pub item_class: String,
-    /// One record per array item: its location, flags, placement (a matrix
-    /// when flag 4 is set, otherwise a point) and the item's entity.
-    pub items: Vec<AssocArrayItem>,
     pub transform: [f64; 16],
 }
 
@@ -1327,9 +1636,6 @@ impl Default for AssocArrayActionBody {
             parameter_body: AssocParamBasedActionBody::default(),
             version: 0,
             parameter_block: String::new(),
-            item_list_version: 0,
-            item_class: String::new(),
-            items: Vec::new(),
             transform: [0.0; 16],
         }
     }
@@ -1382,9 +1688,18 @@ pub struct PersSubentManager {
     pub marker_two: i32,
     pub associative_step_count: i32,
     pub associative_subent_count: i32,
-    /// Every integer after the five header fields, in file order (the
-    /// persistent subentity records, then the step list).
-    pub values: Vec<i32>,
+    pub steps: Vec<i32>,
+    pub subents: Vec<i32>,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the undocumented BLs after the subents vector ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+    /// a variable run captured verbatim (the loft specimens carry two
+    /// ([1, {2|1}]); the Chamfer/Fillet 2DF records carry the ~1224-BL
+    /// history blob; the count-0 records carry none). The gold spec has
+    /// no block for this class; the run ends flush at the main content
+    /// end (no trailing bit ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the bit after the content is the merged
+    /// stream's no-text flag, never a record field; the H8h-ext-5
+    /// lesson). Re-emitted in order.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub tail_bls: Vec<i32>,
 }
 
 pub fn associative_canonical_name(name: &str) -> String {
@@ -1461,8 +1776,6 @@ pub fn is_associative_object_name(name: &str) -> bool {
             | "ASSOCVIEWSYMBOLACTIONPARAM"
             | "ASSOCVIEWSTYLEACTIONPARAM"
             | "ASSOCVIEWLABELACTIONPARAM"
-            | "ACDBCENTERMARKACTIONBODY"
-            | "ACDBCENTERLINEACTIONBODY"
     )
 }
 
@@ -1523,8 +1836,6 @@ pub fn associative_cpp_class_name(name: &str) -> Option<&'static str> {
         "ASSOCVIEWSYMBOLACTIONPARAM" => "AcDbAssocViewSymbolActionParam",
         "ASSOCVIEWSTYLEACTIONPARAM" => "AcDbAssocViewStyleActionParam",
         "ASSOCVIEWLABELACTIONPARAM" => "AcDbAssocViewLabelActionParam",
-        "ACDBCENTERMARKACTIONBODY" => "AcDbCenterMarkActionBody",
-        "ACDBCENTERLINEACTIONBODY" => "AcDbCenterLineActionBody",
         _ => return None,
     })
 }

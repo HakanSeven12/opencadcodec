@@ -55,6 +55,52 @@ pub struct DwgMergedWriter {
     /// Bit position in the merged main stream where the handle section starts.
     /// Set during merge, used by R2010+ record framing to compute MC handle_bits.
     handle_start_bits: i64,
+    /// R2010+ "underlap" request: park the no-text flag and the handle
+    /// region `bits` positions back inside the main tail — the layout
+    /// the authored R2010+ LEADER records use (flag at main_end−bits,
+    /// handles at main_end−(bits−1); a sequential record instead runs
+    /// the main to its end and starts the region right after). The
+    /// genus is a published-spec-underside runtime convention shared by
+    /// the authored corpus (AutoCAD-2017/2018-saved Leader down-saves
+    /// and the ODA-FileConverter 2018 variant alike, per the
+    /// 2026-09-22 specimen-stamp census). The merge applies it only
+    /// when the overlapped bits are identical in both layouts (main
+    /// tail == [false] ++ handle head); otherwise it falls back to
+    /// sequential so values never change.
+    underlap_bits: Option<u8>,
+    /// The record-close pad convention: `true` pads the merged stream's
+    /// final partial byte with 0s instead of the default 1s. A
+    /// document-level wire convention (the TODO A1 finding, 2026-10-01):
+    /// the AutoCAD genus closes every record's pad with 1s (the §19 H8d
+    /// verified samples), while the ODA FileConverter genus (the
+    /// `2018/` named-specimen set: Multiline, Line, circle, …) closes
+    /// with 0s — her final window byte is `0x00` where the AutoCAD
+    /// genus writes `0x1F`/`0xFF`-tailed forms on otherwise identical
+    /// records. The reader samples the authored close pad per record
+    /// (`DwgMergedReader::sample_close_pad_zeros`) and the document
+    /// carries the majority; the writer replays it. Constructed
+    /// documents default to the AutoCAD genus (`false`).
+    close_pad_zeros: bool,
+    /// The current record's EXACT authored close-pad pattern (§19
+    /// H8h-ext-17): `(len, bits)` captured per record — some authors
+    /// leave arbitrary leftover bits (entities-3d pads F1/E3/89), no
+    /// zeros/ones genus. The object writer sets it per record from
+    /// `CadDocument::close_pad_bits_by_handle`; `None` (or a length
+    /// mismatch at the close) falls back to the document vote above.
+    close_pad_bits: Option<(u8, u8)>,
+    /// The current record's EXACT handle-stream slack (the gh44-error
+    /// LEADER census, 2026-10-04): `(walk_end, len, bits)` captured per
+    /// record — the unparsed bit-group an author parks between the
+    /// walked main tail and the frame's flag position (2 bits on five
+    /// LEADERs, 10 on 8774; arbitrary patterns). The object writer sets
+    /// it per record from `CadDocument::handle_slack_by_handle`; the
+    /// merge replays it ONLY when the writer's own main end equals the
+    /// captured `walk_end` — a reader that under-reads a record (its
+    /// walk ending before the writer's emission end) would otherwise
+    /// double-emit the un-walked field bits as slack. `None` keeps the
+    /// packed layout (the flag immediately after the main bits).
+    /// Three-stream only.
+    handle_slack: Option<(i64, u8, u16)>,
 }
 
 impl DwgMergedWriter {
@@ -74,6 +120,10 @@ impl DwgMergedWriter {
             saved_position: false,
             position_in_bits: -1,
             handle_start_bits: -1,
+            underlap_bits: None,
+            close_pad_zeros: false,
+            close_pad_bits: None,
+            handle_slack: None,
         }
     }
 
@@ -97,6 +147,10 @@ impl DwgMergedWriter {
             saved_position: false,
             position_in_bits: -1,
             handle_start_bits: -1,
+            underlap_bits: None,
+            close_pad_zeros: false,
+            close_pad_bits: None,
+            handle_slack: None,
         }
     }
 
@@ -163,6 +217,7 @@ impl DwgMergedWriter {
         self.saved_position = false;
         self.position_in_bits = -1;
         self.handle_start_bits = -1;
+        self.underlap_bits = None;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -176,6 +231,61 @@ impl DwgMergedWriter {
         self.position_in_bits = self.main.position_in_bits();
         // Write 4 zero bytes as a placeholder
         self.main.write_int(0);
+    }
+
+    /// Request the authored R2010+ "underlap" record layout for the next
+    /// merged object: the flag bit and the handle region start back
+    /// inside the main tail (`bits` positions before its end), overlapping
+    /// the last main bits. The authored R2010+ LEADER records use this
+    /// genus (bitsize = main_end − 6: flag at −6, handles at −5, with the
+    /// tail bits double-reading as arrowhead tail + unknown_bit_4/5) —
+    /// a runtime convention of the authored corpus shared by both its
+    /// writer families (AutoCAD 2017/2018 saves and the ODA FileConverter
+    /// output, which reproduce each other); a strict consumer deep-loads
+    /// it clean while the sequential genus warned (2026-09-21 user test:
+    /// rewrite-byte-identical-sequential leader warned `(72E)` while the
+    /// underlap-authored file opened clean).
+    ///
+    /// The merge verifies the overlap is value-preserving (the main's
+    /// last `bits` bits must equal `[false-flag] ++ handle-head`), and
+    /// silently falls back to the sequential layout otherwise.
+    pub fn set_underlap_tail(&mut self, bits: u8) {
+        self.underlap_bits = Some(bits);
+    }
+
+    /// Set the record-close pad convention for every record of this
+    /// write: `true` pads the merged stream's final partial byte with
+    /// 0s (the ODA FileConverter genus; see `close_pad_zeros`). The
+    /// document captures the authored convention at read and applies it
+    /// here once; `reset` intentionally leaves it untouched — it is a
+    /// writer-lifetime policy, not per-record state.
+    pub fn set_close_pad_zeros(&mut self, zeros: bool) {
+        self.close_pad_zeros = zeros;
+    }
+
+    /// Set the current record's EXACT authored close-pad pattern (§19
+    /// H8h-ext-17): `(len, bits)` replayed verbatim from
+    /// `CadDocument::close_pad_bits_by_handle` — some authors leave
+    /// arbitrary leftover pad bits (entities-3d pads F1/E3/89), no
+    /// zeros/ones genus. `None` (or a length mismatch at the close)
+    /// falls back to the document-level vote.
+    pub fn set_close_pad_bits(&mut self, pad: Option<(u8, u8)>) {
+        self.close_pad_bits = pad;
+    }
+
+    /// Set the current record's EXACT handle-stream slack (the
+    /// gh44-error LEADER census, 2026-10-04): `(walk_end, len, bits)`
+    /// replayed verbatim from `CadDocument::handle_slack_by_handle`
+    /// between the main bits and the text/flag region — the author's
+    /// unparsed bit-group before the flag bit. `None` keeps the packed
+    /// layout. A captured slack disables the LEADER underlap for the
+    /// record (the two frame quirks are mutually exclusive: the underlap
+    /// parks the region INSIDE the main tail, the slack AFTER it).
+    pub fn set_handle_slack(&mut self, slack: Option<(i64, u8, u16)>) {
+        if slack.is_some() {
+            self.underlap_bits = None;
+        }
+        self.handle_slack = slack;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -282,6 +392,12 @@ impl DwgMergedWriter {
         self.main.write_cm_color(color);
     }
 
+    /// Write a retained raw CMC pair verbatim (TODO B1, 2026-10-01) —
+    /// see the bit writer's `write_cm_color_raw`.
+    pub fn write_cm_color_raw(&mut self, raw: &crate::document::DwgRawCmc) {
+        self.main.write_cm_color_raw(raw);
+    }
+
     pub fn write_cm_color_with_names(
         &mut self,
         color: &Color,
@@ -359,6 +475,15 @@ impl DwgMergedWriter {
         }
     }
 
+    /// Set the current record's pre-R2007 TV wire form (§19 H8h-ext-17):
+    /// the captured per-record trailing-NUL convention replayed from
+    /// `CadDocument::tv_plain_form_by_handle`. Only the main writer
+    /// serves pre-R2007 TVs (TwoStream); the R2007+ text writer's
+    /// UTF-16 path has no NUL convention.
+    pub fn set_tv_plain_form(&mut self, plain: bool) {
+        self.main.set_tv_plain_form(plain);
+    }
+
     /// Write one preserved opaque bit to the text stream.
     pub fn write_text_bit(&mut self, value: bool) {
         match self.mode {
@@ -384,6 +509,13 @@ impl DwgMergedWriter {
         self.handle.write_handle(ref_type, handle);
     }
 
+    /// Write a raw retained handle form to the handle stream (§19 H7
+    /// review): the reader's `read_handle_raw` mirror — the exact wire
+    /// `[code, size, value]` tuple re-emitted verbatim.
+    pub fn write_handle_form(&mut self, code: u8, size: u8, value: u64) {
+        self.handle.write_handle_form(code, size, value);
+    }
+
     /// Write a compact handle offset relative to the current object's handle.
     pub fn write_handle_relative(&mut self, reference_handle: u64, handle: u64) {
         self.handle.write_handle_relative(reference_handle, handle);
@@ -400,6 +532,25 @@ impl DwgMergedWriter {
     /// Write an undefined-type handle reference.
     pub fn write_handle_undefined(&mut self, handle: u64) {
         self.handle.write_handle_undefined(handle);
+    }
+
+    /// Write a record's first handle reference (the ownerhandle slot) in
+    /// the author's form — §19 H8d; see the bit writer's method.
+    pub fn write_first_ref_handle(&mut self, ref_type: DwgReferenceType, reference: u64, handle: u64) {
+        self.handle.write_first_ref_handle(ref_type, reference, handle);
+    }
+
+    /// Write captured raw bits into the handle stream at the current drain
+    /// position (§19 H8h-ext-8 node-region capture re-emission). The
+    /// packing mirrors `DwgMergedReader::peek_window_bytes`: bit i of the
+    /// window is byte `i / 8`'s bit `7 - i % 8`.
+    pub fn write_handle_bits(&mut self, bytes: &[u8], bit_len: u32) {
+        let bits = (bit_len as usize).min(bytes.len() * 8);
+        for index in 0..bits {
+            let byte = bytes[index / 8];
+            let bit = (byte >> (7 - index % 8)) & 1;
+            self.handle.write_bit(bit == 1);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -442,12 +593,41 @@ impl DwgMergedWriter {
             self.main.set_position_in_bits(main_size_bits);
         }
 
-        // Append handle stream
+        // Append handle stream. The handle buffer's own tail shift is an
+        // INTERMEDIATE pad (always zeros — verified identical; the
+        // buffer's bytes then merge bit-continuously into main).
         self.handle.write_spear_shift();
         self.handle_start_bits = self.main.position_in_bits();
         self.handle.flush();
+        if std::env::var_os("DWG_MERGE_TRACE").is_some() {
+            // §19 H8h diagnostics: the merged record's anatomy — the
+            // main size, the handle stream's bit start, and the
+            // handle bytes — for record-level autopsy.
+            eprintln!(
+                "[merge-trace] 2-stream main_bits={main_size_bits} handle_start_bits={} handle={:02X?}",
+                self.handle_start_bits,
+                self.handle.buffer(),
+            );
+        }
         self.main.write_bytes(self.handle.buffer());
-        self.main.write_spear_shift();
+        // §19 H8d: the record's final partial byte is the author's
+        // close pad (the intermediate pads stay zero — verified
+        // identical; the pad VALUE follows the document's captured
+        // convention — 1s for the AutoCAD genus, 0s for the ODA
+        // FileConverter genus, TODO A1 2026-10-01). §19 H8h-ext-17:
+        // the per-record EXACT pattern takes precedence — the
+        // arbitrary-leftover authors have no genus at all.
+        if !self
+            .close_pad_bits
+            .is_some_and(|(len, bits)| self.main.write_spear_shift_pattern(len, bits))
+        {
+            if self.close_pad_zeros {
+                self.main.write_spear_shift();
+            } else {
+                self.main.write_spear_shift_ones();
+            }
+        }
+        self.close_pad_bits = None;
 
         self.main.take_bytes()
     }
@@ -475,8 +655,50 @@ impl DwgMergedWriter {
     /// 4. If text not present: write `false` bit
     /// 5. Append the handle stream
     fn merge_three_stream(&mut self) -> Vec<u8> {
-        let main_size_bits = self.main.position_in_bits();
+        let mut main_size_bits = self.main.position_in_bits();
         let text_size_bits = self.text.position_in_bits();
+
+        // Authored underlap request (R2010+ LEADER genus): rewind the
+        // flag+handle region `bits` positions back into the main tail so
+        // the overlapped bits double-read. Value-preserving only when the
+        // main's last `bits` bits equal the region's own head bits there
+        // (flag=false ++ handle head); verify and fall back to sequential
+        // otherwise.
+        if let Some(bits) = self.underlap_bits {
+            let n = bits as usize;
+            let head = self.handle.first_written_bits(n - 1);
+            let tail = self.main.last_written_bits(n);
+            // The overlapped bits must equal [flag=false] ++ handle head;
+            // the leading false makes that comparison value-equal to the
+            // (n−1)-bit head itself.
+            let ok = text_size_bits == 0
+                && head.is_some()
+                && tail.is_some()
+                && tail == head;
+            if ok {
+                main_size_bits -= bits as i64;
+            } else {
+                self.underlap_bits = None;
+            }
+        }
+
+        // The handle-stream slack (the gh44-error LEADER census,
+        // 2026-10-04): the author's unparsed bit-group between the
+        // walked main tail and the text/flag region — replayed verbatim
+        // (the captured pattern, MSB-first: the first wire bit first),
+        // and ONLY when the writer's own main end matches the captured
+        // walk end — an under-reading walk (the reader stopping before a
+        // field the writer re-emits, e.g. the INSERT num_owned BL, the
+        // 184D/EAE8 regression class) must not have its un-walked field
+        // bits double-emitted as slack.
+        let mut slack_bits = 0i64;
+        let mut slack_pattern = None;
+        if let Some((walk_end, len, bits)) = self.handle_slack {
+            if main_size_bits == walk_end {
+                slack_bits = len as i64;
+                slack_pattern = Some((len, bits));
+            }
+        }
 
         // Pad main to byte boundary so text and flag writes don't
         // corrupt the last partial byte of entity data
@@ -485,8 +707,10 @@ impl DwgMergedWriter {
         if self.saved_position {
             let saved_pos = self.position_in_bits;
 
-            // RL = mainSizeBits + textSizeBits + 1 (flag bit) + flag_words.
-            let mut total_bits = main_size_bits + text_size_bits + 1;
+            // RL = mainSizeBits + slackBits + textSizeBits + 1 (flag bit)
+            // + flag_words. The slack is the author's unparsed bit-group
+            // before the text/flag region (the gh44-error LEADER census).
+            let mut total_bits = main_size_bits + slack_bits + text_size_bits + 1;
             if text_size_bits > 0 {
                 total_bits += 16;
                 if text_size_bits >= 0x8000 {
@@ -507,6 +731,15 @@ impl DwgMergedWriter {
         // text data is placed immediately after the meaningful main bits.
         self.main.set_position_in_bits(main_size_bits);
 
+        // The handle-stream slack replay (guarded above — the pattern
+        // is Some only when the writer's main end matches the captured
+        // walk end).
+        if let Some((len, bits)) = slack_pattern {
+            for i in (0..len).rev() {
+                self.main.write_bit((bits >> i) & 1 != 0);
+            }
+        }
+
         if text_size_bits > 0 {
             // Append text stream bytes (byte-aligned) after main data
             self.text.write_spear_shift();
@@ -517,12 +750,13 @@ impl DwgMergedWriter {
             // enough before we seek back to write flag words.
             self.main.write_spear_shift();
 
-            // The text data occupies bits [main_size_bits .. main_size_bits + text_size_bits).
-            // At the text boundary we write the text-size flag and the
+            // The text data occupies bits [main_size_bits + slack ..
+            // main_size_bits + slack + text_size_bits).  At the text
+            // boundary we write the text-size flag and the
             // text-present bit.  This overwrites the zero-padding bits
             // that resulted from flushing the text stream.
             self.main
-                .set_position_in_bits(main_size_bits + text_size_bits);
+                .set_position_in_bits(main_size_bits + slack_bits + text_size_bits);
             self.main.set_position_by_flag(text_size_bits);
             self.main.write_bit(true); // text present
         } else {
@@ -535,11 +769,31 @@ impl DwgMergedWriter {
 
         // Append handle bytes.
         self.handle.flush();
+        if std::env::var_os("DWG_MERGE_TRACE").is_some() {
+            // §19 H8h diagnostics: the merged record's anatomy — the
+            // main/text sizes, the handle stream's bit start, and the
+            // handle bytes — for record-level autopsy.
+            eprintln!(
+                "[merge-trace] 3-stream main_bits={main_size_bits} text_bits={text_size_bits} handle_start_bits={} handle={:02X?}",
+                self.handle_start_bits,
+                self.handle.buffer(),
+            );
+        }
         self.main.write_bytes(self.handle.buffer());
 
-        // Final byte-alignment for CRC computation.
-        self.main.write_spear_shift();
+        // Final byte-alignment for CRC computation — the author's
+        // close pad (§19 H8d: the record's final partial byte is main's
+        // closing shift; the intermediate pads stay zero; the pad VALUE
+        // follows the document's captured convention — 1s for the
+        // AutoCAD genus, 0s for the ODA FileConverter genus, TODO A1
+        // 2026-10-01).
+        if self.close_pad_zeros {
+            self.main.write_spear_shift();
+        } else {
+            self.main.write_spear_shift_ones();
+        }
 
+        self.handle_slack = None;
         self.main.take_bytes()
     }
 

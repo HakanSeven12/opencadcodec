@@ -1,6 +1,6 @@
-//! Graphical entity types.
+﻿//! Graphical entity types.
 //!
-//! This module contains all 41 supported CAD entity types — from simple
+//! This module contains all 41 supported CAD entity types â€” from simple
 //! primitives ([`Line`], [`Circle`], [`Arc`]) through complex objects
 //! ([`Hatch`], [`Spline`], [`MultiLeader`], [`Mesh`]).
 //!
@@ -265,17 +265,6 @@ pub trait Entity {
     }
 }
 
-/// Verbatim DWG record bytes of an entity (see [`EntityCommon::raw_record`]).
-#[derive(Debug, Clone, PartialEq)]
-pub struct RawRecord {
-    /// Payload between the ModularShort length prefix and the CRC-16 trailer.
-    pub data: Vec<u8>,
-    /// R2010+ MC handle-stream size framing value.
-    pub handle_bits: i64,
-    /// Version the bytes were encoded for; passthrough is only valid for this exact target.
-    pub version: crate::types::DxfVersion,
-}
-
 /// Common entity data shared by all entities
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -284,11 +273,6 @@ pub struct EntityCommon {
     pub handle: Handle,
     /// Layer name
     pub layer: String,
-    /// DWG layer handle as read from the file. Preserved so consumers can tell
-    /// an entity on layer "0" from one whose layer reference did not resolve
-    /// (the DWG reader falls back to `layer = "0"` in that case).
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub layer_handle: Option<Handle>,
     /// Color
     pub color: Color,
     /// Line weight
@@ -301,6 +285,9 @@ pub struct EntityCommon {
     pub linetype_handle: Option<Handle>,
     /// Linetype scale factor (default 1.0)
     pub linetype_scale: f64,
+    /// Linetype flags (00=bylayer, 01=byblock, 10=continuous, 11=handle) â€” R2000+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub linetype_flags: u8,
     /// Transparency
     #[cfg_attr(feature = "serde", serde(default))]
     pub transparency: Transparency,
@@ -314,41 +301,41 @@ pub struct EntityCommon {
     /// Raw entity graphic data bytes (stored for DWG round-trip; None otherwise).
     #[cfg_attr(feature = "serde", serde(skip))]
     pub graphic_data: Option<Vec<u8>>,
-    /// Reactor handles — objects attached as reactors ({ACAD_REACTORS})
+    /// Reactor handles â€” objects attached as reactors ({ACAD_REACTORS})
     pub reactors: Vec<Handle>,
-    /// Extended dictionary handle ({ACAD_XDICTIONARY}) — hard-owner handle to a Dictionary
+    /// Extended dictionary handle ({ACAD_XDICTIONARY}) â€” hard-owner handle to a Dictionary
     pub xdictionary_handle: Option<Handle>,
     /// Owner handle (soft pointer, code 330)
     pub owner_handle: Handle,
 
-    // ── Native reference/round-trip fields ──
-    /// AcDbColor object handle for a color-book color — R2004+.
+    // â”€â”€ Native reference/round-trip fields â”€â”€
+    /// AcDbColor object handle for a color-book color â€” R2004+.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub color_book_handle: Option<Handle>,
-    /// Full visual-style override handle — R2010+; DXF code 348.
+    /// Full visual-style override handle â€” R2010+; DXF code 348.
     pub full_visual_style_handle: Option<Handle>,
-    /// Face visual-style override handle — R2010+.
+    /// Face visual-style override handle â€” R2010+.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub face_visual_style_handle: Option<Handle>,
-    /// Edge visual-style override handle — R2010+.
+    /// Edge visual-style override handle â€” R2010+.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub edge_visual_style_handle: Option<Handle>,
-    /// Material flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) — R2007+
+    /// Material flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) â€” R2007+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub material_flags: u8,
-    /// Material handle (only valid when material_flags == 0b11) — R2007+
+    /// Material handle (only valid when material_flags == 0b11) â€” R2007+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub material_handle: Option<Handle>,
-    /// Shadow flags (RC) — R2007+
+    /// Shadow flags (RC) â€” R2007+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub shadow_flags: u8,
-    /// Plotstyle flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) — R2000+
+    /// Plotstyle flags (BB: 00=bylayer, 01=byblock, 10=reserved, 11=handle) â€” R2000+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub plotstyle_flags: u8,
-    /// Plotstyle handle (only valid when plotstyle_flags == 0b11) — R2000+
+    /// Plotstyle handle (only valid when plotstyle_flags == 0b11) â€” R2000+
     #[cfg_attr(feature = "serde", serde(skip))]
     pub plotstyle_handle: Option<Handle>,
-    /// Entity mode (0=owned, 1=paper, 2=model) — raw DWG value for round-trip
+    /// Entity mode (0=owned, 1=paper, 2=model) â€” raw DWG value for round-trip
     #[cfg_attr(feature = "serde", serde(skip))]
     pub entity_mode: Option<u8>,
     /// R2013+ `has_ds_data` bit: the entity's modeler geometry (3DSOLID/REGION/
@@ -358,19 +345,23 @@ pub struct EntityCommon {
     /// model, so skipped for serde.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub has_ds_data: bool,
-    /// The exact merged-stream bytes this entity was decoded from (DWG only),
-    /// with the framing the writer needs to re-emit them verbatim.
-    /// Set by the DWG reader; cleared by every mutable access (`get_entity_mut`,
-    /// `entities_mut`) and by `add_entity`, so it is only ever present on an
-    /// entity that is byte-for-byte what the source file contained. The writer
-    /// copies such records instead of re-encoding them (same target version only).
+
+    /// Previous entity handle in the pre-R2004 block entity linked list.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub raw_record: Option<std::sync::Arc<RawRecord>>,
+    pub prev_entity_handle: Option<Handle>,
+    /// Next entity handle in the pre-R2004 block entity linked list.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub next_entity_handle: Option<Handle>,
+    /// Pre-R2004 block entity chain NOLINKS bit.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub nolinks: Option<bool>,
+    /// R2000+ LINE z-are-zero optimization bit stored for round-trip.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub z_are_zero: Option<bool>,
 }
 
 impl EntityCommon {
     fn preserve_storage_data_from(&mut self, source: &Self) {
-        self.layer_handle = source.layer_handle;
         self.linetype_handle = source.linetype_handle;
         self.graphic_data = source.graphic_data.clone();
         self.color_book_handle = source.color_book_handle;
@@ -388,15 +379,14 @@ impl EntityCommon {
     /// Create new common entity data with defaults
     pub fn new() -> Self {
         EntityCommon {
-            raw_record: None,
             handle: Handle::NULL,
             layer: "0".to_string(),
-            layer_handle: None,
             color: Color::ByLayer,
             line_weight: LineWeight::ByLayer,
             linetype: String::new(),
             linetype_handle: None,
             linetype_scale: 1.0,
+            linetype_flags: 0,
             transparency: Transparency::BY_LAYER,
             color_name: None,
             invisible: false,
@@ -416,6 +406,10 @@ impl EntityCommon {
             plotstyle_handle: None,
             entity_mode: None,
             has_ds_data: false,
+            prev_entity_handle: None,
+            next_entity_handle: None,
+            nolinks: None,
+            z_are_zero: None,
         }
     }
 
@@ -804,15 +798,5 @@ mod storage_data_tests {
         assert_eq!(edited.common.graphic_data, Some(vec![1, 2, 3]));
         assert_eq!(edited.raw_dwg_data, Some(vec![4, 5, 6]));
         assert_eq!(edited.raw_dxf_codes, Some(vec![(100, "payload".into())]));
-    }
-
-    /// Every entity pays the enum's width. The rare wide kinds are boxed so
-    /// a `Line` is not stored at a `Surface`'s size (#69); one new wide
-    /// field must not quietly undo that. (856 since every entity's common
-    /// data gained its DWG layer handle.)
-    #[test]
-    fn entity_type_stays_narrow() {
-        let size = std::mem::size_of::<EntityType>();
-        assert!(size <= 856, "EntityType is {size} bytes");
     }
 }

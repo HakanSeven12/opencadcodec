@@ -70,6 +70,13 @@ pub struct LwPolyline {
     pub thickness: f64,
     /// Normal vector
     pub normal: Vector3,
+    /// Raw wire flag (dwg.spec LWPOLYLINE BSx 90: 4 constwidth, 8 elevation,
+    /// 2 thickness, 1 extrusion, 16/32 bulge/width counts, 256 plinegen,
+    /// 512 closed, 1024 vertexidcount) retained from the read; the flag
+    /// recomposition loses presence bits, so gold prints this one. Echoed
+    /// for fidelity comparisons; 0 on constructed documents.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_raw_flag: u16,
 }
 
 impl LwPolyline {
@@ -78,6 +85,7 @@ impl LwPolyline {
         LwPolyline {
             common: EntityCommon::new(),
             vertices: Vec::new(),
+            dwg_raw_flag: 0,
             is_closed: false,
             plinegen: false,
             constant_width: 0.0,

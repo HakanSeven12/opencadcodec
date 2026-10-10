@@ -1,4 +1,4 @@
-use std::io::Cursor;
+﻿use std::io::Cursor;
 
 use opencadcodec::entities::acis::{primitives, SatCoedge, SatDocument, SatPlaneSurface};
 use opencadcodec::entities::*;

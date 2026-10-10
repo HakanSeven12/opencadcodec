@@ -8,7 +8,6 @@ mod text_reader;
 pub use binary_reader::DxfBinaryReader;
 pub use stream_reader::DxfStreamReader;
 pub use text_reader::DxfTextReader;
-use stream_reader::XDataRecorder;
 
 use section_reader::SectionReader;
 
@@ -56,9 +55,6 @@ pub struct DxfReader {
     config: DxfReaderConfiguration,
     /// Estimated entity count based on stream size (used for pre-allocation).
     estimated_entities: usize,
-    /// Source path, when opened from a file — copied onto the document so the
-    /// `Filename` / `Filesize` / date fields can resolve.
-    source_path: Option<String>,
 }
 
 impl DxfReader {
@@ -76,24 +72,22 @@ impl DxfReader {
 
         // Create appropriate reader
         let reader: Box<dyn DxfStreamReader> = if is_binary {
-            Box::new(XDataRecorder::new(Box::new(DxfBinaryReader::new(buf_reader)?)))
+            Box::new(DxfBinaryReader::new(buf_reader)?)
         } else {
             // Seek back to start for text DXF files
             buf_reader.seek(std::io::SeekFrom::Start(0))?;
-            Box::new(XDataRecorder::new(Box::new(DxfTextReader::new(buf_reader)?)))
+            Box::new(DxfTextReader::new(buf_reader)?)
         };
 
         Ok(Self {
             reader,
             config: DxfReaderConfiguration::default(),
             estimated_entities,
-            source_path: None,
         })
     }
 
     /// Create a new DXF reader from a file path
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let source_path = Some(path.as_ref().to_string_lossy().into_owned());
         let file = File::open(path)?;
         let mut buf_reader = BufReader::with_capacity(64 * 1024, file);
 
@@ -107,18 +101,17 @@ impl DxfReader {
 
         // Create appropriate reader
         let reader: Box<dyn DxfStreamReader> = if is_binary {
-            Box::new(XDataRecorder::new(Box::new(DxfBinaryReader::new(buf_reader)?)))
+            Box::new(DxfBinaryReader::new(buf_reader)?)
         } else {
             // Seek back to start for text DXF files
             buf_reader.seek(std::io::SeekFrom::Start(0))?;
-            Box::new(XDataRecorder::new(Box::new(DxfTextReader::new(buf_reader)?)))
+            Box::new(DxfTextReader::new(buf_reader)?)
         };
 
         Ok(Self {
             reader,
             config: DxfReaderConfiguration::default(),
             estimated_entities,
-            source_path,
         })
     }
 
@@ -367,8 +360,6 @@ impl DxfReader {
         // (R12 STYLE entries) only receive their handles there, so running this
         // earlier would resolve every reference to a null handle.
         rewire_stale_text_style_references(&mut document);
-        rewire_dangling_layout_block_records(&mut document);
-        document.ensure_model_layout();
 
         // Pre-R2004 (R2000/R14) down-saved gradient hatches keep their gradient
         // in the ACAD round-trip metadata (GradientColor1/2ACI EED + an
@@ -396,9 +387,6 @@ impl DxfReader {
             stream_completed,
             diagnostics,
         );
-        document.source_path = self.source_path.take();
-        crate::objects::restore_visual_style_roundtrip(&mut document);
-        crate::objects::restore_table_style_roundtrip(&mut document);
         Ok(crate::io::read::ReadOutcome::new(document, stats))
     }
 
@@ -720,110 +708,54 @@ fn rehandle_colliding_default_entries(
         apply!("vx_table", document.vx_table);
         apply!("block_records", document.block_records);
 
-        // Header references that still point at the moved default follow,
-        // but only those selecting an entry of the moved one's table: a
-        // default APPID sharing the file's `*Model_Space` handle must not
-        // drag the model-space header reference along (#64).
+        // Header references that still point at the moved default follow.
         let header = &mut document.header;
-        macro_rules! follow {
-            ($field:ident, $t:literal) => {
-                if tag == $t && header.$field.value() == old {
-                    header.$field = new;
-                }
-            };
+        if header.current_layer_handle.value() == old {
+            header.current_layer_handle = new;
         }
-        follow!(current_layer_handle, "layers");
-        follow!(continuous_linetype_handle, "line_types");
-        follow!(bylayer_linetype_handle, "line_types");
-        follow!(current_linetype_handle, "line_types");
-        follow!(byblock_linetype_handle, "line_types");
-        follow!(current_text_style_handle, "text_styles");
-        follow!(dim_text_style_handle, "text_styles");
-        follow!(current_dimstyle_handle, "dim_styles");
-        follow!(model_space_block_handle, "block_records");
-        follow!(paper_space_block_handle, "block_records");
-        follow!(dim_linetype_handle, "line_types");
-        follow!(dim_linetype1_handle, "line_types");
-        follow!(dim_linetype2_handle, "line_types");
+        if header.continuous_linetype_handle.value() == old {
+            header.continuous_linetype_handle = new;
+        }
+        if header.bylayer_linetype_handle.value() == old {
+            header.bylayer_linetype_handle = new;
+        }
+        if header.current_linetype_handle.value() == old {
+            header.current_linetype_handle = new;
+        }
+        if header.byblock_linetype_handle.value() == old {
+            header.byblock_linetype_handle = new;
+        }
+        if header.current_text_style_handle.value() == old {
+            header.current_text_style_handle = new;
+        }
+        if header.dim_text_style_handle.value() == old {
+            header.dim_text_style_handle = new;
+        }
+        if header.current_dimstyle_handle.value() == old {
+            header.current_dimstyle_handle = new;
+        }
+        if header.model_space_block_handle.value() == old {
+            header.model_space_block_handle = new;
+        }
+        if header.paper_space_block_handle.value() == old {
+            header.paper_space_block_handle = new;
+        }
+        if header.dim_linetype_handle.value() == old {
+            header.dim_linetype_handle = new;
+        }
+        if header.dim_linetype1_handle.value() == old {
+            header.dim_linetype1_handle = new;
+        }
+        if header.dim_linetype2_handle.value() == old {
+            header.dim_linetype2_handle = new;
+        }
 
         // Default entries cross-referencing the moved one (the Standard
         // dimstyle points at the Standard text style).
-        if tag == "text_styles" {
-            for ds in document.dim_styles.iter_mut() {
-                if ds.dimtxsty_handle.value() == old {
-                    ds.dimtxsty_handle = new;
-                }
+        for ds in document.dim_styles.iter_mut() {
+            if ds.dimtxsty_handle.value() == old {
+                ds.dimtxsty_handle = new;
             }
-        }
-    }
-}
-
-/// Re-point LAYOUT objects whose block-record reference resolves to nothing.
-///
-/// Some exporters (QGIS) write the LAYOUT objects of a template with that
-/// template's handles while the BLOCK_RECORD table carries fresh ones, so the
-/// Model layout names a record that does not exist and model space reads as
-/// empty. Model goes back to `*Model_Space`; paper layouts, in tab order, take
-/// the `*Paper_Space*` records no valid layout already owns.
-fn rewire_dangling_layout_block_records(document: &mut CadDocument) {
-    use crate::objects::ObjectType;
-
-    let records: HashMap<u64, String> = document
-        .block_records
-        .iter()
-        .map(|record| (record.handle.value(), record.name.to_ascii_lowercase()))
-        .collect();
-    let mut dangling = Vec::new();
-    let mut owned = std::collections::HashSet::new();
-    for (handle, object) in &document.objects {
-        if let ObjectType::Layout(layout) = object {
-            if records.contains_key(&layout.block_record.value()) {
-                owned.insert(layout.block_record.value());
-            } else {
-                dangling.push((layout.tab_order, *handle, layout.name.eq_ignore_ascii_case("Model")));
-            }
-        }
-    }
-    if dangling.is_empty() {
-        return;
-    }
-    dangling.sort();
-
-    // `*Paper_Space` first, then `*Paper_Space0`, `*Paper_Space1`, ...
-    let mut free_paper: Vec<(Option<u64>, u64)> = records
-        .iter()
-        .filter(|(handle, _)| !owned.contains(*handle))
-        .filter_map(|(handle, name)| {
-            let suffix = name.strip_prefix("*paper_space")?;
-            let order = if suffix.is_empty() { None } else { Some(suffix.parse().ok()?) };
-            Some((order, *handle))
-        })
-        .collect();
-    free_paper.sort();
-    let mut free_paper = free_paper.into_iter().map(|(_, handle)| handle);
-    let model = document.header.model_space_block_handle.value();
-
-    for (_, layout_handle, is_model) in dangling {
-        let target = if is_model && records.contains_key(&model) && !owned.contains(&model) {
-            model
-        } else if is_model {
-            continue;
-        } else {
-            let Some(handle) = free_paper.next() else {
-                continue;
-            };
-            handle
-        };
-        owned.insert(target);
-        if let Some(ObjectType::Layout(layout)) = document.objects.get_mut(&layout_handle) {
-            layout.block_record = Handle::new(target);
-        }
-        if let Some(record) = document
-            .block_records
-            .iter_mut()
-            .find(|record| record.handle.value() == target)
-        {
-            record.layout = layout_handle;
         }
     }
 }

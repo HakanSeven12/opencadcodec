@@ -1,4 +1,4 @@
-//! A layer's description survives a round-trip.
+﻿//! A layer's description survives a round-trip.
 //!
 //! The format keeps it in the layer's extended data under the
 //! `AcAecLayerStandard` application, as two strings of which the second is the

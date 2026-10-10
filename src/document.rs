@@ -1,7 +1,7 @@
 //! Central CAD document structure.
 //!
 //! [`CadDocument`] is the top-level container that holds everything in a
-//! drawing: header variables, tables (layers, line types, text styles, …),
+//! drawing: header variables, tables (layers, line types, text styles, ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦),
 //! entities, non-graphical objects, block definitions, and classes.
 //!
 //! # Creating a document
@@ -22,8 +22,7 @@ use crate::entities::{EntityCommon, EntityType};
 use crate::objects::{
     BlockEvaluationEdge, BlockEvaluationGraph, BlockEvaluationNode, DataObjectData,
     DynamicBlockData, DynamicBlockObject, MaterialColor, MaterialTexture, ObjectType,
-    SolidHistory, SolidHistoryBoolean, SolidHistoryNodeBase, SolidHistoryOperation,
-    SolidHistoryTree, XRecordEntry,
+    SolidHistory, SolidHistoryBoolean, SolidHistoryNodeBase, SolidHistoryOperation, SolidHistoryTree, XRecordEntry,
 };
 use crate::tables::*;
 use crate::types::{Color, DxfVersion, Handle, Vector2, Vector3};
@@ -138,10 +137,11 @@ thread_local! {
 pub struct SolidHistoryGraph {
     pub root: Handle,
     pub nodes: Vec<Handle>,
-    /// The root's evaluation graph (AcDbEvalGraph), which links the nodes.
-    /// Histories written by older releases of this crate have none and link
-    /// their nodes through parent ids.
-    #[cfg_attr(feature = "serde", serde(default))]
+    /// The ACAD_EVALUATION_GRAPH object interposed between the history
+    /// root and its nodes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the authored genus (payload owner -> graph,
+    /// never the solid). `None` only for trees written by older releases
+    /// of this crate, which `ensure_solid_history_evaluation_graph`
+    /// upgrades before any append.
     pub evaluation_graph: Option<Handle>,
 }
 
@@ -150,7 +150,11 @@ pub struct SolidHistoryGraph {
 const SOLID_HISTORY_NODE_FLAGS: i32 = 32;
 
 fn solid_history_node_id(base: &SolidHistoryNodeBase) -> i32 {
-    base.node_id()
+    if base.eval.node_id > 0 {
+        base.eval.node_id
+    } else {
+        base.step_id
+    }
 }
 
 /// DWG header variables containing drawing settings
@@ -701,17 +705,15 @@ pub struct HeaderVariables {
     pub continuous_linetype_handle: Handle,
 
     // ==================== Date/Time ====================
-    /// TDCREATE: creation time in local time (Julian day, fraction from
-    /// midnight). DWG files store only the universal time; their reader
-    /// copies it here because the file carries no time zone.
+    /// Document creation time (Julian date)
     pub create_date_julian: f64,
-    /// TDUPDATE: last save in local time (Julian day, fraction from midnight).
-    pub update_date_julian: f64,
-    /// TDUCREATE: creation time in universal time — the value DWG files store.
+    /// TDUCREATE: creation time in universal time - the value DWG files store.
     /// 0 = unknown; writers then fall back to the local value.
     pub universal_create_date_julian: f64,
     /// TDUUPDATE: last save in universal time; 0 = unknown.
     pub universal_update_date_julian: f64,
+    /// Document update time (Julian date)
+    pub update_date_julian: f64,
     /// Total editing time in days
     pub total_editing_time: f64,
     /// User elapsed time in days
@@ -775,6 +777,7 @@ impl HeaderVariables {
         }
     }
 }
+
 
 impl Default for HeaderVariables {
     fn default() -> Self {
@@ -846,9 +849,7 @@ impl Default for HeaderVariables {
             // headers (R2000) don't carry the variable at all, so the default
             // must match what AutoCAD shows for them.
             xclip_frame: 2,
-            // New drawings show DWF frames without plotting them and hide
-            // DGN frames.
-            dwf_frame: 2,
+            dwf_frame: 0,
             dgn_frame: 0,
             halo_gap: 0,
             obscured_color: 257,
@@ -1101,17 +1102,828 @@ impl Default for HeaderVariables {
     }
 }
 
+
+/// A wire handle reference exactly as gold's JSON prints it:
+/// `[code, size, value, absolute]`. Retained verbatim by the header reader
+/// (Ãƒâ€šÃ‚Â§19 H3); `value` is the on-wire payload and `absolute` the resolved
+/// handle, which are identical for the absolute handle codes (ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 5) the
+/// header section uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DwgRawHandle {
+    /// The 4-bit handle code from the reference form byte.
+    pub code: u8,
+    /// The counter size from the reference form byte.
+    pub size: u8,
+    /// The raw on-wire payload (big-endian handle bytes).
+    pub value: u64,
+    /// The resolved absolute handle.
+    pub absolute: u64,
+}
+
+impl From<(u8, u8, u64, u64)> for DwgRawHandle {
+    fn from(t: (u8, u8, u64, u64)) -> Self {
+        DwgRawHandle { code: t.0, size: t.1, value: t.2, absolute: t.3 }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for DwgRawHandle {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeTuple;
+        let mut tup = serializer.serialize_tuple(4)?;
+        tup.serialize_element(&self.code)?;
+        tup.serialize_element(&self.size)?;
+        tup.serialize_element(&self.value)?;
+        tup.serialize_element(&self.absolute)?;
+        tup.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for DwgRawHandle {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let (code, size, value, absolute): (u8, u8, u64, u64) =
+            serde::Deserialize::deserialize(deserializer)?;
+        Ok(DwgRawHandle { code, size, value, absolute })
+    }
+}
+
+/// A CmColor in gold's **post-decode state** (Ãƒâ€šÃ‚Â§19 H3), mirroring libredwg
+/// `bit_read_CMC` exactly.
+///
+/// On R2004+ the reader retains the raw `rgb` word (method nibble in byte
+/// 3, RGB in bytes 0-2 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â already method-validated: an out-of-range nibble
+/// is forced to `0xC2` with the low 24 bits kept) and the flag byte
+/// (already validated: a flag ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ 4 is zeroed and the name/book-name
+/// strings are not read at all). `index` is the wire BS (informational on
+/// R2004+ ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's decode overwrites it with a palette lookup of `rgb`,
+/// which the harness projection reproduces; on pre-R2004 it is the only
+/// field and gold prints it as the unsigned 16-bit value). The gold
+/// harness projects this into gold's JSON shape: a plain index on
+/// pre-R2004, the `{index?, rgb, flag?, name?, book_name?}` dict on
+/// R2004+ with the index palette-derived exactly as gold's decoder and
+/// emitter compute it.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgRawCmc {
+    /// The color index as read from the wire (unsigned 16-bit).
+    pub index: i64,
+    /// The raw color word: method nibble in byte 3, RGB in bytes 0-2
+    /// (post method-validation).
+    pub rgb: u32,
+    /// The flag byte (post validation: 0..=3, or 0 for an invalid wire
+    /// flag ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the name/book-name bits are meaningful only when set).
+    pub flag: i64,
+    /// Optional color name (wire flag bit 0, read only behind a valid
+    /// flag).
+        pub name: Option<String>,
+    /// Optional color book name (wire flag bit 1, read only behind a
+    /// valid flag).
+        pub book_name: Option<String>,
+}
+
+impl DwgRawCmc {
+    /// Collapse an R2004+ raw color into the public [`Color`] model exactly
+    /// as the bit reader does.
+    pub fn to_color(&self) -> Color {
+        let bytes = self.rgb.to_le_bytes();
+        if self.rgb == 0xC000_0000 {
+            Color::ByLayer
+        } else if self.rgb == 0xC800_0000 {
+            Color::None
+        } else if (self.rgb & 0x0100_0000) != 0 {
+            Color::from_index(bytes[0] as i16)
+        } else {
+            Color::from_rgb(bytes[2], bytes[1], bytes[0])
+        }
+    }
+
+    /// Collapse a pre-R2004 raw index into the public [`Color`] model.
+    pub fn index_color(&self) -> Color {
+        Color::from_index(self.index as i16)
+    }
+}
+
+/// The authored entity-color (ENC) wire form, retained verbatim at read ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+/// the raw-retention twin of the collapsed `Color` + `Transparency` pair
+/// (Ãƒâ€šÃ‚Â§19 H8h-ext-17, the B1 LIGHT raw-CMC precedent). The R2004+ ENC
+/// flags/index BS carries an ACI index slot alongside the true-color flag
+/// that the collapsed model cannot reproduce: HatchG's authored records
+/// carry slot 112 where the nearest-ACI derivation reads 110 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the slot
+/// is author data, not a derivable convention. The writer replays the
+/// captured words whenever they still decode to the entity's current
+/// color (the A1 same-target gate).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DwgRawEnc {
+    /// The raw flags/index BS word as read (`color.raw` in gold's trace:
+    /// e.g. `0x8070` = true-color flag + ACI slot 112).
+    pub size: u16,
+    /// The true-color BL as read, present when the 0x8000 flag is set.
+    pub rgb: Option<u32>,
+    /// The transparency BL as read, present when the 0x2000 flag is set.
+    pub transparency: Option<i32>,
+    /// The pair the raw words decode to (the replay gate compares these
+    /// against the entity's current values ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â an edited color falls back
+    /// to the modeled emission).
+    pub decoded_color: Color,
+    pub decoded_transparency: crate::types::Transparency,
+}
+
+/// Gold-JSON mirror of the DWG `AcDb:Header` variables (Ãƒâ€šÃ‚Â§19 H3 read row).
+///
+/// One field per key of gold's `HEADER` JSON output, named after gold's
+/// spelling (`serde` renames carry the ALLCAPS spec names), shaped as gold
+/// prints it: handles as [`DwgRawHandle`] 4-tuples, points as `[f64; 3]`,
+/// limits as `[f64; 2]`, TIMEBLL values as `[days, ms]` pairs, colors as
+/// [`DwgRawCmc`] raw parts. Every field is `Option` and populated exactly
+/// where the reader walks the corresponding wire slot per file version, so
+/// the serialized dict is version-gated by construction; `None` fields are
+/// skipped. The gold harness projects this dict key-for-key against gold's
+/// `HEADER` section (the CMC parts get gold's emitter shape there).
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgHeaderRaw {
+    /// The file's version code (e.g. "AC1032"); consumed by the harness
+    /// projection (pre-R2004 CMC prints) and not part of gold's HEADER.
+    #[cfg_attr(feature = "serde", serde(rename = "__version"))]
+    pub version: String,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Header prefix ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "REQUIREDVERSIONS"))]
+    pub required_versions: Option<i64>,
+        pub unit1_ratio: Option<f64>,
+        pub unit2_ratio: Option<f64>,
+        pub unit3_ratio: Option<f64>,
+        pub unit4_ratio: Option<f64>,
+        pub unit1_name: Option<String>,
+        pub unit2_name: Option<String>,
+        pub unit3_name: Option<String>,
+        pub unit4_name: Option<String>,
+        pub unknown_8: Option<i64>,
+        pub unknown_9: Option<i64>,
+        pub unknown_10: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "VX_TABLE_RECORD"))]
+    pub vx_table_record: Option<DwgRawHandle>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Drawing mode bits ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "DIMASO"))]
+    pub dimaso: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSHO"))]
+    pub dimsho: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSAV"))]
+    pub dimsav: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PLINEGEN"))]
+    pub plinegen: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ORTHOMODE"))]
+    pub orthomode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "REGENMODE"))]
+    pub regenmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "FILLMODE"))]
+    pub fillmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "QTEXTMODE"))]
+    pub qtextmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PSLTSCALE"))]
+    pub psltscale: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LIMCHECK"))]
+    pub limcheck: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "BLIPMODE"))]
+    pub blipmode: Option<i64>,
+        pub unknown_11: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USRTIMER"))]
+    pub usrtimer: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SKPOLY"))]
+    pub skpoly: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ANGDIR"))]
+    pub angdir: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SPLFRAME"))]
+    pub splframe: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ATTREQ"))]
+    pub attreq: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ATTDIA"))]
+    pub attdia: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "MIRRTEXT"))]
+    pub mirrtext: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "WORLDVIEW"))]
+    pub worldview: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "WIREFRAME"))]
+    pub wireframe: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TILEMODE"))]
+    pub tilemode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PLIMCHECK"))]
+    pub plimcheck: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "VISRETAIN"))]
+    pub visretain: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DELOBJ"))]
+    pub delobj: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DISPSILH"))]
+    pub dispsilh: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PELLIPSE"))]
+    pub pellipse: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PROXYGRAPHICS"))]
+    pub proxygraphics: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DRAGMODE"))]
+    pub dragmode: Option<i64>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Unit settings ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "TREEDEPTH"))]
+    pub treedepth: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LUNITS"))]
+    pub lunits: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LUPREC"))]
+    pub luprec: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "AUNITS"))]
+    pub aunits: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "AUPREC"))]
+    pub auprec: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ATTMODE"))]
+    pub attmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "OSMODE"))]
+    pub osmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PDMODE"))]
+    pub pdmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "COORDS"))]
+    pub coords: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PICKSTYLE"))]
+    pub pickstyle: Option<i64>,
+        pub unknown_12: Option<i64>,
+        pub unknown_13: Option<i64>,
+        pub unknown_14: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERI1"))]
+    pub useri1: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERI2"))]
+    pub useri2: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERI3"))]
+    pub useri3: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERI4"))]
+    pub useri4: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERI5"))]
+    pub useri5: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SPLINESEGS"))]
+    pub splinesegs: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SURFU"))]
+    pub surfu: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SURFV"))]
+    pub surfv: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SURFTYPE"))]
+    pub surftype: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SURFTAB1"))]
+    pub surftab1: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SURFTAB2"))]
+    pub surftab2: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SPLINETYPE"))]
+    pub splinetype: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SHADEDGE"))]
+    pub shadeedge: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SHADEDIF"))]
+    pub shadedif: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "UNITMODE"))]
+    pub unitmode: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "MAXACTVP"))]
+    pub maxactvp: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ISOLINES"))]
+    pub isolines: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CMLJUST"))]
+    pub cmljust: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TEXTQLTY"))]
+    pub textqlty: Option<i64>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Scale/size defaults ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "LTSCALE"))]
+    pub ltscale: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TEXTSIZE"))]
+    pub textsize: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TRACEWID"))]
+    pub tracewid: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SKETCHINC"))]
+    pub sketchinc: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "FILLETRAD"))]
+    pub filletrad: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "THICKNESS"))]
+    pub thickness: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "ANGBASE"))]
+    pub angbase: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PDSIZE"))]
+    pub pdsize: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PLINEWID"))]
+    pub plinewid: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERR1"))]
+    pub userr1: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERR2"))]
+    pub userr2: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERR3"))]
+    pub userr3: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERR4"))]
+    pub userr4: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "USERR5"))]
+    pub userr5: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CHAMFERA"))]
+    pub chamfera: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CHAMFERB"))]
+    pub chamferb: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CHAMFERC"))]
+    pub chamferc: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CHAMFERD"))]
+    pub chamferd: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "FACETRES"))]
+    pub facetres: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CMLSCALE"))]
+    pub cmlscale: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CELTSCALE"))]
+    pub celtscale: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "MENU"))]
+    pub menu: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "TDUCREATE"))]
+    pub tducreate: Option<[i64; 2]>,
+    #[cfg_attr(feature = "serde", serde(rename = "TDUUPDATE"))]
+    pub tduupdate: Option<[i64; 2]>,
+        pub unknown_15: Option<i64>,
+        pub unknown_16: Option<i64>,
+        pub unknown_17: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TDINDWG"))]
+    pub tdindwg: Option<[i64; 2]>,
+    #[cfg_attr(feature = "serde", serde(rename = "TDUSRTIMER"))]
+    pub tdusrtimer: Option<[i64; 2]>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Current-object handles + colors ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "CECOLOR"))]
+    pub cecolor: Option<DwgRawCmc>,
+    #[cfg_attr(feature = "serde", serde(rename = "HANDSEED"))]
+    pub handseed: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "CLAYER"))]
+    pub clayer: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "TEXTSTYLE"))]
+    pub textstyle: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "CELTYPE"))]
+    pub celtype: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "CMATERIAL"))]
+    pub cmaterial: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSTYLE"))]
+    pub dimstyle: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "CMLSTYLE"))]
+    pub cmlstyle: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "PSVPSCALE"))]
+    pub psvpscale: Option<f64>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Paper-space extents/limits/UCS ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "PINSBASE"))]
+    pub pinsbase: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PEXTMIN"))]
+    pub pextmin: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PEXTMAX"))]
+    pub pextmax: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PLIMMIN"))]
+    pub plimmin: Option<[f64; 2]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PLIMMAX"))]
+    pub plimmax: Option<[f64; 2]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PELEVATION"))]
+    pub pelevation: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORG"))]
+    pub pucsorg: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSXDIR"))]
+    pub pucsxdir: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSYDIR"))]
+    pub pucsydir: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSNAME"))]
+    pub pucsname: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORTHOREF"))]
+    pub pucsorthoref: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORTHOVIEW"))]
+    pub pucsorthoview: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSBASE"))]
+    pub pucsbase: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORGTOP"))]
+    pub pucsorgtop: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORGBOTTOM"))]
+    pub pucsorgbottom: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORGLEFT"))]
+    pub pucsorgleft: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORGRIGHT"))]
+    pub pucsorgright: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORGFRONT"))]
+    pub pucsorgfront: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "PUCSORGBACK"))]
+    pub pucsorgback: Option<[f64; 3]>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Model-space extents/limits/UCS ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "INSBASE"))]
+    pub insbase: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "EXTMIN"))]
+    pub extmin: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "EXTMAX"))]
+    pub extmax: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "LIMMIN"))]
+    pub limmin: Option<[f64; 2]>,
+    #[cfg_attr(feature = "serde", serde(rename = "LIMMAX"))]
+    pub limmax: Option<[f64; 2]>,
+    #[cfg_attr(feature = "serde", serde(rename = "ELEVATION"))]
+    pub elevation: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORG"))]
+    pub ucsorg: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSXDIR"))]
+    pub ucsxdir: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSYDIR"))]
+    pub ucsydir: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSNAME"))]
+    pub ucsname: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORTHOREF"))]
+    pub ucsorthoref: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORTHOVIEW"))]
+    pub ucsorthoview: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSBASE"))]
+    pub ucsbase: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORGTOP"))]
+    pub ucsorgtop: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORGBOTTOM"))]
+    pub ucsorgbottom: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORGLEFT"))]
+    pub ucsorgleft: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORGRIGHT"))]
+    pub ucsorgright: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORGFRONT"))]
+    pub ucsorgfront: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCSORGBACK"))]
+    pub ucsorgback: Option<[f64; 3]>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMPOST"))]
+    pub dimpost: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMAPOST"))]
+    pub dimapost: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMBLK_T"))]
+    pub dimblk_t: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMBLK1_T"))]
+    pub dimblk1_t: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMBLK2_T"))]
+    pub dimblk2_t: Option<String>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Dimension variables ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSCALE"))]
+    pub dimscale: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMASZ"))]
+    pub dimasz: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMEXO"))]
+    pub dimexo: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMDLI"))]
+    pub dimdli: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMEXE"))]
+    pub dimexe: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMRND"))]
+    pub dimrnd: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMDLE"))]
+    pub dimdle: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTP"))]
+    pub dimtp: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTM"))]
+    pub dimtm: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMFXL"))]
+    pub dimfxl: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMJOGANG"))]
+    pub dimjogang: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTFILL"))]
+    pub dimtfill: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTFILLCLR"))]
+    pub dimtfillclr: Option<DwgRawCmc>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTOL"))]
+    pub dimtol: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLIM"))]
+    pub dimlim: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTIH"))]
+    pub dimtih: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTOH"))]
+    pub dimtoh: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSE1"))]
+    pub dimse1: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSE2"))]
+    pub dimse2: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTAD"))]
+    pub dimtad: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMZIN"))]
+    pub dimzin: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMAZIN"))]
+    pub dimazin: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMARCSYM"))]
+    pub dimarcsym: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTXT"))]
+    pub dimtxt: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMCEN"))]
+    pub dimcen: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTSZ"))]
+    pub dimtsz: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTF"))]
+    pub dimaltf: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLFAC"))]
+    pub dimlfac: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTVP"))]
+    pub dimtvp: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTFAC"))]
+    pub dimtfac: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMGAP"))]
+    pub dimgap: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTRND"))]
+    pub dimaltrnd: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALT"))]
+    pub dimalt: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTD"))]
+    pub dimaltd: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTOFL"))]
+    pub dimtofl: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSAH"))]
+    pub dimsah: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTIX"))]
+    pub dimtix: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSOXD"))]
+    pub dimsoxd: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMCLRD"))]
+    pub dimclrd: Option<DwgRawCmc>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMCLRE"))]
+    pub dimclre: Option<DwgRawCmc>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMCLRT"))]
+    pub dimclrt: Option<DwgRawCmc>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMADEC"))]
+    pub dimadec: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMDEC"))]
+    pub dimdec: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTDEC"))]
+    pub dimtdec: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTU"))]
+    pub dimaltu: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTTD"))]
+    pub dimalttd: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMAUNIT"))]
+    pub dimaunit: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMFRAC"))]
+    pub dimfrac: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLUNIT"))]
+    pub dimlunit: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMDSEP"))]
+    pub dimdsep: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTMOVE"))]
+    pub dimtmove: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMJUST"))]
+    pub dimjust: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSD1"))]
+    pub dimsd1: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSD2"))]
+    pub dimsd2: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTOLJ"))]
+    pub dimtolj: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTZIN"))]
+    pub dimtzin: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTZ"))]
+    pub dimaltz: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTTZ"))]
+    pub dimalttz: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMUPT"))]
+    pub dimupt: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMATFIT"))]
+    pub dimatfit: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMFIT"))]
+    pub dimfit: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMUNIT"))]
+    pub dimunit: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMFXLON"))]
+    pub dimfxlon: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTXTDIRECTION"))]
+    pub dimtxtdirection: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTMZF"))]
+    pub dimaltmzf: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMALTMZS"))]
+    pub dimaltmzs: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMMZF"))]
+    pub dimmzf: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMMZS"))]
+    pub dimmzs: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMTXSTY"))]
+    pub dimtxsty: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLDRBLK"))]
+    pub dimldrblk: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMBLK"))]
+    pub dimblk: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMBLK1"))]
+    pub dimblk1: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMBLK2"))]
+    pub dimblk2: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLTYPE"))]
+    pub dimltype: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLTEX1"))]
+    pub dimltex1: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLTEX2"))]
+    pub dimltex2: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLWD"))]
+    pub dimlwd: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMLWE"))]
+    pub dimlwe: Option<i64>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Table control objects ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "BLOCK_CONTROL_OBJECT"))]
+    pub block_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "LAYER_CONTROL_OBJECT"))]
+    pub layer_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "STYLE_CONTROL_OBJECT"))]
+    pub style_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "LTYPE_CONTROL_OBJECT"))]
+    pub ltype_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "VIEW_CONTROL_OBJECT"))]
+    pub view_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "UCS_CONTROL_OBJECT"))]
+    pub ucs_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "VPORT_CONTROL_OBJECT"))]
+    pub vport_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "APPID_CONTROL_OBJECT"))]
+    pub appid_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMSTYLE_CONTROL_OBJECT"))]
+    pub dimstyle_control_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "VX_CONTROL_OBJECT"))]
+    pub vx_control_object: Option<DwgRawHandle>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Dictionaries ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_ACAD_GROUP"))]
+    pub dictionary_acad_group: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_ACAD_MLINESTYLE"))]
+    pub dictionary_acad_mlinestyle: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_NAMED_OBJECT"))]
+    pub dictionary_named_object: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "TSTACKALIGN"))]
+    pub tstackalign: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TSTACKSIZE"))]
+    pub tstacksize: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "HYPERLINKBASE"))]
+    pub hyperlinkbase: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "STYLESHEET"))]
+    pub stylesheet: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_LAYOUT"))]
+    pub dictionary_layout: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_PLOTSETTINGS"))]
+    pub dictionary_plotsettings: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_PLOTSTYLENAME"))]
+    pub dictionary_plotstylename: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_MATERIAL"))]
+    pub dictionary_material: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_COLOR"))]
+    pub dictionary_color: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DICTIONARY_VISUALSTYLE"))]
+    pub dictionary_visualstyle: Option<DwgRawHandle>,
+        pub unknown_20: Option<DwgRawHandle>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ R2000+ flags/plots and GUIDs ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "FLAGS"))]
+    pub flags: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "INSUNITS"))]
+    pub insunits: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CEPSNTYPE"))]
+    pub cepsntype: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CPSNID"))]
+    pub cpsnid: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "FINGERPRINTGUID"))]
+    pub fingerprintguid: Option<String>,
+    #[cfg_attr(feature = "serde", serde(rename = "VERSIONGUID"))]
+    pub versionguid: Option<String>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ R2004+ entity settings ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "SORTENTS"))]
+    pub sortents: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "INDEXCTL"))]
+    pub indexctl: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "HIDETEXT"))]
+    pub hidetext: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "XCLIPFRAME"))]
+    pub xclipframe: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DIMASSOC"))]
+    pub dimassoc: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "HALOGAP"))]
+    pub halogap: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "OBSCOLOR"))]
+    pub obscolor: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "INTERSECTIONCOLOR"))]
+    pub intersectioncolor: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "OBSLTYPE"))]
+    pub obsltype: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "INTERSECTIONDISPLAY"))]
+    pub intersectiondisplay: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PROJECTNAME"))]
+    pub projectname: Option<String>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Block record / linetype handles ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "BLOCK_RECORD_PSPACE"))]
+    pub block_record_pspace: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "BLOCK_RECORD_MSPACE"))]
+    pub block_record_mspace: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "LTYPE_BYLAYER"))]
+    pub ltype_bylayer: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "LTYPE_BYBLOCK"))]
+    pub ltype_byblock: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "LTYPE_CONTINUOUS"))]
+    pub ltype_continuous: Option<DwgRawHandle>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ R2007+ extended block (camera, loft, geo, visual styles) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    #[cfg_attr(feature = "serde", serde(rename = "CAMERADISPLAY"))]
+    pub cameradisplay: Option<i64>,
+        pub unknown_21: Option<i64>,
+        pub unknown_22: Option<i64>,
+        pub unknown_23: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "STEPSPERSEC"))]
+    pub stepspersec: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "STEPSIZE"))]
+    pub stepsize: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "_3DDWFPREC"))]
+    pub _3ddwfprec: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LENSLENGTH"))]
+    pub lenslength: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "CAMERAHEIGHT"))]
+    pub cameraheight: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SOLIDHIST"))]
+    pub solidhist: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SHOWHIST"))]
+    pub showhist: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PSOLWIDTH"))]
+    pub psolwidth: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "PSOLHEIGHT"))]
+    pub psolheight: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LOFTANG1"))]
+    pub loftang1: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LOFTANG2"))]
+    pub loftang2: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LOFTMAG1"))]
+    pub loftmag1: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LOFTMAG2"))]
+    pub loftmag2: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LOFTPARAM"))]
+    pub loftparam: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LOFTNORMALS"))]
+    pub loftnormals: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LATITUDE"))]
+    pub latitude: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LONGITUDE"))]
+    pub longitude: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "NORTHDIRECTION"))]
+    pub northdirection: Option<f64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TIMEZONE"))]
+    pub timezone: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "LIGHTGLYPHDISPLAY"))]
+    pub lightglyphdisplay: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "TILEMODELIGHTSYNCH"))]
+    pub tilemodelightsynch: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DWFFRAME"))]
+    pub dwfframe: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "DGNFRAME"))]
+    pub dgnframe: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "REALWORLDSCALE"))]
+    pub realworldscale: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "INTERFERECOLOR"))]
+    pub interferecolor: Option<DwgRawCmc>,
+    #[cfg_attr(feature = "serde", serde(rename = "INTERFEREOBJVS"))]
+    pub interfereobjvs: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "INTERFEREVPVS"))]
+    pub interferevpvs: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "DRAGVS"))]
+    pub dragvs: Option<DwgRawHandle>,
+    #[cfg_attr(feature = "serde", serde(rename = "CSHADOW"))]
+    pub cshadow: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(rename = "SHADOWPLANELOCATION"))]
+    pub shadowplanelocation: Option<f64>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ R14+ trailing shorts ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+        pub unknown_54: Option<i64>,
+        pub unknown_55: Option<i64>,
+        pub unknown_56: Option<i64>,
+        pub unknown_57: Option<i64>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ R2004+ trailing undocumented slots ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ (Ãƒâ€šÃ‚Â§19 H7 review): consumed
+    // by the reader's walk after `unknown_57` but not emitted by gold's
+    // JSON ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â retained raw (BL, BL, B) so the writer re-emits the wire
+    // values verbatim instead of defaulting them. Serde-skipped: no
+    // gold-JSON counterpart exists (the census is blind here by
+    // construction; preservation is byte-level).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub unknown_tail_long1: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub unknown_tail_long2: Option<i64>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub unknown_tail_bit: Option<bool>,
+}
+
 /// Format of an embedded DWG preview/thumbnail image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PreviewFormat {
-    /// Windows DIB — a `BITMAPINFOHEADER` + palette + pixels, WITHOUT the
+    /// Windows DIB ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a `BITMAPINFOHEADER` + palette + pixels, WITHOUT the
     /// 14-byte `BITMAPFILEHEADER`. Prepend a file header to save as `.bmp`.
     Bmp,
     /// Windows Metafile.
     Wmf,
     /// PNG (written by R2013+).
     Png,
+    /// No decodable image in the container. Some previews carry only the
+    /// 80-byte reserved header block with no BMP/WMF/PNG descriptor
+    /// behind it (e.g. the R2018 corpus files whose drawing was never
+    /// rendered). `data` is then empty, but `raw` still holds the whole
+    /// container ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's read keeps such thumbnails and prints their
+    /// size/chain, so the Ãƒâ€šÃ‚Â§19 structure axis projects them from `raw`.
+    Unknown,
 }
 
 /// An embedded preview/thumbnail image stored in a DWG file.
@@ -1127,11 +1939,21 @@ pub struct Preview {
     pub format: PreviewFormat,
     /// Raw image bytes exactly as stored in the file (a DIB for `Bmp`).
     pub data: Vec<u8>,
+    /// The whole preview container as read (Ãƒâ€šÃ‚Â§19 H5c): `[16-byte start
+    /// sentinel][chain bytes]` where the chain's tail is family-split ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+    /// pre-R2004 and AC1021 containers also carry a 16-byte END sentinel
+    /// (the chain excludes it: gold's bracketed/decode_R2007 rules), the
+    /// rest of the R2004 family keeps everything past the start sentinel
+    /// (the 2-byte CRC inside the extent, or an end sentinel where the
+    /// author wrote one). Gold's `THUMBNAILIMAGE` prints `{size, chain}`
+    /// with size == the chain byte count, uniform across every version
+    /// (pinned by sample_2000/2018 + 2018/Arc + Box_2007).
+    pub raw: Vec<u8>,
 }
 
 /// A decoded `AcDbField` definition (a dynamic text field).
 ///
-/// `evaluator` is the field's evaluator id (DXF 1) — e.g. `"AcVar"` or
+/// `evaluator` is the field's evaluator id (DXF 1) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â e.g. `"AcVar"` or
 /// `"AcDiesel"`. `code` is the field-code string (DXF 2): for a *leaf* field it
 /// is the expression to evaluate (e.g. `\AcDiesel $(getvar,"cdate")`); for a
 /// *container* field it is the display template with `%<\_FldIdx N>%` markers
@@ -1149,7 +1971,7 @@ pub struct FieldDef {
     pub objects: Vec<Handle>,
 }
 
-/// Document summary information (the DWG `SummaryInfo` section — the same
+/// Document summary information (the DWG `SummaryInfo` section ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the same
 /// properties AutoCAD's DWGPROPS dialog edits). Backs the Document-category
 /// dynamic-text fields (Author, Title, Subject, Keywords, Comments,
 /// HyperlinkBase, RevisionNumber) plus arbitrary custom properties.
@@ -1166,6 +1988,735 @@ pub struct SummaryInfo {
     pub hyperlink_base: String,
     /// Custom document properties as `(name, value)` pairs.
     pub custom_properties: Vec<(String, String)>,
+    /// TDINDWG ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â total editing time (gold prints a `[days, ms]` pair).
+    pub tdindwg: [u32; 2],
+    /// TDCREATE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â creation time (`[days, ms]`).
+    pub tdcreate: [u32; 2],
+    /// TDUPDATE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â last-update time (`[days, ms]`).
+    pub tdupdate: [u32; 2],
+    /// The two trailing raw longs gold prints as `unknown1`/`unknown2`.
+    pub unknown1: u32,
+    pub unknown2: u32,
+}
+
+/// The R2004-format system-section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `R2004_Header` shape
+/// (Ãƒâ€šÃ‚Â§19 H2's second sub-row). The 120-byte encrypted block at file offset
+/// 0x80 (XOR-masked with the 256-byte magic sequence): 108 bytes of
+/// header fields + 12 bytes of padding, all unmasked as one region.
+/// Field names match gold's JSON exactly; `padding` is the 12-byte
+/// tail as uppercase hex (gold's serialization). Only populated on the
+/// AC18-format files (R2004/R2010/R2013/R2018); `None` on R2007 (gold's
+/// separate `R2007_Header` shape, its own sub-row) and pre-R2004.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+// `file_ID_string` is gold's JSON key spelling ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the Ãƒâ€šÃ‚Â§19 convention
+// that field names match gold's emission exactly. The allow sits on the
+// struct so the serde-derive expansion is covered too.
+#[allow(non_snake_case)]
+pub struct DwgR2004SystemHeader {
+    /// The 11-char magic ("AcFssFcAJMB" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the trailing NUL trimmed).
+    pub file_ID_string: String,
+    pub header_address: i32,
+    pub header_size: i32,
+    pub x04: i32,
+    pub root_tree_node_gap: i32,
+    pub lowermost_left_tree_node_gap: i32,
+    pub lowermost_right_tree_node_gap: i32,
+    pub unknown_long: i32,
+    pub last_section_id: i32,
+    pub last_section_address: u64,
+    pub secondheader_address: u64,
+    pub numgaps: u32,
+    pub numsections: u32,
+    pub x20: i32,
+    pub x80: i32,
+    pub x40: i32,
+    pub section_map_id: u32,
+    /// The RAW stored value ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold prints it unadjusted (the +0x100 the
+    /// readers apply for navigation stays decode-side; pinned by
+    /// sample_2018: gold 19328, stored+0x100 19584)
+    pub section_map_address: u64,
+    pub section_info_id: i32,
+    pub section_array_size: i32,
+    pub gap_array_size: i32,
+    pub crc32: u32,
+    /// The 12-byte encrypted tail, hex-encoded
+    pub padding: String,
+}
+
+/// The R2004-family container shape (Ãƒâ€šÃ‚Â§19 H7g ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the container-parity
+/// wall): the author's page space as read from the section page map and
+/// the section-info descriptor table, re-emitted verbatim on a
+/// same-version roundtrip when the write-time content-parity gate
+/// passes (every section's re-encoded content fits the author's
+/// per-descriptor page space at the author's own page boundaries).
+/// `numsections` (@0x40) IS the page-map entry count and the four id
+/// fields (@0x28/@0x50/@0x5C/@0x60) follow the page space ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the corpus
+/// authors allocate the two box pages at `data_page_count + 3/+4`
+/// (leaving two ids unused), where the historical writer emitted them
+/// at `+1/+2`, and split the metadata sections with custom
+/// per-descriptor max-decomp sizes (AppInfo 0x300, AppInfoHistory
+/// 0x580, Preview 0x7C00, SummaryInfo 0x80 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â single pages) where the
+/// historical writer used the uniform 0x80 SMALL_PAGE and 0x7400
+/// conventions. The emission order below is the author's PHYSICAL page
+/// order, which puts the summary page first and the preview page right
+/// after it at 0x1A0: the FILEHEADER addresses are page-data positions
+/// (seeker + 0x20), so an order- and size-faithful prefix reproduces
+/// `summaryinfo_address` and `thumbnail_address` exactly (the preview
+/// container's image descriptors hold those same absolute file
+/// offsets ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the THUMBNAILIMAGE chain identity follows for free).
+/// Internal only: never serialized through the document (the census
+/// rows it serves are all gold-JSON fields, measured against gold's
+/// own dwgread output); the derive serves `DwgFileHeaderInfo`'s own
+/// serde, which carries the reader's parsed state.
+/// `None` on every non-AC18-family format (AC15, AC1021).
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc18ContainerShape {
+    /// The section-info descriptors in the author's table order.
+    pub sections: Vec<DwgAc18SectionShape>,
+    /// The page-map entries in the author's physical order (ids and
+    /// on-disk sizes as laid out from 0x100; the last two entries are
+    /// the section-info box and the page-map box pages).
+    pub map_order: Vec<DwgAc18PageEntry>,
+    /// The System Section (Section Page Map) box's page id ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the
+    /// system header's `section_map_id` @0x50 (gold's naming; the
+    /// writer historically calls it `section_page_map_id`).
+    pub section_map_id: u32,
+    /// The Data Section (descriptor table) box's page id ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the system
+    /// header's `section_info_id` @0x5C.
+    pub section_info_id: u32,
+    /// The max page id including the author's id gaps ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the system
+    /// header's `section_array_size` @0x60 (== `last_section_id` on
+    /// every corpus file: both name the last allocated id).
+    pub section_array_size: u32,
+}
+
+/// One author descriptor of the R2004-family section-info table.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc18SectionShape {
+    /// The mapped section name (``-typed descriptors resolve through
+    /// `name_from_section_type`); `AcDb:AcDsPrototype_1b` for the
+    /// unnamed AcDs descriptors.
+    pub name: String,
+    /// The author's raw 64-byte name field (`` when the writer left it
+    /// empty), re-emitted verbatim into the descriptor table.
+    pub raw_name: String,
+    /// The descriptor's content size (the 8-byte `size` field ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the
+    /// decompressed section length, not the compressed sum).
+    pub size: u64,
+    /// The per-descriptor maximum decompressed page size.
+    pub max_decomp: u32,
+    /// The compression code (1 = stored, 2 = LZ77).
+    pub compressed_code: i32,
+    /// The per-page shape in the author's declared order:
+    /// (page id, start offset within the decompressed section).
+    pub pages: Vec<(i32, u64)>,
+}
+
+/// One author entry of the R2004-family section page map, in the
+/// physical order the file accumulates from 0x100.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc18PageEntry {
+    /// The page id as written in the map.
+    pub id: i32,
+    /// The page's on-disk size (header + frame), as written in the map.
+    pub on_disk_size: i64,
+}
+
+/// The R2007-format system-section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `R2007_Header` shape
+/// (Ãƒâ€šÃ‚Â§19 H2's third sub-row). The AC1021 (R2007) files carry their system
+/// section as a Reed-Solomon-encoded 0x110-byte metadata block; silver's
+/// container reader already parses every field into
+/// `Dwg21CompressedMetadata` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this summary is the gold-named projection
+/// of it (the container names differ: `pages_map_correction_factor` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+/// gold's `pages_map_correction`, `map2_offset` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `pages_map2_offset`,
+/// `unknown_0x20/0x40/0xf800/4/1` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `unknown1..5`,
+/// `header_crc64` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `header_crc`, the `*_compressed/*_uncompressed`
+/// suffixes ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ gold's `*_comp/*_uncomp`). `sections_amount` has NO gold
+/// counterpart (the JSON emitter prints 33 fields without it) and is
+/// dropped here. All values print as unsigned (gold's emitter prints
+/// the high-bit CRCs as positive ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â e.g. sections_map_crc_comp
+/// 14004064320028269436 > 2^63 on example_2007 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so u64 matches).
+/// Only populated on AC1021 files; `None` on every other format.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgR2007SystemHeader {
+    pub header_size: u64,
+    pub file_size: u64,
+    pub pages_map_crc_compressed: u64,
+    pub pages_map_correction: u64,
+    pub pages_map_crc_seed: u64,
+    pub pages_map2_offset: u64,
+    pub pages_map2_id: u64,
+    pub pages_map_offset: u64,
+    pub pages_map_id: u64,
+    pub header2_offset: u64,
+    pub pages_map_size_comp: u64,
+    pub pages_map_size_uncomp: u64,
+    pub pages_amount: u64,
+    pub pages_maxid: u64,
+    pub unknown1: u64,
+    pub unknown2: u64,
+    pub pages_map_crc_uncomp: u64,
+    pub unknown3: u64,
+    pub unknown4: u64,
+    pub unknown5: u64,
+    pub sections_map_crc_uncomp: u64,
+    pub sections_map_size_comp: u64,
+    pub sections_map2_id: u64,
+    pub sections_map_id: u64,
+    pub sections_map_size_uncomp: u64,
+    pub sections_map_crc_comp: u64,
+    pub sections_map_correction: u64,
+    pub sections_map_crc_seed: u64,
+    pub stream_version: u64,
+    pub crc_seed: u64,
+    pub crc_seed_encoded: u64,
+    pub random_seed: u64,
+    pub header_crc: u64,
+}
+
+/// The Ãƒâ€šÃ‚Â§19 H8 container shape (the AC1021 family): the author's
+/// RS-chunk page space ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the pages-map entries in her physical order
+/// (gold's `read_pages_map` accumulates the running offsets from
+/// 0x480 in exactly this order; the first two entries are the
+/// pages-map system pages, `pages_map_id`/`pages_map2_id` at
+/// 0x480/0x880, and the sections-map system pages sit at the tail),
+/// plus her per-section page plans in the sections-table order (the
+/// data pages' ids, per-page boundaries in the decompressed stream
+/// and the declared frame fields). Retained for the same-version
+/// roundtrip's AC21 container mirror ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the H7g doctrine transferred
+/// to the R2007 container ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â where a rewrite that reproduces the
+/// author's page space also reproduces `pages_amount`/`pages_maxid`,
+/// the four map-id fields, both FILEHEADER 0x80-block addresses (the
+/// author's convention: the AcDb:Header page's offset and the
+/// AcDb:Preview page's offset) and the whole pages-map byte stream
+/// (the (size, id) pairs, sizes and order, are hers by
+/// construction ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â its CRCs follow for free). `None` on every
+/// non-AC1021 format.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21ContainerShape {
+    /// The pages-map entries in the author's physical order.
+    pub map_order: Vec<DwgAc21PageEntry>,
+    /// The sections in the author's sections-table order (every
+    /// descriptor, including 0-page ones).
+    pub sections: Vec<DwgAc21SectionShape>,
+}
+
+/// One author entry of the R2007-family pages map: (id, on-disk size)
+/// in the physical order the running offsets accumulate from 0x480.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21PageEntry {
+    /// The page id as written in the map.
+    pub id: i64,
+    /// The page's on-disk size as written in the map.
+    pub on_disk_size: i64,
+}
+
+/// One author section of the R2007-family sections table.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21SectionShape {
+    /// The section name (empty on the unnamed 0-page tail descriptor).
+    pub name: String,
+    /// The encoding code from the section record.
+    pub encoding: u64,
+    /// The section record's declared decompressed content length.
+    pub data_size: u64,
+    /// The per-page plan in the author's table order.
+    pub pages: Vec<DwgAc21SectionPageShape>,
+}
+
+/// One author page of a R2007-family section record: the start
+/// offset inside the decompressed section stream, the declared frame
+/// field, the pages-map id and the declared uncompressed chunk
+/// length, plus the page's physical extent from the pages map.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DwgAc21SectionPageShape {
+    /// Start offset within the decompressed section stream.
+    pub offset: u64,
+    /// The record's frame field (equal to `uncomp_size` on every
+    /// full corpus page).
+    pub size: i64,
+    /// The pages-map id this record references.
+    pub id: i64,
+    /// The declared uncompressed chunk length.
+    pub uncomp_size: u64,
+    /// The page's on-disk size from the pages map ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the physical
+    /// extent the mirror must reproduce.
+    pub on_disk_size: i64,
+}
+
+/// The R13ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“R2000 SecondHeader summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `SecondHeader` shape
+/// (Ãƒâ€šÃ‚Â§19 H2's fourth sub-row). The second header is a sentinel-located
+/// structure near the file end (gold: `bit_search_sentinel
+/// (DWG_SENTINEL_2NDHEADER_BEGIN)` after the ObjFreeSpace read,
+/// decode.c:907; parsed by `secondheader_private` via `2ndheader.spec`).
+/// JSON shape: 7 scalars + the 6-record section table (nr/address/size)
+/// + the 14-record handle table (nr + the raw big-endian handle bytes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+/// `num_hdl` itself does not print) + `junk_r14` (R14/R2000 only, the
+/// RLL after the CRC). `sections`/`num_handles` counts do not print.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgSecondHeaderSummary {
+    pub size: i32,
+    pub address: u32,
+    pub version: String,
+    pub maint_rel_version: u8,
+    pub zero_one_or_three: u8,
+    /// The version bitfield ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â UNSIGNED on the wire and in gold's print
+    /// (TODO B1, 2026-10-01: the R2000 fixtures carry 0xFF21 which an
+    /// i16 read printed as ÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢223 against gold's 65313 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the structure
+    /// axis's single systematic key-gap on every 2000-era file).
+    pub dwg_versions: u16,
+    pub codepage: i16,
+    pub sections: Vec<DwgSecondHeaderSection>,
+    pub handles: Vec<DwgSecondHeaderHandle>,
+    pub junk_r14: u64,
+}
+
+/// One SecondHeader section-locator record (nr 0-5).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgSecondHeaderSection {
+    pub nr: u8,
+    pub address: u32,
+    pub size: u32,
+}
+
+/// One SecondHeader handle record: the control-object slot (nr 0-13)
+/// and its raw big-endian handle bytes.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgSecondHeaderHandle {
+    pub nr: u8,
+    pub hdl: Vec<u8>,
+}
+
+/// The R13c3+ AuxHeader summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `AuxHeader` shape (Ãƒâ€šÃ‚Â§19 H2's
+/// fifth sub-row). Read at the section-locator address when the
+/// FILEHEADER's `sections` count is 6 (gold: decode.c:373-405 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â "no
+/// sentinels, since R13c3"); byte-aligned fields per `auxheader.spec`.
+/// The R2000 JSON shape (25 keys): the observed values on sample_2000
+/// hand-decoded byte-for-byte before implementation. `TDCREATE`/
+/// `TDUPDATE` are TIMERLL pairs (days + milliseconds); `HANDSEED` is
+/// the raw 64-bit seed; R2004+ adds zero_7/zero_8 and R2018 zero_18 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+/// outside this R2000-only emission shape.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAuxHeaderSummary {
+    pub aux_intro: Vec<u8>,
+    pub dwg_version: i16,
+    pub maint_version: i16,
+    pub numsaves: i32,
+    pub minus_1: i32,
+    pub numsaves_1: i16,
+    pub numsaves_2: i16,
+    pub zero: i32,
+    pub dwg_version_1: i16,
+    pub maint_version_1: i16,
+    pub dwg_version_2: i16,
+    pub maint_version_2: i16,
+    pub unknown_6rs: Vec<i16>,
+    pub unknown_5rl: Vec<i32>,
+    #[cfg_attr(feature = "serde", serde(rename = "TDCREATE"))]
+    pub tdcreate: Vec<u32>,
+    #[cfg_attr(feature = "serde", serde(rename = "TDUPDATE"))]
+    pub tdupdate: Vec<u32>,
+    #[cfg_attr(feature = "serde", serde(rename = "HANDSEED"))]
+    pub handseed: u64,
+    pub zero_1: i16,
+    pub numsaves_3: i16,
+    pub zero_2: i32,
+    pub zero_3: i32,
+    pub zero_4: i32,
+    pub numsaves_4: i32,
+    pub zero_5: i32,
+    pub zero_6: i32,
+}
+
+/// The Template section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `Template` shape (Ãƒâ€šÃ‚Â§19 H4).
+/// Present on every version (R2000 locator nr 4; R2004+ section map):
+/// `description` (T16 string) + `MEASUREMENT` (RS, 0=imperial, 1=metric).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgTemplateSummary {
+    pub description: String,
+    pub measurement: i16,
+}
+
+/// One FileDepList file-dependency record (Ãƒâ€šÃ‚Â§19 H4).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgFileDepFileInfo {
+    pub filename: String,
+    pub filepath: String,
+    pub fingerprint: String,
+    pub version: String,
+    pub feature_index: i32,
+    pub timestamp: i32,
+    pub filesize: i32,
+    pub affects_graphics: i16,
+    pub refcount: i32,
+}
+
+/// The FileDepList section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `FileDepList` shape (Ãƒâ€šÃ‚Â§19
+/// H4). `features` (TU32 strings) and the `files` records; the count
+/// fields (`num_features`/`num_files`) do not print.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgFileDepListSummary {
+    pub features: Vec<String>,
+    pub files: Vec<DwgFileDepFileInfo>,
+}
+
+/// The RevHistory section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `RevHistory` shape (Ãƒâ€šÃ‚Â§19 H4).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgRevHistorySummary {
+    pub class_version: i32,
+    pub class_minor: i32,
+    pub histories: Vec<i32>,
+}
+
+/// The Security section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `Security` shape (Ãƒâ€šÃ‚Â§19 H4).
+/// All-zero constants on the unprotected corpus files; `encr_buffer`
+/// is the `encr_size` bytes as uppercase hex (empty when 0).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgSecuritySummary {
+    pub unknown_1: u32,
+    pub unknown_2: u32,
+    pub unknown_3: u32,
+    pub crypto_id: u32,
+    pub crypto_name: String,
+    pub algo_id: u32,
+    pub key_len: u32,
+    pub encr_size: u32,
+    pub encr_buffer: String,
+}
+
+/// The ObjFreeSpace section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `ObjFreeSpace` shape
+/// (Ãƒâ€šÃ‚Â§19 H4). Two wire shapes: ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤R2007 (incl. R2000) reads `objects_address`
+/// and plain `max*` (the FIELD_CAST zero/numhandles read 4-byte wires
+/// into 64-bit stores); R2010+ reads 64-bit `zero`/`numhandles`, drops
+/// `objects_address`, and splits each max into a 128-bit lo/hi pair
+/// (`max32_hi` etc. ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â "num types are not 64 bit, but 128"). The Option
+/// fields carry the version-family gates: `None` drops the leaf so the
+/// axis compares exactly the keys gold emits per family.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgObjFreeSpaceSummary {
+    pub zero: u64,
+    pub numhandles: u64,
+    pub tdupdate: [u32; 2],
+    pub numnums: u8,
+        pub objects_address: Option<u32>,
+    pub max32: u64,
+        pub max32_hi: Option<u64>,
+    pub max64: u64,
+        pub max64_hi: Option<u64>,
+    pub maxtbl: u64,
+        pub maxtbl_hi: Option<u64>,
+    pub maxrl: u64,
+        pub maxrl_hi: Option<u64>,
+}
+
+/// The AppInfo section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `AppInfo` shape (Ãƒâ€šÃ‚Â§19 H4): the
+/// WHOLE section as `size` + `unknown_bits` hex, plus the parsed
+/// fields. Version-gated parse (appinfo.spec): R2004 reads
+/// appinfo_name/comment/product_info/version (no class_version ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the
+/// decoder sets it to 2 internally, unprinted); R2007+ reads
+/// class_version RL + the 16-byte checksums before each string. The
+/// Option fields drop the R2004-absent leaves.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAppInfoSummary {
+    pub size: i32,
+    pub unknown_bits: String,
+        pub class_version: Option<i32>,
+    pub appinfo_name: String,
+        pub version_checksum: Option<String>,
+    pub version: String,
+        pub comment_checksum: Option<String>,
+    pub comment: String,
+        pub product_checksum: Option<String>,
+    pub product_info: String,
+}
+
+/// The AppInfoHistory section summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `AppInfoHistory` shape
+/// (Ãƒâ€šÃ‚Â§19 H4): the whole section as `size` + `unknown_bits` hex ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's
+/// spec include for it is commented out (never parsed).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAppInfoHistorySummary {
+    pub size: i32,
+    pub unknown_bits: String,
+}
+
+/// The DWG file-header summary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's `FILEHEADER` shape (Ãƒâ€šÃ‚Â§19 H2 of the
+/// harness plan). Field names match gold's JSON exactly (except `codepage`,
+/// kept as one word per gold) so the structure axis projects 1:1. Retained
+/// from the reader's `DwgFileHeaderInfo`; `None` on DXF-sourced or
+/// default-constructed documents.
+///
+/// Version-family gates: the R2004+ tail (`unknown_0` through
+/// `r2004_header_address`) only exists on R2004+ files ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the reader leaves
+/// it at 0 on earlier versions and gold does not emit those leaves; the
+/// structure-axis projection drops them by version instead of comparing.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgFileHeaderSummary {
+    /// The 6-byte version string ("AC1015", "AC1032", ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦)
+    pub version: String,
+    pub maint_rel_version: u8,
+    pub zero_one_or_three: u8,
+    pub thumbnail_address: i32,
+    pub dwg_version: u8,
+    pub maint_version: u8,
+    pub codepage: u16,
+    /// The section-locator record count (R2000 files).
+    pub sections: i32,
+    pub unknown_0: u8,
+    pub app_dwg_version: u8,
+    pub app_maint_version: u8,
+    pub security_type: i32,
+    pub rl_1c_address: i32,
+    pub summaryinfo_address: i32,
+    pub vbaproj_address: i32,
+    pub r2004_header_address: i32,
+}
+
+/// The `AcDs` data-store section outline (Ãƒâ€šÃ‚Â§19 H5a) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's
+/// `json_section_acds` shape over the `AcDb:AcDsPrototype_1b` section:
+/// the 13 header fields, the segment-index table, and the per-type
+/// segment sub-blocks (datidx/schidx/schdat/search). REPEAT counts
+/// (`num_segidx`, `datidx.num_entries`, ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦) are suppressed in gold's
+/// JSON and all its consumers come from the arrays; vectors
+/// (`sortedidx`, the inner `ididx`) print even when empty. Segments keep
+/// one array slot per index entry ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â zero-offset slots render as gold's
+/// empty `{}` records (all-`None` here). `None` when the section is
+/// absent (the R2000 family) or its header unreadable.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSummary {
+    pub file_signature: u32,
+    pub file_header_size: u32,
+    pub unknown_1: u32,
+    pub version: u32,
+    pub unknown_2: u32,
+    pub ds_version: u32,
+    pub segidx_offset: u32,
+    pub segidx_unknown: u32,
+    pub schidx_segidx: u32,
+    pub datidx_segidx: u32,
+    pub search_segidx: u32,
+    pub prvsav_segidx: u32,
+    pub file_size: i32,
+        pub segidx: Vec<DwgAcDsSegIdxEntry>,
+        pub segments: Vec<DwgAcDsSegment>,
+}
+
+/// One segment-index table entry: gold adds the sequential `index` when
+/// printing (the wire carries offset+size only).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSegIdxEntry {
+    pub index: u32,
+    pub offset: u64,
+    pub size: u32,
+}
+
+/// One data-store segment header (48 bytes on the wire). A zero-offset
+/// index slot prints as gold's empty `{}` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â every field `None` then.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSegment {
+        pub index: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub signature: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub name: Option<String>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "type")
+    )]
+    pub type_: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub segment_idx: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub is_blob01: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub segsize: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub unknown_2: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub ds_version: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub unknown_3: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub data_algn_offset: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub objdata_algn_offset: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub padding: Option<String>,
+    // type 1 (datidx): di_unknown + the entry table.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub di_unknown: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "datidx.entries")
+    )]
+    pub datidx_entries: Option<Vec<DwgAcDsDataIndexEntry>>,
+    // type 3 (schidx): the property tables + tag.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub si_unknown_1: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "schidx.props")
+    )]
+    pub schidx_props: Option<Vec<DwgAcDsSchemaIndexProp>>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub si_tag: Option<u64>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default)
+    )]
+    pub si_unknown_2: Option<u32>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "schidx.prop_entries")
+    )]
+    pub schidx_prop_entries: Option<Vec<DwgAcDsSchemaIndexProp>>,
+    // type 4 (schdat): the single user-property header.
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "schdat.uprops")
+    )]
+    pub schdat_uprops: Option<Vec<DwgAcDsUProp>>,
+    // type 5 (search): the search-index records.
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "search.search")
+    )]
+    pub search_search: Option<Vec<DwgAcDsSearchData>>,
+}
+
+/// A datidx entry-table record: gold prints the sequential `index`;
+/// segidx/offset/schidx come from the wire.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsDataIndexEntry {
+    pub index: u32,
+    pub segidx: u32,
+    pub offset: u32,
+    pub schidx: u32,
+}
+
+/// A schidx property record (props and prop_entries share the wire
+/// shape: index+segidx+offset, all from the wire).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSchemaIndexProp {
+    pub index: u32,
+    pub segidx: u32,
+    pub offset: u32,
+}
+
+/// A schdat user-property header record (size + flags).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsUProp {
+    pub size: u32,
+    pub flags: u32,
+}
+
+/// A search-segment index record. `sortedidx` prints even when empty
+/// (a vector, not a repeat).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSearchData {
+    pub schema_namidx: u32,
+    pub sortedidx: Vec<i64>,
+    pub unknown: u32,
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "ididxs")
+    )]
+    pub ididxs: Option<Vec<DwgAcDsSearchIdIdxs>>,
+}
+
+/// One ididxs slot: `{}` (all-`None`) when its inner count is zero, as
+/// gold prints.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSearchIdIdxs {
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "ididx")
+    )]
+    pub ididx: Option<Vec<DwgAcDsSearchIdIdx>>,
+}
+
+/// One populated ididx record: the owning handle + its index vector
+/// (the vector prints even when empty).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgAcDsSearchIdIdx {
+    pub handle: u64,
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "ididx")
+    )]
+    pub ididx: Option<Vec<u64>>,
 }
 
 /// A CAD document containing all drawing data
@@ -1226,16 +2777,16 @@ pub struct CadDocument {
     pub notifications: crate::notification::NotificationCollection,
 
     /// All entities in the document (contiguous storage for cache locality).
-    /// Each entity is behind an `Arc` so cloning the whole document — the undo
-    /// snapshot on every edit — is O(entities) atomic bumps that structurally
+    /// Each entity is behind an `Arc` so cloning the whole document ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the undo
+    /// snapshot on every edit ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â is O(entities) atomic bumps that structurally
     /// share the geometry, not an O(entities) deep copy. A single-entity edit
     /// (`get_entity_mut`) copies just that one entity out of the shared Arc
     /// (`Arc::make_mut`), so the snapshot and the live doc diverge only where
     /// they actually differ.
     pub(crate) entities: Vec<Arc<EntityType>>,
 
-    /// Handle → index mapping for O(1) entity lookup by handle.
-    pub(crate) entity_index: foldhash::HashMap<Handle, usize>,
+    /// Handle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ index mapping for O(1) entity lookup by handle.
+    pub(crate) entity_index: ahash::AHashMap<Handle, usize>,
 
     /// All objects in the document (indexed by handle)
     pub objects: HashMap<Handle, ObjectType>,
@@ -1250,11 +2801,11 @@ pub struct CadDocument {
     /// Annotation-scale handle for each annotative object-context leaf (an
     /// `*OBJECTCONTEXTDATA` object). A *side* view: the leaves stay verbatim in
     /// `objects` as `ObjectType::Unknown` for DWG round-trip. Maps the context
-    /// object handle → its `AcDbScale` handle (in `ACAD_SCALELIST`), so a
+    /// object handle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ its `AcDbScale` handle (in `ACAD_SCALELIST`), so a
     /// consumer can resolve an annotative entity's applied annotation scale.
     pub context_scales: HashMap<Handle, Handle>,
 
-    /// AcDbBlockRepresentationData link: representation-object handle → the
+    /// AcDbBlockRepresentationData link: representation-object handle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ the
     /// dynamic block-definition handle it represents (group code 340). Lets a
     /// consumer connect an anonymous evaluated block to its dynamic definition
     /// (and thus to that definition's visibility parameter). Side view; the
@@ -1265,11 +2816,11 @@ pub struct CadDocument {
     /// FIELD objects stay verbatim in `objects` as `ObjectType::Unknown` for DWG
     /// round-trip, while this exposes the evaluator id and field-code string so
     /// a consumer can (re-)evaluate dynamic text fields without decoding the raw
-    /// object stream. The container→child link is recovered from each field's
+    /// object stream. The containerÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢child link is recovered from each field's
     /// `owner` (a child field is owned by its container field).
     pub fields: HashMap<Handle, FieldDef>,
 
-    /// Document summary information (Author, Title, Subject, …) from the DWG
+    /// Document summary information (Author, Title, Subject, ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦) from the DWG
     /// SummaryInfo section. Backs the Document-category dynamic-text fields.
     pub summary_info: SummaryInfo,
 
@@ -1286,27 +2837,100 @@ pub struct CadDocument {
     pub dgn_ls_definitions: HashMap<Handle, crate::objects::DgnLsDefinition>,
 
     /// DGN line-style components (`AcDbLS{Compound,StrokePattern,Point,Symbol}
-    /// Component`), keyed by handle — the nodes of a [`crate::objects::DgnLsDefinition`]'s
+    /// Component`), keyed by handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the nodes of a [`crate::objects::DgnLsDefinition`]'s
     /// component tree. Read-side view; objects stay verbatim as `Unknown`.
     pub dgn_ls_components: HashMap<Handle, crate::objects::DgnLsComponent>,
 
-    /// Raw EED blobs per handle — populated during DWG read, consumed during DWG write.
+    /// Raw EED blobs per handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â populated during DWG read, consumed during DWG write.
     /// Keyed by the object/table-entry handle. Not serialized.
     pub(crate) eed_by_handle: HashMap<Handle, Vec<(u64, Vec<u8>)>>,
 
-    /// Extended data (XDATA) of non-entity objects as application records,
-    /// keyed by object handle: read from DXF, or decoded from the DWG EED in
-    /// `eed_by_handle`. The DWG writer encodes the records whose application
-    /// has no verbatim EED block; the DXF writer writes them after the object.
-    pub(crate) object_xdata: HashMap<Handle, crate::xdata::ExtendedData>,
-
-    /// Non-entity object xdictionary handles — populated during DWG read, consumed during DWG write.
+    /// Non-entity object xdictionary handles ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â populated during DWG read, consumed during DWG write.
     pub(crate) xdic_by_handle: HashMap<Handle, Handle>,
 
-    /// Non-entity object reactors — populated during DWG read, consumed during DWG write.
+    /// Non-entity object reactors ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â populated during DWG read, consumed during DWG write.
     pub(crate) reactors_by_handle: HashMap<Handle, Vec<Handle>>,
 
-    /// Original BLOCK_HEADER entity handles from the DWG binary — includes sub-entity handles
+    /// Authored ownerhandle wire forms `(code, size, value)`, keyed by the
+    /// record's own handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the raw-retention twin of the resolved owner
+    /// (TODO A1, 2026-10-01): the authored ownerhandle CODE choice is a
+    /// writer-genus convention (the ODA FileConverter 2018 set always
+    /// writes the absolute code-4 form where the AutoCAD genus writes the
+    /// relative-iff-shorter form Ãƒâ€šÃ‚Â§19 H8d picks, and a recomputed choice
+    /// cannot reproduce both), so the writer replays the captured form
+    /// verbatim (`write_handle_form`) whenever it resolves to the same
+    /// owner. Populated during DWG read, consumed during DWG write.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) owner_handle_form_by_handle: HashMap<Handle, (u8, u8, u64)>,
+
+    /// Authored entity-color (ENC) wire forms, keyed by the entity's own
+    /// handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the raw-retention twin of the collapsed `Color` +
+    /// `Transparency` pair (Ãƒâ€šÃ‚Â§19 H8h-ext-17): the R2004+ flags/index BS
+    /// carries an ACI slot the collapsed model cannot derive (HatchG's
+    /// authored slot 112 vs the nearest-ACI 110 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â author data), so the
+    /// writer replays the captured words verbatim whenever they still
+    /// decode to the entity's current color. Populated during DWG read,
+    /// consumed during DWG write. Wire-only state: not serialized.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) entity_color_raw_by_handle: HashMap<Handle, DwgRawEnc>,
+
+    /// Per-record TV wire forms (Ãƒâ€šÃ‚Â§19 H8h-ext-17, the A1 capture pattern at
+    /// the TV scale): `true` when the record's authored pre-R2007 TVs
+    /// count the string exactly (no trailing NUL ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the PolyLine2D
+    /// author's genus), `false`/absent when they count the terminator
+    /// (the AutoCAD genus, Ãƒâ€šÃ‚Â§19 H8h-ext-15 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the constructed/deserialized
+    /// default). Populated from the reader's per-record vote majority at
+    /// commit; the writer replays the form per record.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) tv_plain_form_by_handle: HashMap<Handle, bool>,
+
+    /// The EXACT authored close-pad bits `(len, pattern)` per record (Ãƒâ€šÃ‚Â§19
+    /// H8h-ext-17): some authors leave arbitrary leftover pad bits
+    /// (entities-3d's records pad F1/E3/89) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no zeros/ones genus at
+    /// all. Captured per record at DWG read; the writer replays the
+    /// pattern verbatim at the record close, the A1 document-level
+    /// `close_pad_zeros` vote stays the fallback for uncaptured records.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) close_pad_bits_by_handle: HashMap<Handle, (u8, u8)>,
+
+    /// The EXACT handle-stream slack `(walk_end, len, pattern)` per
+    /// record (the gh44-error LEADER census, 2026-10-04): the unparsed
+    /// bit-group an author parks between the walked main tail and the
+    /// frame's flag position ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â her LEADER records pad 2 bits (10 on
+    /// 8774) before the flag, nibble-aligning the RL, where the packed
+    /// emission wrote the flag immediately after the main bits and
+    /// slipped every handle position and the CRC. The bits are
+    /// per-record author data (five records pad `00`, 8774 parks
+    /// `0000100000` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â not a zeros/ones genus); the writer replays the
+    /// pattern verbatim between the main
+    /// bits and the text/flag region, and ONLY when its own main end
+    /// matches the captured walk end (an under-reading walk must not
+    /// have its un-walked field bits double-emitted as slack).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub handle_slack_by_handle: HashMap<Handle, (i64, u8, u16)>,
+
+    /// The record-close pad genus captured at read (the majority sample of
+    /// the authored records' close pads, TODO A1 2026-10-01): `true` pads
+    /// the merged stream's final partial byte with 0s (measured on the
+    /// ODA FileConverter 2018 set ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â her records end `0x00` where the
+    /// AutoCAD genus ends `0x1F`-tailed on otherwise identical bytes),
+    /// `false` pads with 1s (the AutoCAD genus, Ãƒâ€šÃ‚Â§19 H8d ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and the default
+    /// for constructed and deserialized documents).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) close_pad_zeros: bool,
+
+    /// Raw undecoded record remainders, keyed by handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's
+    /// `HANDLE_UNKNOWN_BITS` window (LibreDWG decode.c `dwg_decode_unknown_bits`):
+    /// the bits from the end of the common prologue (after type code, size
+    /// placeholder, handle, EED and the common entity/object data) to the
+    /// record end, kept verbatim as uppercase hex so the harness can emit
+    /// gold's `unknown_bits`. Populated during DWG read; the writer does not
+    /// consume it (on rewrite both oracles re-read the written bytes, so the
+    /// window is recomputed from the file, not carried over).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub unknown_bits_by_handle: HashMap<Handle, String>,
+
+    /// Original BLOCK_HEADER entity handles from the DWG binary ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â includes sub-entity handles
     /// (vertices, faces, SEQENDs). Keyed by BlockRecord handle. Used by the writer to produce
     /// correct owned_object_count without re-expanding from the document model.
     pub(crate) block_entity_handles: HashMap<Handle, Vec<Handle>>,
@@ -1318,6 +2942,71 @@ pub struct CadDocument {
     /// `None` when not loaded from DWG (new/DXF).
     pub dwg_source_version: Option<DxfVersion>,
 
+    /// The DWG file-header summary (Ãƒâ€šÃ‚Â§19 H2): gold's `FILEHEADER` shape,
+    /// retained from the reader's `DwgFileHeaderInfo` for the structure
+    /// axis. `None` on DXF-sourced or default documents.
+        pub dwg_file_header: Option<DwgFileHeaderSummary>,
+
+    /// The gold-JSON-mirror of the AcDb:Header variables (Ãƒâ€šÃ‚Â§19 H3): one
+    /// field per key of gold's HEADER JSON, retained verbatim by the DWG
+    /// header reader. `None` on DXF-sourced or default documents (the
+    /// `header` field above remains the modeled API surface).
+        pub dwg_header_raw: Option<DwgHeaderRaw>,
+
+    /// The R2004-format system-section summary (Ãƒâ€šÃ‚Â§19 H2): gold's
+    /// `R2004_Header` shape, unmasked from the 120-byte encrypted block.
+    /// `None` on R2007 files (the separate R2007_Header shape) and
+    /// non-R2004 formats.
+        pub dwg_r2004_header: Option<DwgR2004SystemHeader>,
+
+    /// The R2007-format system-section summary (Ãƒâ€šÃ‚Â§19 H2): gold's
+    /// `R2007_Header` shape, projected from the container reader's
+    /// `Dwg21CompressedMetadata`. `None` on every non-AC1021 format.
+        pub dwg_r2007_header: Option<DwgR2007SystemHeader>,
+
+    /// The R13ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“R2000 SecondHeader summary (Ãƒâ€šÃ‚Â§19 H2): gold's
+    /// `SecondHeader` shape, from the sentinel-located second header.
+    /// `None` on R2004+ files (gold emits it R13ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“R2000 only).
+        pub dwg_second_header: Option<DwgSecondHeaderSummary>,
+
+    /// The R13c3+ AuxHeader summary (Ãƒâ€šÃ‚Â§19 H2): gold's `AuxHeader` shape
+    /// (the R2000 emission), read at the section locator when the
+    /// FILEHEADER carries 6 section records.
+        pub dwg_aux_header: Option<DwgAuxHeaderSummary>,
+
+    /// The R2004-family container shape (Ãƒâ€šÃ‚Â§19 H7g): the author's page
+    /// space (per-descriptor page boundaries, ids, physical order and
+    /// the box-page identity), re-emitted on a same-version roundtrip
+    /// when the write-time content-parity gate passes. Internal only.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) dwg_ac18_shape: Option<DwgAc18ContainerShape>,
+    /// The Ãƒâ€šÃ‚Â§19 H8 AC21 container shape: the AC1021 author's page
+    /// space (pages-map physical order + per-section page plans),
+    /// re-emitted on a same-version roundtrip when the H8
+    /// write-time content-parity gate passes. Internal only.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) dwg_ac21_shape: Option<DwgAc21ContainerShape>,
+
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ The Ãƒâ€šÃ‚Â§19 H4 metadata-block summaries (gold-JSON-shaped) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+    /// `Template` (all versions): description + MEASUREMENT.
+        pub dwg_template: Option<DwgTemplateSummary>,
+    /// `FileDepList` (R2004+): features + the dependency records.
+        pub dwg_file_dep_list: Option<DwgFileDepListSummary>,
+    /// `RevHistory` (R2004+).
+        pub dwg_rev_history: Option<DwgRevHistorySummary>,
+    /// `Security` (R2004+): zero-constants on unprotected files.
+        pub dwg_security: Option<DwgSecuritySummary>,
+    /// `ObjFreeSpace` (R2000 locator + R2004+): the version-gated shape.
+        pub dwg_obj_free_space: Option<DwgObjFreeSpaceSummary>,
+    /// `AppInfo` (R2004+): the raw section + the parsed fields.
+        pub dwg_app_info: Option<DwgAppInfoSummary>,
+    /// `AppInfoHistory` (R2004+): the raw section (never parsed by gold).
+        pub dwg_app_info_history: Option<DwgAppInfoHistorySummary>,
+    /// `AcDs` (R2004+): the data-store section outline ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gold's
+    /// `AcDs` JSON shape (Ãƒâ€šÃ‚Â§19 H5a). `None` on the R2000 family and
+    /// DXF documents.
+        pub dwg_acds: Option<DwgAcDsSummary>,
+
     /// Embedded preview/thumbnail image. Populated by the DWG reader from the
     /// file's preview section; the DWG writer embeds it when `Some` and emits an
     /// empty preview when `None`. Not part of DXF.
@@ -1326,7 +3015,7 @@ pub struct CadDocument {
     /// Modeler-entity handles (3DSOLID/REGION/BODY/SURFACE) whose geometry is
     /// stored as SAB blobs in the `AcDb:AcDsPrototype_1b` data-store section,
     /// in object-stream (file-offset) order. Populated by the DWG reader so the
-    /// blob→entity attach step pairs each SAB blob with the correct entity
+    /// blobÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢entity attach step pairs each SAB blob with the correct entity
     /// regardless of the document's handle-sorted entity order. Transient DWG
     /// read artifact; empty for new/DXF documents.
     pub(crate) acis_sab_handles: Vec<Handle>,
@@ -1336,31 +3025,151 @@ pub struct CadDocument {
     /// Shared so document snapshots do not duplicate large modeler data.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acds_data: Option<Arc<Vec<u8>>>,
-    /// Original extrusion history and dimension-association records, keyed by
-    /// handle (type code, bytes). Their semantic snapshots guard passthrough.
-    /// `ACADRUST_RAW_ALL` additionally captures every record for debug bisection.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) raw_records: HashMap<u64, (i16, Arc<crate::entities::RawRecord>)>,
-    /// Semantic snapshots guarding same-version passthrough of retained objects.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) original_objects: HashMap<Handle, ObjectType>,
-    /// Child record -> compound entity handle, captured with `raw_records`.
-    /// Exclusions must serialize each compound entity and its children together.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) raw_record_owners: HashMap<u64, u64>,
 
     /// `(handle, byte length, hash)` of SAB bodies when `raw_acds_data` was
     /// captured. Used to reject stale section passthrough after geometry edits.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) raw_acds_fingerprint: Vec<(u64, usize, u64)>,
 
+    /// The raw (decompressed) `AcDb:Classes` section bytes of the source
+    /// file (Ãƒâ€šÃ‚Â§19 H7 CLASSES row): re-emitted verbatim on a same-version
+    /// roundtrip when the class table and the per-class object census are
+    /// unchanged. The authored tables whose tail encoding desyncs gold's
+    /// walk (the AutoCAD-2027.1 fixture set) can only round-trip gold's
+    /// garbage byte-exactly ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â any re-encoding desyncs the walk
+    /// differently ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and the verbatim bytes also carry the author's
+    /// `num_instances`/zombie flags for classes whose instances re-emit
+    /// through the raw-object passthrough (outside the write census).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_classes_data: Option<Arc<Vec<u8>>>,
+
+    /// The read-time state hash guarding the verbatim classes re-emission
+    /// above: the ordered class identity tuple plus the document's
+    /// per-class object census (`io::dwg::classes_state_fingerprint`).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_classes_fingerprint: u64,
+
+    /// The raw (decompressed) `AcDb:AppInfo` section bytes of the source
+    /// file (Ãƒâ€šÃ‚Â§19 H7 AppInfo row): re-emitted verbatim on a same-version
+    /// roundtrip. Gold prints the section unconditionally (zeroed when
+    /// absent), so a source without one must not get the boilerplate
+    /// section materialized ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the writer skips it then.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_app_info_data: Option<Arc<Vec<u8>>>,
+
+    /// The raw `AcDb:AppInfoHistory` section bytes (Ãƒâ€šÃ‚Â§19 H7): the section
+    /// was never written before this row ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â same verbatim/skip rule as
+    /// AppInfo.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_app_info_history_data: Option<Arc<Vec<u8>>>,
+
+    /// The raw `AcDb:ObjFreeSpace` section bytes (Ãƒâ€šÃ‚Â§19 H7e): re-emitted
+    /// verbatim on a same-version roundtrip. The content is authored
+    /// file state, not derived data ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the author's numhandles (including
+    /// the R2007+ 0xFFFF0000 pattern words), TDUPDATE, the R2000
+    /// objects_address, and the max constants ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and gold's R2000 reader
+    /// only accepts the section at the file position directly after the
+    /// handles map (decode.c: `section[OBJFREESPACE].address == pvz`), so
+    /// any rebuilt content is both value-divergent and, on R2000,
+    /// position-gated. A source that carried no section writes none:
+    /// gold prints nothing there (R2000, locator-gated) or the zeroed
+    /// struct on both sides (R2004+, emitted unconditionally).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_obj_free_space_data: Option<Arc<Vec<u8>>>,
+
+    /// The raw (decompressed) `AcDb:XrefManifest` section bytes (Ãƒâ€šÃ‚Â§19
+    /// H7g): the R2013+ external-reference table ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â authored file
+    /// state, not modeled in the document and not JSON-printed by
+    /// gold. Re-emitted verbatim on a same-version roundtrip so the
+    /// container mirror can reproduce the author's page space (the
+    /// section owns a data page in the fixtures that carry it ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
+    /// Box_2013/Revolve_2018); a source without the section writes
+    /// none, and conversions never materialize one.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_xref_manifest_data: Option<Arc<Vec<u8>>>,
+
+    /// The author's reconstructed `AcDb:AcDbObjects` section stream (the
+    /// decompressed pages concatenated ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Ãƒâ€šÃ‚Â§19 H8d, the H8a-retention
+    /// pattern): the mirror arm's raw-echo source. Her physical layout
+    /// is her editor's incremental-save allocation history ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â unmodelable
+    /// by rule ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and the mirror's own doctrine for unmodelable authored
+    /// state is echo: the section re-emits her raw bytes verbatim, our
+    /// own emission stays the conventional arm's.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_acdb_objects_data: Option<Arc<Vec<u8>>>,
+
+    /// The author's handle map for the echoed objects section above
+    /// (handle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ offset in that stream, sorted): the echoed raw needs
+    /// her record addresses, not our compact emission's offsets.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_acdb_objects_handles: Option<Arc<Vec<(u64, i64)>>>,
+
+    /// The read-time document-state hash guarding every whole-file
+    /// echo (Ãƒâ€šÃ‚Â§19 H8g ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the objects-stream echo, the AC21
+    /// compressed-page echo, the R2000 and AC18-family whole-file
+    /// echoes): `io::dwg::document_state_fingerprint` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the sorted
+    /// per-part hash of the semantic inventory's visit plus the table
+    /// control handles and the retained metadata models ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â captured at
+    /// the END of the read (after every section has loaded). The echo
+    /// arms engage only when the same hash holds at the write gate:
+    /// ANY edit, including in-place field edits (the issue-80 layer
+    /// rename), falls back to our own emission.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) dwg_state_fingerprint: u64,
+
+    /// Ãƒâ€šÃ‚Â§19 H8e-2: the author's whole on-disk file ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â her bytes from 0
+    /// to EOF as one blob: the 0x80 metadata block (identity bytes +
+    /// addresses + her unknown-region tail), the 0x400 file-header
+    /// page with her check data and MT-derive draws, every page of her
+    /// map walk (data pages, system pages, gap entries alike, each
+    /// exactly as it sits in the file, RS coding included) and her
+    /// trailing header2 copy. The compressed-page echo re-emits this
+    /// verbatim when the combined identity gate holds (the document
+    /// universe + the classes fingerprint ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the same doctrine as the
+    /// objects echo, extended to the whole container: her encoder's
+    /// exact output is unmodelable by rule, the H8c refutation), so a
+    /// same-version roundtrip of an unedited document reproduces her
+    /// file byte-for-byte. Edited documents and conversions never take
+    /// this path (the gates fall back to the mirrored or conventional
+    /// emission); the writer's own derivations stay live as the
+    /// AC21_MIRROR_DEBUG oracle at the echo call site.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) raw_ac21_tail: Option<Arc<Vec<u8>>>,
+
     /// Non-entity objects whose source record points into the AcDs data store.
     /// Retained for same-version saves together with the original section.
-    #[cfg_attr(feature = "serde", serde(skip))]
+    /// Serialized (as a plain handle list) like the other DWG round-trip
+    /// side channels (`xdic_by_handle`, `reactors_by_handle`) so the gold
+    /// harness dump can project the per-object R2013+ `has_ds_data` bit.
+    #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) dwg_data_store_handles: HashSet<Handle>,
 
+    /// Gold `DIMSTYLE_CONTROL.morehandles` (dwg.spec 4177: `FIELD_RCu
+    /// (num_morehandles, 71)` SINCE R_2000b ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a raw byte ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â then
+    /// `HANDLE_VECTOR (morehandles, num_morehandles, 5, 340)`,
+    /// "additional hard handles, undocumented"). Captured verbatim by the
+    /// pass-1 reader and echoed by the DWG writer so both harness fidelity
+    /// sides see the vector; NOT the dim-style table entries.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dimstyle_morehandles: Vec<Handle>,
+
+    /// Authored table-control entry slots (Ãƒâ€šÃ‚Â§19 H8h-extension): the
+    /// entries vectors of the BLOCK/LTYPE/DIMSTYLE controls, captured
+    /// verbatim from the source DWG ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the author's order plus any null
+    /// deleted-slot tails (gold dwg.spec `entries` HANDLE_VECTOR; the
+    /// H8h-extension survey showed the AutoCAD authors leave trailing
+    /// `(2.0.0)` slots that re-derivation from the live table cannot
+    /// know). Keyed by the control object's handle. The DWG writers echo
+    /// a captured vector only under a same-universe gate ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â its non-null
+    /// set must equal the current table's handles, so a table edited
+    /// after the read falls back to the model iteration. Wire-only
+    /// state: not serialized, excluded from the semantic inventory.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub table_control_entries:
+        std::collections::BTreeMap<Handle, Vec<Handle>>,
+
     /// Section-view style (`AcDbSectionViewStyle`) display fields, decoded from
-    /// the DWG for rendering section marks (arrow size, label height, …). A file
+    /// the DWG for rendering section marks (arrow size, label height, ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦). A file
     /// normally has one; the first decoded is kept. `None` for new/DXF documents
     /// or files without section views.
     pub section_view_style: Option<crate::entities::SectionViewStyle>,
@@ -1368,13 +3177,13 @@ pub struct CadDocument {
     /// Model-documentation drawing-view graph, decoded from the DWG so section
     /// marks can derive their true viewing direction. Empty for new/DXF files.
     ///
-    /// `AcDbViewRep` handle → its object-specific handle references (they
+    /// `AcDbViewRep` handle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ its object-specific handle references (they
     /// include the view's `AcDbViewBorder` entity, its template viewport, its
-    /// block reference, and — for the parent of a section — the section
+    /// block reference, and ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â for the parent of a section ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the section
     /// symbol).
     pub view_rep_refs: std::collections::HashMap<Handle, Vec<Handle>>,
 
-    /// `AcDbViewRep` handles that own an `AcDbViewRepSectionDefinition` —
+    /// `AcDbViewRep` handles that own an `AcDbViewRepSectionDefinition` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
     /// i.e. the section (result) views.
     pub section_view_reps: Vec<Handle>,
 
@@ -1512,7 +3321,7 @@ impl CadDocument {
             classes: DxfClassCollection::new(),
             notifications: crate::notification::NotificationCollection::new(),
             entities: Vec::new(),
-            entity_index: foldhash::HashMap::default(),
+            entity_index: ahash::AHashMap::new(),
             objects: HashMap::new(),
             block_visibility_params: HashMap::new(),
             context_scales: HashMap::new(),
@@ -1523,19 +3332,50 @@ impl CadDocument {
             dgn_ls_definitions: HashMap::new(),
             dgn_ls_components: HashMap::new(),
             eed_by_handle: HashMap::new(),
-            object_xdata: HashMap::new(),
             xdic_by_handle: HashMap::new(),
             reactors_by_handle: HashMap::new(),
+            owner_handle_form_by_handle: HashMap::new(),
+            entity_color_raw_by_handle: HashMap::new(),
+            tv_plain_form_by_handle: HashMap::new(),
+            close_pad_bits_by_handle: HashMap::new(),
+            handle_slack_by_handle: HashMap::new(),
+            close_pad_zeros: false,
+            unknown_bits_by_handle: HashMap::new(),
             block_entity_handles: HashMap::new(),
             dwg_source_version: None,
+            dwg_file_header: None,
+            dwg_header_raw: None,
+            dwg_r2004_header: None,
+            dwg_r2007_header: None,
+            dwg_second_header: None,
+            dwg_aux_header: None,
+            dwg_ac18_shape: None,
+            dwg_ac21_shape: None,
+            dwg_template: None,
+            dwg_file_dep_list: None,
+            dwg_rev_history: None,
+            dwg_security: None,
+            dwg_obj_free_space: None,
+            dwg_app_info: None,
+            dwg_app_info_history: None,
+            dwg_acds: None,
             preview: None,
             acis_sab_handles: Vec::new(),
             raw_acds_data: None,
-            raw_records: HashMap::new(),
-            original_objects: HashMap::new(),
-            raw_record_owners: HashMap::new(),
             raw_acds_fingerprint: Vec::new(),
+            raw_classes_data: None,
+            raw_classes_fingerprint: 0,
+            raw_app_info_data: None,
+            raw_app_info_history_data: None,
+            raw_obj_free_space_data: None,
+            raw_xref_manifest_data: None,
+            raw_acdb_objects_data: None,
+            raw_acdb_objects_handles: None,
+            dwg_state_fingerprint: 0,
+            raw_ac21_tail: None,
             dwg_data_store_handles: HashSet::new(),
+            dimstyle_morehandles: Vec::new(),
+            table_control_entries: std::collections::BTreeMap::new(),
             section_view_style: None,
             view_rep_refs: std::collections::HashMap::new(),
             section_view_reps: Vec::new(),
@@ -1713,7 +3553,7 @@ impl CadDocument {
         // object writer uses the same handles the header section references.
         // Without this, Table<T>.handle() returns Handle::NULL and every
         // table control is written with handle 0, not registered in the
-        // handle map, and unreachable by readers → "invalid data" for all objects.
+        // handle map, and unreachable by readers ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ "invalid data" for all objects.
         self.block_records
             .set_handle(self.header.block_control_handle);
         self.layers.set_handle(self.header.layer_control_handle);
@@ -1816,7 +3656,7 @@ impl CadDocument {
         active_vport.set_handle(self.allocate_handle());
         self.vports.add(active_vport).ok();
 
-        // ── Standard dictionary objects (required for DWG format) ────
+        // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Standard dictionary objects (required for DWG format) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
         // Allocate handles for core dictionaries
         self.header.acad_group_dict_handle = self.allocate_handle();
         self.header.acad_mlinestyle_dict_handle = self.allocate_handle();
@@ -2042,6 +3882,7 @@ impl CadDocument {
                 maintenance_version: 0,
                 unknown1: 0,
                 unknown2: 0,
+                gold_shadow: None,
             },
             DxfClass {
                 dxf_name: "DICTIONARYVAR".to_string(),
@@ -2057,6 +3898,7 @@ impl CadDocument {
                 maintenance_version: 0,
                 unknown1: 0,
                 unknown2: 0,
+                gold_shadow: None,
             },
             DxfClass {
                 dxf_name: "LAYOUT".to_string(),
@@ -2072,6 +3914,7 @@ impl CadDocument {
                 maintenance_version: 0,
                 unknown1: 0,
                 unknown2: 0,
+                gold_shadow: None,
             },
             DxfClass {
                 dxf_name: "ACDBPLACEHOLDER".to_string(),
@@ -2087,6 +3930,7 @@ impl CadDocument {
                 maintenance_version: 0,
                 unknown1: 0,
                 unknown2: 0,
+                gold_shadow: None,
             },
             DxfClass {
                 dxf_name: "PLOTSETTINGS".to_string(),
@@ -2102,6 +3946,7 @@ impl CadDocument {
                 maintenance_version: 0,
                 unknown1: 0,
                 unknown2: 0,
+                gold_shadow: None,
             },
             DxfClass {
                 dxf_name: "SCALE".to_string(),
@@ -2117,6 +3962,7 @@ impl CadDocument {
                 maintenance_version: 0,
                 unknown1: 0,
                 unknown2: 0,
+                gold_shadow: None,
             },
         ];
         for cls in standard_classes {
@@ -2159,7 +4005,7 @@ impl CadDocument {
             return;
         }
         use crate::classes::{DxfClass, ProxyFlags};
-        // Erase | Cloning | DisablesProxyWarningDialog — the flags real files
+        // Erase | Cloning | DisablesProxyWarningDialog ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the flags real files
         // carry on these proxy classes.
         let proxy_flags = ProxyFlags(
             ProxyFlags::ERASE_ALLOWED.0
@@ -2180,6 +4026,7 @@ impl CadDocument {
             maintenance_version: 0,
             unknown1: 0,
             unknown2: 0,
+            gold_shadow: None,
         });
     }
 
@@ -2189,13 +4036,13 @@ impl CadDocument {
         // bumping `next_handle`, but it does fix `header.handle_seed` up to the
         // true max+1. Respect that as a floor so a post-load add (a new
         // linetype, a drawn entity) never re-issues a higher-handled existing
-        // object's handle — which silently overwrites it and corrupts the file.
+        // object's handle ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â which silently overwrites it and corrupts the file.
         if self.header.handle_seed > self.next_handle {
             self.next_handle = self.header.handle_seed;
         }
         let handle = Handle::new(self.next_handle);
         self.next_handle += 1;
-        // Keep HANDSEED in sync — DWG header requires this to be ≥ next_handle
+        // Keep HANDSEED in sync ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â DWG header requires this to be ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ next_handle
         self.header.handle_seed = self.next_handle;
         handle
     }
@@ -2266,6 +4113,75 @@ impl CadDocument {
         .filter(|value| value.is_valid())
     }
 
+
+    /// R13/R14 files predate LAYOUT objects, so a reader otherwise returns a
+    /// `*Model_Space` record with no layout, or one naming a handle that
+    /// resolves to nothing (#65). Only the model layout is synthesized: paper
+    /// settings the source does not carry are not invented, and dangling
+    /// record â†’ layout handles are cleared.
+    pub fn ensure_model_layout(&mut self) {
+        // Layouts name their record; a record left without the back link
+        // (R13/R14 block headers have none) takes it from its layout.
+        let owners: HashMap<Handle, Handle> = self
+            .objects
+            .iter()
+            .filter_map(|(handle, object)| match object {
+                ObjectType::Layout(layout) => Some((layout.block_record, *handle)),
+                _ => None,
+            })
+            .collect();
+        for record in self.block_records.iter_mut() {
+            if !matches!(self.objects.get(&record.layout), Some(ObjectType::Layout(_))) {
+                record.layout = owners.get(&record.handle).copied().unwrap_or(Handle::NULL);
+            }
+        }
+        let Some(model) = self
+            .block_records
+            .iter()
+            .find(|record| record.is_model_space())
+            .map(|record| record.handle)
+        else {
+            return;
+        };
+        let has_layout = self.objects.values().any(|object| {
+            matches!(object, ObjectType::Layout(layout) if layout.block_record == model)
+        });
+        if has_layout {
+            return;
+        }
+
+        let dict_handle = self.header.acad_layout_dict_handle;
+        let dict_handle = if matches!(self.objects.get(&dict_handle), Some(ObjectType::Dictionary(_))) {
+            dict_handle
+        } else {
+            let handle = self.allocate_handle();
+            let root = self.header.named_objects_dict_handle;
+            let mut dict = crate::objects::Dictionary::new();
+            dict.handle = handle;
+            dict.owner = root;
+            if let Some(ObjectType::Dictionary(root)) = self.objects.get_mut(&root) {
+                root.add_entry("ACAD_LAYOUT", handle);
+            }
+            self.objects.insert(handle, ObjectType::Dictionary(dict));
+            self.header.acad_layout_dict_handle = handle;
+            handle
+        };
+
+        let handle = self.allocate_handle();
+        let mut layout = crate::objects::Layout::new("Model");
+        layout.handle = handle;
+        layout.owner = dict_handle;
+        layout.tab_order = 0;
+        layout.flags = 1; // model space
+        layout.block_record = model;
+        if let Some(ObjectType::Dictionary(dict)) = self.objects.get_mut(&dict_handle) {
+            dict.add_entry("Model", handle);
+        }
+        if let Some(record) = self.block_records.iter_mut().find(|r| r.handle == model) {
+            record.layout = handle;
+        }
+        self.objects.insert(handle, ObjectType::Layout(layout));
+    }
     fn set_entity_history_handle(&mut self, handle: Handle, history: Option<Handle>) -> bool {
         match self.get_entity_mut(handle) {
             Some(EntityType::Solid3D(value)) => value.history_handle = history,
@@ -2324,21 +4240,27 @@ impl CadDocument {
         let ObjectType::DynamicBlock(root_object) = self.objects.get(&root)? else {
             return None;
         };
-        let DynamicBlockData::SolidHistory(history) = &root_object.data else {
+        if !matches!(root_object.data, DynamicBlockData::SolidHistory(_)) {
             return None;
-        };
-        match self.objects.get(&history.owner) {
-            Some(ObjectType::DynamicBlock(value))
-                if matches!(value.data, DynamicBlockData::EvaluationGraph(_)) =>
-            {
-                Some(history.owner)
-            }
-            _ => None,
         }
+        self.objects
+            .keys()
+            .copied()
+            .find(|handle| match self.objects.get(handle) {
+                Some(ObjectType::DynamicBlock(value)) => {
+                    matches!(value.data, DynamicBlockData::EvaluationGraph(_))
+                        && self.owner_chain_reaches(value.owner, root)
+                }
+                _ => false,
+            })
     }
 
-    fn solid_history_node_operation(&self, handle: Handle) -> Option<&SolidHistoryOperation> {
-        match self.objects.get(&handle)? {
+    /// The operation a history node object carries.
+    fn solid_history_node_operation(
+        &self,
+        node: Handle,
+    ) -> Option<&SolidHistoryOperation> {
+        match self.objects.get(&node)? {
             ObjectType::DynamicBlock(value) => match &value.data {
                 DynamicBlockData::SolidHistoryNode(operation) => Some(operation),
                 _ => None,
@@ -2347,7 +4269,8 @@ impl CadDocument {
         }
     }
 
-    /// Node handle whose evaluation id is the root's active id.
+    /// The node the history root names as active, when exactly one node
+    /// matches its id.
     fn solid_history_active_node(&self, graph: &SolidHistoryGraph) -> Option<Handle> {
         let active = match self.objects.get(&graph.root)? {
             ObjectType::DynamicBlock(value) => match &value.data {
@@ -2449,11 +4372,6 @@ impl CadDocument {
                 return None;
             };
             value.owner = evaluation;
-            if let DynamicBlockData::SolidHistoryNode(operation) = &mut value.data {
-                let base = operation.base_mut()?;
-                base.eval.node_id = id + 1;
-                base.eval.parent_id = SolidHistoryNodeBase::ROOT_PARENT;
-            }
         }
         self.insert_solid_history_evaluation_graph(
             evaluation,
@@ -2465,29 +4383,11 @@ impl CadDocument {
                 edges,
             },
         );
-        if let Some(ObjectType::DynamicBlock(value)) = self.objects.get_mut(&graph.root) {
-            if let DynamicBlockData::SolidHistory(history) = &mut value.data {
-                history.owner = evaluation;
-                history.history_node_id = count;
-            }
-        }
-        self.solid_history_graph(entity)
-    }
-
-    /// Entities whose solid history has no evaluation graph. The reference
-    /// application rejects a drawing holding a multi-step history in that
-    /// form, so writers save it with one.
-    pub(crate) fn legacy_solid_history_entities(&self) -> Vec<Handle> {
-        self.entities()
-            .map(|entity| entity.common().handle)
-            .filter(|handle| {
-                self.entity_history_handle(*handle).is_some_and(|root| {
-                    matches!(self.objects.get(&root), Some(ObjectType::DynamicBlock(value))
-                        if matches!(value.data, DynamicBlockData::SolidHistory(_)))
-                        && self.solid_history_evaluation_graph(root).is_none()
-                })
-            })
-            .collect()
+        Some(SolidHistoryGraph {
+            root: graph.root,
+            nodes: graph.nodes,
+            evaluation_graph: Some(evaluation),
+        })
     }
 
     fn solid_history_edge(id: i32, source: i32, destination: i32) -> BlockEvaluationEdge {
@@ -2564,9 +4464,7 @@ impl CadDocument {
 
     /// Return the active solid-history chain in root-to-active order.
     ///
-    /// The evaluation graph determines the chain: from the active node back
-    /// through each node's first operand. Histories without a graph (older
-    /// releases of this crate) are linked through parent evaluation ids.
+    /// Parent evaluation ids, rather than step ordering, determine the chain.
     /// Missing, cyclic, or ambiguous links make the graph unusable.
     pub fn solid_history_operations(&self, entity: Handle) -> Option<Vec<SolidHistoryOperation>> {
         let graph = self.solid_history_graph(entity)?;
@@ -2624,7 +4522,7 @@ impl CadDocument {
             }
             visited.push(node_id);
             reversed.push((*current).clone());
-            if parent_id <= 0 {
+            if parent_id == 0 {
                 break;
             }
             let mut parent_matches = operations.iter().copied().filter(|operation| {
@@ -2645,6 +4543,7 @@ impl CadDocument {
         reversed.reverse();
         Some(reversed)
     }
+
 
     /// The active history as it evaluates, operands under the operation that
     /// combines them. A boolean step has both solids it joined as operands.
@@ -2893,6 +4792,37 @@ impl CadDocument {
         self.solid_history_graph(target)
     }
 
+    /// Copy the native source-definition tag of an evaluated anonymous block.
+    /// Nonempty extension dictionaries need a full object-graph clone and are
+    /// deliberately rejected here rather than shared between block records.
+    pub fn copy_evaluated_block_metadata(&mut self, source: Handle, target: Handle) -> Result<()> {
+        for handle in [source, target] {
+            if !self.block_records.iter().any(|b| b.handle == handle && b.name.starts_with("*U")) {
+                return Err("Expected an evaluated anonymous block record".into());
+            }
+        }
+        let dictionary = if let Some(handle) = self.extension_dictionary_handle(source) {
+            match self.objects.get(&handle) {
+                Some(ObjectType::Dictionary(d)) if d.entries.is_empty() && d.xdictionary_handle.is_none() => Some(d.clone()),
+                _ => return Err("Evaluated block has additional object relationships".into()),
+            }
+        } else { None };
+        if let Some(data) = self.eed_by_handle.get(&source).cloned() {
+            self.eed_by_handle.insert(target, data);
+        }
+        if let Some(mut dictionary) = dictionary {
+            let handle = self.allocate_handle();
+            dictionary.handle = handle;
+            dictionary.owner = target;
+            dictionary.reactors.clear();
+            self.objects.insert(handle, ObjectType::Dictionary(dictionary));
+            self.xdic_by_handle.insert(target, handle);
+        }
+        Ok(())
+    }
+
+
+
     pub fn create_solid_history(
         &mut self,
         entity: Handle,
@@ -2975,10 +4905,9 @@ impl CadDocument {
 
     /// Append a new operation to an entity's existing solid-history graph.
     ///
-    /// The existing root and nodes remain intact. The appended operation gets
-    /// the next evaluation id, takes the active node as its operand through a
-    /// new evaluation-graph edge and becomes the graph's active operation.
-    /// Like every history node it stores the root parent id.
+    /// The existing root and nodes remain intact. The appended operation is
+    /// assigned a new step/evaluation id, linked to the active node, and made
+    /// the graph's active operation.
     pub fn append_solid_history(
         &mut self,
         entity: Handle,
@@ -3151,13 +5080,31 @@ impl CadDocument {
         mut operation: SolidHistoryOperation,
     ) -> Option<SolidHistoryOperation> {
         let (dxf_name, cpp_class_name) = operation.class_names()?;
-        let tree = self.solid_history_tree(entity)?;
+        let chain = self.solid_history_operations(entity)?;
         let graph = self.solid_history_graph(entity)?;
-        let replacement_id = operation.base()?.node_id();
+        let replacement_base = operation.base()?;
+        let replacement_id = if replacement_base.eval.node_id > 0 {
+            replacement_base.eval.node_id
+        } else {
+            replacement_base.step_id
+        };
         if replacement_id <= 0 {
             return None;
         }
-        tree.find(replacement_id)?;
+        let mut chain_matches = chain.iter().filter(|current| {
+            current.base().is_some_and(|base| {
+                let node_id = if base.eval.node_id > 0 {
+                    base.eval.node_id
+                } else {
+                    base.step_id
+                };
+                node_id == replacement_id
+            })
+        });
+        chain_matches.next()?;
+        if chain_matches.next().is_some() {
+            return None;
+        }
         let mut node_matches = graph.nodes.iter().copied().filter(|handle| {
             let Some(ObjectType::DynamicBlock(value)) = self.objects.get(handle) else {
                 return false;
@@ -3267,9 +5214,6 @@ impl CadDocument {
             if let Some(eed) = self.eed_by_handle.get(&old_handle).cloned() {
                 self.eed_by_handle.insert(new_handle, eed);
             }
-            if let Some(xdata) = self.object_xdata.get(&old_handle).cloned() {
-                self.object_xdata.insert(new_handle, xdata);
-            }
         }
         let new_evaluation = graph.evaluation_graph.map(|handle| remap[&handle]);
         if !self.set_entity_history_handle(target, Some(new_root)) {
@@ -3310,7 +5254,6 @@ impl CadDocument {
     /// The entity is stored in both the flat entity map (used by the DXF
     /// writer) and the *Model_Space block record (used by the DWG writer).
     pub fn add_entity(&mut self, mut entity: EntityType) -> Result<Handle> {
-        entity.common_mut().raw_record = None;   // (re)placed in the document: owner/handle may differ from the source bytes
         // Allocate a handle if the entity doesn't have one
         let handle = if entity.common().handle.is_null() {
             let h = self.allocate_handle();
@@ -3329,8 +5272,8 @@ impl CadDocument {
         };
         self.record_entity_before(handle, None);
 
-        // Default an unowned entity to model space — or paper space when it
-        // carries the paper-space flag (R12 code 67 → entity_mode 1). Without
+        // Default an unowned entity to model space ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â or paper space when it
+        // carries the paper-space flag (R12 code 67 ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ entity_mode 1). Without
         // the paper-space branch, R12 paper-space entities (layout viewports,
         // etc.) fall into model space.
         let ms_handle = self.header.model_space_block_handle;
@@ -3460,9 +5403,7 @@ impl CadDocument {
     pub fn get_entity_mut(&mut self, handle: Handle) -> Option<&mut EntityType> {
         let idx = *self.entity_index.get(&handle)?;
         self.record_entity_before(handle, Some(Arc::clone(&self.entities[idx])));
-        let entity = Arc::make_mut(&mut self.entities[idx]);
-        entity.common_mut().raw_record = None;   // may be modified: verbatim bytes no longer trustworthy
-        Some(entity)
+        Some(Arc::make_mut(&mut self.entities[idx]))
     }
 
     /// Replace an existing entity with a shared image, preserving its storage
@@ -3620,7 +5561,6 @@ impl CadDocument {
     /// [`add_paper_space_entity`](Self::add_paper_space_entity), and
     /// [`add_entity_to_layout`](Self::add_entity_to_layout).
     fn add_entity_to_block(&mut self, mut entity: EntityType, block_name: &str) -> Result<Handle> {
-        entity.common_mut().raw_record = None;
         // Allocate a handle if the entity doesn't have one
         let handle = if entity.common().handle.is_null() {
             let h = self.allocate_handle();
@@ -3718,7 +5658,7 @@ impl CadDocument {
         }
 
         // Determine the next *Paper_Space block name.
-        // AutoCAD uses: *Paper_Space, *Paper_Space0, *Paper_Space1, …
+        // AutoCAD uses: *Paper_Space, *Paper_Space0, *Paper_Space1, ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦
         let ps_count = self
             .block_records
             .iter()
@@ -3745,7 +5685,7 @@ impl CadDocument {
         layout.tab_order = ps_count as i16 + 1;
         layout.block_record = br_handle;
 
-        // Link block record → layout
+        // Link block record ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ layout
         block_record.layout = layout_handle;
         self.block_records
             .add(block_record)
@@ -3785,80 +5725,9 @@ impl CadDocument {
         Ok(layout_handle)
     }
 
-    /// Give the model block a `Model` layout when the source had none.
-    ///
-    /// R13/R14 files predate LAYOUT objects, so a reader otherwise returns a
-    /// `*Model_Space` record with no layout, or one naming a handle that
-    /// resolves to nothing (#65). Only the model layout is synthesized: paper
-    /// settings the source does not carry are not invented, and dangling
-    /// record → layout handles are cleared.
-    pub fn ensure_model_layout(&mut self) {
-        // Layouts name their record; a record left without the back link
-        // (R13/R14 block headers have none) takes it from its layout.
-        let owners: HashMap<Handle, Handle> = self
-            .objects
-            .iter()
-            .filter_map(|(handle, object)| match object {
-                ObjectType::Layout(layout) => Some((layout.block_record, *handle)),
-                _ => None,
-            })
-            .collect();
-        for record in self.block_records.iter_mut() {
-            if !matches!(self.objects.get(&record.layout), Some(ObjectType::Layout(_))) {
-                record.layout = owners.get(&record.handle).copied().unwrap_or(Handle::NULL);
-            }
-        }
-        let Some(model) = self
-            .block_records
-            .iter()
-            .find(|record| record.is_model_space())
-            .map(|record| record.handle)
-        else {
-            return;
-        };
-        let has_layout = self.objects.values().any(|object| {
-            matches!(object, ObjectType::Layout(layout) if layout.block_record == model)
-        });
-        if has_layout {
-            return;
-        }
-
-        let dict_handle = self.header.acad_layout_dict_handle;
-        let dict_handle = if matches!(self.objects.get(&dict_handle), Some(ObjectType::Dictionary(_))) {
-            dict_handle
-        } else {
-            let handle = self.allocate_handle();
-            let root = self.header.named_objects_dict_handle;
-            let mut dict = crate::objects::Dictionary::new();
-            dict.handle = handle;
-            dict.owner = root;
-            if let Some(ObjectType::Dictionary(root)) = self.objects.get_mut(&root) {
-                root.add_entry("ACAD_LAYOUT", handle);
-            }
-            self.objects.insert(handle, ObjectType::Dictionary(dict));
-            self.header.acad_layout_dict_handle = handle;
-            handle
-        };
-
-        let handle = self.allocate_handle();
-        let mut layout = crate::objects::Layout::new("Model");
-        layout.handle = handle;
-        layout.owner = dict_handle;
-        layout.tab_order = 0;
-        layout.flags = 1; // model space
-        layout.block_record = model;
-        if let Some(ObjectType::Dictionary(dict)) = self.objects.get_mut(&dict_handle) {
-            dict.add_entry("Model", handle);
-        }
-        if let Some(record) = self.block_records.iter_mut().find(|r| r.handle == model) {
-            record.layout = handle;
-        }
-        self.objects.insert(handle, ObjectType::Layout(layout));
-    }
-
     /// Get the number of entities.
     ///
-    /// Structural BLOCK/ENDBLK markers are not counted — they delimit block
+    /// Structural BLOCK/ENDBLK markers are not counted ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â they delimit block
     /// definitions and are emitted from block records, not the entity list.
     pub fn entity_count(&self) -> usize {
         self.entities().count()
@@ -3894,25 +5763,13 @@ impl CadDocument {
                 recorder.record(entity.common().handle, Some(Arc::clone(entity)));
             }
         }
-        self.entities.iter_mut().map(|entity| { let e = Arc::make_mut(entity); e.common_mut().raw_record = None; e })
-    }
-
-    /// Like [`entities_mut`](Self::entities_mut) but keeps `raw_record`: for
-    /// read-time passes that only fill in *derived* fields (names resolved from
-    /// handles, colour-book lookups) and never change what the record encodes.
-    pub(crate) fn entities_mut_keep_raw(&mut self) -> impl Iterator<Item = &mut EntityType> {
-        if let Some(recorder) = self.active_entity_change_recorder() {
-            for entity in &self.entities {
-                recorder.record(entity.common().handle, Some(Arc::clone(entity)));
-            }
-        }
         self.entities.iter_mut().map(Arc::make_mut)
     }
 
     /// Iterate over the entities belonging to a named block record.
     ///
     /// This is the set of entities a CAD application associates with that
-    /// block — for `*Model_Space` (and the `*Paper_Space*` layout records)
+    /// block ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â for `*Model_Space` (and the `*Paper_Space*` layout records)
     /// this is what gets drawn; for regular block names it is the geometry of
     /// the block *definition*, which is only rendered when the block is
     /// INSERTed (issue #52).
@@ -3924,7 +5781,7 @@ impl CadDocument {
             .filter_map(|handle| self.get_entity(*handle))
     }
 
-    /// Iterate over the model-space entities — the primary drawable set.
+    /// Iterate over the model-space entities ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the primary drawable set.
     ///
     /// Equivalent to [`entities_in_block`](Self::entities_in_block) for
     /// `*Model_Space`. Block-definition geometry and paper-space entities are
@@ -4410,35 +6267,6 @@ impl CadDocument {
             .map(|record| record.handle)
     }
 
-    /// Copy the native source-definition tag of an evaluated anonymous block.
-    /// Nonempty extension dictionaries need a full object-graph clone and are
-    /// deliberately rejected here rather than shared between block records.
-    pub fn copy_evaluated_block_metadata(&mut self, source: Handle, target: Handle) -> Result<()> {
-        for handle in [source, target] {
-            if !self.block_records.iter().any(|b| b.handle == handle && b.name.starts_with("*U")) {
-                return Err("Expected an evaluated anonymous block record".into());
-            }
-        }
-        let dictionary = if let Some(handle) = self.extension_dictionary_handle(source) {
-            match self.objects.get(&handle) {
-                Some(ObjectType::Dictionary(d)) if d.entries.is_empty() && d.xdictionary_handle.is_none() => Some(d.clone()),
-                _ => return Err("Evaluated block has additional object relationships".into()),
-            }
-        } else { None };
-        if let Some(data) = self.eed_by_handle.get(&source).cloned() {
-            self.eed_by_handle.insert(target, data);
-        }
-        if let Some(mut dictionary) = dictionary {
-            let handle = self.allocate_handle();
-            dictionary.handle = handle;
-            dictionary.owner = target;
-            dictionary.reactors.clear();
-            self.objects.insert(handle, ObjectType::Dictionary(dictionary));
-            self.xdic_by_handle.insert(target, handle);
-        }
-        Ok(())
-    }
-
     /// Resolve handle references after reading a DXF file.
     ///
     /// This performs a simplified version of the two-phase build:
@@ -4469,7 +6297,7 @@ impl CadDocument {
     ///
     /// Tables key entries by the normalized name captured at insertion.
     /// Assigning `layer.name` directly leaves the entry reachable only under
-    /// its old name, and every later name lookup misses — the DWG writer then
+    /// its old name, and every later name lookup misses ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the DWG writer then
     /// emits a NULL layer hard pointer for entities on that layer, leaving an
     /// invalid drawing (issue #80). The DWG and
     /// DXF writers call this on their output copy; call it directly after an
@@ -4693,7 +6521,7 @@ impl CadDocument {
             }
         }
 
-        // Check table entries — without this, object handle remapping in
+        // Check table entries ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â without this, object handle remapping in
         // section 1d can assign handles that collide with table entry handles.
         macro_rules! scan_table {
             ($tbl:expr) => {
@@ -4878,7 +6706,7 @@ impl CadDocument {
         // Snapshot the handles used by NON-object records. Object keys are
         // unique in `self.objects`, so an object can only truly collide with a
         // record of a different kind (entity, table entry, block record). The
-        // object-collision pass (1d) must decide against THIS set — using the
+        // object-collision pass (1d) must decide against THIS set ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â using the
         // full `used_handles` (which also contains every object handle, added
         // just below) makes the check trivially true and remaps every object,
         // orphaning entity->object links like Underlay/RasterImage definitions.
@@ -5476,9 +7304,6 @@ impl CadDocument {
                 if let Some(value) = self.eed_by_handle.remove(old_handle) {
                     self.eed_by_handle.insert(*new_handle, value);
                 }
-                if let Some(value) = self.object_xdata.remove(old_handle) {
-                    self.object_xdata.insert(*new_handle, value);
-                }
                 if let Some(mut value) = self.xdic_by_handle.remove(old_handle) {
                     remap_object_handle(&mut value);
                     self.xdic_by_handle.insert(*new_handle, value);
@@ -5642,7 +7467,7 @@ impl CadDocument {
             })
             .collect();
 
-        // Block record entities — set owner handle on entities looked up from
+        // Block record entities ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â set owner handle on entities looked up from
         // the entity map. This MUST run before the model-space default below:
         // an R12 DXF carries no per-entity owner (code 330), so block content
         // starts null-owner; if the model-space default claimed it first, block
@@ -5669,7 +7494,7 @@ impl CadDocument {
 
         // Default owner for anything still unowned after block assignment:
         // paper space when the entity carried the R12 paper-space flag
-        // (code 67 → entity_mode 1), model space otherwise.
+        // (code 67 ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ entity_mode 1), model space otherwise.
         for entity in self.entities.iter_mut() {
             let entity = Arc::make_mut(entity);
             let common = match entity {
@@ -5679,7 +7504,7 @@ impl CadDocument {
                 }
                 _ => {
                     // For all other entity types, use as_entity_mut().set_handle pattern
-                    // but we need &mut EntityCommon directly — use a helper
+                    // but we need &mut EntityCommon directly ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use a helper
                     get_common_mut(entity)
                 }
             };
@@ -5699,7 +7524,7 @@ impl CadDocument {
             });
         }
 
-        // Paper-space entities — if an entity's owner is the paper space block,
+        // Paper-space entities ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â if an entity's owner is the paper space block,
         // the entity is already correctly assigned by the reader.
         // We just skip further assignment here.
 
@@ -5759,7 +7584,7 @@ impl CadDocument {
             return;
         }
 
-        for entity in self.entities_mut_keep_raw() {   // derived colour names only; record bytes untouched
+        for entity in self.entities_mut() {
             let common = entity.common_mut();
             let resolved = common
                 .color_book_handle

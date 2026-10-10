@@ -404,6 +404,14 @@ pub struct MLine {
     pub style_name: String,
     /// Number of style elements (for reading).
     pub style_element_count: usize,
+    /// The style's element offsets the segment-parameter cache is
+    /// computed against (the authoring application's knowledge of its
+    /// style at construction time — the document's Standard carries
+    /// ±0.5, AutoCAD's own convention). Not wire data: the cache
+    /// itself rides `MLineVertex::segments`, so this input never
+    /// serializes.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub style_offsets: Vec<f64>,
     /// Vertices.
     pub vertices: Vec<MLineVertex>,
 }
@@ -423,6 +431,7 @@ impl MLine {
             style_handle: None,
             style_name: "Standard".to_string(),
             style_element_count: 2,
+            style_offsets: vec![0.5, -0.5],
             vertices: Vec::new(),
         }
     }
@@ -532,6 +541,34 @@ impl MLine {
             };
             self.vertices[index].direction = direction;
             self.vertices[index].miter = miter;
+
+            // The per-element segment parameters — the authoring cache
+            // every authored specimen carries (measured across the
+            // whole corpus: example_2000–2018 + Multiline 2007/2018,
+            // every vertex, every element): TWO values per element,
+            // [miter trim, 0]. The trim is the signed distance along
+            // the miter line from the reference element's (the
+            // first's) edge crossing to element k's —
+            //     segparm_k = -(offset_k - offset_0)·scale
+            //                 / sin∠(miter, edge)
+            // (the edge crossing of an element at perpendicular
+            // offset d sits at parameter d/sin∠ along the miter
+            // through the vertex, so the difference collapses to the
+            // offset span). A missing cache reads as the null-extents
+            // box under both loaders — the modeler reconstructs the
+            // multiline from it.
+            let sin_signed = miter.cross(&direction).dot(&normal);
+            let base_offset = self.style_offsets.first().copied().unwrap_or(0.0);
+            for (element, segment) in self.vertices[index].segments.iter_mut().enumerate() {
+                let offset = self.style_offsets.get(element).copied().unwrap_or(base_offset);
+                let span = (offset - base_offset) * self.scale_factor;
+                let trim = if sin_signed.abs() > 1.0e-12 {
+                    -span / sin_signed
+                } else {
+                    0.0
+                };
+                segment.parameters = vec![trim, 0.0];
+            }
         }
     }
 
@@ -897,6 +934,41 @@ mod tests {
 
         assert_eq!(mline.vertex_count(), 3);
         assert_eq!(mline.start_point, Vector3::new(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_mline_segment_parameters_match_authored_genus() {
+        // The segment-parameter cache every authored specimen carries
+        // (the 2026-09-30 MLine packet: the modeler reconstructs the
+        // multiline from it — a missing cache reads as the null-extents
+        // box under both loaders). The L-shape at scale 1 with the
+        // Standard ±0.5 offsets: the caps carry the full-width trim
+        // (miter ⊥ edge → ±1), the right-angle joint carries the miter
+        // crossing (1/sin 45° = √2) — the exact pattern measured on
+        // the Multiline specimens' open mlines.
+        let points = vec![
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(10.0, 10.0, 0.0),
+        ];
+        let mline = MLine::from_points(&points);
+
+        let close = |a: f64, b: f64| assert!((a - b).abs() < 1.0e-12, "{a} vs {b}");
+        for vertex in &mline.vertices {
+            // The reference element is untrimmed.
+            close(vertex.segments[0].parameters[0], 0.0);
+            close(vertex.segments[0].parameters[1], 0.0);
+            assert_eq!(vertex.segments[0].parameters.len(), 2);
+        }
+        // Start cap: miter ⊥ edge → the full-width crossing.
+        close(mline.vertices[0].segments[1].parameters[0], -1.0);
+        close(mline.vertices[0].segments[1].parameters[1], 0.0);
+        // Interior right-angle joint: the miter crossing 1/sin(45°).
+        close(mline.vertices[1].segments[1].parameters[0], -2.0_f64.sqrt());
+        close(mline.vertices[1].segments[1].parameters[1], 0.0);
+        // End cap: miter ⊥ edge → the full-width crossing.
+        close(mline.vertices[2].segments[1].parameters[0], -1.0);
+        close(mline.vertices[2].segments[1].parameters[1], 0.0);
     }
 
     #[test]

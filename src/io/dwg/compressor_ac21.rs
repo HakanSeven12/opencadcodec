@@ -1065,22 +1065,20 @@ impl<'a> Ac21Compressor<'a> {
     /// Emit a chained match (trailing_lit = 0, within the match chain loop).
     /// The opcode's upper nibble must not be 0 (that would break the chain).
     fn emit_chained_match(&mut self, length: u32, offset: u32) {
-        let enc = encode_match(length, offset, 0);
+        let mut enc = encode_match(length, offset, 0);
 
         // If the opcode has upper nibble 0 (long match format), the decompressor's
-        // chain loop would exit instead of processing it. We need to handle this:
-        // - For chaining, upper nibble 0 is NOT allowed (it means "exit chain").
-        // - Use the extended format (upper nibble 0x2_) which is valid in any
-        //   position. Long matches (length 19–50, offset 1–4096) easily fit in
-        //   the extended format (length ≤ 255, offset ≤ 65535).
+        // chain loop would exit instead of processing it. §19 H8c/H8d: the author's
+        // chain-continuation long matches ride the remap form — the decoder masks
+        // 0xF_→0x0_ at exactly the chain position (gold decode_r2007.c:537-538) —
+        // so the long form emits with its upper nibble set to 0xF (3 bytes)
+        // instead of the 4-byte extended fallback. The after-gap position keeps
+        // the class-0 form (the prior halt's 0xF-misuse fix stands).
         if enc.bytes[0] >> 4 == 0 {
-            let ext = encode_extended(length, offset, 0);
-            self.output
-                .extend_from_slice(&ext.bytes[..ext.len as usize]);
-        } else {
-            self.output
-                .extend_from_slice(&enc.bytes[..enc.len as usize]);
+            enc.bytes[0] |= 0xF0;
         }
+        self.output
+            .extend_from_slice(&enc.bytes[..enc.len as usize]);
     }
 
     /// Patch the trailing literal count of the last emitted match opcode.
@@ -1450,6 +1448,42 @@ mod tests {
     fn test_roundtrip_trailing_1_byte_after_match() {
         let data = vec![1, 2, 3, 10, 20, 30, 40, 50, 1, 2, 3, 99];
         roundtrip(&data);
+    }
+
+    /// §19 H8c/H8d: a chain-continuation long match (length 19–50,
+    /// offset ≤ 4096) rides the author's remap form — opcode 0xF_
+    /// (3 bytes), which the decoder masks 0xF_→0x0_ at exactly the
+    /// chain position (gold decode_r2007.c:537-538) — not the 4-byte
+    /// extended fallback. The after-gap position keeps the class-0
+    /// form (the 0xF-misuse fix stands).
+    #[test]
+    fn test_chained_long_match_rides_0xf_form() {
+        // 32 distinct literals, an 8-byte match (compact, after the
+        // gap), then more matches in the same chain — the long one
+        // (length 19–50) rides the 0xF_ form. Every literal and every
+        // other opcode class stays below 0xF0, so the single byte with
+        // upper nibble 0xF in the compressed stream IS the chained
+        // long's opcode.
+        let mut data: Vec<u8> = (0..32u8).collect();
+        data.extend((0..8u8).collect::<Vec<u8>>());
+        data.extend((0..31u8).collect::<Vec<u8>>());
+        data.push(32);
+        let compressed = compress_ac21(&data);
+        let f_bytes: Vec<u8> = compressed
+            .iter()
+            .copied()
+            .filter(|&b| b & 0xF0 == 0xF0)
+            .collect();
+        assert_eq!(
+            f_bytes.len(),
+            1,
+            "expected exactly one 0xF_ chain opcode, got {:02x?} in {:02x?}",
+            f_bytes,
+            compressed
+        );
+        let mut decompressed = vec![0u8; data.len()];
+        decompress_ac21(&compressed, 0, compressed.len() as u32, &mut decompressed);
+        assert_eq!(&decompressed[..], &data[..]);
     }
 
     /// Regression: match followed by exactly 7 non-matching bytes at end.

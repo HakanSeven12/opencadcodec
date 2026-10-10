@@ -1,4 +1,4 @@
-//! Regression test for issue #67: legacy space aliases on BLOCK markers
+﻿//! Regression test for issue #67: legacy space aliases on BLOCK markers
 //! must resolve to the canonical BLOCK_RECORD entries.
 
 use std::collections::HashSet;

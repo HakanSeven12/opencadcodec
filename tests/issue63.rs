@@ -1,17 +1,17 @@
-//! Regression tests for issue #63.
+﻿//! Regression tests for issue #63.
 //!
 //! Two DXF-writer defects found when round-tripping a real-world DWG:
 //!
 //! 1. The named-object dictionary's `ACAD_FIELD` entry was written with a
 //!    soft-pointer group code (350) instead of a hard-owner reference (360),
-//!    pointing at an object downstream CAD applications treated as erasable —
+//!    pointing at an object downstream CAD applications treated as erasable â€”
 //!    BricsCAD refused to save the resulting file with
 //!    "Object was erased: (114D)". AutoCAD, ODA and BricsCAD all emit code
 //!    360 for ACAD_FIELD, ACAD_LAYOUT and ACAD_PLOTSTYLENAME.
 //!
 //! 2. Every heavy 2D polyline was re-serialized as legacy
 //!    POLYLINE/VERTEX/SEQEND instead of being down-saved to LWPOLYLINE for
-//!    R2000+ output — a large structural divergence from the source drawing.
+//!    R2000+ output â€” a large structural divergence from the source drawing.
 
 use std::io::Cursor;
 
@@ -54,7 +54,7 @@ fn dictionary_entry(text: &str, key: &str) -> (u16, u64) {
     panic!("dictionary entry {:?} not found", key);
 }
 
-// ── Issue 1: ACAD_FIELD hard-owner pointer ──────────────────────────────
+// â”€â”€ Issue 1: ACAD_FIELD hard-owner pointer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn acad_field_nod_entry_uses_hard_owner_pointer() {
@@ -112,7 +112,7 @@ fn acad_layout_and_plotstylename_nod_entries_match_bricscad() {
     assert_eq!(group_code, 350, "ACAD_GROUP stays a soft pointer");
 }
 
-// ── Issue 2: LWPOLYLINE down-save ───────────────────────────────────────
+// â”€â”€ Issue 2: LWPOLYLINE down-save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn plain_polyline() -> Polyline2D {
     let mut pl = Polyline2D::new();

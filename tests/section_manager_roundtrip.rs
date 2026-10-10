@@ -1,4 +1,4 @@
-use opencadcodec::entities::{
+﻿use opencadcodec::entities::{
     EntityCommon, EntityType, ExtendedEntity, ExtendedEntityData, SectionObjectData,
 };
 use opencadcodec::objects::{ClassObject, ClassObjectData, ObjectType, SectionManager};
@@ -68,7 +68,7 @@ fn dwg_preserves_section_object_entity() {
         .read()
         .expect("read DWG");
     let section = roundtripped.entities().find_map(|entity| match entity {
-        EntityType::Extended(extended) => match &extended.data {
+        EntityType::Extended(ext) => match &ext.data {
             ExtendedEntityData::SectionObject(section) => Some(section),
             _ => None,
         },

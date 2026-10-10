@@ -44,6 +44,14 @@ pub struct DwgBitReader {
     text_stream_pos: i64,
     /// One-past-the-end bit position of the R2007+ text stream.
     text_stream_end_pos: i64,
+    /// Side channel: the form of the LAST pre-R2007 TV read —
+    /// `Some(true)` when the wire length counts the string exactly
+    /// (no trailing NUL, the PolyLine2D author's genus), `Some(false)`
+    /// when it counts the terminator too (the AutoCAD genus, §19
+    /// H8h-ext-15), `None` when no evidence (empty string / R2007+).
+    /// The merged reader's TV-form tally reads this after each
+    /// `read_variable_text` (the per-record form is author data).
+    pub(crate) last_tv_plain_form: Option<bool>,
 }
 
 impl DwgBitReader {
@@ -67,6 +75,7 @@ impl DwgBitReader {
             is_empty: false,
             text_stream_pos: -1,
             text_stream_end_pos: -1,
+            last_tv_plain_form: None,
         }
     }
 
@@ -96,7 +105,7 @@ impl DwgBitReader {
     /// Decode bytes using the document's legacy text code page.
     pub fn decode_legacy_text(&self, bytes: &[u8]) -> String {
         let (decoded, _, _) = self.encoding.decode(bytes);
-        crate::io::dxf::code_page::decode_legacy_escapes(&decoded)
+        crate::io::dxf::code_page::decode_mif_escapes(&decoded)
     }
 
     /// Get the DWG version.
@@ -323,8 +332,15 @@ impl DwgBitReader {
                 0
             }
             _ => {
-                // 11: not used
-                0 // graceful fallback
+                // 11: never written by any author (not even the DWG
+                // writers use it) — gold's bit_read_BL hits its error
+                // branch on this code and RETURNS 256 (bits.c: the
+                // `unexpected 2-bit code` LOG_ERROR + `return 256`).
+                // The garbage-classes walks (§18.6's desynced tables)
+                // do hit it, so the fallback must be gold's 256, not a
+                // graceful 0 — pinned by ExtrudeM_2018's records 9/25
+                // where gold's CLASSES prints num_instances 256.
+                256
             }
         }
     }
@@ -624,6 +640,26 @@ impl DwgBitReader {
         self.read_handle_reference(0, &mut DwgReferenceType::SoftOwnership)
     }
 
+    /// Read a handle reference retaining the wire form exactly as gold's
+    /// JSON prints it: `(code, size, value, absolute)`. This implements
+    /// the HEADER (null-obj) resolution — `dwg_decode_handleref` with
+    /// `obj == NULL` (decode.c: "We receive a null obj when we are
+    /// reading handles in the header variables section"): the absolute
+    /// ref is the raw payload `value` for every code (no base-relative
+    /// math for the offset codes 6/8/A/C — there is no base in the
+    /// header), and a size-0 form resolves to 0. The one dropped case
+    /// (size > 0 with value == 0 and code >= 6 → gold prints the
+    /// 2-element null form `[0,0]`) is corpus-dead: every header handle
+    /// on the 280 files is an absolute-code form (code ≤ 5).
+    pub fn read_handle_raw(&mut self) -> (u8, u8, u64, u64) {
+        // |CODE (4 bits)|COUNTER (4 bits)|HANDLE or OFFSET|
+        let form = self.read_byte();
+        let code = form >> 4;
+        let counter = form & 0x0F;
+        let value = self.read_handle_bytes(counter as usize);
+        (code, counter, value, value)
+    }
+
     /// Read a handle reference relative to a reference handle.
     pub fn read_handle_relative(&mut self, reference_handle: u64) -> u64 {
         self.read_handle_reference(reference_handle, &mut DwgReferenceType::SoftOwnership)
@@ -718,9 +754,9 @@ impl DwgBitReader {
             let _encoding_key = self.read_byte();
             let bytes = self.read_bytes(text_length as usize);
             // Decode using the reader's encoding; legacy strings may embed
-            // CIF \U+XXXX escapes for characters outside the code page.
+            // MIF \U+XXXX escapes for characters outside the code page.
             let (decoded, _, _) = self.encoding.decode(&bytes);
-            crate::io::dxf::code_page::decode_legacy_escapes(&decoded)
+            crate::io::dxf::code_page::decode_mif_escapes(&decoded)
         }
     }
 
@@ -729,7 +765,23 @@ impl DwgBitReader {
     /// - Pre-R2007: BS length + encoded bytes
     /// - R2007+: BS char_count + UTF-16LE (char_count * 2 bytes)
     pub fn read_variable_text(&mut self) -> String {
+        self.read_variable_text_with_wire().0
+    }
+
+    /// [`read_variable_text`](Self::read_variable_text) plus the VERBATIM
+    /// wire string. Pre-R2007 the returned pair is (the MIF-decoded
+    /// semantic text, `Some(the code-page-decoded string BEFORE the
+    /// `\U+XXXX` escape decode)`) — the authored wire form of a
+    /// non-ASCII char is author data (example_2004 writes `108\U+00B0`
+    /// escaped; example_2000 the raw 0xB0 byte), so a record that must
+    /// re-emit her bytes verbatim writes the capture, never a derived
+    /// escape rule. R2007+ returns (the UTF-16 text, `None`) — the
+    /// UTF-16 decode is lossless, the wire form IS the model text.
+    pub fn read_variable_text_with_wire(&mut self) -> (String, Option<String>) {
         if self.dxf_version >= DxfVersion::AC1021 {
+            // R2007+: the UTF-16 decode is lossless and the wire form IS
+            // the model text — no NUL-convention evidence.
+            self.last_tv_plain_form = None;
             // R2007+: If we have a separate text stream, read from it.
             // The ENTIRE variable text (BS char_count + UTF-16LE) is in the text stream.
             if self.text_stream_pos >= 0 {
@@ -748,18 +800,18 @@ impl DwgBitReader {
                         .chunks_exact(2)
                         .map(|c| u16::from_le_bytes([c[0], c[1]]))
                         .collect();
-                    decode_mif(String::from_utf16_lossy(&utf16).replace('\0', ""))
+                    String::from_utf16_lossy(&utf16).replace('\0', "")
                 };
                 // Save updated text stream position
                 self.text_stream_pos = self.position_in_bits();
                 // Restore main stream position
                 self.set_position_in_bits(saved_pos);
-                result
+                (result, None)
             } else {
                 // No separate text stream — read inline
                 let char_count = self.read_bit_short();
                 if char_count <= 0 {
-                    return String::new();
+                    return (String::new(), None);
                 }
                 let byte_count = (char_count as usize) * 2;
                 let bytes = self.read_bytes(byte_count);
@@ -767,19 +819,35 @@ impl DwgBitReader {
                     .chunks_exact(2)
                     .map(|c| u16::from_le_bytes([c[0], c[1]]))
                     .collect();
-                decode_mif(String::from_utf16_lossy(&utf16).replace('\0', ""))
+                (
+                    String::from_utf16_lossy(&utf16).replace('\0', ""),
+                    None,
+                )
             }
         } else {
             // Pre-R2007: BS length + encoded bytes
             let length = self.read_bit_short();
             if length <= 0 {
-                return String::new();
+                self.last_tv_plain_form = None;
+                return (String::new(), Some(String::new()));
             }
             let bytes = self.read_bytes(length as usize);
+            // The trailing-NUL convention is per-record author data (§19
+            // H8h-ext-15's AutoCAD genus counts the terminator; the
+            // PolyLine2D author's genus counts the string exactly) —
+            // record the evidence for the merged reader's tally. A real
+            // string never ends in a NUL byte, so the last-byte test is
+            // unambiguous.
+            self.last_tv_plain_form = Some(bytes[length as usize - 1] != 0);
             let (decoded, _, _) = self.encoding.decode(&bytes);
-            // Legacy strings may embed CIF \U+XXXX escapes for characters
-            // outside the code page — decode them into Unicode chars.
-            crate::io::dxf::code_page::decode_legacy_escapes(&decoded.replace('\0', ""))
+            let wire = decoded.replace('\0', "");
+            // Legacy strings may embed MIF \U+XXXX escapes for characters
+            // outside the code page — decode them into Unicode chars for
+            // the semantic text; the wire capture keeps the author's form.
+            (
+                crate::io::dxf::code_page::decode_mif_escapes(&wire),
+                Some(wire),
+            )
         }
     }
 
@@ -830,10 +898,61 @@ impl DwgBitReader {
         }
     }
 
+    /// Read a CmColor retaining gold's post-decode state (`DwgRawCmc`),
+    /// mirroring libredwg `bit_read_CMC` exactly: the name/book-name
+    /// strings are read only behind a valid flag (< 4 — an invalid flag
+    /// is zeroed and NO strings are read), and an out-of-range method
+    /// nibble is forced to 0xC2 with the rgb low 24 bits kept. The
+    /// emitter-side index derivation (palette lookup) lives in the gold
+    /// harness projection.
+    pub fn read_cm_color_raw(&mut self) -> crate::document::DwgRawCmc {
+        if self.dxf_version >= DxfVersion::AC1018 {
+            let index = self.read_bit_short() as u16 as i64;
+            let mut rgb = self.read_bit_long() as u32;
+            // RC: color byte flags — gold reads the name/book-name
+            // strings only when the flag is valid (< 4).
+            let wire_flag = self.read_byte();
+            let (flag, name, book_name) = if wire_flag < 4 {
+                let name = if (wire_flag & 1) == 1 {
+                    Some(self.read_variable_text())
+                } else {
+                    None
+                };
+                // &2 => book name follows (TV)
+                let book_name = if (wire_flag & 2) == 2 {
+                    Some(self.read_variable_text())
+                } else {
+                    None
+                };
+                (wire_flag as i64, name, book_name)
+            } else {
+                // Invalid CMC flag: gold zeroes it and reads nothing.
+                (0, None, None)
+            };
+            // Method validation: force 0xC2 when out of 0xC0..=0xC8.
+            let method = (rgb >> 24) & 0xFF;
+            if !(0xC0..=0xC8).contains(&method) {
+                rgb = 0xC200_0000 | (rgb & 0x00FF_FFFF);
+            }
+            crate::document::DwgRawCmc { index, rgb, flag, name, book_name }
+        } else {
+            // Pre-R2004: BS color index (gold prints it via %d over the
+            // unsigned 16-bit value — 0..65535).
+            let index = self.read_bit_short() as u16 as i64;
+            crate::document::DwgRawCmc { index, ..Default::default() }
+        }
+    }
+
     /// Read an EnColor (entity color with transparency).
     ///
-    /// Returns (Color, Transparency, bool has_color_handle).
-    pub fn read_en_color(&mut self) -> (Color, Transparency, bool) {
+    /// Returns (Color, Transparency, bool has_color_handle, raw form).
+    /// The raw form (§19 H8h-ext-17) retains the authored flags/index BS,
+    /// the true-color BL and the transparency BL verbatim for the writer's
+    /// same-decode replay gate — the ACI slot the BS carries alongside the
+    /// true-color flag is author data the collapsed model cannot derive.
+    pub fn read_en_color(
+        &mut self,
+    ) -> (Color, Transparency, bool, Option<crate::document::DwgRawEnc>) {
         if self.dxf_version >= DxfVersion::AC1018 {
             // R2004+
             let size = self.read_bit_short();
@@ -855,6 +974,7 @@ impl DwgBitReader {
                 // transparency BL. (An entity with both a true colour and a
                 // transparency has flags 0x8000|0x2000 = 0xA000; the rgb long
                 // precedes the transparency long.)
+                let mut rgb_raw: Option<u32> = None;
                 let color = if is_book_color {
                     Color::from_index((size & 0x0FFF) as i16)
                 } else if (flags & 0x8000) > 0 {
@@ -863,6 +983,7 @@ impl DwgBitReader {
                     //   0xC0000000 = ByLayer, flag byte bit 0 set = ACI index,
                     //   otherwise = true RGB color.
                     let rgb = self.read_bit_long() as u32;
+                    rgb_raw = Some(rgb);
                     let arr = rgb.to_le_bytes();
                     if rgb == 0xC000_0000 {
                         Color::ByLayer
@@ -880,14 +1001,23 @@ impl DwgBitReader {
 
                 // 0x2000: transparency (BL) — read AFTER the rgb/color-book
                 // value, matching the entity ENC field order.
+                let mut transparency_raw: Option<i32> = None;
                 if (flags & 0x2000) > 0 {
                     let value = self.read_bit_long();
+                    transparency_raw = Some(value);
                     transparency = Transparency::from_alpha_value(value as u32);
                 }
 
-                (color, transparency, is_book_color)
+                let raw = crate::document::DwgRawEnc {
+                    size: size as u16,
+                    rgb: rgb_raw,
+                    transparency: transparency_raw,
+                    decoded_color: color.clone(),
+                    decoded_transparency: transparency,
+                };
+                (color, transparency, is_book_color, Some(raw))
             } else {
-                (Color::ByBlock, Transparency::BY_LAYER, false)
+                (Color::ByBlock, Transparency::BY_LAYER, false, None)
             }
         } else {
             // Pre-R2004
@@ -896,6 +1026,7 @@ impl DwgBitReader {
                 Color::from_index(color_number),
                 Transparency::BY_LAYER,
                 false,
+                None,
             )
         }
     }
@@ -1308,15 +1439,5 @@ mod tests {
         assert!((v1 - 3.14).abs() < 1e-10, "v1 = {}", v1);
         let v2 = r.read_bit_double_with_default(reference);
         assert!((v2 - 100.5).abs() < 1e-10, "v2 = {}", v2);
-    }
-}
-
-/// Unicode strings (R2007+) can still carry MIF escapes, written by
-/// producers that encode double-byte text as `\M+nXXXX`.
-fn decode_mif(text: String) -> String {
-    if crate::io::dxf::code_page::has_legacy_escape(&text) {
-        crate::io::dxf::code_page::decode_legacy_escapes(&text)
-    } else {
-        text
     }
 }

@@ -1,4 +1,4 @@
-use opencadcodec::tables::TableEntry;
+﻿use opencadcodec::tables::TableEntry;
 use opencadcodec::types::{DxfVersion, Vector3};
 use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;

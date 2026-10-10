@@ -1,4 +1,4 @@
-//! Non-graphical object serialization for DWG records.
+﻿//! Non-graphical object serialization for DWG records.
 //!
 //! Handles dictionaries, layouts, plot-settings, XRecords, groups,
 //! mline styles, image definitions, etc.
@@ -185,7 +185,7 @@ fn transcode_xrecord_xdata(
                 .0
                 .into_owned();
             p += len;
-            crate::io::dxf::code_page::decode_legacy_escapes(&s)
+            crate::io::dxf::code_page::decode_mif_escapes(&s)
         };
         if tgt_unicode {
             let utf16: Vec<u16> = text.encode_utf16().take(u16::MAX as usize).collect();
@@ -230,7 +230,12 @@ fn encode_xrecord_entries(
                     output.extend_from_slice(
                         &(bytes.len().min(u16::MAX as usize) as u16).to_le_bytes(),
                     );
-                    output.push(code_page);
+                    // §19 H8h-ext-17: replay the authored per-string wire
+                    // code page when captured (the blob's codepage byte is
+                    // author data — the document header's codepage may
+                    // differ); the header's index is the fallback for
+                    // constructed content.
+                    output.push(entry.wire_code_page.unwrap_or(code_page as u16) as u8);
                     output.extend_from_slice(&bytes[..bytes.len().min(u16::MAX as usize)]);
                 }
             }
@@ -266,15 +271,14 @@ fn encode_xrecord_entries(
     output
 }
 
-/// Flatten a [`Matrix4`](crate::types::Matrix4) into 12 doubles in column-major
-/// 4×3 order (X axis, Y axis, Z axis, translation); the bottom row is dropped.
-/// DWG stores the spatial-filter transforms in the same column-major layout as
-/// DXF code 40.
-fn matrix_to_column_major(m: &crate::types::Matrix4) -> [f64; 12] {
+/// Flatten a [`Matrix4`](crate::types::Matrix4) into 12 doubles holding its 3Ã—4
+/// part in row-major order (3 rows of 4); the bottom row is dropped. DWG stores
+/// the spatial-filter transforms row-major.
+fn matrix_to_row_major(m: &crate::types::Matrix4) -> [f64; 12] {
     let mut out = [0.0; 12];
     let mut i = 0;
-    for col in 0..4 {
-        for row in 0..3 {
+    for row in 0..3 {
+        for col in 0..4 {
             out[i] = m.m[row][col];
             i += 1;
         }
@@ -282,118 +286,84 @@ fn matrix_to_column_major(m: &crate::types::Matrix4) -> [f64; 12] {
     out
 }
 
-/// The class names a class-registered object takes its type code from, in
-/// lookup order. Empty for objects written under a fixed type code.
-pub(crate) fn object_class_names(object: &ObjectType) -> Vec<std::borrow::Cow<'_, str>> {
-    use std::borrow::Cow;
-
-    let name: &str = match object {
-        ObjectType::MultiLeaderStyle(_) => "MLEADERSTYLE",
-        ObjectType::ImageDefinition(_) => "IMAGEDEF",
-        ObjectType::UnderlayDefinition(value) => value.entity_name(),
-        ObjectType::ImageDefinitionReactor(_) => "IMAGEDEF_REACTOR",
-        ObjectType::PlotSettings(_) => "PLOTSETTINGS",
-        ObjectType::Scale(_) => "SCALE",
-        ObjectType::ObjectContextData(value) => value.class_name(),
-        ObjectType::SortEntitiesTable(_) => "SORTENTSTABLE",
-        ObjectType::DictionaryVariable(_) => "DICTIONARYVAR",
-        ObjectType::RasterVariables(_) => "RASTERVARIABLES",
-        ObjectType::DictionaryWithDefault(_) => "ACDBDICTIONARYWDFLT",
-        ObjectType::BookColor(_) => "DBCOLOR",
-        ObjectType::WipeoutVariables(_) => "WIPEOUTVARIABLES",
-        ObjectType::SpatialFilter(_) => "SPATIAL_FILTER",
-        ObjectType::GeoData(_) => "GEODATA",
-        ObjectType::BlockVisibilityParameter(_) => "BLOCKVISIBILITYPARAMETER",
-        ObjectType::TableContent(_) => "TABLECONTENT",
-        ObjectType::VisualStyle(_) => "VISUALSTYLE",
-        ObjectType::Material(_) => "MATERIAL",
-        ObjectType::TableStyle(_) => "TABLESTYLE",
-        ObjectType::Field(_) => "FIELD",
-        ObjectType::FieldList(_) => "FIELDLIST",
-        ObjectType::DynamicBlock(value) => &value.dxf_name,
-        ObjectType::DgnLineStyle(value) => value.dxf_name(),
-        ObjectType::ClassObject(value)
-            if !matches!(value.data, ClassObjectData::VbaProject(_)) =>
-        {
-            value.dxf_name()
-        }
-        ObjectType::DataObject(value)
-            if !matches!(
-                value.data,
-                DataObjectData::Dummy | DataObjectData::LongTransaction
-            ) =>
-        {
-            value.dxf_name()
-        }
-        ObjectType::RegisteredClass(value) if value.properties.is_empty() => &value.dxf_name,
-        ObjectType::Associative(value) => {
-            let canonical = associative_canonical_name(&value.dxf_name);
-            return vec![
-                Cow::Borrowed(value.dxf_name.as_str()),
-                Cow::Owned(format!("ACDB{canonical}")),
-            ];
-        }
-        _ => return Vec::new(),
-    };
-    vec![Cow::Borrowed(name)]
+/// The SH classes that are still elided at save â€” the single authority
+/// for BOTH decisions that must agree: whether a record is written
+/// (`write_object` here) and whether pointers to it stay live
+/// (`solid_history_handle_value` in entities.rs). A class present in
+/// this list must never appear in a written record, and a class absent
+/// must never have its pointers nulled; either drift produces dangling
+/// or dead references that make strict readers refuse the whole file.
+///
+/// Phase A state (2026-09-23): ACSH_HISTORY_CLASS has a verified layout
+/// and is written; ACSH_SWEEP_CLASS, ACSH_EXTRUSION_CLASS,
+/// ACSH_LOFT_CLASS, and ACSH_REVOLVE_CLASS are written with their
+/// undocumented tails retained raw on the model and re-emitted
+/// verbatim (steps 2-4); ACSH_SPHERE_CLASS, ACSH_BOX_CLASS, and
+/// ACSH_BOOLEAN_CLASS are written through their typed arms, each
+/// calibrated against gold's live spec walk (step 5 â€” the skeleton
+/// traces verified each layout: sphere = BD radius; box = length /
+/// width / height BDs (the first non-identity base matrix written);
+/// boolean = RC operation + BL operand1/operand2). The remaining
+/// node classes (Wedge, Cylinder, Cone, Torus, Pyramid) stay elided
+/// until a fixture lands for each — unverified elide removals are
+/// strict-reader risk. BREP joined the calibrated set 2026-10-04 (the
+/// mint fixtures + the raw-remainder verbatim re-emission).
+///
+/// The SH elide verdict — fully retired 2026-10-05.
+///
+/// History: the 2026-09-22 extrusion probe found class-numbered
+/// catch-all records (before typed node arms existed) made strict
+/// readers refuse the whole file; the 2026-09-28 cylinder audit found
+/// the factory history tree (no evaluation graph, duplicate ownership)
+/// audited as "Duplicate ownership of reference". Both verdicts were
+/// correct for their day: every constructed record elided, and captured
+/// records of every class but the calibrated set elided too.
+///
+/// Both root causes are gone, and with them the elide. The document
+/// builds the authored genus (an ACAD_EVALUATION_GRAPH interposed
+/// between history and node — loader-proven by the OCS 2026.40
+/// release), and the typed node arms emit the reference record form
+/// (the saved evaluation header — parent -1 / value code -9999, the
+/// form the reference application refuses the drawing without — and
+/// the row-major on-disk matrix order; both aligned with the upstream
+/// codec 2026-10-05 after BricsCAD refused the fork's earlier
+/// spec-walk-calibrated box form while AutoCAD tolerated it).
+///
+/// The captured-record half was the last to go, and it was a live
+/// regression: an OCS reopen→save cycle elided the reopened cylinder/
+/// cone/torus/pyramid/wedge nodes (uncalibrated classes) while their
+/// roots and graphs passed — the property panel's construction
+/// parameters vanished exactly there. Captured records now pass
+/// through the same typed arms (or raw-echo byte-faithfully when the
+/// reader retained wire bytes).
+///
+/// The function stays as the single authority both former call sites
+/// consulted; it now answers false for everything.
+pub(crate) fn elided_solid_history_class(dxf_name: &str, captured: bool) -> bool {
+    let _ = (dxf_name, captured);
+    false
 }
 
-/// Table style flag bit 8 is found in older files but never written back:
-/// a re-save of such a style stores the flags without it.
-const STALE_TABLE_STYLE_FLAG: i16 = 8;
-
 impl<'a> DwgObjectWriter<'a> {
-    // ── Object dispatch ─────────────────────────────────────────────
-
-    /// Whether an object has no class to take its type code from and no
-    /// fixed code to fall back on. Its writer would emit 500 (the first
-    /// class, whatever that is) or 0, so readers resolve it to another class
-    /// or drop it: it is left out instead.
-    pub(super) fn lacks_object_class(&self, object: &ObjectType) -> bool {
-        let class_only = matches!(
-            object,
-            ObjectType::ObjectContextData(_)
-                | ObjectType::DynamicBlock(_)
-                | ObjectType::Associative(_)
-                | ObjectType::DgnLineStyle(_)
-                | ObjectType::Field(_)
-                | ObjectType::FieldList(_)
-                | ObjectType::ClassObject(_)
-                | ObjectType::DataObject(_)
-                | ObjectType::RegisteredClass(_)
-        );
-        let names = object_class_names(object);
-        class_only
-            && !names.is_empty()
-            && !names.iter().any(|name| self.document.classes.contains(name))
-    }
+    // â”€â”€ Object dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Write a single non-graphical object record.
     pub(super) fn write_object(&mut self, obj: &ObjectType) {
-        if self.lacks_object_class(obj) {
-            return;
-        }
-        let preserved_handle = match obj {
-            ObjectType::DynamicBlock(value) => Some(value.handle),
-            ObjectType::Associative(value) => Some(value.handle),
-            _ => None,
-        };
-        if let Some(handle) = preserved_handle {
-            if self.document.original_objects.get(&handle) == Some(obj) {
-                if let Some((_, raw)) = self.document.raw_records.get(&handle.value()) {
-                    if raw.version == self.dxf_version {
-                        let raw = raw.clone();
-                        self.register_raw_object(handle, &raw.data, raw.handle_bits);
-                        return;
-                    }
-                }
+        // SH records: constructed trees pass through their typed arms
+        // (the loader-proven genus — see elided_solid_history_class);
+        // captured records of the still-uncalibrated classes keep the
+        // Phase A elide. The verdict and the entity pointer-nulling
+        // share that one authority.
+        if let ObjectType::DynamicBlock(d) = obj {
+            if elided_solid_history_class(&d.dxf_name, d.captured) {
+                return;
             }
         }
         match obj {
             ObjectType::Dictionary(d) => self.write_dictionary(d),
             ObjectType::Layout(l) => self.write_layout(l),
             ObjectType::XRecord(x) => {
-                if !x.entries_complete && !self.raw_excluded_handles.contains(&x.handle.value()) {
+                if !x.entries_complete {
                     if let Some(raw) = &x.raw_dwg_data {
                         if self.raw_passthrough_compatible(x.raw_dwg_version) {
                             for reference in &x.object_references {
@@ -432,14 +402,46 @@ impl<'a> DwgObjectWriter<'a> {
             ObjectType::SpatialFilter(s) => self.write_spatial_filter(s),
             ObjectType::GeoData(g) => self.write_geodata(g),
             ObjectType::BlockVisibilityParameter(p) => self.write_block_visibility_parameter(p),
-            ObjectType::DynamicBlock(value) => self.write_dynamic_block(value),
+            ObjectType::DynamicBlock(value) => {
+                // TODO A5 family 1 (2026-10-01): the action classes gold
+                // reads as unknown_bits (no spec authority â€” the Dynblocks
+                // action records drifted +58 main bits each under the
+                // typed layout) replay the DATATABLE-style whole-record
+                // capture verbatim on a same-version write; the typed
+                // model stays the DXF/programmatic/conversion fallback.
+                if let Some(ref raw) = value.raw_dwg_data {
+                    if self.raw_passthrough_compatible(value.raw_dwg_version) {
+                        self.register_raw_object(
+                            value.handle,
+                            raw,
+                            value.raw_dwg_handle_bits,
+                        );
+                        return;
+                    }
+                }
+                self.write_dynamic_block(value)
+            }
             ObjectType::Associative(value) => self.write_associative_object(value),
             ObjectType::ClassObject(value) => {
+                // Â§19 the DATATABLE record-identity packet: a DWG-read
+                // record with a verbatim capture replays it whole (the
+                // CsacDocumentOptions/Unknown precedent â€” the typed
+                // layout of the no-authority classes is an invention
+                // that loses her handle stream); the version gate keeps
+                // conversions on the modeled path.
+                if let Some(raw) = &value.raw_dwg_data {
+                    if self.raw_passthrough_compatible(value.raw_dwg_version) {
+                        self.register_raw_object(
+                            value.handle,
+                            raw,
+                            value.raw_dwg_handle_bits,
+                        );
+                        return;
+                    }
+                }
                 if let ClassObjectData::CsacDocumentOptions(data) = &value.data {
                     if let Some(raw) = &data.raw_dwg_data {
-                        if self.raw_passthrough_compatible(data.raw_dwg_version)
-                            && !self.raw_excluded_handles.contains(&value.handle.value())
-                        {
+                        if self.raw_passthrough_compatible(data.raw_dwg_version) {
                             self.register_raw_object(value.handle, raw, data.raw_dwg_handle_bits);
                             return;
                         }
@@ -451,9 +453,7 @@ impl<'a> DwgObjectWriter<'a> {
             ObjectType::Field(value) => self.write_field_object(value),
             ObjectType::FieldList(value) => self.write_field_list(value),
             ObjectType::RegisteredClass(value) => {
-                if value.properties.is_empty()
-                    && !self.raw_excluded_handles.contains(&value.handle.value())
-                {
+                if value.properties.is_empty() {
                     if let Some(raw) = &value.raw_dwg_data {
                         if self.raw_passthrough_compatible(value.raw_dwg_version) {
                             self.register_raw_object(value.handle, raw, value.raw_dwg_handle_bits);
@@ -513,7 +513,11 @@ impl<'a> DwgObjectWriter<'a> {
             if self.version.r2000_plus() {
                 self.writer.write_bit(true);
             }
-            self.write_registered_payload(&payload, &value.object_ids);
+            self.write_registered_payload(
+                &payload,
+                &value.object_ids,
+                self.raw_objids_for(value),
+            );
             self.register_object(value.handle);
             return;
         }
@@ -525,8 +529,45 @@ impl<'a> DwgObjectWriter<'a> {
             &value.reactors,
             &value.xdictionary_handle,
         );
-        self.write_registered_payload(&value.payload, &value.object_ids);
+        self.write_registered_payload(
+            &value.payload,
+            &value.object_ids,
+            self.raw_objids_for(value),
+        );
         self.register_object(value.handle);
+    }
+
+    /// The authored objids handle region for a same-version write (TODO
+    /// A5 family 3, 2026-10-01) â€” see
+    /// `RegisteredClassObject::raw_objids_bits`. `None` when absent
+    /// (constructed content, DXF reads) or when the write targets a
+    /// different version.
+    /// The authored objids handle region for a ProxyObject (TODO A5
+    /// family 3, 2026-10-01) â€” `None` when absent or version-mismatched.
+    pub(super) fn proxy_raw_objids<'v>(
+        &self,
+        value: &'v crate::objects::ProxyObject,
+    ) -> Option<(&'v [u8], u32)> {
+        match (
+            &value.raw_objids_bits,
+            self.raw_passthrough_compatible(value.raw_dwg_version),
+        ) {
+            (Some((bytes, bits)), true) => Some((bytes, *bits)),
+            _ => None,
+        }
+    }
+
+    pub(super) fn raw_objids_for<'v>(
+        &self,
+        value: &'v crate::objects::RegisteredClassObject,
+    ) -> Option<(&'v [u8], u32)> {
+        match (
+            &value.raw_objids_bits,
+            self.raw_passthrough_compatible(value.raw_dwg_version),
+        ) {
+            (Some((bytes, bits)), true) => Some((bytes, *bits)),
+            _ => None,
+        }
     }
 
     fn write_dgn_line_style_object(&mut self, value: &DgnLineStyleObject) {
@@ -592,7 +633,7 @@ impl<'a> DwgObjectWriter<'a> {
                 payload,
                 object_ids,
                 ..
-            } => self.write_registered_payload(payload, object_ids),
+            } => self.write_registered_payload(payload, object_ids, None),
         }
         self.register_object(value.handle);
     }
@@ -686,12 +727,22 @@ impl<'a> DwgObjectWriter<'a> {
         &mut self,
         payload: &crate::objects::ProxyPayload,
         object_ids: &[crate::objects::ProxyObjectReference],
+        raw_objids: Option<(&[u8], u32)>,
     ) {
         let data = payload.data();
         for bit_index in 0..payload.bit_count as usize {
             let byte = data.get(bit_index / 8).copied().unwrap_or(0);
             self.writer
                 .write_bit((byte & (0x80 >> (bit_index % 8))) != 0);
+        }
+        // TODO A5 family 3 (2026-10-01): the authored objids handle
+        // region replays verbatim on a same-version write â€” the model
+        // keeps gold parity (consecutive duplicate handles collapsed,
+        // the JSON axis) while the wire retains the author's duplicates.
+        // The bits ride the HANDLE sub-stream (write_handle_bits).
+        if let Some((raw, bit_count)) = raw_objids {
+            self.writer.write_handle_bits(raw, bit_count);
+            return;
         }
         for object_id in object_ids {
             let reference_type = match object_id.kind {
@@ -753,6 +804,19 @@ impl<'a> DwgObjectWriter<'a> {
             let byte = text_payload.get(bit_index / 8).copied().unwrap_or(0);
             self.writer
                 .write_text_bit((byte & (0x80 >> (bit_index % 8))) != 0);
+        }
+        // TODO A5 family 3 (2026-10-01): the authored objids handle
+        // region replays verbatim on a same-version write â€” the model
+        // keeps gold parity (consecutive duplicate wire handles
+        // collapsed by PUSH_HV) while the wire retains the author's
+        // duplicates (Constraints 0x3E3/0x3E4/0x3E5). The bits ride
+        // the HANDLE sub-stream (write_handle_bits).
+        if let Some((raw, bit_count)) =
+            self.proxy_raw_objids(value)
+        {
+            self.writer.write_handle_bits(raw, bit_count);
+            self.register_object(value.handle);
+            return;
         }
         for object_id in &value.object_ids {
             let reference_type = match object_id.kind {
@@ -849,27 +913,12 @@ impl<'a> DwgObjectWriter<'a> {
         else {
             return;
         };
-        // A visual style filed in the pre-R2010 layout must say so: the
-        // reader rejects the record unless it carries the ACAD
-        // `AcDbSavedByObjectVersion` marker that announces the down-level
-        // object version.
-        let extra: Vec<(u64, Vec<u8>)> = if self.version.r2010_plus() {
-            Vec::new()
-        } else {
-            let mut marker = crate::xdata::ExtendedDataRecord::new("ACAD");
-            marker.add_value(crate::xdata::XDataValue::String(
-                "AcDbSavedByObjectVersion".to_string(),
-            ));
-            marker.add_value(crate::xdata::XDataValue::Integer16(0));
-            self.encode_xdata_record(&marker).into_iter().collect()
-        };
-        self.write_common_non_entity_data_eed(
+        self.write_common_non_entity_data(
             type_code,
             value.handle,
             value.owner,
             &value.reactors,
             &value.xdictionary_handle,
-            extra,
         );
         self.writer.write_variable_text(&value.description);
         self.writer.write_bit_long(value.style_type as i32);
@@ -929,8 +978,9 @@ impl<'a> DwgObjectWriter<'a> {
                 .write_bit_long(Self::visual_style_long(&properties[21]));
             self.writer
                 .write_bit_long(Self::visual_style_long(&properties[22]));
-            // properties[23] (DXF group 45) is part of the binary record
-            // only from R2007 on; R2004 ends with the internal-use flag.
+            // bd2007_45 is only present in R2007 and later (gold spec: SINCE
+            // R_2007a). Emitting it for R2000/R2004 appends 8 bytes that
+            // AutoCAD does not expect and corrupts the object stream.
             if self.version.r2007_plus() {
                 self.writer
                     .write_bit_double(Self::visual_style_double(&properties[23]));
@@ -1139,7 +1189,24 @@ impl<'a> DwgObjectWriter<'a> {
             &value.common.reactors,
             &value.common.xdictionary_handle,
         );
-        self.write_table_content(value);
+        // Â§19 H8h-ext-12 + Â§20 the R2018 record-identity packet:
+        // DWG-read records re-emit their captured body verbatim â€” the
+        // main bits, the text-region bits (raw, into the text stream),
+        // and the handle tail. The modeled emission stays the fallback
+        // for DXF-built and programmatic records (no capture) and for
+        // conversions that target another version (the replay gate
+        // inside write_wire_body).
+        if !self.write_wire_body(
+            &value.wire_main,
+            value.wire_main_bit_len,
+            &value.wire_text,
+            value.wire_text_bit_len,
+            &value.wire_handles,
+            value.wire_handles_bit_len,
+            value.wire_dxf_version,
+        ) {
+            self.write_table_content(value);
+        }
         self.register_object(value.common.handle);
     }
 
@@ -1157,7 +1224,7 @@ impl<'a> DwgObjectWriter<'a> {
         if !self.version.r2010_plus() {
             self.writer.write_variable_text(&value.name);
             self.writer.write_bit_short(value.flow_direction as i16);
-            self.writer.write_bit_short(value.flags.bits() & !STALE_TABLE_STYLE_FLAG);
+            self.writer.write_bit_short(value.flags.bits());
             self.writer.write_bit_double(value.horizontal_margin);
             self.writer.write_bit_double(value.vertical_margin);
             self.writer.write_bit(value.title_suppressed);
@@ -1168,21 +1235,14 @@ impl<'a> DwgObjectWriter<'a> {
         } else {
             self.writer.write_byte(value.modern_unknown_byte);
             self.writer.write_variable_text(&value.name);
-            // The R2010+ flags field carries the table style flags.
-            self.writer.write_bit_long((value.flags.bits() & !STALE_TABLE_STYLE_FLAG) as i32);
+            self.writer.write_bit_long(value.modern_unknown_long1);
             self.writer.write_bit_long(value.modern_unknown_long2);
             self.writer.write_handle(
                 DwgReferenceType::HardOwnership,
                 value.modern_cell_style_handle.value(),
             );
             if let Some(style) = &value.modern_style {
-                // The base "Table" style normally has no text style and keeps
-                // none; only a dangling one is resolved.
-                if style.cell_style.content_format.text_style.is_null() {
-                    self.write_named_table_cell_style(style);
-                } else {
-                    self.write_table_style_named_cell_style(style);
-                }
+                self.write_table_style_named_cell_style(style);
             } else {
                 self.write_default_modern_table_cell_style(value);
             }
@@ -1298,34 +1358,41 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_table_style_named_cell_style(&mut self, value: &NamedTableCellStyle) {
-        let resolved = self.resolve_table_text_style(value.cell_style.content_format.text_style);
-        if resolved == value.cell_style.content_format.text_style {
-            self.write_named_table_cell_style(value);
-            return;
+        // Â§19 H8h-ext-15: on a DWG read the retained NamedTableCellStyle
+        // is the wire truth â€” write it verbatim. The null â†’ "Standard"
+        // resolution rode the DXF-built and programmatic path only
+        // (her R2010/R2013 TABLESTYLE h=87 nulls the leading
+        // cellstyle's text_style where the resolution wrote the
+        // resolved (5.1.11) handle â€” the era censuses' single +1-byte
+        // divergence, now the last record standing).
+        if self.document.dwg_source_version.is_none() {
+            let resolved =
+                self.resolve_table_text_style(value.cell_style.content_format.text_style);
+            if resolved != value.cell_style.content_format.text_style {
+                let mut value = value.clone();
+                value.cell_style.content_format.text_style = resolved;
+                return self.write_named_table_cell_style(&value);
+            }
         }
-
-        let mut value = value.clone();
-        value.cell_style.content_format.text_style = resolved;
-        self.write_named_table_cell_style(&value);
+        self.write_named_table_cell_style(value);
     }
 
-    /// The base "Table" cell style of a style without one: only the margins
-    /// come from the style; content, fill and borders are left to the named
-    /// cell styles.
     fn write_default_modern_table_cell_style(&mut self, value: &TableStyle) {
+        let row = &value.data_row_style;
         let cell_style = TableCellStyleData {
             style_type: 5,
             data_flags: 1,
-            background_color: Color::None,
+            background_color: row.fill_color,
             content_layout: 1,
             content_format: TableContentFormat {
-                value_data_type: 512,
+                value_data_type: row.data_type,
+                value_unit_type: row.unit_type,
+                value_format_string: row.format_string.clone(),
                 block_scale: 1.0,
-                cell_alignment: 1,
-                content_color: Color::ByBlock,
-                // Not the data row height, in imperial and metric drawings alike
-                // (data text of 0.4 or 4.5 still carries 0.18 here; so do the spacings).
-                text_height: 0.18,
+                cell_alignment: row.alignment as i32,
+                content_color: row.text_color,
+                text_style: self.resolve_table_row_text_style(row),
+                text_height: row.text_height,
                 ..TableContentFormat::default()
             },
             margin_override_flags: 1,
@@ -1333,8 +1400,23 @@ impl<'a> DwgObjectWriter<'a> {
             horizontal_margin: value.horizontal_margin,
             bottom_margin: value.vertical_margin,
             right_margin: value.horizontal_margin,
-            horizontal_spacing: 0.18,
-            vertical_spacing: 0.18,
+            horizontal_spacing: value.horizontal_margin * 3.0,
+            vertical_spacing: value.vertical_margin * 3.0,
+            borders: [
+                (1, &row.top_border),
+                (2, &row.right_border),
+                (4, &row.bottom_border),
+                (8, &row.left_border),
+                (16, &row.horizontal_inside_border),
+                (32, &row.vertical_inside_border),
+            ]
+            .into_iter()
+            .map(|(index_mask, border)| TableGridFormat {
+                index_mask,
+                border: border.clone(),
+                line_type: Handle::NULL,
+            })
+            .collect(),
             ..TableCellStyleData::default()
         };
         self.write_named_table_cell_style(&NamedTableCellStyle {
@@ -1367,23 +1449,18 @@ impl<'a> DwgObjectWriter<'a> {
         name: &str,
         merge_flags: i32,
     ) {
-        // R2010+ edge order; the grid flag is set for a hidden edge, the
-        // reverse of the row border's `is_invisible`.
         let borders = [
             (1, &row.top_border),
-            (2, &row.horizontal_inside_border),
+            (2, &row.right_border),
             (4, &row.bottom_border),
             (8, &row.left_border),
-            (16, &row.vertical_inside_border),
-            (32, &row.right_border),
+            (16, &row.horizontal_inside_border),
+            (32, &row.vertical_inside_border),
         ]
         .into_iter()
         .map(|(index_mask, border)| TableGridFormat {
             index_mask,
-            border: TableCellBorder {
-                is_invisible: !border.is_invisible,
-                ..border.clone()
-            },
+            border: border.clone(),
             line_type: Handle::NULL,
         })
         .collect();
@@ -1400,7 +1477,7 @@ impl<'a> DwgObjectWriter<'a> {
                 },
                 content_layout: 1,
                 content_format: TableContentFormat {
-                    value_data_type: row.data_type,
+                    value_data_type: 4,
                     value_unit_type: row.unit_type,
                     value_format_string: row.format_string.clone(),
                     block_scale: 1.0,
@@ -1422,12 +1499,7 @@ impl<'a> DwgObjectWriter<'a> {
     fn resolve_table_row_text_style(&self, row: &RowCellStyle) -> Handle {
         row.text_style_handle
             .filter(|handle| self.is_text_style_handle(*handle))
-            .or_else(|| {
-                self.document
-                    .text_styles
-                    .get(&row.text_style_name)
-                    .map(|style| style.handle)
-            })
+            .or_else(|| self.resolve_text_style_handle(&row.text_style_name))
             .unwrap_or_else(|| self.resolve_table_text_style(Handle::NULL))
     }
 
@@ -1460,13 +1532,13 @@ impl<'a> DwgObjectWriter<'a> {
                 .any(|style| style.handle == handle)
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Whether verbatim `raw_dwg_data` from `raw_dwg_version` can be re-emitted
     /// to the current target. Raw bytes encode the object using the source
     /// version's object-type encoding, stream layout and text encoding, which
     /// differ across the R2004/R2007 and R2007/R2010 boundaries and cannot be
-    /// reframed without parsing the (unsupported) object — so passthrough is
+    /// reframed without parsing the (unsupported) object â€” so passthrough is
     /// only valid for the exact source version. Object schemas change inside
     /// an encoding family too (notably R2013 common data and R2018 proxy
     /// bodies), so carrying raw bytes across those boundaries corrupts the
@@ -1489,7 +1561,6 @@ impl<'a> DwgObjectWriter<'a> {
                 Some(_) => true,
                 None => false,
             },
-            Some(obj) if self.lacks_object_class(obj) => false,
             Some(obj) => match obj {
                 ObjectType::VisualStyle(_) => {
                     (self.version.r2007_plus()
@@ -1525,7 +1596,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // ── Dictionary ──────────────────────────────────────────────────
+    // â”€â”€ Dictionary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_dictionary(&mut self, dict: &Dictionary) {
         // A pre-R2000 source can legitimately carry newer class-based objects
@@ -1533,16 +1604,23 @@ impl<'a> DwgObjectWriter<'a> {
         // only strip the newer roots during an actual down-conversion.
         let preserve_source_schema = self.version.r13_14_only()
             && self.document.dwg_source_version == Some(self.dxf_version);
-        let entries: Vec<&(String, Handle)> = if self.version.r2000_plus() || preserve_source_schema
+        let entries: Vec<(usize, &(String, Handle))> = if self.version.r2000_plus()
+            || preserve_source_schema
         {
+            // Â§19 H8h-ext class (c): keep null-target items â€” authored
+            // placeholder state (e.g. the fixtures' ACAD_PARALLEL_BACKGROUND
+            // slots, gold `items` printing [2,0,0,0]). A null target is not
+            // a dangling reference; it emits the [2,0] soft-owner wire form.
             dict.entries
                 .iter()
-                .filter(|(_, h)| !h.is_null() && self.is_writable_object(h))
+                .enumerate()
+                .filter(|(_, (_, h))| h.is_null() || self.is_writable_object(h))
                 .collect()
         } else {
             dict.entries
                 .iter()
-                .filter(|(name, h)| {
+                .enumerate()
+                .filter(|(_, (name, h))| {
                     !matches!(
                         name.as_str(),
                         "ACAD_PLOTSTYLENAME"
@@ -1580,8 +1658,16 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         // Entry names + handles
-        for (name, handle) in &entries {
-            self.writer.write_variable_text(name);
+        for (entry_index, (name, handle)) in &entries {
+            // §19 H8h-ext-17 (the MTEXT wire-text precedent): replay the
+            // verbatim wire form of the key when captured — the authored
+            // escape form of a non-ASCII name is author data.
+            let text: &str = dict
+                .wire_texts
+                .get(*entry_index)
+                .and_then(|w| w.as_deref())
+                .unwrap_or(name);
+            self.writer.write_variable_text(text);
             // Dictionary item handles ALWAYS use reference code 2 (soft owner),
             // regardless of the hard-owner flag. The hard/soft distinction is
             // carried only by the is_hardowner byte (and the DXF 350/360 group),
@@ -1600,20 +1686,21 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(dict.handle);
     }
 
-    // ── Dictionary with default ─────────────────────────────────────
+    // â”€â”€ Dictionary with default â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_dictionary_with_default(&mut self, dict: &DictionaryWithDefault) {
-        // UNLISTED type — always use its class number when the source class
+        // UNLISTED type â€” always use its class number when the source class
         // exists.
         let type_code = self.class_type_code("ACDBDICTIONARYWDFLT", common::OBJ_DICTIONARYWDFLT);
 
         self.write_common_non_entity_data(type_code, dict.handle, dict.owner, &[], &None);
 
         // Filter out entries referencing un-writable objects
-        let entries: Vec<&(String, Handle)> = dict
+        let entries: Vec<(usize, &(String, Handle))> = dict
             .entries
             .iter()
-            .filter(|(_, h)| h.is_null() || self.is_writable_object(h))
+            .enumerate()
+            .filter(|(_, (_, h))| h.is_null() || self.is_writable_object(h))
             .collect();
 
         // Same as dictionary
@@ -1623,10 +1710,17 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_short(dict.duplicate_cloning as i16);
         self.writer.write_byte(if dict.hard_owner { 1 } else { 0 });
 
-        for (name, handle) in &entries {
-            self.writer.write_variable_text(name);
+        for (entry_index, (name, handle)) in &entries {
+            // §19 H8h-ext-17 (the MTEXT wire-text precedent): replay the
+            // verbatim wire form of the key when captured.
+            let text: &str = dict
+                .wire_texts
+                .get(*entry_index)
+                .and_then(|w| w.as_deref())
+                .unwrap_or(name);
+            self.writer.write_variable_text(text);
             // Dictionary item handles always use reference code 2 (see
-            // write_dictionary) — never code 3, which AutoCAD rejects.
+            // write_dictionary) â€” never code 3, which AutoCAD rejects.
             self.writer
                 .write_handle(DwgReferenceType::SoftOwnership, handle.value());
 
@@ -1638,14 +1732,21 @@ impl<'a> DwgObjectWriter<'a> {
         // Default entry handle
         self.writer
             .write_handle(DwgReferenceType::HardPointer, dict.default_handle.value());
+        // Queue the default's TARGET for writing like the entry targets
+        // above: gold resolves this handle to a real record; leaving the
+        // target unwritten left a dangling handle that both decoders could
+        // only show as null (the 119-row DICTIONARYWDFLT.defaultid family).
+        if !dict.default_handle.is_null() {
+            self.object_queue.push_back(dict.default_handle);
+        }
 
         self.register_object(dict.handle);
     }
 
-    // ── Dictionary Variable ─────────────────────────────────────────
+    // â”€â”€ Dictionary Variable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_dictionary_variable(&mut self, dv: &DictionaryVariable) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("DICTIONARYVAR", common::OBJ_DICTIONARYVAR);
         self.write_common_non_entity_data(type_code, dv.handle, dv.owner_handle, &[], &None);
 
@@ -1655,12 +1756,12 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(dv.handle);
     }
 
-    // ── Layout (extends PlotSettings) ───────────────────────────────
+    // â”€â”€ Layout (extends PlotSettings) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //
     // Layout extends PlotSettings, so PlotSettings fields come first.
 
     fn write_layout(&mut self, layout: &Layout) {
-        // For pre-R2004, LAYOUT is an UNLISTED type — must use the DXF
+        // For pre-R2004, LAYOUT is an UNLISTED type â€” must use the DXF
         // class number instead of the fixed type code 82.
         let type_code = if self.version.r2004_pre() {
             self.document
@@ -1680,7 +1781,7 @@ impl<'a> DwgObjectWriter<'a> {
             &layout.xdictionary_handle,
         );
 
-        // ── PlotSettings preamble ──
+        // â”€â”€ PlotSettings preamble â”€â”€
         // ModelType flag (bit 0x400) must be set for model space layouts
         let mut plot_flags = layout.plot_flags.to_bits();
         if layout.name == "Model" {
@@ -1688,7 +1789,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
         self.write_plot_settings_data(plot_flags, layout);
 
-        // ── Layout-specific data ──
+        // â”€â”€ Layout-specific data â”€â”€
         // Layout name (TV)
         self.writer.write_variable_text(&layout.name);
         // Tab order (BS 71)
@@ -1754,7 +1855,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_long(layout.viewports.len() as i32);
         }
 
-        // ── Handle references ──
+        // â”€â”€ Handle references â”€â”€
         // 330 Associated block record (soft pointer)
         self.writer
             .write_handle(DwgReferenceType::SoftPointer, layout.block_record.value());
@@ -1836,7 +1937,7 @@ impl<'a> DwgObjectWriter<'a> {
         // Scale type (BS 75)
         self.writer.write_bit_short(layout.plot_scale_type);
 
-        // Scale factor (BD 147) — standard scale value
+        // Scale factor (BD 147) â€” standard scale value
         self.writer.write_bit_double(layout.plot_scale_factor);
 
         // Paper image origin (2BD 148,149)
@@ -1849,7 +1950,11 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_short(layout.shade_plot_resolution);
             self.writer.write_bit_short(layout.shade_plot_dpi);
 
-            // Plot view handle (hard pointer, including null; ODA 20.4.84).
+            // Plot view handle â€” Â§19 H8h: the author writes this ref as a
+            // HARD pointer (code 5), against the spec's declared code 4
+            // (verified on all three circle.dwg LAYOUTs: her ref byte 0x50
+            // vs our 0x40 at the straddled record byte; the value resolves
+            // identically, so only the wire form differs).
             let plot_view_handle = if !layout.plot_view_handle.is_null() {
                 layout.plot_view_handle
             } else {
@@ -1874,7 +1979,7 @@ impl<'a> DwgObjectWriter<'a> {
 
     /// Write a standalone PlotSettings object.
     fn write_plot_settings_obj(&mut self, ps: &PlotSettings) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("PLOTSETTINGS", common::OBJ_PLOTSETTINGS);
 
         self.write_common_non_entity_data(
@@ -1950,7 +2055,10 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_short(ps.shade_plot_resolution as i16);
             self.writer.write_bit_short(ps.shade_plot_dpi);
 
-            // Plot view handle (hard pointer, as in the embedded Layout settings).
+            // Plot view handle — hard pointer per the authored genus
+            // (§19 ref-code lesson: every measured PLOTSETTINGS record,
+            // all eras, carries (5.0.0); gh109_1's 0.2.9A4 was the one
+            // divergent row. The LAYOUT-embedded arm already emits 5).
             let plot_view_handle = if !ps.plot_view_handle.is_null() {
                 ps.plot_view_handle
             } else {
@@ -1975,7 +2083,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(ps.handle);
     }
 
-    // ── Group ───────────────────────────────────────────────────────
+    // â”€â”€ Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_group(&mut self, group: &Group) {
         self.write_common_non_entity_data(common::OBJ_GROUP, group.handle, group.owner, &[], &None);
@@ -1996,7 +2104,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(group.handle);
     }
 
-    // ── MLineStyle ──────────────────────────────────────────────────
+    // â”€â”€ MLineStyle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_mlinestyle(&mut self, style: &MLineStyle) {
         self.write_common_non_entity_data(
@@ -2010,7 +2118,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_variable_text(&style.name);
         self.writer.write_variable_text(&style.description);
 
-        // Flags — DWG binary format swaps some pairs vs the DXF enum:
+        // Flags â€” DWG binary format swaps some pairs vs the DXF enum:
         //   DWG bit 1 = DisplayJoints, bit 2 = FillOn
         //   (DXF enum: FillOn=1, DisplayJoints=2)
         //   DWG: StartRound=0x20, StartInner=0x40
@@ -2089,10 +2197,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(style.handle);
     }
 
-    // ── MultiLeaderStyle ────────────────────────────────────────────
+    // â”€â”€ MultiLeaderStyle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_multileader_style(&mut self, style: &MultiLeaderStyle) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("MLEADERSTYLE", common::OBJ_MLEADERSTYLE);
         self.write_common_non_entity_data(type_code, style.handle, style.owner_handle, &[], &None);
 
@@ -2196,10 +2304,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(style.handle);
     }
 
-    // ── Image Definition ────────────────────────────────────────────
+    // â”€â”€ Image Definition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_image_definition(&mut self, def: &ImageDefinition) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("IMAGEDEF", common::OBJ_IMAGEDEF);
         self.write_common_non_entity_data(type_code, def.handle, def.owner, &[], &None);
 
@@ -2219,47 +2327,26 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(def.handle);
     }
 
-    // ── Underlay Definition (PDF / DWF / DGN) ───────────────────────
+    // â”€â”€ Underlay Definition (PDF / DWF / DGN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Write an underlay definition object (AcDbUnderlayDefinition): the file
     /// path and page/sheet name, both variable text, after the common
     /// non-entity header.
     fn write_underlay_definition(&mut self, def: &UnderlayDefinition) {
         use crate::entities::underlay::UnderlayType;
-        // UNLISTED type — resolve to the registered DXF class number (500+).
+        // UNLISTED type â€” resolve to the registered DXF class number (500+).
         let fallback = match def.underlay_type {
             UnderlayType::Dwf => common::OBJ_DWFDEFINITION,
             UnderlayType::Dgn => common::OBJ_DGNDEFINITION,
             UnderlayType::Pdf => common::OBJ_PDFDEFINITION,
         };
         let type_code = self.class_type_code(def.entity_name(), fallback);
-        // An unloaded definition carries NOLOAD in its ACAD extended data.
-        let mut extra = Vec::new();
-        if def.unloaded {
-            if let Some(app) = self.document.app_ids.get("ACAD") {
-                let code_page =
-                    crate::io::dxf::code_page::dwg_code_page_index(&self.document.header.code_page);
-                let encoding = crate::io::dxf::code_page::encoding_from_code_page(
-                    &self.document.header.code_page,
-                )
-                .unwrap_or(encoding_rs::WINDOWS_1252);
-                let bytes = crate::io::dwg::eed_codec::encode_values_with_encoding(
-                    self.version.r2007_plus(),
-                    &[crate::xdata::XDataValue::String("NOLOAD".to_string())],
-                    encoding,
-                    code_page,
-                    |_| 0,
-                );
-                extra.push((app.handle.value(), bytes));
-            }
-        }
-        self.write_common_non_entity_data_eed(
+        self.write_common_non_entity_data(
             type_code,
             def.handle,
             def.owner_handle,
             &def.reactors,
             &None,
-            extra,
         );
 
         self.writer.write_variable_text(&def.file_path);
@@ -2268,14 +2355,16 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(def.handle);
     }
 
-    // ── Image Definition Reactor ────────────────────────────────────
+    // â”€â”€ Image Definition Reactor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_image_definition_reactor(&mut self, reactor: &ImageDefinitionReactor) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("IMAGEDEF_REACTOR", common::OBJ_IMAGEDEFREACTOR);
         self.write_common_non_entity_data(type_code, reactor.handle, reactor.owner, &[], &None);
 
-        self.writer.write_bit_long(0); // class version
+        // class_version (dwg.spec IMAGEDEF_REACTOR: FIELD_BL (class_version,
+        // 90); values 0-2). Round-trip the read value instead of 0.
+        self.writer.write_bit_long(reactor.class_version);
 
         // C# reference does NOT write an image_handle here
         // (the reader gets this from the reactor's owner relationship)
@@ -2283,10 +2372,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(reactor.handle);
     }
 
-    // ── Scale ───────────────────────────────────────────────────────
+    // â”€â”€ Scale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_scale(&mut self, scale: &Scale) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("SCALE", common::OBJ_SCALE);
         self.write_common_non_entity_data(type_code, scale.handle, scale.owner_handle, &[], &None);
 
@@ -2299,7 +2388,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(scale.handle);
     }
 
-    // ── Object Context Data (annotative per-scale leaf) ─────────────
+    // â”€â”€ Object Context Data (annotative per-scale leaf) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Write an `AcDb*ObjectContextData` leaf.
     ///
@@ -2307,7 +2396,7 @@ impl<'a> DwgObjectWriter<'a> {
     /// payload are always encoded from the semantic model, including objects
     /// read from an existing file.
     fn write_object_context_data(&mut self, obj: &ObjectContextData) {
-        // UNLISTED type — resolve the 500+ class number (registered in the
+        // UNLISTED type â€” resolve the 500+ class number (registered in the
         // default class set, so this always resolves for a synthesized object).
         let type_code = self.class_type_code(obj.class_name(), 0);
         self.write_common_non_entity_data(
@@ -2588,10 +2677,10 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // ── Sort Entities Table ─────────────────────────────────────────
+    // â”€â”€ Sort Entities Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_sort_entities_table(&mut self, table: &SortEntitiesTable) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("SORTENTSTABLE", common::OBJ_SORTENTSTABLE);
         self.write_common_non_entity_data(type_code, table.handle, table.owner_handle, &[], &None);
 
@@ -2603,7 +2692,7 @@ impl<'a> DwgObjectWriter<'a> {
         // stream (owner first, then one per entry). Mirrors `read_sort_entities_
         // table`. (#146)
         for entry in &entries {
-            // Sort handles are sort-order keys, NOT object references — they use
+            // Sort handles are sort-order keys, NOT object references â€” they use
             // reference code 0 (Undefined/absolute), per the ODA spec
             // (FIELD_HANDLE(sort_ents, 0, 5)). Writing them as a resolvable
             // pointer makes AutoCAD's audit dereference them and mark the
@@ -2611,7 +2700,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer
                 .write_main_handle(DwgReferenceType::Undefined, entry.sort_handle.value());
         }
-        // block_owner is a soft pointer (code 4), not hard — matches the ODA
+        // block_owner is a soft pointer (code 4), not hard â€” matches the ODA
         // spec FIELD_HANDLE(block_owner, 4, 0); a hard ref here makes AutoCAD
         // reject the table (eWrongObjectType).
         self.writer.write_handle(
@@ -2626,7 +2715,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(table.handle);
     }
 
-    // ── XRecord ─────────────────────────────────────────────────────
+    // â”€â”€ XRecord â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_xrecord(&mut self, xrec: &XRecord) {
         let type_code = if self.dxf_version <= DxfVersion::AC1014 {
@@ -2688,10 +2777,12 @@ impl<'a> DwgObjectWriter<'a> {
         let xrecord_entries = advanced_material_entries
             .as_deref()
             .unwrap_or(&xrec.entries);
+        let encoding =
+            crate::io::dxf::code_page::encoding_from_code_page(&self.document.header.code_page)
+                .unwrap_or(encoding_rs::WINDOWS_1252);
         let code_page =
             crate::io::dxf::code_page::dwg_code_page_index(&self.document.header.code_page)
                 .min(u8::MAX as u16) as u8;
-        let encoding = crate::io::dxf::code_page::encoding_from_dwg_code_page(code_page as u16);
 
         // Write xdata bytes first (per spec: data before cloning flags). The
         // blob is captured verbatim from the source version; when saving to a
@@ -2802,10 +2893,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(xrec.handle);
     }
 
-    // ── Raster Variables ────────────────────────────────────────────
+    // â”€â”€ Raster Variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_raster_variables(&mut self, rv: &RasterVariables) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("RASTERVARIABLES", common::OBJ_RASTERVARIABLES);
         self.write_common_non_entity_data(type_code, rv.handle, rv.owner, &[], &None);
 
@@ -2817,10 +2908,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(rv.handle);
     }
 
-    // ── Spatial Filter (XCLIP clip boundary) ────────────────────────
+    // â”€â”€ Spatial Filter (XCLIP clip boundary) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_spatial_filter(&mut self, sf: &SpatialFilter) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("SPATIAL_FILTER", common::OBJ_SPATIALFILTER);
         self.write_common_non_entity_data(type_code, sf.handle, sf.owner, &[], &None);
 
@@ -2839,17 +2930,17 @@ impl<'a> DwgObjectWriter<'a> {
         if let Some(d) = sf.back_clip {
             self.writer.write_bit_double(d);
         }
-        for v in matrix_to_column_major(&sf.inverse_block_transform) {
+        for v in matrix_to_row_major(&sf.inverse_block_transform) {
             self.writer.write_bit_double(v);
         }
-        for v in matrix_to_column_major(&sf.clip_bound_transform) {
+        for v in matrix_to_row_major(&sf.clip_bound_transform) {
             self.writer.write_bit_double(v);
         }
 
         self.register_object(sf.handle);
     }
 
-    // ── Geographic Data ─────────────────────────────────────────────
+    // â”€â”€ Geographic Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_geodata(&mut self, geo: &GeoData) {
         let type_code = self.class_type_code("GEODATA", common::OBJ_GEODATA);
@@ -2943,18 +3034,23 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(geo.handle);
     }
 
-    // ── PlaceHolder ─────────────────────────────────────────────────
+    // â”€â”€ PlaceHolder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_placeholder(&mut self, ph: &PlaceHolder) {
-        self.write_common_non_entity_data(common::OBJ_PLACEHOLDER, ph.handle, ph.owner, &[], &None);
+        // Â§19 H8h-ext-15: the authored type code is per-file (the R2000
+        // specimen writes the class-based 501; R2004/R2010 the fixed 80) â€”
+        // re-emit the captured code; DXF-built and programmatic documents
+        // keep the fixed fallback.
+        let type_code = ph.wire_type_code.unwrap_or(common::OBJ_PLACEHOLDER);
+        self.write_common_non_entity_data(type_code, ph.handle, ph.owner, &[], &None);
 
         self.register_object(ph.handle);
     }
 
-    // ── BookColor ───────────────────────────────────────────────────
+    // â”€â”€ BookColor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_book_color(&mut self, bc: &BookColor) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("DBCOLOR", common::OBJ_DBCOLOR);
         self.write_common_non_entity_data(type_code, bc.handle, bc.owner, &[], &None);
 
@@ -2985,10 +3081,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(bc.handle);
     }
 
-    // ── Wipeout Variables ───────────────────────────────────────────
+    // â”€â”€ Wipeout Variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn write_wipeout_variables(&mut self, wv: &WipeoutVariables) {
-        // UNLISTED type — always use DXF class number (500+)
+        // UNLISTED type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("WIPEOUTVARIABLES", common::OBJ_WIPEOUTVARIABLES);
         self.write_common_non_entity_data(type_code, wv.handle, wv.owner, &[], &None);
 

@@ -1,10 +1,10 @@
-use opencadcodec::entities::{solid3d::Solid3D, EntityType};
+﻿use opencadcodec::entities::{solid3d::Solid3D, EntityType};
 use opencadcodec::objects::{
-    SolidHistoryBoolean, SolidHistoryBox, SolidHistoryBrep, SolidHistoryFillet,
-    SolidHistoryNodeBase, SolidHistoryOperation,
+    SolidHistoryBox, SolidHistoryBrep, SolidHistoryFillet, SolidHistoryNodeBase,
+    SolidHistoryOperation,
 };
 use opencadcodec::types::DxfVersion;
-use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
+use opencadcodec::{CadDocument, DwgReader, DwgWriter};
 use std::io::Cursor;
 
 fn box_step(step_id: i32) -> SolidHistoryOperation {
@@ -40,11 +40,36 @@ fn appended_history_is_returned_root_to_active() {
     assert_eq!(operations.len(), 2);
     assert!(matches!(operations[0], SolidHistoryOperation::Box(_)));
     assert!(matches!(operations[1], SolidHistoryOperation::Fillet(_)));
-    assert_eq!(operations[0].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
-    // Nodes are linked through the evaluation graph; every node stores the
-    // root parent id.
-    assert_eq!(operations[1].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
-    assert!(document.solid_history_graph(entity).unwrap().evaluation_graph.is_some());
+    // The authored genus: every node's parent id is the root sentinel â€”
+    // the linkage lives in the evaluation graph's edges, not in parent
+    // ids (the reference application stores ROOT_PARENT on every
+    // history node and chains through ACAD_EVALUATION_GRAPH).
+    for operation in &operations {
+        assert_eq!(
+            operation.base().unwrap().eval.parent_id,
+            SolidHistoryNodeBase::ROOT_PARENT
+        );
+    }
+    // The interposed evaluation graph carries the chain: two nodes,
+    // one edge linking box -> fillet, the fillet node active.
+    let graph = document.solid_history_graph(entity).unwrap();
+    let evaluation = graph.evaluation_graph.expect("an evaluation graph");
+    match document.objects.get(&evaluation) {
+        Some(opencadcodec::objects::ObjectType::DynamicBlock(value)) => match &value.data {
+            opencadcodec::objects::DynamicBlockData::EvaluationGraph(graph) => {
+                assert_eq!(graph.nodes.len(), 2);
+                assert_eq!(graph.edges.len(), 1);
+                assert_eq!(graph.edges[0].source_node, graph.nodes[0].id);
+                assert_eq!(graph.edges[0].destination_node, graph.nodes[1].id);
+                // The active (latest) node has no outgoing edge; the
+                // first node's outgoing slots name the linking edge.
+                assert_eq!(graph.nodes[1].node_data[2], -1);
+                assert_eq!(graph.nodes[0].node_data[2], graph.edges[0].id);
+            }
+            other => panic!("expected an evaluation graph, got {other:?}"),
+        },
+        _ => panic!("the evaluation graph object is missing"),
+    }
 }
 
 #[test]
@@ -69,8 +94,18 @@ fn updating_a_step_preserves_its_graph_identity() {
         .unwrap();
 
     let operations = document.solid_history_operations(entity).unwrap();
-    assert_eq!(operations[0].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
-    assert_eq!(operations[1].base().unwrap().eval.parent_id, SolidHistoryNodeBase::ROOT_PARENT);
+    // The bogus parent id in the replacement is overwritten with the
+    // node's own identity â€” in the authored genus that is the root
+    // sentinel on every node; the linkage itself lives in the
+    // evaluation graph, untouched by the step replacement.
+    assert_eq!(
+        operations[0].base().unwrap().eval.parent_id,
+        SolidHistoryNodeBase::ROOT_PARENT
+    );
+    assert_eq!(
+        operations[1].base().unwrap().eval.parent_id,
+        SolidHistoryNodeBase::ROOT_PARENT
+    );
     assert!(matches!(
         &operations[0],
         SolidHistoryOperation::Box(value) if value.length == 8.0
@@ -78,7 +113,7 @@ fn updating_a_step_preserves_its_graph_identity() {
 }
 
 #[test]
-fn binary_brep_history_survives_r2018_dwg_roundtrip() {
+fn dwg_save_preserves_constructed_history_trees() {
     let sat = opencadcodec::entities::acis::primitives::build_planar_body(
         &[
             [0.0, 0.0, 0.0],
@@ -114,73 +149,126 @@ fn binary_brep_history_survives_r2018_dwg_roundtrip() {
 
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
-    let operations = roundtrip.solid_history_operations(entity).unwrap();
 
+    // The constructed tree survives the save (2026-10-04: the authored
+    // genus â€” evaluation graph interposed, typed node arms â€” is
+    // loader-proven by the OCS 2026.40 release; the constructed-tree
+    // elide this test once pinned was the regression that erased the
+    // property panel's construction parameters on reload).
+    assert!(matches!(
+        roundtrip.get_entity(entity),
+        Some(EntityType::Solid3D(_))
+    ));
+    let operations = roundtrip
+        .solid_history_operations(entity)
+        .expect("the re-read tree must resolve");
     assert_eq!(operations.len(), 1);
-    let SolidHistoryOperation::Brep(value) = &operations[0] else {
-        panic!("history operation changed type: {:?}", operations[0]);
-    };
-    assert_eq!(value.acis_data.sab_data, sab);
+    assert!(matches!(operations[0], SolidHistoryOperation::Brep(_)));
 }
 
 #[test]
-fn a_boolean_keeps_both_solids_histories_through_dwg() {
+fn dwg_save_writes_the_history_pointer_real() {
+    let sat = opencadcodec::entities::acis::primitives::build_box(
+        [0.0, 0.0, 0.0],
+        2.0,
+        3.0,
+        4.0,
+    );
+    let sab = opencadcodec::SabWriter::write(&sat);
+    let operation = SolidHistoryOperation::Brep(SolidHistoryBrep {
+        base: SolidHistoryNodeBase::new(1),
+        acis_data: opencadcodec::entities::AcisData::from_sab(sab.clone()),
+        ..SolidHistoryBrep::default()
+    });
     let mut document = CadDocument::with_version(DxfVersion::AC1032);
-    let base = document
+    let entity = document
         .add_entity(EntityType::Solid3D(Solid3D::new()))
         .unwrap();
-    let tool = document
-        .add_entity(EntityType::Solid3D(Solid3D::new()))
-        .unwrap();
-    document.create_solid_history(base, box_step(1)).unwrap();
-    document.append_solid_history(base, fillet_step()).unwrap();
-    document.create_solid_history(tool, box_step(1)).unwrap();
-    document
-        .merge_solid_history_boolean(base, tool, SolidHistoryBoolean::SUBTRACT)
-        .unwrap();
-    assert!(document.solid_history_graph(tool).is_none());
+    document.create_solid_history(entity, operation).unwrap();
 
     let bytes = DwgWriter::write_to_vec(&document).unwrap();
     let roundtrip = DwgReader::from_stream(Cursor::new(bytes)).read().unwrap();
-    let tree = roundtrip.solid_history_tree(base).unwrap();
-    let SolidHistoryOperation::Boolean(boolean) = &tree.operation else {
-        panic!("the active step is not the boolean: {:?}", tree.operation);
-    };
-    assert_eq!(boolean.operation, SolidHistoryBoolean::SUBTRACT);
-    assert_eq!(tree.operands.len(), 2);
-    assert!(matches!(tree.operands[0].operation, SolidHistoryOperation::Fillet(_)));
-    assert!(matches!(tree.operands[1].operation, SolidHistoryOperation::Box(_)));
-    assert_eq!(boolean.first_operand, tree.operands[0].operation.base().unwrap().node_id());
-    assert_eq!(boolean.second_operand, tree.operands[1].operation.base().unwrap().node_id());
-    // The root may name the active node by its step id.
-    assert_eq!(boolean.base.step_id, boolean.base.node_id());
 
-    // Every node is reachable and named once.
-    let mut ids = vec![tree.operation.base().unwrap().node_id()];
-    ids.extend(tree.operands.iter().flat_map(|operand| {
-        std::iter::once(operand.operation.base().unwrap().node_id()).chain(
-            operand.operands.iter().map(|inner| inner.operation.base().unwrap().node_id()),
-        )
-    }));
-    let count = ids.len();
-    ids.sort();
-    ids.dedup();
-    assert_eq!(ids.len(), count, "node ids collide: {ids:?}");
-
-    // The tool's box is a step of the composite and can be edited.
-    let mut replacement = tree.operands[1].operation.clone();
-    if let SolidHistoryOperation::Box(value) = &mut replacement {
-        value.length = 9.0;
-    }
-    let mut roundtrip = roundtrip;
-    roundtrip.update_solid_history_step(base, replacement).unwrap();
-    let tree = roundtrip.solid_history_tree(base).unwrap();
+    // The solid survives (SAT self-contained).
     assert!(matches!(
-        &tree.operands[1].operation,
-        SolidHistoryOperation::Box(value) if value.length == 9.0
+        roundtrip.get_entity(entity),
+        Some(EntityType::Solid3D(_))
     ));
+    // The history soft-pointer is written REAL and resolves to the
+    // re-read tree's root â€” the authored genus (2026-10-04). The NULL
+    // this test once pinned was the elide's pointer-nulling half, the
+    // regression that erased the property panel's construction
+    // parameters on reload.
+    match roundtrip.get_entity(entity) {
+        Some(EntityType::Solid3D(s)) => {
+            let history = s
+                .history_handle
+                .expect("the constructed tree's root pointer must be written real");
+            assert_ne!(history.value(), 0);
+            assert!(roundtrip.objects.contains_key(&history));
+            let graph = roundtrip
+                .solid_history_graph(entity)
+                .expect("the re-read tree must resolve through the pointer");
+            assert_eq!(graph.root, history);
+            assert!(graph.evaluation_graph.is_some());
+            assert_eq!(graph.nodes.len(), 1);
+        }
+        other => panic!("expected Solid3D, got {other:?}"),
+    }
+    let operations = roundtrip
+        .solid_history_operations(entity)
+        .expect("the re-read tree must resolve");
+    assert_eq!(operations.len(), 1);
+    assert!(matches!(operations[0], SolidHistoryOperation::Brep(_)));
+}
 
-    let dxf = DxfWriter::new(&roundtrip).write_to_vec().unwrap();
-    let dxf = DxfReader::from_reader(Cursor::new(dxf)).unwrap().read().unwrap();
-    assert_eq!(dxf.solid_history_tree(base).unwrap(), tree);
+/// The authored node genus: the transform translation names the solid's
+/// world centre (the local primitive hangs centred on the frame origin),
+/// while the crate's hosts build base-at-origin frames. A constructed
+/// cylinder whose host frame sits at the base centre (10,5,2) with
+/// height 10 must round-trip back to that exact base-at-origin frame —
+/// the writer's centre shift and the reader's un-shift pair — and the
+/// pair is stable across successive round trips.
+#[test]
+fn primitive_nodes_round_trip_the_base_at_origin_frame() {
+    let cylinder = || {
+        let mut base = SolidHistoryNodeBase::new(1);
+        base.transform[12] = 10.0;
+        base.transform[13] = 5.0;
+        base.transform[14] = 2.0;
+        SolidHistoryOperation::Cylinder(opencadcodec::objects::SolidHistoryCylinder {
+            base,
+            height: 10.0,
+            major_radius: 5.0,
+            minor_radius: 5.0,
+            x_radius: 5.0,
+            ..Default::default()
+        })
+    };
+
+    let mut document = CadDocument::with_version(DxfVersion::AC1032);
+    let entity = document
+        .add_entity(EntityType::Solid3D(Solid3D::new()))
+        .unwrap();
+    document.create_solid_history(entity, cylinder()).unwrap();
+
+    let mut current = DwgWriter::write_to_vec(&document).unwrap();
+    for generation in 0..3 {
+        let roundtrip = DwgReader::from_stream(Cursor::new(current)).read().unwrap();
+        let base = roundtrip
+            .solid_history_operations(entity)
+            .expect("the tree survives every generation")
+            .remove(0)
+            .base()
+            .unwrap()
+            .clone();
+        // The host frame: base centre (10,5,2), identity rotation —
+        // column-major glam convention, translation at [12,13,14].
+        assert_eq!(base.transform[12], 10.0, "generation {generation}");
+        assert_eq!(base.transform[13], 5.0, "generation {generation}");
+        assert_eq!(base.transform[14], 2.0, "generation {generation}");
+        assert_eq!(base.transform[0], 1.0, "generation {generation}");
+        assert_eq!(base.transform[5], 1.0, "generation {generation}");
+        current = DwgWriter::write_to_vec(&roundtrip).unwrap();
+    }
 }

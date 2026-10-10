@@ -86,6 +86,10 @@ pub struct Text {
     /// Text generation flags (DXF 71): bit 2 = backward (mirrored in X),
     /// bit 4 = upside-down (mirrored in Y).
     pub generation_flags: i16,
+    /// Retained raw R2000+ dataflags byte from the wire (dwg.spec TEXT
+    /// 491): bits say which optionals AutoCAD wrote — echoed verbatim on
+    /// write; None on constructed documents and the R13-R14 layout.
+    pub raw_dataflags: Option<u8>,
 }
 
 impl Text {
@@ -106,6 +110,7 @@ impl Text {
             normal: Vector3::UNIT_Z,
             thickness: 0.0,
             generation_flags: 0,
+            raw_dataflags: None,
         }
     }
 

@@ -40,6 +40,14 @@ pub struct DwgBitWriter {
     saved_position_in_bits: i64,
     /// Text encoding for non-Unicode strings
     encoding: &'static encoding_rs::Encoding,
+    /// The current record's pre-R2007 TV wire form (§19 H8h-ext-17):
+    /// `true` = the plain genus (the length counts the string exactly,
+    /// no trailing NUL — the PolyLine2D author), `false` = the AutoCAD
+    /// genus (the length counts the terminator, H8h-ext-15). The object
+    /// writer sets this per record from
+    /// `CadDocument::tv_plain_form_by_handle`; the default is the
+    /// AutoCAD genus (the constructed/deserialized convention).
+    tv_plain_form: bool,
 }
 
 impl DwgBitWriter {
@@ -54,7 +62,16 @@ impl DwgBitWriter {
             dxf_version,
             saved_position_in_bits: -1,
             encoding: encoding_rs::WINDOWS_1252,
+            tv_plain_form: false,
         }
+    }
+
+    /// Set the current record's pre-R2007 TV wire form (§19 H8h-ext-17):
+    /// the captured per-record convention replayed from
+    /// `CadDocument::tv_plain_form_by_handle` — `true` = the plain
+    /// genus (no trailing NUL), `false` = the AutoCAD genus.
+    pub fn set_tv_plain_form(&mut self, plain: bool) {
+        self.tv_plain_form = plain;
     }
 
     /// Create a new bit writer with a specific encoding.
@@ -89,6 +106,46 @@ impl DwgBitWriter {
     /// Current position in bits.
     pub fn position_in_bits(&self) -> i64 {
         self.write_pos as i64 * 8 + self.bit_shift as i64
+    }
+
+    /// Physical readback of `n` already-written bits starting at absolute
+    /// bit `start` (MSB-first), for append-only states. Returns None when
+    /// the range is not fully written yet. Used by the merge layer to
+    /// verify layout-invariant overlap candidates before rewinding into
+    /// written data (the authored R2010+ LEADER underlap).
+    pub fn bits_at(&self, start: i64, n: usize) -> Option<u32> {
+        let pos = self.position_in_bits();
+        if start < 0 || start + n as i64 > pos {
+            return None;
+        }
+        let mut value = 0u32;
+        for i in 0..n as i64 {
+            let p = start + i;
+            let byte_index = (p / 8) as usize;
+            let bit_index = (p % 8) as u8;
+            let byte = if byte_index == self.write_pos {
+                self.last_byte
+            } else {
+                *self.buffer.get(byte_index)?
+            };
+            let bit = (byte >> (7 - bit_index)) & 1;
+            value = (value << 1) | bit as u32;
+        }
+        Some(value)
+    }
+
+    /// Readback of the first `n` written bits (MSB-first, append-only).
+    pub fn first_written_bits(&self, n: usize) -> Option<u32> {
+        self.bits_at(0, n)
+    }
+
+    /// Readback of the last `n` written bits (MSB-first, append-only).
+    pub fn last_written_bits(&self, n: usize) -> Option<u32> {
+        let pos = self.position_in_bits();
+        if pos < n as i64 {
+            return None;
+        }
+        self.bits_at(pos - n as i64, n)
     }
 
     /// Current byte position (partial byte not counted).
@@ -604,10 +661,32 @@ impl DwgBitWriter {
                 self.write_bytes(&code_unit.to_le_bytes());
             }
         } else {
-            // Pre-R2007: Write byte count, then encoded bytes
+            // Pre-R2007: BS byte count + the encoded bytes.
+            // §19 H8h-ext-15: the AutoCAD genus counts the terminator —
+            // her R2000 LAYER name "0" spans 26 bits (BS 2 + '0' + NUL)
+            // where the old form emitted 18 (BS 1 + '0'); the
+            // H8h-ext-8 R2000 dissection found the same convention on
+            // the constraint class names (BS 20 for the 19-char
+            // "AcConstrainedCircle"), and the READER's own correctness
+            // proves it (it reads `count` bytes and strips embedded
+            // NULs — a count-excluding wire would misalign every
+            // following field on HER files, and read-fidelity is 0).
+            // §19 H8h-ext-17: the OTHER genus exists — the PolyLine2D
+            // author's records count the string exactly (her DICTIONARY
+            // text "Standard" spans 74 bits = BS 8 + 8 bytes, no NUL) —
+            // the convention is PER-RECORD author data, captured at
+            // read into `tv_plain_form_by_handle` and replayed here
+            // (the object writer sets the form per record; the default
+            // is the AutoCAD genus).
             let encoded = crate::io::dxf::code_page::encode_legacy_string(text, self.encoding);
-            self.write_bit_short(encoded.len() as i16);
-            self.write_bytes(&encoded);
+            if self.tv_plain_form {
+                self.write_bit_short(encoded.len() as i16);
+                self.write_bytes(&encoded);
+            } else {
+                self.write_bit_short(encoded.len() as i16 + 1);
+                self.write_bytes(&encoded);
+                self.write_bytes(&[0]);
+            }
         }
     }
 
@@ -645,6 +724,23 @@ impl DwgBitWriter {
         }
     }
 
+    /// Write a raw retained handle form (§19 H7 review): the exact
+    /// `[code, size, value]` tuple the reader captured — the form byte
+    /// `(code << 4) | size` plus `size` big-endian payload bytes, without
+    /// canonicalizing the code or minimizing the size. Round-trips any
+    /// authored wire form bit-identically (`read_handle_raw`'s mirror:
+    /// the retained value already carries the dropped leading-zero
+    /// structure, and the size clamp matches the reader's own
+    /// `min(size, 8)` corrupt-data guard).
+    pub fn write_handle_form(&mut self, code: u8, size: u8, value: u64) {
+        let size = size.min(8) as usize;
+        self.write_byte(((code & 0x0F) << 4) | size as u8);
+        let bytes = value.to_be_bytes();
+        for i in (8 - size)..8 {
+            self.write_byte(bytes[i]);
+        }
+    }
+
     /// Write a handle reference using the compact offset form relative to the
     /// current object's handle.
     pub fn write_handle_relative(&mut self, reference_handle: u64, handle: u64) {
@@ -676,6 +772,22 @@ impl DwgBitWriter {
         self.write_handle(DwgReferenceType::Undefined, handle);
     }
 
+    /// Write a record's first handle reference (the ownerhandle slot) in
+    /// the author's form: relative iff it is the smaller encoding —
+    /// `(rel_len < abs_len)` OR `(rel_len == abs_len AND |offset| <
+    /// value)` — else absolute (§19 H8d: verified 196/196 on
+    /// circle.dwg; her census = 78 absolutes + 118 relative + 10 nulls).
+    pub fn write_first_ref_handle(&mut self, ref_type: DwgReferenceType, reference: u64, handle: u64) {
+        let offset = handle.abs_diff(reference);
+        let rel_len = handle_byte_count(offset);
+        let abs_len = handle_byte_count(handle);
+        if rel_len < abs_len || (rel_len == abs_len && offset < handle) {
+            self.write_handle_relative(reference, handle);
+        } else {
+            self.write_handle(ref_type, handle);
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     //  Color encoding (version-dependent)
     // ════════════════════════════════════════════════════════════════════════
@@ -691,6 +803,32 @@ impl DwgBitWriter {
             // R13–R2000: Write color index as BS
             let index = color.approximate_index();
             self.write_bit_short(index);
+        }
+    }
+
+    /// Write a raw CMC pair verbatim (TODO B1, 2026-10-01): the retained
+    /// wire form — the legacy BS index slot, the true-color BL, the
+    /// flag RC and the flag-gated name/book-name TVs — replayed on
+    /// same-version writes so the author's bytes survive (the collapsed
+    /// `Color` write loses the authored index slot). Pre-R2004 wires
+    /// carry only the BS index.
+    pub fn write_cm_color_raw(&mut self, raw: &crate::document::DwgRawCmc) {
+        if self.version.r2004_plus() {
+            self.write_bit_short(raw.index as i16);
+            self.write_bit_long(raw.rgb as i32);
+            self.write_byte(raw.flag as u8);
+            if raw.flag & 1 == 1 {
+                if let Some(name) = &raw.name {
+                    self.write_variable_text(name);
+                }
+            }
+            if raw.flag & 2 == 2 {
+                if let Some(book) = &raw.book_name {
+                    self.write_variable_text(book);
+                }
+            }
+        } else {
+            self.write_bit_short(raw.index as i16);
         }
     }
 
@@ -861,6 +999,40 @@ impl DwgBitWriter {
         while self.bit_shift > 0 {
             self.write_bit(false);
         }
+    }
+
+    /// Pad remaining bits in the current byte with ones (align to byte boundary).
+    ///
+    /// §19 H8d: the author's record framing pads the merged object
+    /// record's final partial byte with 1s (verified AC15/AC18/AC21
+    /// samples all-ones) — the closing shift of the merged stream,
+    /// where the handle sub-writer's bits pack into main's tail
+    /// mid-byte. Only the merge's final alignment uses this; the
+    /// intermediate pads stay zero (verified byte-identical).
+    pub fn write_spear_shift_ones(&mut self) {
+        while self.bit_shift > 0 {
+            self.write_bit(true);
+        }
+    }
+
+    /// Pad the remaining bits of the current byte with an EXACT authored
+    /// pattern (§19 H8h-ext-17): the per-record close-pad capture — some
+    /// authors leave arbitrary leftover bits (entities-3d's records pad
+    /// F1/E3/89), no zeros/ones genus at all. `len` is the captured pad
+    /// length (must equal the current `bit_shift` — the content-identical
+    /// rewrite guarantees it; a mismatch falls back to the caller), and
+    /// `bits` the pattern packed MSB-first (the reader's peek order).
+    pub fn write_spear_shift_pattern(&mut self, len: u8, bits: u8) -> bool {
+        // The pad length is the REMAINING bits of the partial byte
+        // (`bit_shift` counts the used bits), 0 when byte-aligned.
+        let remaining = if self.bit_shift == 0 { 0 } else { 8 - self.bit_shift };
+        if len != remaining {
+            return false;
+        }
+        for i in 0..len {
+            self.write_bit((bits >> (len - 1 - i)) & 1 == 1);
+        }
+        true
     }
 
     /// Save the current bit position and write 4 zero bytes as a size placeholder.

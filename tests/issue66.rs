@@ -1,4 +1,4 @@
-//! Regression tests for issue #66: post-read handle repair must allocate
+﻿//! Regression tests for issue #66: post-read handle repair must allocate
 //! above file-sourced handles and preserve object ownership when remapping.
 
 use std::collections::HashSet;

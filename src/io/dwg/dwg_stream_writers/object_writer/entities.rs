@@ -39,41 +39,10 @@ impl<'a> DwgObjectWriter<'a> {
         )
     }
 
-    // â”€â”€ Entity dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Entity dispatch Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// Write a single entity record.
     pub(super) fn write_entity(&mut self, entity: &EntityType) {
-        // Already emitted verbatim (ACADRUST_RAW_ALL bisection aid): skip, so a
-        // compound entity does not re-allocate handles for its children.
-        if self.registered_handles.contains(&entity.common().handle.value()) {
-            return;
-        }
-        // Verbatim passthrough: the entity still carries the exact bytes it was read
-        // from, the target is the same version, and nothing the writer would
-        // rewrite differs. Skipped for pre-R2004 (records embed prev/next entity
-        // links there) and for ACIS entities on R2013+ (their SAB bodies live in
-        // the AcDs section, which is assembled from what gets written).
-        if let Some(raw) = &entity.common().raw_record {
-            let handle = entity.common().handle;
-            let acis = matches!(entity, EntityType::Solid3D(_) | EntityType::Region(_) | EntityType::Body(_) | EntityType::Surface(_));
-            // Compound entities own follow-up records (VERTEX…/ATTRIB…/SEQEND) that the
-            // reader folded into them; the writer emits those alongside, so they must
-            // go through the normal path. An INSERT without attributes owns none, and
-            // copying it keeps subclasses such as AcIdBlockReference intact.
-            let compound = matches!(entity, EntityType::Polyline(_) | EntityType::Polyline2D(_) | EntityType::Polyline3D(_)
-                | EntityType::PolyfaceMesh(_) | EntityType::PolygonMesh(_))
-                || matches!(entity, EntityType::Insert(i) if !i.attributes.is_empty() || i.seqend_handle.is_some());
-            let ok = self.version.r2004_plus()
-                && raw.version == self.dxf_version
-                && !self.raw_excluded_handles.contains(&handle.value())
-                && !compound
-                && !(acis && self.version.r2013_plus(self.dxf_version))
-                && !self.owner_overrides.contains_key(&handle);
-            if ok {
-                self.register_raw_object(handle, &raw.data, raw.handle_bits);
-                return;
-            }
-        }
         match entity {
             EntityType::Point(e) => self.write_point(e),
             EntityType::Line(e) => self.write_line(e),
@@ -134,9 +103,7 @@ impl<'a> DwgObjectWriter<'a> {
                     _ => None,
                 };
                 if let Some((raw, handle_bits, version)) = raw {
-                    if self.raw_passthrough_compatible(version)
-                        && !self.raw_excluded_handles.contains(&e.common.handle.value())
-                    {
+                    if self.raw_passthrough_compatible(version) {
                         self.register_raw_object(e.common.handle, raw, handle_bits);
                         return;
                     }
@@ -155,7 +122,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // â”€â”€ Helper: write entity preamble â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Helper: write entity preamble Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn entity_preamble(&mut self, type_code: i16, c: &EntityCommon) {
         self.write_common_entity_data(
@@ -184,6 +151,9 @@ impl<'a> DwgObjectWriter<'a> {
             &c.full_visual_style_handle,
             &c.face_visual_style_handle,
             &c.edge_visual_style_handle,
+            &c.prev_entity_handle,
+            &c.next_entity_handle,
+            c.nolinks,
         );
     }
 
@@ -262,8 +232,16 @@ impl<'a> DwgObjectWriter<'a> {
                 for point in &data.back_line_vertices {
                     self.writer.write_3bit_double(*point);
                 }
-                self.writer
-                    .write_handle(DwgReferenceType::HardPointer, data.settings_handle.value());
+                // TODO A5 family 5 (2026-10-01): the authored wire code is
+                // HardOwnership (3) â€” the settings object is owned by the
+                // section and dies with it. Her LiveSection1 record 0x228
+                // carries (3.2.22A); gold's dwg2.spec placeholder says 5,
+                // but the authored corpus is the oracle (the record-identity
+                // census).
+                self.writer.write_handle(
+                    DwgReferenceType::HardOwnership,
+                    data.settings_handle.value(),
+                );
             }
             ExtendedEntityData::ArcAlignedText(data) => {
                 // AcDbArcAlignedText stores these numbers as text (D2T),
@@ -312,10 +290,7 @@ impl<'a> DwgObjectWriter<'a> {
                 let style_handle = if data.style_handle != Handle::NULL {
                     data.style_handle
                 } else {
-                    self.document
-                        .text_styles
-                        .get(&data.style_name)
-                        .map(|style| style.handle)
+                    self.resolve_text_style_handle(&data.style_name)
                         .unwrap_or(Handle::NULL)
                 };
                 self.writer
@@ -440,7 +415,10 @@ impl<'a> DwgObjectWriter<'a> {
             ExtendedEntityData::DynamicBlock(_) => {}
             ExtendedEntityData::RegisteredClass(data) => {
                 if data.properties.is_empty() {
-                    self.write_registered_payload(&data.payload, &data.object_ids);
+                    // The entity-side registered class carries no raw
+                    // objids twin (TODO A5 family 3 covers the
+                    // object-side records); the model drives.
+                    self.write_registered_payload(&data.payload, &data.object_ids, None);
                 } else {
                     self.writer.write_bit_long(498);
                     if self.dxf_version > crate::types::DxfVersion::AC1015 {
@@ -462,7 +440,7 @@ impl<'a> DwgObjectWriter<'a> {
                             &data.properties,
                             &data.payload,
                         );
-                    self.write_registered_payload(&payload, &data.object_ids);
+                    self.write_registered_payload(&payload, &data.object_ids, None);
                 }
             }
         }
@@ -581,8 +559,35 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(data.show_intensity);
         self.writer.write_bit(data.show_cropping);
         self.writer.write_bit_long(data.croppings.len() as i32);
+        {
+            self.writer.write_bit_long(data.hidden_scans.len() as i32);
+            for scan in &data.hidden_scans {
+                self.writer.write_variable_text(scan);
+            }
+            self.writer.write_bit_long(data.hidden_regions.len() as i32);
+            for region in &data.hidden_regions {
+                self.writer.write_bit_long(*region);
+            }
+            self.writer.write_bit_short(data.stylization_type);
+            self.writer
+                .write_variable_text(&data.intensity_color_scheme);
+            self.writer.write_variable_text(&data.current_color_scheme);
+            self.writer
+                .write_variable_text(&data.classification_color_scheme);
+            self.writer.write_bit_double(data.elevation_min);
+            self.writer.write_bit_double(data.elevation_max);
+            self.writer.write_bit_long(data.intensity_min);
+            self.writer.write_bit_long(data.intensity_max);
+            self.writer
+                .write_bit_short(data.intensity_out_of_range_behavior);
+            self.writer
+                .write_bit_short(data.elevation_out_of_range_behavior);
+            self.writer.write_bit(data.elevation_apply_to_fixed_range);
+            self.writer.write_bit(data.intensity_as_gradient);
+            self.writer.write_bit(data.elevation_as_gradient);
+        }
         for cropping in &data.croppings {
-            self.writer.write_byte(cropping.crop_type as u8);
+            self.writer.write_bit_short(cropping.crop_type);
             self.writer.write_bit(cropping.inside);
             self.writer.write_bit(cropping.inverted);
             self.writer.write_3bit_double(cropping.plane);
@@ -593,34 +598,9 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_3bit_double(*point);
             }
         }
-        self.writer.write_bit_long(data.hidden_scans.len() as i32);
-        for scan in &data.hidden_scans {
-            self.writer.write_variable_text(scan);
-        }
-        self.writer.write_bit_long(data.hidden_regions.len() as i32);
-        for region in &data.hidden_regions {
-            self.writer.write_bit_long(*region);
-        }
-        self.writer.write_bit_short(data.stylization_type);
-        self.writer
-            .write_variable_text(&data.intensity_color_scheme);
-        self.writer.write_variable_text(&data.current_color_scheme);
-        self.writer
-            .write_variable_text(&data.classification_color_scheme);
-        self.writer.write_bit_double(data.elevation_min);
-        self.writer.write_bit_double(data.elevation_max);
-        self.writer.write_bit_long(data.intensity_min);
-        self.writer.write_bit_long(data.intensity_max);
-        self.writer
-            .write_bit_short(data.intensity_out_of_range_behavior);
-        self.writer
-            .write_bit_short(data.elevation_out_of_range_behavior);
-        self.writer.write_bit(data.elevation_apply_to_fixed_range);
-        self.writer.write_bit(data.intensity_as_gradient);
-        self.writer.write_bit(data.elevation_as_gradient);
     }
 
-    // â”€â”€ Point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Point Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_point(&mut self, e: &Point) {
         self.entity_preamble(common::OBJ_POINT, &e.common);
@@ -631,7 +611,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Line Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_line(&mut self, e: &Line) {
         self.entity_preamble(common::OBJ_LINE, &e.common);
@@ -640,8 +620,12 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_3bit_double(e.start);
             self.writer.write_3bit_double(e.end);
         } else {
-            // R2000+: z-are-zero optimization
-            let z_are_zero = e.start.z == 0.0 && e.end.z == 0.0;
+            // R2000+: z-are-zero optimization. Prefer the value preserved
+            // from a DWG read; fall back to computing it from geometry.
+            let z_are_zero = e
+                .common
+                .z_are_zero
+                .unwrap_or(e.start.z == 0.0 && e.end.z == 0.0);
             self.writer.write_bit(z_are_zero);
             self.writer.write_raw_double(e.start.x);
             self.writer
@@ -662,7 +646,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Circle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Circle Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_circle(&mut self, e: &Circle) {
         self.entity_preamble(common::OBJ_CIRCLE, &e.common);
@@ -673,7 +657,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Arc â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Arc Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_arc(&mut self, e: &Arc) {
         self.entity_preamble(common::OBJ_ARC, &e.common);
@@ -686,7 +670,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Ellipse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Ellipse Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_ellipse(&mut self, e: &Ellipse) {
         self.entity_preamble(common::OBJ_ELLIPSE, &e.common);
@@ -699,7 +683,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Text Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_text(&mut self, e: &Text) {
         self.entity_preamble(common::OBJ_TEXT, &e.common);
@@ -736,50 +720,63 @@ impl<'a> DwgObjectWriter<'a> {
             // Vert align BS 73
             self.writer.write_bit_short(e.vertical_alignment as i16);
         } else {
-            // R2000+: DataFlags RC — presence bits for subsequent data
-            let mut data_flags: u8 = 0;
-            // 0x01 = elevation (InsertPoint.Z) is 0
-            if e.insertion_point.z == 0.0 {
-                data_flags |= 0x01;
-            }
-            // 0x02 = alignment point is zero
-            if alignment_point.x == 0.0 && alignment_point.y == 0.0 && alignment_point.z == 0.0 {
-                data_flags |= 0x02;
-            }
-            // 0x04 = oblique angle is 0
-            if e.oblique_angle == 0.0 {
-                data_flags |= 0x04;
-            }
-            // 0x08 = rotation is 0
-            if e.rotation == 0.0 {
-                data_flags |= 0x08;
-            }
-            // 0x10 = width factor is 1.0
-            if e.width_factor == 1.0 {
-                data_flags |= 0x10;
-            }
-            // 0x20 = generation (mirror) flag is None (0)
-            if e.generation_flags == 0 {
-                data_flags |= 0x20;
-            }
-            // 0x40 = horizontal alignment is Left (0)
-            if e.horizontal_alignment as u8 == 0 {
-                data_flags |= 0x40;
-            }
-            // 0x80 = vertical alignment is Baseline (0)
-            if e.vertical_alignment as u8 == 0 {
-                data_flags |= 0x80;
-            }
+            // R2000+: DataFlags RC â€” presence bits for subsequent data.
+            // The retained raw byte from the wire is authoritative (which
+            // optionals AutoCAD actually wrote, e.g. an explicit
+            // width_factor 1.0 keeps bit 4 clear); compose only for
+            // constructed documents.
+            let data_flags: u8 = match e.raw_dataflags {
+                Some(raw) => raw,
+                None => {
+                    let mut composed = 0u8;
+                    // 0x01 = elevation (insertion z) is 0
+                    if e.insertion_point.z == 0.0 {
+                        composed |= 0x01;
+                    }
+                    // 0x02 = alignment equals the insertion point (the
+                    // 2DD default; LibreDWG dwg_set_dataflags semantics)
+                    if alignment_point.x == e.insertion_point.x
+                        && alignment_point.y == e.insertion_point.y
+                    {
+                        composed |= 0x02;
+                    }
+                    // 0x04 = oblique angle is 0
+                    if e.oblique_angle == 0.0 {
+                        composed |= 0x04;
+                    }
+                    // 0x08 = rotation is 0
+                    if e.rotation == 0.0 {
+                        composed |= 0x08;
+                    }
+                    // 0x10 = width factor is 1.0
+                    if e.width_factor == 1.0 {
+                        composed |= 0x10;
+                    }
+                    // 0x20 = generation (mirror) flag is None (0)
+                    if e.generation_flags == 0 {
+                        composed |= 0x20;
+                    }
+                    // 0x40 = horizontal alignment is Left (0)
+                    if e.horizontal_alignment as u8 == 0 {
+                        composed |= 0x40;
+                    }
+                    // 0x80 = vertical alignment is Baseline (0)
+                    if e.vertical_alignment as u8 == 0 {
+                        composed |= 0x80;
+                    }
+                    composed
+                }
+            };
             self.writer.write_byte(data_flags);
 
-            // Elevation RD — present if !(DataFlags & 0x01)
+            // Elevation RD â€” present if !(DataFlags & 0x01)
             if (data_flags & 0x01) == 0 {
                 self.writer.write_raw_double(e.insertion_point.z);
             }
             // Insertion pt 2RD 10
             self.writer.write_raw_double(e.insertion_point.x);
             self.writer.write_raw_double(e.insertion_point.y);
-            // Alignment pt 2DD 11 — present if !(DataFlags & 0x02)
+            // Alignment pt 2DD 11 â€” present if !(DataFlags & 0x02)
             // Uses insertion pt X,Y as default values
             if (data_flags & 0x02) == 0 {
                 self.writer
@@ -791,31 +788,31 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_extrusion(e.normal);
             // Thickness BT 39
             self.writer.write_bit_thickness(e.thickness);
-            // Oblique ang RD 51 — present if !(DataFlags & 0x04)
+            // Oblique ang RD 51 â€” present if !(DataFlags & 0x04)
             if (data_flags & 0x04) == 0 {
                 self.writer.write_raw_double(e.oblique_angle);
             }
-            // Rotation ang RD 50 — present if !(DataFlags & 0x08)
+            // Rotation ang RD 50 â€” present if !(DataFlags & 0x08)
             if (data_flags & 0x08) == 0 {
                 self.writer.write_raw_double(e.rotation);
             }
             // Height RD 40 (always present)
             self.writer.write_raw_double(e.height);
-            // Width factor RD 41 — present if !(DataFlags & 0x10)
+            // Width factor RD 41 â€” present if !(DataFlags & 0x10)
             if (data_flags & 0x10) == 0 {
                 self.writer.write_raw_double(e.width_factor);
             }
             // Text value TV 1
             self.writer.write_variable_text(&e.value);
-            // Generation BS 71 — present if !(DataFlags & 0x20)
+            // Generation BS 71 â€” present if !(DataFlags & 0x20)
             if (data_flags & 0x20) == 0 {
                 self.writer.write_bit_short(e.generation_flags);
             }
-            // Horiz align BS 72 — present if !(DataFlags & 0x40)
+            // Horiz align BS 72 â€” present if !(DataFlags & 0x40)
             if (data_flags & 0x40) == 0 {
                 self.writer.write_bit_short(e.horizontal_alignment as i16);
             }
-            // Vert align BS 73 — present if !(DataFlags & 0x80)
+            // Vert align BS 73 â€” present if !(DataFlags & 0x80)
             if (data_flags & 0x80) == 0 {
                 self.writer.write_bit_short(e.vertical_alignment as i16);
             }
@@ -823,10 +820,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         // Style handle
         let style_handle = self
-            .document
-            .text_styles
-            .get(&e.style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&e.style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -834,14 +828,14 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ MText â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ MText Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ 
 
     fn write_mtext(&mut self, e: &MText) {
         self.entity_preamble(common::OBJ_MTEXT, &e.common);
 
         // Insertion pt 3BD 10
         self.writer.write_3bit_double(e.insertion_point);
-        // Extrusion 3BD 210 (NOT BitExtrusion — full 3BD per spec)
+        // Extrusion 3BD 210 (NOT BitExtrusion â€” full 3BD per spec)
         self.writer.write_3bit_double(e.normal);
 
         // X-axis dir 3BD 11 (alignment point / direction vector)
@@ -864,7 +858,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_double(e.height);
         // Attachment BS 71
         self.writer.write_bit_short(e.attachment_point as i16);
-        // Drawing dir BS 72 (unconditional — written for ALL versions)
+        // Drawing dir BS 72 (unconditional â€” written for ALL versions)
         self.writer.write_bit_short(e.drawing_direction as i16);
 
         // Extents ht BD (DXF 43, output-only)
@@ -872,15 +866,24 @@ impl<'a> DwgObjectWriter<'a> {
         // Extents wid BD (DXF 42, output-only)
         self.writer.write_bit_double(e.extents_width);
 
-        // Text TV 1
-        self.writer.write_variable_text(&e.value);
+        // Text TV 1 â€” Â§19 the MTEXT record-identity packet: a DWG-read
+        // record re-emits its VERBATIM pre-2007 wire text (the authored
+        // escape/raw form of a non-ASCII char is author data â€”
+        // example_2004 `108\U+00B0` escaped, example_2000 raw 0xB0 â€”
+        // never a derived escape rule); the decoded `value` writes for
+        // constructed/DXF-built records (no capture) and for the
+        // R2007+ UTF-16 targets (whose authored convention carries the
+        // decoded char).
+        if self.version.r2007_plus() {
+            self.writer.write_variable_text(&e.value);
+        } else {
+            let text = e.dwg_wire_text.as_deref().unwrap_or(&e.value);
+            self.writer.write_variable_text(text);
+        }
 
-        // H 7 STYLE (hard pointer) — written BEFORE R2000+ block
+        // H 7 STYLE (hard pointer) â€” written BEFORE R2000+ block
         let style_handle = self
-            .document
-            .text_styles
-            .get(&e.style)
-            .map(|s| s.handle)
+            .resolve_text_style_handle(&e.style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -898,7 +901,7 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_long(e.background_fill_flags);
 
             // The background-fill block is written when the UseBackgroundFillColor
-            // bit (0x01) is set, or — for R2018+ — when the TextFrame bit (0x10)
+            // bit (0x01) is set, or â€” for R2018+ â€” when the TextFrame bit (0x10)
             // is set. Mirrors read_mtext.
             if (e.background_fill_flags & 0x01) != 0
                 || (self.version.r2018_plus(self.dxf_version)
@@ -927,9 +930,14 @@ impl<'a> DwgObjectWriter<'a> {
                 // Registered application H (null hard pointer)
                 self.writer.write_handle(DwgReferenceType::HardPointer, 0);
 
-                // ── BEGIN redundant fields (discarded on read) ──
-                // Attachment point BL
-                self.writer.write_bit_long(e.attachment_point as i32);
+                // â”€â”€ BEGIN redundant fields â”€â”€
+                // Redundant-block header BL (gold: `ignore_attachment` â€”
+                // AutoCAD repeats the absolute attachment point). Write the
+                // raw stored value: gold's JSON emits the LAST-read extents/
+                // ignore_attachment, so zeros here would read back as
+                // extents 0.0 in gold while the true values ride only in
+                // the main block.
+                self.writer.write_bit_long(e.ignore_attachment);
                 // X-axis dir 3BD
                 let x_dir_redundant = x_dir;
                 self.writer.write_3bit_double(x_dir_redundant);
@@ -940,11 +948,11 @@ impl<'a> DwgObjectWriter<'a> {
                 // Rect height BD
                 self.writer
                     .write_bit_double(e.rectangle_height.unwrap_or(0.0));
-                // Extents width BD
-                self.writer.write_bit_double(0.0);
-                // Extents height BD
-                self.writer.write_bit_double(0.0);
-                // ── END redundant fields ──
+                // Extents width BD 42
+                self.writer.write_bit_double(e.extents_width);
+                // Extents height BD 43
+                self.writer.write_bit_double(e.extents_height);
+                // â”€â”€ END redundant fields â”€â”€
 
                 let col = &e.column_data;
                 // Column type BS 71
@@ -983,7 +991,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Solid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Solid Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_solid(&mut self, e: &Solid) {
         let type_code = if e.is_trace {
@@ -1006,7 +1014,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Face3D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Face3D Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_face3d(&mut self, e: &Face3D) {
         self.entity_preamble(common::OBJ_3DFACE, &e.common);
@@ -1022,10 +1030,14 @@ impl<'a> DwgObjectWriter<'a> {
             let has_no_flags = e.invisible_edges.bits() == 0;
             self.writer.write_bit(has_no_flags);
 
-            let z_is_zero = e.first_corner.z == 0.0
-                && e.second_corner.z == 0.0
-                && e.third_corner.z == 0.0
-                && e.fourth_corner.z == 0.0;
+            // dwg.spec 2125-2126: gold's ENCODER derives z_is_zero from
+            // corner1.z ALONE â€” `FIELD_VALUE (z_is_zero) = (corner1.z ==
+            // 0)` â€” and only corner1's z RD is omitted when set. The old
+            // AND-of-four-corners rule wrote z_is_zero=0 for faces with
+            // corner1 at z=0 but raised corners 2-4, disagreeing with
+            // gold's (and the normalizer's) corner1-only derive on the
+            // rt pair (gh109_1: 8 wrong_value rows).
+            let z_is_zero = e.first_corner.z == 0.0;
             self.writer.write_bit(z_is_zero);
 
             self.writer.write_raw_double(e.first_corner.x);
@@ -1071,7 +1083,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Insert â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Insert Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_insert(&mut self, e: &Insert) {
         let is_minsert = e.is_minsert();
@@ -1257,6 +1269,9 @@ impl<'a> DwgObjectWriter<'a> {
                 &None,
                 &None,
                 &None,
+                &None,
+                &None,
+                None,
             );
             self.register_object(seqend_handle);
 
@@ -1298,6 +1313,9 @@ impl<'a> DwgObjectWriter<'a> {
             &att.common.full_visual_style_handle,
             &att.common.face_visual_style_handle,
             &att.common.edge_visual_style_handle,
+            &att.common.prev_entity_handle,
+            &att.common.next_entity_handle,
+            att.common.nolinks,
         );
         self.write_text_entity_data(
             att.insertion_point,
@@ -1312,17 +1330,8 @@ impl<'a> DwgObjectWriter<'a> {
             att.text_generation_flags,
             att.horizontal_alignment as i16,
             att.vertical_alignment as i16,
+            att.raw_dataflags,
         );
-
-        // Common TEXT style precedes embedded MTEXT handles (ODA 20.4.4).
-        let style_handle = self
-            .document
-            .text_styles
-            .get(&att.text_style)
-            .map(|s| s.handle)
-            .unwrap_or(Handle::NULL);
-        self.writer
-            .write_handle(DwgReferenceType::HardPointer, style_handle.value());
 
         // writeCommonAttData: R2010+ version byte
         if self.version.r2010_plus() {
@@ -1361,11 +1370,16 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2007_plus() {
             self.writer.write_bit(att.lock_position);
         }
+        let style_handle = self
+            .resolve_text_style_handle(&att.text_style)
+            .unwrap_or(Handle::NULL);
+        self.writer
+            .write_handle(DwgReferenceType::HardPointer, style_handle.value());
 
         self.register_object(handle);
     }
 
-    // â”€â”€ LwPolyline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ LwPolyline Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_lwpolyline(&mut self, e: &LwPolyline) {
         self.entity_preamble(common::OBJ_LWPOLYLINE, &e.common);
@@ -1493,7 +1507,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Ray â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Ray Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_ray(&mut self, e: &Ray) {
         self.entity_preamble(common::OBJ_RAY, &e.common);
@@ -1502,7 +1516,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ XLine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ XLine Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_xline(&mut self, e: &XLine) {
         self.entity_preamble(common::OBJ_XLINE, &e.common);
@@ -1511,7 +1525,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Spline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Spline Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_spline(&mut self, e: &Spline) {
         self.entity_preamble(common::OBJ_SPLINE, &e.common);
@@ -1524,14 +1538,22 @@ impl<'a> DwgObjectWriter<'a> {
     /// embeds a spline as its curve geometry.
     fn write_spline_data(&mut self, e: &Spline) {
         let r2013_plus = self.version.r2013_plus(self.dxf_version);
-        // R2013+ derives the storage scenario from flags1 and knot
-        // parameterization. Custom knots always use control points.
-        let scenario: i32 =
+        // The STORAGE scenario (the body shape) derives from the model:
+        // flags1 and knot parameterization; custom knots always use
+        // control points. The WIRE scenario BL is a separate field:
+        // a captured DWG value wins (the authored records can carry a
+        // BL that legitimately disagrees with the derived storage â€”
+        // the R2018 census found two example_2018 splines with BL=1
+        // over fit-point storage; a rewrite keeps the author's BL
+        // instead of flipping it to the derived value), and
+        // constructed splines fall back to the derived storage.
+        let storage: i32 =
             if !e.fit_points.is_empty() && (!r2013_plus || e.knot_parameterization != 15) {
                 2
             } else {
                 1
             };
+        let scenario: i32 = e.dwg_wire_scenario.unwrap_or(storage);
 
         if r2013_plus {
             // R2013+: scenario BL, flags1 BL, knot parametrization BL
@@ -1541,7 +1563,7 @@ impl<'a> DwgObjectWriter<'a> {
             } else {
                 flags1 &= !2;
             }
-            if scenario == 2 {
+            if storage == 2 {
                 // Fit-point storage requires both MethodFitPoints and
                 // UseKnotParameter. Omitting bit 8 makes readers parse the
                 // following fit-point body as control-point data.
@@ -1565,22 +1587,12 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_long(scenario);
         }
 
-        // Generate a clamped uniform knot vector if not provided. The
-        // degree written below must match the degree the knots were
-        // generated for, so both come from the same helper.
-        let (degree, knots): (i32, Vec<f64>) =
-            if scenario == 1 && e.knots.is_empty() && !e.control_points.is_empty() {
-                Spline::clamped_knots_with_degree(e.degree, e.control_points.len())
-            } else {
-                (e.degree, e.knots.clone())
-            };
-
         // Degree BL (common, before scenario switch)
-        self.writer.write_bit_long(degree);
+        self.writer.write_bit_long(e.degree);
 
         let has_weights = !e.weights.is_empty();
 
-        match scenario {
+        match storage {
             1 => {
                 // Scenario 1: control-point spline
                 // Rational B (flag bit 2)
@@ -1594,6 +1606,13 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_bit_double(e.knot_tolerance);
                 // Ctrl tol BD 43
                 self.writer.write_bit_double(e.control_tolerance);
+
+                // Generate clamped uniform knot vector if not provided
+                let knots: Vec<f64> = if e.knots.is_empty() && !e.control_points.is_empty() {
+                    Spline::generate_clamped_knots(e.degree as usize, e.control_points.len())
+                } else {
+                    e.knots.clone()
+                };
 
                 // Numknots BL 72
                 self.writer.write_bit_long(knots.len() as i32);
@@ -1635,7 +1654,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // ── Helix ───────────────────────────────────────────────────────
+    // â”€â”€ Helix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Write a HELIX entity (AcDbHelix): the full spline record followed by
     /// the helix parameters. HELIX is UNLISTED, so its type code comes from
@@ -1662,7 +1681,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Leader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Leader Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_leader(&mut self, e: &Leader) {
         self.entity_preamble(common::OBJ_LEADER, &e.common);
@@ -1694,8 +1713,11 @@ impl<'a> DwgObjectWriter<'a> {
         // Offsettoblockinspt 3BD 212
         self.writer.write_3bit_double(e.block_offset);
 
-        // R14+: Endptproj 3BD (annotation offset) — not present in R13
-        if self.dxf_version >= crate::types::DxfVersion::AC1014 {
+        // Gold dwg.spec 3007-3009: endptproj is VERSIONS (R_13c3, R_2007) â€”
+        // absent from R2010+ wires.
+        if self.dxf_version >= crate::types::DxfVersion::AC1014
+            && self.dxf_version <= crate::types::DxfVersion::AC1021
+        {
             self.writer.write_3bit_double(e.annotation_offset);
         }
 
@@ -1704,11 +1726,9 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_double(e.dimension_gap);
         }
 
-        // R13-R2007: annotation box height / width.
-        if self.dxf_version <= crate::types::DxfVersion::AC1021 {
-            self.writer.write_bit_double(e.text_height);
-            self.writer.write_bit_double(e.text_width);
-        }
+        // dwg.spec 3014/3015: box_height/box_width at every version.
+        self.writer.write_bit_double(e.text_height);
+        self.writer.write_bit_double(e.text_width);
 
         // Hooklineonxdir B
         self.writer
@@ -1716,18 +1736,18 @@ impl<'a> DwgObjectWriter<'a> {
         // Arrowheadon B
         self.writer.write_bit(e.arrow_enabled);
 
-        // R13-R14 names this field arrowhead type.  R2000+ retains the same
-        // stream slot as an undocumented bit-short.
-        let arrowhead_or_unknown = if self.version.r13_14_only() {
+        // dwg.spec 3022: FIELD_BSx (arrowhead_type, 0) at every version;
+        // R13-R14 folds the hookline state into bit 3.
+        let arrowhead_type = if self.version.r13_14_only() {
             if e.hookline_enabled {
                 e.arrowhead_type | 8
             } else {
                 e.arrowhead_type & !8
             }
         } else {
-            e.dwg_unknown_short1
+            e.arrowhead_type
         };
-        self.writer.write_bit_short(arrowhead_or_unknown);
+        self.writer.write_bit_short(arrowhead_type);
         if self.version.r13_14_only() {
             self.writer.write_bit_double(e.arrow_size);
             self.writer.write_bit(e.dwg_unknown_bit2);
@@ -1755,10 +1775,22 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer
             .write_handle(DwgReferenceType::HardPointer, dimstyle_handle.value());
 
+        // R2010+ authored LEADER records park the no-text flag and the
+        // handle region back inside the main tail ("underlap": bitsize =
+        // main_end âˆ’ 6). The sequential layout parsed clean in gold but
+        // BricsCAD deep-dropped the otherwise byte-verified rewrite
+        // record (user test 2026-09-21: `(72E)` warn) while the
+        // underlap-authored file opened clean. The merge verifies the
+        // overlapped bits are identical in both layouts and falls back
+        // to sequential when they are not (no value ever changes).
+        if self.version.r2010_plus() {
+            self.writer.set_underlap_tail(6);
+        }
+
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Tolerance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Tolerance Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_tolerance(&mut self, e: &Tolerance) {
         self.entity_preamble(common::OBJ_TOLERANCE, &e.common);
@@ -1794,7 +1826,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Shape Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_shape(&mut self, e: &Shape) {
         self.entity_preamble(common::OBJ_SHAPE, &e.common);
@@ -1816,24 +1848,89 @@ impl<'a> DwgObjectWriter<'a> {
         // Extrusion 3BD 210
         self.writer.write_3bit_double(e.normal);
 
-        // SHAPEFILE style handle (hard pointer)
-        let sh = e.style_handle.unwrap_or(Handle::NULL);
+        // SHAPEFILE style handle (hard pointer). A constructed shape
+        // references its .shx style by NAME; resolve that against the
+        // document's text styles when no explicit handle was set. A null
+        // style here is a fatal audit in strict loaders ("Shape style
+        // (font file) is not set" â€” BricsCAD recover).
+        let sh = e
+            .style_handle
+            .filter(|h| !h.is_null())
+            .or_else(|| self.resolve_text_style_handle(&e.style_name))
+            .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, sh.value());
 
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Hatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Hatch Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn hatch_common_for_write(&self, e: &Hatch) -> EntityCommon {
         let mut common = e.common.clone();
         if e.stored_pattern_origin().is_some() {
             if let Some(app) = self.document.app_ids.get("ACAD") {
-                common
+                let app_handle = app.handle.value();
+                if let Some(pos) = common
                     .extended_data
                     .raw_dwg_eed
-                    .retain(|(handle, _)| *handle != app.handle.value());
+                    .iter()
+                    .position(|(handle, _)| *handle == app_handle)
+                {
+                    // Â§19 H8h-ext-15 keep-position (the gh44-error HATCH
+                    // census, 2026-10-04): her wire carries the ACAD block
+                    // FIRST ([ACAD, 16CA] on the divergent records) and the
+                    // remove-and-append reordered every conventional
+                    // rewrite to [16CA, ACAD] â€” the five crc-only HATCH
+                    // rows. The retained block keeps its POSITION: the
+                    // bytes stay VERBATIM when they already encode the
+                    // model's current origin (the unedited authored case
+                    // â€” byte identity); a MOVED origin (a transform)
+                    // re-encodes in place at the same slot.
+                    let wide = self.version.r2007_plus();
+                    let retained_origin = crate::io::dwg::eed_codec::decode_values(
+                        &common.extended_data.raw_dwg_eed[pos].1,
+                        wide,
+                        |h| {
+                            self.document
+                                .layers
+                                .iter()
+                                .find(|l| l.handle.value() == h)
+                                .map(|l| l.name.clone())
+                        },
+                    )
+                    .and_then(|values| crate::hatch_origin::origin_from_values(&values));
+                    if retained_origin != e.stored_pattern_origin() {
+                        if let Some(record) = common.extended_data.get_record("ACAD").cloned() {
+                            let code_page = crate::io::dxf::code_page::dwg_code_page_index(
+                                &self.document.header.code_page,
+                            );
+                            let encoding = crate::io::dxf::code_page::encoding_from_code_page(
+                                &self.document.header.code_page,
+                            )
+                            .unwrap_or(encoding_rs::WINDOWS_1252);
+                            let bytes = crate::io::dwg::eed_codec::encode_values_with_encoding(
+                                wide,
+                                &record.values,
+                                encoding,
+                                code_page,
+                                |name| {
+                                    self.document
+                                        .layers
+                                        .get(name)
+                                        .map(|l| l.handle.value())
+                                        .unwrap_or(0)
+                                },
+                            );
+                            common.extended_data.raw_dwg_eed[pos].1 = bytes;
+                        }
+                    }
+                    // Either way the structured record must not append
+                    // after the raw blocks (the reorder mechanism).
+                    common.extended_data.remove_record("ACAD");
+                }
+                // No retained ACAD block (constructed/DXF content): the
+                // structured record appends â€” the previous behavior.
             }
         }
         common
@@ -1918,7 +2015,7 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // Pixel size — only written when a Derived boundary path exists
+        // Pixel size â€” only written when a Derived boundary path exists
         if has_derived_boundary {
             self.writer.write_bit_double(e.pixel_size);
         }
@@ -1944,8 +2041,7 @@ impl<'a> DwgObjectWriter<'a> {
         let type_code = self.class_type_code("MPOLYGON", common::OBJ_MPOLYGON);
         let common = self.hatch_common_for_write(e);
         self.entity_preamble(type_code, &common);
-        // Object version: 1 in every file read so far.
-        self.writer.write_bit_short(1);
+        self.writer.write_bit_short(e.style as i16);
 
         if self.version.r2004_plus() {
             self.writer
@@ -1972,9 +2068,13 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_double(e.elevation);
         self.writer.write_3bit_double(e.normal);
         self.writer.write_variable_text(&e.pattern.name);
-        // MPOLYGON has no associative flag and no hatch style.
         self.writer.write_bit(e.is_solid);
-        self.write_mpolygon_loops(&e.paths, false);
+        self.writer.write_bit(e.is_associative);
+        self.writer.write_bit_long(e.paths.len() as i32);
+        for path in &e.paths {
+            self.write_hatch_boundary_path(path);
+        }
+        self.writer.write_bit_short(e.style as i16);
         self.writer.write_bit_short(e.pattern_type as i16);
         if !e.is_solid {
             self.writer.write_bit_double(e.pattern_angle);
@@ -1993,39 +2093,14 @@ impl<'a> DwgObjectWriter<'a> {
         }
         self.writer.write_cm_color(&e.mpolygon_hatch_color);
         self.writer.write_2raw_double(e.mpolygon_x_direction);
-        self.write_mpolygon_loops(&e.mpolygon_invalid_loops, true);
-        self.register_object(e.common.handle);
-    }
-
-    /// Writes a count followed by MPOLYGON loops: closed polylines without
-    /// flags, typed edges or boundary handles. Paths that are not a single
-    /// polyline edge cannot be expressed in this format and are skipped.
-    fn write_mpolygon_loops(&mut self, paths: &[BoundaryPath], invalid: bool) {
-        let loops: Vec<&PolylineEdge> = paths
-            .iter()
-            .filter_map(|path| match path.edges.as_slice() {
-                [BoundaryEdge::Polyline(polyline)] => Some(polyline),
-                _ => None,
-            })
-            .collect();
-        self.writer.write_bit_long(loops.len() as i32);
-        for polyline in loops {
-            // Per-loop flag of unconfirmed meaning.
-            self.writer.write_bit(false);
-            if invalid {
-                // Unknown flag carried by invalid loops only.
-                self.writer.write_bit(false);
-            }
-            let has_bulge = polyline.vertices.iter().any(|v| v.z != 0.0);
-            self.writer.write_bit(has_bulge);
-            self.writer.write_bit_long(polyline.vertices.len() as i32);
-            for v in &polyline.vertices {
-                self.writer.write_2raw_double(Vector2::new(v.x, v.y));
-                if has_bulge {
-                    self.writer.write_bit_double(v.z);
-                }
+        self.writer.write_bit_long(e.mpolygon_boundary_handle_count);
+        for path in &e.paths {
+            for handle in &path.boundary_handles {
+                self.writer
+                    .write_handle(DwgReferenceType::SoftPointer, handle.value());
             }
         }
+        self.register_object(e.common.handle);
     }
 
     fn write_hatch_boundary_path(&mut self, path: &BoundaryPath) {
@@ -2088,7 +2163,7 @@ impl<'a> DwgObjectWriter<'a> {
                             }
                         }
 
-                        // Fit data — R2010+ only
+                        // Fit data â€” R2010+ only
                         if self.version.r2010_plus() {
                             self.writer.write_bit_long(se.fit_points.len() as i32);
                             if !se.fit_points.is_empty() {
@@ -2144,7 +2219,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // â”€â”€ Viewport entity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Viewport entity Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_viewport_entity(&mut self, e: &Viewport) {
         if self.version.r13_14_only() {
@@ -2212,8 +2287,13 @@ impl<'a> DwgObjectWriter<'a> {
         // Status/UCS data (written for all versions)
         // Frozen layer count BL
         self.writer.write_bit_long(e.frozen_layers.len() as i32);
-        // Status flags BL 90
-        self.writer.write_bit_long(e.status.to_bits());
+        // Status flags BL 90 â€” write the wire-true raw when the read
+        // retained it (the typed bits model only 0-15); constructed
+        // viewports fall back to the typed recomposition.
+        let status_flags = e
+            .dwg_status_flag
+            .unwrap_or_else(|| e.status.to_bits());
+        self.writer.write_bit_long(status_flags);
         // Style Sheet TV 1
         self.writer.write_variable_text(&e.style_sheet);
         // Render Mode RC 281
@@ -2264,9 +2344,13 @@ impl<'a> DwgObjectWriter<'a> {
             e.clip_boundary_handle.value(),
         );
 
-        // R2000 (AC1015) only: VIEWPORT ENT HEADER
+        // R2000 (AC1015) only: VIEWPORT ENT HEADER â€” echo the retained
+        // wire link (dwg.spec VIEWPORT vport_entity_header).
         if self.version == crate::io::dwg::dwg_version::DwgVersion::AC15 {
-            self.writer.write_handle(DwgReferenceType::HardPointer, 0);
+            self.writer.write_handle(
+                DwgReferenceType::HardPointer,
+                e.vport_entity_handle.value(),
+            );
         }
 
         // Named UCS and Base UCS handles (written for all versions)
@@ -2294,7 +2378,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Dimension (dispatch) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dimension (dispatch) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_dimension(&mut self, dim: &Dimension) {
         match dim {
@@ -2329,7 +2413,7 @@ impl<'a> DwgObjectWriter<'a> {
         // Elevation BD 11 Z-coord
         self.writer.write_bit_double(base.text_middle_point.z);
 
-        // Flags byte — bit 0: text positioned at a user-defined location.
+        // Flags byte â€” bit 0: text positioned at a user-defined location.
         let flags_byte = if base.text_user_positioned {
             base.dwg_flags_byte | 0x01
         } else {
@@ -2382,15 +2466,23 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer
             .write_handle(DwgReferenceType::HardPointer, ds_handle.value());
 
-        // Block handle (hard pointer)
-        let block_handle = self
-            .document
-            .block_records
-            .get(&base.block_name)
-            .map(|br| br.handle)
-            .unwrap_or(Handle::NULL);
+        // Block handle (hard pointer) â€” the anonymous dimension-geometry
+        // block record (*D/*U). Write the RAW wire handle: the doc's
+        // name-keyed table uniquifies the many `*D` blocks, so a
+        // nameâ†’handle re-lookup resolves the wrong record (or none).
+        let block_handle_value = if !base.block_handle.is_null() {
+            base.block_handle.value()
+        } else {
+            // A programmatically built dimension carries no block handle;
+            // its baked record resolves by the uniquified name.
+            self.document
+                .block_records
+                .get(&base.block_name)
+                .map(|br| br.handle.value())
+                .unwrap_or(0)
+        };
         self.writer
-            .write_handle(DwgReferenceType::HardPointer, block_handle.value());
+            .write_handle(DwgReferenceType::HardPointer, block_handle_value);
     }
 
     fn write_dimension_linear(&mut self, d: &DimensionLinear) {
@@ -2449,8 +2541,14 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_dimension_ordinate(&mut self, d: &DimensionOrdinate) {
-        let mut base = d.base.clone();
-        base.actual_measurement = d.measurement();
+        // Â§19 H8h-ext-11: emit the model's stored measurement. The
+        // builder preserves the DWG-read wire value; recomputing it
+        // here shifted the authored double 1 ulp (example_2007
+        // h=430: her 4630.519359082827 became ...828). Programmatic
+        // ordinate construction refreshes at new(); edited documents
+        // refresh via the transform path â€” the stored value is the
+        // semantic source of truth on every path.
+        let base = d.base.clone();
         self.write_common_dimension_data(common::OBJ_DIMENSION_ORDINATE, &base);
         self.writer.write_3bit_double(d.definition_point);
         self.writer.write_3bit_double(d.feature_location);
@@ -2489,7 +2587,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(d.base.common.handle);
     }
 
-    // â”€â”€ Polyline2D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Polyline2D Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_polyline2d(&mut self, e: &Polyline2D) {
         self.entity_preamble(common::OBJ_POLYLINE_2D, &e.common);
@@ -2502,10 +2600,14 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_double(e.elevation);
         self.writer.write_bit_extrusion(e.normal);
 
-        // Allocate handles for vertices and seqend
+        // Allocate handles for vertices; the seqend keeps its wire handle
+        // when the read retained one, else gets a fresh allocation.
         let vertex_handles: Vec<Handle> =
             (0..e.vertices.len()).map(|_| self.alloc_handle()).collect();
-        let seqend_handle = self.alloc_handle();
+        let seqend_handle = e
+            .seqend_handle
+            .filter(|h| !h.is_null())
+            .unwrap_or_else(|| self.alloc_handle());
 
         if self.version.r2004_plus() {
             self.writer.write_bit_long(e.vertices.len() as i32);
@@ -2532,7 +2634,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         self.register_object(e.common.handle);
 
-        // Write vertices as child entities — set up internal entity chain
+        // Write vertices as child entities â€” set up internal entity chain
         let saved_prev = self.prev_handle.take();
         let saved_next = self.next_handle.take();
 
@@ -2543,12 +2645,29 @@ impl<'a> DwgObjectWriter<'a> {
                 None
             };
             self.next_handle = (i + 1 < vertex_handles.len()).then(|| vertex_handles[i + 1]);
-            self.write_vertex2d(v, vh, e.common.handle, &e.common.layer, &e.common.color);
+            self.write_vertex2d(v, vh, e.common.handle, &e.common.layer, &e.common.color,
+                                 &e.common.linetype, &e.common.linetype_handle);
         }
 
-        // Write SEQEND — last in polyline chain
+        // Write SEQEND â€” last in polyline chain
         self.prev_handle = None;
         self.next_handle = None;
+        // Â§19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) â€”
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) â€” a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
+        // Â§19 H8h-ext-17: replay the captured plotstyle handle â€” the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2559,8 +2678,8 @@ impl<'a> DwgObjectWriter<'a> {
             &crate::types::Transparency::default(),
             false,
             1.0,
-            "ByLayer",
-            &None,
+            &e.common.linetype,
+            &e.common.linetype_handle,
             &crate::xdata::ExtendedData::default(),
             &[],
             &None,
@@ -2568,19 +2687,40 @@ impl<'a> DwgObjectWriter<'a> {
             None,
             0,
             &None,
-            0,
-            0,
+            seqend_flags.0,
+            seqend_flags.1,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
             &None,
             &None,
+            &None,
+            None,
         );
         self.register_object(seqend_handle);
 
         // Restore block-level entity chain
         self.prev_handle = saved_prev;
         self.next_handle = saved_next;
+    }
+
+    fn seqend_era_flags(&self) -> (u8, u8) {
+        // AutoCAD's SEQEND convention, verified per owner across the
+        // example corpus (ex2000/2004/2007/2010/2013/2018): the
+        // polyline-family SEQENDs carry a flags-3-with-null-ref pair -
+        // plotstyle in the R2004 band, shadow R2007 through R2013 (gone
+        // at R2018) - while INSERT-attached SEQENDs carry none. Returns
+        // (shadow_flags, plotstyle_flags).
+        if self.version.r2007_plus()
+            && !self.version.r2018_plus(self.dxf_version)
+        {
+            (3, 0)
+        } else if self.version.r2004_plus() && !self.version.r2007_plus() {
+            (0, 3)
+        } else {
+            (0, 0)
+        }
     }
 
     fn write_vertex2d(
@@ -2590,6 +2730,8 @@ impl<'a> DwgObjectWriter<'a> {
         owner: Handle,
         parent_layer: &str,
         parent_color: &crate::types::Color,
+        parent_linetype: &str,
+        parent_linetype_handle: &Option<Handle>,
     ) {
         self.write_common_entity_data(
             common::OBJ_VERTEX_2D,
@@ -2601,8 +2743,8 @@ impl<'a> DwgObjectWriter<'a> {
             &crate::types::Transparency::default(),
             false,
             1.0,
-            "ByLayer",
-            &None,
+            parent_linetype,
+            parent_linetype_handle,
             &crate::xdata::ExtendedData::default(),
             &[],
             &None,
@@ -2617,6 +2759,9 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
             &None,
             &None,
+            &None,
+            &None,
+            None,
         );
 
         // Flags EC 70 NOT bit-pair-coded
@@ -2627,12 +2772,12 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_double(v.location.y);
         self.writer.write_bit_double(v.location.z);
 
-        // Start width BD 40 — negative = compression trick
+        // Start width BD 40 â€” negative = compression trick
         if v.start_width != 0.0 && v.end_width == v.start_width {
             self.writer.write_bit_double(-v.start_width);
         } else {
             self.writer.write_bit_double(v.start_width);
-            // End width BD 41 — only present if start >= 0
+            // End width BD 41 â€” only present if start >= 0
             self.writer.write_bit_double(v.end_width);
         }
 
@@ -2650,19 +2795,20 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(vertex_handle);
     }
 
-    // â”€â”€ Polyline3D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Polyline3D Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_polyline3d(&mut self, e: &Polyline3D) {
         self.entity_preamble(common::OBJ_POLYLINE_3D, &e.common);
 
-        // Byte 1: curve type (1 quadratic, 2 cubic B-spline)
-        self.writer.write_byte(e.smooth_type.to_dwg_code());
-        // Byte 2: closed flag only — bit 3 (Is3DPolyline) is implied by
+        // Byte 1: smooth surface type (C# hardcodes 0)
+        self.writer.write_byte(e.smooth_type as u8);
+        // Byte 2: closed flag only â€” bit 3 (Is3DPolyline) is implied by
         // the object type code and must NOT be written in the DWG data
         let closed_flag = if e.flags.closed { 1u8 } else { 0u8 };
         self.writer.write_byte(closed_flag);
 
-        // Allocate handles for any vertex that doesn't have one
+        // Allocate handles for any vertex that doesn't have one; the
+        // seqend keeps its wire handle when the read retained one.
         let vertex_handles: Vec<Handle> = e
             .vertices
             .iter()
@@ -2674,7 +2820,10 @@ impl<'a> DwgObjectWriter<'a> {
                 }
             })
             .collect();
-        let seqend_handle = self.alloc_handle();
+        let seqend_handle = e
+            .seqend_handle
+            .filter(|h| !h.is_null())
+            .unwrap_or_else(|| self.alloc_handle());
 
         if self.version.r2004_plus() {
             self.writer.write_bit_long(e.vertices.len() as i32);
@@ -2701,7 +2850,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         self.register_object(e.common.handle);
 
-        // Write vertices — set up internal entity chain
+        // Write vertices â€” set up internal entity chain
         let saved_prev = self.prev_handle.take();
         let saved_next = self.next_handle.take();
 
@@ -2712,12 +2861,29 @@ impl<'a> DwgObjectWriter<'a> {
                 None
             };
             self.next_handle = (i + 1 < vertex_handles.len()).then(|| vertex_handles[i + 1]);
-            self.write_vertex3d(v, vh, e.common.handle, &e.common.layer, &e.common.color);
+            self.write_vertex3d(v, vh, e.common.handle, &e.common.layer, &e.common.color,
+                                 &e.common.linetype, &e.common.linetype_handle);
         }
 
-        // Write SEQEND — last in polyline chain
+        // Write SEQEND â€” last in polyline chain
         self.prev_handle = None;
         self.next_handle = None;
+        // Â§19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) â€”
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) â€” a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
+        // Â§19 H8h-ext-17: replay the captured plotstyle handle â€” the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2728,8 +2894,8 @@ impl<'a> DwgObjectWriter<'a> {
             &crate::types::Transparency::default(),
             false,
             1.0,
-            "ByLayer",
-            &None,
+            &e.common.linetype,
+            &e.common.linetype_handle,
             &crate::xdata::ExtendedData::default(),
             &[],
             &None,
@@ -2737,13 +2903,16 @@ impl<'a> DwgObjectWriter<'a> {
             None,
             0,
             &None,
-            0,
-            0,
+            seqend_flags.0,
+            seqend_flags.1,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
             &None,
             &None,
+            &None,
+            None,
         );
         self.register_object(seqend_handle);
 
@@ -2759,6 +2928,8 @@ impl<'a> DwgObjectWriter<'a> {
         owner: Handle,
         parent_layer: &str,
         parent_color: &crate::types::Color,
+        parent_linetype: &str,
+        parent_linetype_handle: &Option<Handle>,
     ) {
         self.write_common_entity_data(
             common::OBJ_VERTEX_3D,
@@ -2770,10 +2941,10 @@ impl<'a> DwgObjectWriter<'a> {
             &crate::types::Transparency::default(),
             false,
             1.0,
-            "ByLayer",
-            &None,
+            parent_linetype,
+            parent_linetype_handle,
             &crate::xdata::ExtendedData::default(),
-            &[],
+            &v.reactor_handles,
             &None,
             None,
             None,
@@ -2786,6 +2957,9 @@ impl<'a> DwgObjectWriter<'a> {
             &None,
             &None,
             &None,
+            &None,
+            &None,
+            None,
         );
 
         self.writer.write_byte(v.flags as u8); // Flags EC 70
@@ -2793,7 +2967,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(vertex_handle);
     }
 
-    // â”€â”€ PolyfaceMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ PolyfaceMesh Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_polyface_mesh(&mut self, e: &PolyfaceMesh) {
         self.entity_preamble(common::OBJ_POLYLINE_PFACE, &e.common);
@@ -2925,9 +3099,25 @@ impl<'a> DwgObjectWriter<'a> {
             sub_idx += 1;
         }
 
-        // Write SEQEND — last in polyface chain
+        // Write SEQEND â€” last in polyface chain
         self.prev_handle = None;
         self.next_handle = None;
+        // Â§19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) â€”
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) â€” a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
+        // Â§19 H8h-ext-17: replay the captured plotstyle handle â€” the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -2938,8 +3128,8 @@ impl<'a> DwgObjectWriter<'a> {
             &crate::types::Transparency::default(),
             false,
             1.0,
-            "ByLayer",
-            &None,
+            &e.common.linetype,
+            &e.common.linetype_handle,
             &crate::xdata::ExtendedData::default(),
             &[],
             &None,
@@ -2947,13 +3137,16 @@ impl<'a> DwgObjectWriter<'a> {
             None,
             0,
             &None,
-            0,
-            0,
+            seqend_flags.0,
+            seqend_flags.1,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
             &None,
             &None,
+            &None,
+            None,
         );
         self.register_object(seqend_handle);
 
@@ -2962,7 +3155,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.next_handle = saved_next;
     }
 
-    // â”€â”€ PolygonMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ PolygonMesh Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_polygon_mesh(&mut self, e: &PolygonMeshEntity) {
         self.entity_preamble(common::OBJ_POLYLINE_MESH, &e.common);
@@ -2974,7 +3167,8 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_short(e.m_smooth_density);
         self.writer.write_bit_short(e.n_smooth_density);
 
-        // Allocate handles for vertices that don't have one
+        // Allocate handles for vertices that don't have one; the seqend
+        // keeps its wire handle when the read retained one.
         let vertex_handles: Vec<Handle> = e
             .vertices
             .iter()
@@ -2986,7 +3180,10 @@ impl<'a> DwgObjectWriter<'a> {
                 }
             })
             .collect();
-        let seqend_handle = self.alloc_handle();
+        let seqend_handle = e
+            .seqend_handle
+            .filter(|h| !h.is_null())
+            .unwrap_or_else(|| self.alloc_handle());
 
         if self.version.r2004_plus() {
             self.writer.write_bit_long(e.vertices.len() as i32);
@@ -3049,15 +3246,34 @@ impl<'a> DwgObjectWriter<'a> {
                 &None,
                 &None,
                 &None,
+                &None,
+                &None,
+                None,
             );
             self.writer.write_byte(v.flags as u8);
             self.writer.write_3bit_double(v.location);
             self.register_object(vh);
         }
 
-        // Write SEQEND — last in polygon mesh chain
+        // Write SEQEND â€” last in polygon mesh chain
         self.prev_handle = None;
         self.next_handle = None;
+        // Â§19 H8h-ext-7: the read captures the wire SEQEND's flag pair
+        // (pending.seqend_flags, transferred with the seqend handle) â€”
+        // use it when the read retained one; the era convention is the
+        // DXF-built fallback only (the ODA-authored PolyLine3D specimen
+        // carries (0,0) where the example corpus carries (3,0) â€” a
+        // per-author form, not an era law).
+        let seqend_flags = if e.seqend_handle.filter(|h| !h.is_null()).is_some() {
+            (e.seqend_shadow_flags, e.seqend_plotstyle_flags)
+        } else {
+            self.seqend_era_flags()
+        };
+        // Â§19 H8h-ext-17: replay the captured plotstyle handle â€” the
+        // authored target is per-record data (the golden SEQENDs target
+        // the MATERIAL object where the example corpus carries the null
+        // ref); None keeps the null [5,0,0,0] form.
+        let seqend_plotstyle = e.seqend_plotstyle_handle.map(Handle::from);
         self.write_common_entity_data(
             common::OBJ_SEQEND,
             seqend_handle,
@@ -3068,8 +3284,8 @@ impl<'a> DwgObjectWriter<'a> {
             &crate::types::Transparency::default(),
             false,
             1.0,
-            "ByLayer",
-            &None,
+            &e.common.linetype,
+            &e.common.linetype_handle,
             &crate::xdata::ExtendedData::default(),
             &[],
             &None,
@@ -3077,13 +3293,16 @@ impl<'a> DwgObjectWriter<'a> {
             None,
             0,
             &None,
-            0,
-            0,
+            seqend_flags.0,
+            seqend_flags.1,
+            &seqend_plotstyle,
             &None,
             &None,
             &None,
             &None,
             &None,
+            &None,
+            None,
         );
         self.register_object(seqend_handle);
 
@@ -3092,17 +3311,17 @@ impl<'a> DwgObjectWriter<'a> {
         self.next_handle = saved_next;
     }
 
-    // â”€â”€ Seqend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Seqend Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_seqend(&mut self, e: &Seqend) {
         self.entity_preamble(common::OBJ_SEQEND, &e.common);
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Mesh (ACAD_MESH) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Mesh (ACAD_MESH) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_mesh(&mut self, e: &Mesh) {
-        // UNLISTED entity type — always use DXF class number (500+)
+        // UNLISTED entity type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("MESH", common::OBJ_MESH);
         self.entity_preamble(type_code, &e.common);
 
@@ -3120,7 +3339,12 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_3bit_double(*v);
         }
 
-        // Faces: count = sum of (1 + face.vertices.len()) for each face
+        // Faces: count = sum of (1 + face.vertices.len()) for each face.
+        // The header carries the FLATTENED ARRAY LENGTH, not the face
+        // count â€” bit-verified against the authored MESH 0x2D0 of
+        // 2004/Surface.dwg (silver's reader walks the same convention and
+        // the harness roundtrip is 0/0; BricsCAD also rejects the
+        // face-count form).
         let nfaces: i32 = e.faces.iter().map(|f| 1 + f.vertices.len() as i32).sum();
         self.writer.write_bit_long(nfaces);
         for face in &e.faces {
@@ -3144,13 +3368,15 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_double(crease);
         }
 
-        // Trailing value (override option for meshes)
-        self.writer.write_bit_long(e.override_option);
+        // Trailing raw bits (dwg.spec MESH FIELD_B unknown_b1/unknown_b2) â€”
+        // echo the retained wire bits verbatim (gold parity).
+        self.writer.write_bit(e.unknown_b1);
+        self.writer.write_bit(e.unknown_b2);
 
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ MLine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ MLine Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_mline(&mut self, e: &MLine) {
         self.entity_preamble(common::OBJ_MLINE, &e.common);
@@ -3160,31 +3386,15 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_3bit_double(e.start_point);
         self.writer.write_3bit_double(e.normal);
 
-        // `Openclosed BS`, DXF group 71. The ODA specification documents two
-        // values for this field, open (1) and closed (3), and those are not
-        // enum tags: they are group 71's two low bits, `HAS_VERTICES` (1) and
-        // `HAS_VERTICES | CLOSED` (1 | 2). The short *is* group 71, so the
-        // cap-suppression bits `NO_START_CAPS` (4) and `NO_END_CAPS` (8) ride
-        // in it as well, and the entity's own object stream is the only place
-        // they can: MLINESTYLE's flag word has bits 4 and 8 unassigned, and
-        // its cap bits (16/32/64 start, 256/512/1024 end) pick a cap *shape*
-        // for every entity sharing the style, which cannot express one
-        // multiline suppressing its own caps. libredwg decodes this same field
-        // as `FIELD_BS (flags, 71)` with `MLINE_FLAGS_SUPPRESS_START_CAPS` /
-        // `_SUPPRESS_END_CAPS` and a validity mask of 15 (`src/dwg.spec`
-        // entity MLINE (47), `include/dwg.h`), and writes that raw short
-        // straight back out at group 71.
-        //
-        // HAS_VERTICES is derived from the vertex list in the record. Preserve
-        // the closed and cap-suppression bits supplied by the model while
-        // making group 71 agree with group 72 in every output format.
-        let caps = e.flags & (MLineFlags::NO_START_CAPS | MLineFlags::NO_END_CAPS);
-        let open_closed: i16 = (e.serialized_flags()
-            & (MLineFlags::HAS_VERTICES | MLineFlags::CLOSED))
-            .bits();
-        self.writer.write_bit_short(open_closed | caps.bits());
+        // Openclosed BS: open (1), closed (3) â€” always has HAS_VERTICES flag
+        let flag_value: i16 = if e.flags.contains(MLineFlags::CLOSED) {
+            3
+        } else {
+            1
+        };
+        self.writer.write_bit_short(flag_value);
 
-        // Linesinstyle RC 73 — number of segments from first vertex
+        // Linesinstyle RC 73 â€” number of segments from first vertex
         let nlines: u8 = if let Some(first_v) = e.vertices.first() {
             first_v.segments.len() as u8
         } else {
@@ -3212,7 +3422,7 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // MLine style handle — fall back to document's current MLine style
+        // MLine style handle â€” fall back to document's current MLine style
         let sh = e
             .style_handle
             .filter(|h| !h.is_null())
@@ -3223,16 +3433,16 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Underlay (PDF / DWF / DGN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Underlay (PDF / DWF / DGN) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// Write an UNDERLAY reference (AcDbUnderlayReference).
     ///
-    // ── Table (ACAD_TABLE) ──────────────────────────────────────────
+    // â”€â”€ Table (ACAD_TABLE) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //
-    // Inverse of the table reader. Cell styles / borders opencadcodec does not
+    // Inverse of the table reader. Cell styles / borders acadrust does not
     // model are written as empty presence-flag stubs (the anonymous block
-    // renders the visual), and the retained data — dimensions, cell contents
-    // (text/number) — is written in full so it round-trips.
+    // renders the visual), and the retained data â€” dimensions, cell contents
+    // (text/number) â€” is written in full so it round-trips.
 
     fn write_table_string_value(&mut self, s: &str) {
         if self.version.r2007_plus() {
@@ -3324,9 +3534,8 @@ impl<'a> DwgObjectWriter<'a> {
             .filter(|value| !value.is_null())
             .or_else(|| {
                 (!name.is_empty())
-                    .then(|| self.document.text_styles.get(name))
+                    .then(|| self.resolve_text_style_handle(name))
                     .flatten()
-                    .map(|style| style.handle)
             })
             .unwrap_or(Handle::NULL)
             .value()
@@ -3793,10 +4002,7 @@ impl<'a> DwgObjectWriter<'a> {
                     .filter(|handle| !handle.is_null())
                     .or_else(|| {
                         value.text_style_names.get(index).and_then(|name| {
-                            self.document
-                                .text_styles
-                                .get(name)
-                                .map(|style| style.handle)
+                            self.resolve_text_style_handle(name)
                         })
                     })
                     .unwrap_or(Handle::NULL);
@@ -3860,6 +4066,38 @@ impl<'a> DwgObjectWriter<'a> {
     fn write_table(&mut self, e: &table::Table) {
         let type_code = self.class_type_code("ACAD_TABLE", common::OBJ_TABLE);
         self.entity_preamble(type_code, &e.common);
+
+        // Â§20 the R2018 record-identity packet (the rewrite-rejection
+        // campaign): a DWG-read table on the R2010+ frames replays its
+        // captured body verbatim â€” the modeled content emission drops
+        // the cell-style/border sub-structures the model never held
+        // (example_2018 h=4F2 â€” the 26105â†’25410-bit census drift, the
+        // AutoCAD-2027 file-level rejection's poison). The modeled
+        // emission stays the fallback for DXF-built and programmatic
+        // tables (no capture) and for conversions that target another
+        // version.
+        // Replay only while the capture still describes this table: the
+        // digest pins the modeled state as the reader built it, so an edit
+        // (the model no longer hashes to the pinned value) re-encodes from
+        // the model instead of silently dropping the change
+        // (2026-10-10, the staged-table reedit audit). Unedited records
+        // keep the byte-identical rewrite.
+        let wire_matches_model = e
+            .wire_model_digest
+            .is_some_and(|digest| e.modeled_digest() == digest);
+        if wire_matches_model
+            && self.write_wire_body(
+            &e.wire_main,
+            e.wire_main_bit_len,
+            &e.wire_text,
+            e.wire_text_bit_len,
+            &e.wire_handles,
+            e.wire_handles_bit_len,
+            e.wire_dxf_version,
+        ) {
+            self.register_object(e.common.handle);
+            return;
+        }
 
         // Insert base (mirrors read_insert; tables carry no attributes).
         self.writer.write_3bit_double(e.insertion_point);
@@ -3974,7 +4212,7 @@ impl<'a> DwgObjectWriter<'a> {
     /// clip-inversion bit, and the clip boundary is always a bit-long count
     /// followed by raw 2D vertices.
     fn write_underlay(&mut self, e: &Underlay) {
-        // UNLISTED entity type — always resolve to the DXF class number (500+).
+        // UNLISTED entity type â€” always resolve to the DXF class number (500+).
         let dxf_name = e.entity_name();
         let fallback = match e.underlay_type {
             UnderlayType::Dwf => common::OBJ_DWFUNDERLAY,
@@ -3990,11 +4228,11 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_double(e.x_scale);
         self.writer.write_bit_double(e.y_scale);
         self.writer.write_bit_double(e.z_scale);
-        self.writer.write_byte(e.display_flags().bits());
+        self.writer.write_byte(e.flags.bits());
         self.writer.write_byte(e.contrast);
         self.writer.write_byte(e.fade);
 
-        // Definition handle (hard pointer) — drawn from the handle stream, so
+        // Definition handle (hard pointer) â€” drawn from the handle stream, so
         // it is emitted here mid-record without disturbing the data cursor.
         self.writer
             .write_handle(DwgReferenceType::HardPointer, e.definition_handle.value());
@@ -4008,10 +4246,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ RasterImage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ RasterImage Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_raster_image(&mut self, e: &RasterImage) {
-        // UNLISTED entity type — always use DXF class number (500+)
+        // UNLISTED entity type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("IMAGE", common::OBJ_IMAGE);
         self.entity_preamble(type_code, &e.common);
 
@@ -4033,15 +4271,15 @@ impl<'a> DwgObjectWriter<'a> {
         // Clip boundary
         self.write_clip_boundary(&e.clip_boundary);
 
-        // Image def handle
+        // Image def + reactor handles â€” wire nibbles follow gold's
+        // AcDbRasterImage block (dwg.spec 5129): imagedef 5, imagedefreactor 3.
         let def = e.definition_handle.unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, def.value());
 
-        // Image def reactor handle
         let reactor = e.definition_reactor_handle.unwrap_or(Handle::NULL);
         self.writer
-            .write_handle(DwgReferenceType::HardPointer, reactor.value());
+            .write_handle(DwgReferenceType::HardOwnership, reactor.value());
 
         self.register_object(e.common.handle);
     }
@@ -4071,10 +4309,10 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // â”€â”€ Wipeout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Wipeout Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_wipeout(&mut self, e: &Wipeout) {
-        // UNLISTED entity type — always use DXF class number (500+)
+        // UNLISTED entity type â€” always use DXF class number (500+)
         // Wipeout uses the "WIPEOUT" DXF class name
         let type_code = self.class_type_code("WIPEOUT", common::OBJ_IMAGE);
         self.entity_preamble(type_code, &e.common);
@@ -4118,18 +4356,22 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // Definition + reactor handles
+        // Definition + reactor handles. The wire codes follow gold's
+        // AcDbRasterImage/Wipeout family (dwg2.spec 1561, dwg.spec 5129):
+        // imagedef carries header nibble 5 (hard pointer; the original
+        // files print [5,0,0,0]) and imagedefreactor nibble 3 ([3,0,0,0]
+        // in every original record).
         let def = e.definition_handle.unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, def.value());
         let reactor = e.definition_reactor_handle.unwrap_or(Handle::NULL);
         self.writer
-            .write_handle(DwgReferenceType::HardPointer, reactor.value());
+            .write_handle(DwgReferenceType::HardOwnership, reactor.value());
 
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ OLE2Frame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ OLE2Frame Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_ole2frame(&mut self, e: &Ole2Frame) {
         self.entity_preamble(common::OBJ_OLE2FRAME, &e.common);
@@ -4149,8 +4391,30 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_short(mode);
         }
 
-        // Data Length BL + data bytes
-        let data = e.encoded_payload();
+        // Data Length BL + data bytes. Echo the retained raw wire bytes when
+        // present (byte-identical rewrite â€” the re-encoded payload is not);
+        // the re-encode path serves constructed documents.
+        let data = if e.raw_data.is_empty() {
+            e.encoded_payload()
+        } else {
+            // Echo the retained raw wire bytes only while they still
+            // describe this frame: the payload encodes the corners (and
+            // the storage/envelope), so an edited frame re-encodes or the
+            // edit silently vanishes on reload (2026-10-10, the ole2frame
+            // reedit audit). Unmodified read frames keep the byte-identical
+            // rewrite; the re-encode path serves constructed documents.
+            let (storage, envelope, upper_left, lower_right) =
+                crate::entities::Ole2Frame::decode_payload(&e.raw_data);
+            if storage == e.storage
+                && envelope == e.envelope
+                && upper_left == e.upper_left_corner
+                && lower_right == e.lower_right_corner
+            {
+                e.raw_data.clone()
+            } else {
+                e.encoded_payload()
+            }
+        };
         self.writer.write_bit_long(data.len() as i32);
         self.writer.write_bytes(&data);
 
@@ -4162,7 +4426,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ MultiLeader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ MultiLeader Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_light(&mut self, e: &Light) {
         let type_code = self.class_type_code("LIGHT", common::OBJ_LIGHT);
@@ -4171,7 +4435,15 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_variable_text(&e.name);
         self.writer.write_bit_long(e.light_type);
         self.writer.write_bit(e.status);
-        self.writer.write_cm_color(&e.light_color);
+        // TODO B1 (2026-10-01): a retained raw CMC pair replays
+        // verbatim on a same-version write (the authored index slot
+        // survives); the collapsed Color stays the fallback for
+        // constructed and deserialized content.
+        if let Some(raw) = &e.light_color_raw {
+            self.writer.write_cm_color_raw(raw);
+        } else {
+            self.writer.write_cm_color(&e.light_color);
+        }
         self.writer.write_bit(e.plot_glyph);
         self.writer.write_bit_double(e.intensity);
         self.writer.write_3bit_double(e.position);
@@ -4216,7 +4488,7 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_multileader(&mut self, e: &MultiLeader) {
-        // UNLISTED entity type — always use DXF class number (500+)
+        // UNLISTED entity type â€” always use DXF class number (500+)
         let type_code = self.class_type_code("MULTILEADER", common::OBJ_MULTILEADER);
         self.entity_preamble(type_code, &e.common);
 
@@ -4335,48 +4607,72 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // All MLeader versions carry block labels and this common tail. For
-        // pre-R2007 records it follows the arrowhead override list.
-        self.writer.write_bit_long(e.block_attributes.len() as i32);
-        for ba in &e.block_attributes {
-            // 330 Block Attribute definition handle (hard pointer)
-            let def = ba.attribute_definition_handle.unwrap_or(Handle::NULL);
-            self.writer
-                .write_handle(DwgReferenceType::HardPointer, def.value());
-            // 302 Block Attribute Text String
-            self.writer.write_variable_text(&ba.text);
-            // 177 Block Attribute Index
-            self.writer.write_bit_short(ba.index);
-            // 44 Block Attribute Width
-            self.writer.write_bit_double(ba.width);
+        // dwg2.spec 1418-1445: num_blocklabels + the labels list and the
+        // is_neg_textdir / ipe_alignment / justification / scale_factor
+        // tail are VERSIONS (R_14, R_2007) â€” on R2010+ none of these bits
+        // are written and the attach trio (dwg2.spec 1449-1451) follows
+        // is_annotative directly. On R2010+ silver's reads store the
+        // MultiLeader::new() defaults, but the wire must not carry them.
+        if !self.version.r2010_plus() {
+            self.writer.write_bit_long(e.block_attributes.len() as i32);
+            for ba in &e.block_attributes {
+                // 330 Block Attribute definition handle (hard pointer)
+                let def = ba.attribute_definition_handle.unwrap_or(Handle::NULL);
+                self.writer
+                    .write_handle(DwgReferenceType::HardPointer, def.value());
+                // 302 Block Attribute Text String
+                self.writer.write_variable_text(&ba.text);
+                // 177 Block Attribute Index
+                self.writer.write_bit_short(ba.index);
+                // 44 Block Attribute Width
+                self.writer.write_bit_double(ba.width);
+            }
+
+            // 294 Text Direction Negative (B)
+            self.writer.write_bit(e.text_direction_negative);
+            // 178 Text Align in IPE (BS)
+            self.writer.write_bit_short(e.text_align_in_ipe);
+            // 179 Text Attachment Point (BS)
+            self.writer.write_bit_short(e.text_attachment_point as i16);
+            // 45 ScaleFactor (BD)
+            self.writer.write_bit_double(e.scale_factor);
         }
 
-        // 294 Text Direction Negative (B)
-        self.writer.write_bit(e.text_direction_negative);
-        // 178 Text Align in IPE (BS)
-        self.writer.write_bit_short(e.text_align_in_ipe);
-        // 179 Text Attachment Point (BS)
-        self.writer.write_bit_short(e.text_attachment_point as i16);
-        // 45 ScaleFactor (BD)
-        self.writer.write_bit_double(e.scale_factor);
-
-        // R2010+: attachment directions — order is dir(271), bottom(272),
-        // top(273) per AutoCAD, NOT the dir/top/bottom of the
-        // public libredwg spec.
+        // R2010+: dwg2.spec 1449-1451 â€” wire order is dir (271), top
+        // (273), bottom (272); the raws are retained verbatim.
         if self.version.r2010_plus() {
             // 271 Text attachment direction (BS)
-            self.writer
-                .write_bit_short(e.text_attachment_direction as i16);
-            // 272 Bottom text attachment direction (BS)
-            self.writer.write_bit_short(e.text_bottom_attachment as i16);
+            self.writer.write_bit_short(e.dwg_attach_dir);
             // 273 Top text attachment direction (BS)
-            self.writer.write_bit_short(e.text_top_attachment as i16);
+            self.writer.write_bit_short(e.dwg_attach_top);
+            // 272 Bottom text attachment direction (BS)
+            self.writer.write_bit_short(e.dwg_attach_bottom);
         }
 
         // R2013+ field
         if self.version.r2013_plus(self.dxf_version) {
             // 295 Leader extended to text (B)
             self.writer.write_bit(e.extend_leader_to_text);
+        }
+
+        // R2010+ wires park a hidden bit-group between the walked spec
+        // tail and the string-stream anchor that no public spec models.
+        // Byte-fidelity rewrites echo the captured bits verbatim;
+        // constructed entities use the simple-content default â€” the
+        // constant 9-bit group BricsCAD, AutoCAD and the gold tree's
+        // gh44-error.dwg all emit for fresh simple-content mleaders.
+        // (The 17-bit variant of the gold tree's Leader family â€” a
+        // content-class wire, not a writer fingerprint per the
+        // 2026-09-22 specimen-stamp census â€” is honored per-record via
+        // the capture; copying it onto constructed content made
+        // BricsCAD's AcDbMLeader parse reject the record.)
+        if self.version.r2010_plus() {
+            let (bits, count) = e
+                .dwg_raw_tail_bits
+                .unwrap_or((0b000010010, 9));
+            for i in (0..count as u32).rev() {
+                self.writer.write_bit((bits >> i) & 1 == 1);
+            }
         }
 
         self.register_object(e.common.handle);
@@ -4438,8 +4734,17 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_variable_text(&ctx.text_string);
             // 3BD 11 Normal vector
             self.writer.write_3bit_double(ctx.text_normal);
-            // H 340 Text style handle (hard pointer)
-            let ts = ctx.text_style_handle.unwrap_or(Handle::NULL);
+            // H 340 Text style handle (hard pointer). Authored multileaders
+            // always carry a resolvable text content style; a strict loader
+            // rejects text content with a null style slot. Fall back to the
+            // document's Standard text style when the handle is unset
+            // (constructed documents) â€” retained handles (roundtrips) pass
+            // through unchanged.
+            let ts = ctx
+                .text_style_handle
+                .filter(|h| !h.is_null())
+                .or_else(|| self.resolve_text_style_handle("Standard"))
+                .unwrap_or(Handle::NULL);
             self.writer
                 .write_handle(DwgReferenceType::HardPointer, ts.value());
             // 3BD 12 Location
@@ -4639,7 +4944,7 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
-    // â”€â”€ Attribute Definition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Attribute Definition Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     #[allow(clippy::too_many_arguments)]
     fn write_embedded_attribute_mtext(
@@ -4659,7 +4964,8 @@ impl<'a> DwgObjectWriter<'a> {
         fallback.style = style.to_string();
         let mtext = embedded.unwrap_or(&fallback);
 
-        // AcDbMTextObjectEmbedded starts at the common entity's Entmode.
+        // AcDbMTextObjectEmbedded has a reduced common-entity header whose
+        // order differs from a standalone MTEXT entity.
         // Embedded MTEXT is a payload, not a model/paper-space entity.  Mode
         // zero still requires its (nullable) owner slot in the handle stream.
         self.writer.write_2bits(0);
@@ -4669,12 +4975,12 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(true);
         self.writer.write_bit(false);
         self.writer
-            .write_en_color(&mtext.common.color, &mtext.common.transparency);
+            .write_bit_short(mtext.common.color.index().unwrap_or(256) as i16);
         self.writer.write_bit_double(mtext.common.linetype_scale);
         self.writer.write_2bits(0);
         self.writer.write_2bits(0);
-        self.writer.write_byte(mtext.common.shadow_flags);
         self.writer.write_2bits(0);
+        self.writer.write_byte(mtext.common.shadow_flags);
         self.writer.write_bit(false);
         self.writer.write_bit(false);
         self.writer.write_bit(false);
@@ -4710,10 +5016,7 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_variable_text(&mtext.value);
 
         let style_handle = self
-            .document
-            .text_styles
-            .get(&mtext.style)
-            .map(|text_style| text_style.handle)
+            .resolve_text_style_handle(&mtext.style)
             .unwrap_or(Handle::NULL);
         self.writer
             .write_handle(DwgReferenceType::HardPointer, style_handle.value());
@@ -4783,17 +5086,8 @@ impl<'a> DwgObjectWriter<'a> {
             e.text_generation_flags,
             e.horizontal_alignment as i16,
             e.vertical_alignment as i16,
+            e.raw_dataflags,
         );
-
-        // Common TEXT style precedes embedded MTEXT handles (ODA 20.4.4).
-        let style_handle = self
-            .document
-            .text_styles
-            .get(&e.text_style)
-            .map(|s| s.handle)
-            .unwrap_or(Handle::NULL);
-        self.writer
-            .write_handle(DwgReferenceType::HardPointer, style_handle.value());
 
         // writeCommonAttData: R2010+ version byte
         if self.version.r2010_plus() {
@@ -4843,10 +5137,18 @@ impl<'a> DwgObjectWriter<'a> {
         // Prompt
         self.writer.write_variable_text(&e.prompt);
 
+        // The outer TEXT style is the final ATTDEF handle.  For multiline
+        // attributes the embedded MTEXT layer/style handles precede it.
+        let style_handle = self
+            .resolve_text_style_handle(&e.text_style)
+            .unwrap_or(Handle::NULL);
+        self.writer
+            .write_handle(DwgReferenceType::HardPointer, style_handle.value());
+
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Attribute Entity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Attribute Entity Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_attribute_entity(&mut self, e: &AttributeEntity) {
         self.entity_preamble(common::OBJ_ATTRIB, &e.common);
@@ -4865,17 +5167,8 @@ impl<'a> DwgObjectWriter<'a> {
             e.text_generation_flags,
             e.horizontal_alignment as i16,
             e.vertical_alignment as i16,
+            e.raw_dataflags,
         );
-
-        // Common TEXT style precedes embedded MTEXT handles (ODA 20.4.4).
-        let style_handle = self
-            .document
-            .text_styles
-            .get(&e.text_style)
-            .map(|s| s.handle)
-            .unwrap_or(Handle::NULL);
-        self.writer
-            .write_handle(DwgReferenceType::HardPointer, style_handle.value());
 
         // writeCommonAttData: R2010+ version byte
         if self.version.r2010_plus() {
@@ -4914,14 +5207,21 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2007_plus() {
             self.writer.write_bit(e.lock_position);
         }
+        // The outer TEXT style follows the embedded MTEXT handles.
+        let style_handle = self
+            .resolve_text_style_handle(&e.text_style)
+            .unwrap_or(Handle::NULL);
+        self.writer
+            .write_handle(DwgReferenceType::HardPointer, style_handle.value());
 
         self.register_object(e.common.handle);
     }
 
-    // â”€â”€ Shared text entity data (used by AttDef/AttEntity) â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Shared text entity data (used by AttDef/AttEntity) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// Write the TEXT entity data structure shared by Text, AttDef, and AttEntity.
     /// This matches the C# `writeTextEntity` method.
+    #[allow(clippy::too_many_arguments)]
     #[allow(clippy::too_many_arguments)]
     fn write_text_entity_data(
         &mut self,
@@ -4937,6 +5237,7 @@ impl<'a> DwgObjectWriter<'a> {
         generation: i16,
         horizontal_alignment: i16,
         vertical_alignment: i16,
+        raw_dataflags: Option<u8>,
     ) {
         if self.version.r13_14_only() {
             // R13-R14: all fields present
@@ -4956,43 +5257,59 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_short(horizontal_alignment);
             self.writer.write_bit_short(vertical_alignment);
         } else {
-            // R2000+: DataFlags-based conditional encoding
-            let mut data_flags: u8 = 0;
-            if insertion_point.z == 0.0 {
-                data_flags |= 0b0000_0001; // elevation is zero
-            }
-            if alignment_point == Vector3::ZERO {
-                data_flags |= 0b0000_0010; // alignment point is zero
-            }
-            if oblique_angle == 0.0 {
-                data_flags |= 0b0000_0100;
-            }
-            if rotation == 0.0 {
-                data_flags |= 0b0000_1000;
-            }
-            if width_factor == 1.0 {
-                data_flags |= 0b0001_0000;
-            }
-            if generation == 0 {
-                data_flags |= 0b0010_0000; // no mirror
-            }
-            if horizontal_alignment == 0 {
-                data_flags |= 0b0100_0000; // left
-            }
-            if vertical_alignment == 0 {
-                data_flags |= 0b1000_0000; // baseline
-            }
-
+            // R2000+: DataFlags-based conditional encoding. The retained
+            // raw byte from the wire is authoritative (which optionals
+            // AutoCAD actually wrote); compose only for constructed
+            // documents.
+            let data_flags: u8 = match raw_dataflags {
+                Some(raw) => raw,
+                None => {
+                    let mut composed = 0u8;
+                    if insertion_point.z == 0.0 {
+                        composed |= 0b0000_0001; // elevation is zero
+                    }
+                    // LibreDWG dwg_set_dataflags (encode.c 8168): the bit
+                    // is only set when the alignment point EQUALS the
+                    // insertion point (the 2DD default) â€” not when it is
+                    // merely [0,0] (entities-2d's ATTRIB/ATTDEF carry a
+                    // real all-zero alignment with a non-zero insertion,
+                    // which gold decodes as present).
+                    if alignment_point.x == insertion_point.x
+                        && alignment_point.y == insertion_point.y
+                    {
+                        composed |= 0b0000_0010; // alignment == insertion
+                    }
+                    if oblique_angle == 0.0 {
+                        composed |= 0b0000_0100;
+                    }
+                    if rotation == 0.0 {
+                        composed |= 0b0000_1000;
+                    }
+                    if width_factor == 1.0 {
+                        composed |= 0b0001_0000;
+                    }
+                    if generation == 0 {
+                        composed |= 0b0010_0000; // no mirror
+                    }
+                    if horizontal_alignment == 0 {
+                        composed |= 0b0100_0000; // left
+                    }
+                    if vertical_alignment == 0 {
+                        composed |= 0b1000_0000; // baseline
+                    }
+                    composed
+                }
+            };
             self.writer.write_byte(data_flags);
 
-            // Elevation RD — if !(flags & 0x01)
+            // Elevation RD â€” if !(flags & 0x01)
             if (data_flags & 0x01) == 0 {
                 self.writer.write_raw_double(insertion_point.z);
             }
             // Insertion pt 2RD 10
             self.writer.write_raw_double(insertion_point.x);
             self.writer.write_raw_double(insertion_point.y);
-            // Alignment pt 2DD 11 — if !(flags & 0x02)
+            // Alignment pt 2DD 11 â€” if !(flags & 0x02)
             if (data_flags & 0x02) == 0 {
                 self.writer
                     .write_bit_double_with_default(alignment_point.x, insertion_point.x);
@@ -5003,41 +5320,41 @@ impl<'a> DwgObjectWriter<'a> {
             self.writer.write_bit_extrusion(normal);
             // Thickness BT 39
             self.writer.write_bit_thickness(thickness);
-            // Oblique ang RD 51 — if !(flags & 0x04)
+            // Oblique ang RD 51 â€” if !(flags & 0x04)
             if (data_flags & 0x04) == 0 {
                 self.writer.write_raw_double(oblique_angle);
             }
-            // Rotation ang RD 50 — if !(flags & 0x08)
+            // Rotation ang RD 50 â€” if !(flags & 0x08)
             if (data_flags & 0x08) == 0 {
                 self.writer.write_raw_double(rotation);
             }
             // Height RD 40
             self.writer.write_raw_double(height);
-            // Width factor RD 41 — if !(flags & 0x10)
+            // Width factor RD 41 â€” if !(flags & 0x10)
             if (data_flags & 0x10) == 0 {
                 self.writer.write_raw_double(width_factor);
             }
             // Text value TV 1
             self.writer.write_variable_text(text_value);
-            // Generation BS 71 — if !(flags & 0x20)
+            // Generation BS 71 â€” if !(flags & 0x20)
             if (data_flags & 0x20) == 0 {
                 self.writer.write_bit_short(generation);
             }
-            // Horiz align BS 72 — if !(flags & 0x40)
+            // Horiz align BS 72 â€” if !(flags & 0x40)
             if (data_flags & 0x40) == 0 {
                 self.writer.write_bit_short(horizontal_alignment);
             }
-            // Vert align BS 73 — if !(flags & 0x80)
+            // Vert align BS 73 â€” if !(flags & 0x80)
             if (data_flags & 0x80) == 0 {
                 self.writer.write_bit_short(vertical_alignment);
             }
         }
     }
 
-    // â”€â”€ Legacy Polyline (2D) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Legacy Polyline (2D) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     fn write_polyline_old(&mut self, e: &Polyline) {
-        // Legacy Polyline — convert to Polyline3D for DWG output.
+        // Legacy Polyline â€” convert to Polyline3D for DWG output.
         // The DXF reader collapses Polyline2D/3D/PolyfaceMesh into this
         // legacy variant; we re-emit as Polyline3D so data isn't lost.
         let mut p3d = Polyline3D::new();
@@ -5049,12 +5366,37 @@ impl<'a> DwgObjectWriter<'a> {
                 layer: e.common.layer.clone(),
                 position: v.location,
                 flags: v.flags.bits() as i32,
+                reactor_handles: Vec::new(),
+                wire_isbylayerlt: None,
             });
         }
         self.write_polyline3d(&p3d);
     }
 
-    // â”€â”€ ACIS entities (3DSOLID, REGION, BODY) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ ACIS entities (3DSOLID, REGION, BODY) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+
+    /// History handle to write for an ACIS entity: the SH modeler-history
+    /// class records (AcDbSh* catch-alls) that are still elided at save
+    /// have their soft pointers written NULL rather than dangling to a
+    /// record the rewrite does not carry (strict readers refuse the
+    /// whole file otherwise â€” BricsCAD: "Object improperly read:
+    /// <AcDbShExtrusion>"). The elision verdict is the single shared
+    /// list `elided_solid_history_class` in objects.rs â€” keep the Phase
+    /// A class status in sync there, never here.
+    fn solid_history_handle_value(&self, target: Option<Handle>) -> u64 {
+        match target {
+            Some(handle)
+                if matches!(
+                    self.document.objects.get(&handle),
+                    Some(crate::objects::ObjectType::DynamicBlock(d))
+                        if super::objects::elided_solid_history_class(&d.dxf_name, d.captured)
+                ) =>
+            {
+                0
+            }
+            other => other.map(|h| h.value()).unwrap_or(0),
+        }
+    }
 
     fn write_solid3d(&mut self, e: &Solid3D) {
         // R2013+: mark the entity as data-store-backed when its geometry will be
@@ -5067,7 +5409,7 @@ impl<'a> DwgObjectWriter<'a> {
         let tail_written = if acds {
             // AC1027+: ACIS data is stored in the AcDsPrototype_1b section.
             // Entity stream writes acis_empty=true with no inline data.
-            self.write_acis_empty(&e.acis_data);
+            self.write_acis_empty(e.point_of_reference, &e.acis_data, &e.wires, &e.silhouettes);
             self.queue_sab_entry(&e.acis_data, e.common.handle);
             false
         } else {
@@ -5091,10 +5433,21 @@ impl<'a> DwgObjectWriter<'a> {
             }
         }
 
-        // 3DSOLID R2007+: history_id handle
+        // 3DSOLID R2007+: history_id handle (NULL when its target is an
+        // elided SH class record). Â§19 H8h-ext: the author codes this ref 3
+        // (HardOwnership) â€” the gold census across every genus prints
+        // history_id [3, ..] 128/128 non-null (the fixtures, example_2007,
+        // ATMOS); never 4/5. Â§19 H8h-ext-10: mirror the author's wire
+        // PRESENCE â€” the imported-ACIS solids omit the null ref (gold's
+        // AVAIL_BITS rule; example_2007's REGIONs h=176/h=37D) while
+        // native authors write explicit nulls (ATMOS 58Ã—; the reader
+        // captures Some(NULL)). DXF-built and programmatic documents
+        // keep the explicit null (the generation identity's fallback).
         if self.version.r2007_plus() {
-            let h = e.history_handle.map(|h| h.value()).unwrap_or(0);
-            self.writer.write_handle(DwgReferenceType::SoftPointer, h);
+            let h = self.solid_history_handle_value(e.history_handle);
+            if e.history_handle.is_some() || self.document.dwg_source_version.is_none() {
+                self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            }
         }
 
         self.register_object(e.common.handle);
@@ -5106,7 +5459,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         let acds = self.needs_acds_section();
         let tail_written = if acds {
-            self.write_acis_empty(&e.acis_data);
+            self.write_acis_empty(e.point_of_reference, &e.acis_data, &e.wires, &e.silhouettes);
             self.queue_sab_entry(&e.acis_data, e.common.handle);
             false
         } else {
@@ -5128,10 +5481,13 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         if self.version.r2007_plus() && !acds {
-            self.writer.write_handle(
-                DwgReferenceType::SoftPointer,
-                e.history_handle.unwrap_or(Handle::NULL).value(),
-            );
+            let h = self.solid_history_handle_value(e.history_handle);
+            // Â§19 H8h-ext: author wire code 3 (gold census 128/128).
+            // Â§19 H8h-ext-10: mirror the author's wire presence (see
+            // write_solid3d) â€” omit the absent null for DWG reads.
+            if e.history_handle.is_some() || self.document.dwg_source_version.is_none() {
+                self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            }
         }
         self.register_object(e.common.handle);
     }
@@ -5142,7 +5498,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         let acds = self.needs_acds_section();
         let tail_written = if acds {
-            self.write_acis_empty(&e.acis_data);
+            self.write_acis_empty(e.point_of_reference, &e.acis_data, &e.wires, &e.silhouettes);
             self.queue_sab_entry(&e.acis_data, e.common.handle);
             false
         } else {
@@ -5164,16 +5520,21 @@ impl<'a> DwgObjectWriter<'a> {
         }
 
         if self.version.r2007_plus() && !acds {
-            let h = e.history_handle.map(|h| h.value()).unwrap_or(0);
-            self.writer.write_handle(DwgReferenceType::SoftPointer, h);
+            let h = self.solid_history_handle_value(e.history_handle);
+            // Â§19 H8h-ext: author wire code 3 (gold census 128/128).
+            // Â§19 H8h-ext-10: mirror the author's wire presence (see
+            // write_solid3d) â€” omit the absent null for DWG reads.
+            if e.history_handle.is_some() || self.document.dwg_source_version.is_none() {
+                self.writer.write_handle(DwgReferenceType::HardOwnership, h);
+            }
         }
 
         self.register_object(e.common.handle);
     }
 
     fn write_surface_matrix(&mut self, value: &[f64; 16]) {
-        for item in crate::entities::surface::transpose_matrix(*value) {
-            self.writer.write_bit_double(item);
+        for item in value {
+            self.writer.write_bit_double(*item);
         }
     }
 
@@ -5182,24 +5543,6 @@ impl<'a> DwgObjectWriter<'a> {
         entity: &crate::entities::EmbeddedEntity,
         byte_aligned: bool,
     ) {
-        if let crate::entities::EmbeddedEntity::Body {
-            type_code,
-            acis_data,
-        } = entity
-        {
-            // Type, a presence bit (set when there is no body), then the
-            // modeler block. The reference application writes the binary form.
-            self.writer.write_bit_long(*type_code);
-            self.writer.write_bit(!acis_data.has_data());
-            if acis_data.has_data() {
-                let binary = (!acis_data.is_binary)
-                    .then(|| acis_data.parse_sat())
-                    .flatten()
-                    .map(|doc| AcisData::from_sab(self.sab_from_sat(&doc)));
-                self.write_modeler_block(binary.as_ref().unwrap_or(acis_data));
-            }
-            return;
-        }
         let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
             entity,
             self.version,
@@ -5232,9 +5575,9 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(value.align_start);
         self.writer.write_bit(value.bank);
         self.writer.write_bit(value.base_point_set);
-        self.writer.write_3bit_double(value.reference_vector);
         self.writer.write_bit(value.sweep_entity_transform_computed);
         self.writer.write_bit(value.path_entity_transform_computed);
+        self.writer.write_3bit_double(value.reference_vector);
         self.write_surface_matrix(&value.sweep_entity_transform);
         self.write_surface_matrix(&value.path_entity_transform);
     }
@@ -5246,7 +5589,7 @@ impl<'a> DwgObjectWriter<'a> {
 
         let acds = self.needs_acds_section();
         let tail_written = if acds {
-            self.write_acis_empty(&e.acis_data);
+            self.write_acis_empty(e.point_of_reference, &e.acis_data, &e.wires, &e.silhouettes);
             self.queue_sab_entry(&e.acis_data, e.common.handle);
             false
         } else {
@@ -5258,6 +5601,10 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_acis_revision(&e.acis_data.revision);
             }
         }
+        // gold dwg2.spec PLANESURFACE order: BS modeler_format_version
+        // (70), then BS u_isolines (71) / v_isolines (72) â€” mirror the
+        // reader (the modeler value is retained from the wire).
+        self.writer.write_bit_short(e.modeler_format_version);
         self.writer.write_bit_short(e.u_isolines);
         self.writer.write_bit_short(e.v_isolines);
 
@@ -5273,7 +5620,19 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_3bit_double(*sweep_vector);
                 self.write_surface_matrix(sweep_transform);
                 if let Some(entity) = sweep_entity {
-                    self.write_surface_embedded_entity(entity, true);
+                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
+                        entity,
+                        self.version,
+                        self.dxf_version,
+                    );
+                    let bit_length = encoded.bytes.len() * 8;
+                    self.writer.write_bit_long(encoded.type_code);
+                    self.writer.write_bit_long(bit_length as i32);
+                    crate::io::dwg::embedded_entity::write_embedded_bits_with_length(
+                        &mut self.writer,
+                        &encoded,
+                        bit_length,
+                    );
                 } else {
                     self.writer.write_bit_long(0);
                     self.writer.write_bit_long(0);
@@ -5372,13 +5731,37 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_surface_matrix(sweep_transform);
                 self.write_surface_matrix(path_transform);
                 if let Some(entity) = sweep_entity {
-                    self.write_surface_embedded_entity(entity, true);
+                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
+                        entity,
+                        self.version,
+                        self.dxf_version,
+                    );
+                    let bit_length = encoded.bytes.len() * 8;
+                    self.writer.write_bit_long(encoded.type_code);
+                    self.writer.write_bit_long(bit_length as i32);
+                    crate::io::dwg::embedded_entity::write_embedded_bits_with_length(
+                        &mut self.writer,
+                        &encoded,
+                        bit_length,
+                    );
                 } else {
                     self.writer.write_bit_long(0);
                     self.writer.write_bit_long(0);
                 }
                 if let Some(entity) = path_entity {
-                    self.write_surface_embedded_entity(entity, true);
+                    let encoded = crate::io::dwg::embedded_entity::encode_embedded_entity(
+                        entity,
+                        self.version,
+                        self.dxf_version,
+                    );
+                    let bit_length = encoded.bytes.len() * 8;
+                    self.writer.write_bit_long(encoded.type_code);
+                    self.writer.write_bit_long(bit_length as i32);
+                    crate::io::dwg::embedded_entity::write_embedded_bits_with_length(
+                        &mut self.writer,
+                        &encoded,
+                        bit_length,
+                    );
                 } else {
                     self.writer.write_bit_long(0);
                     self.writer.write_bit_long(0);
@@ -5409,36 +5792,149 @@ impl<'a> DwgObjectWriter<'a> {
     ///
     /// For R2013 and later, ACIS data lives in the AcDsPrototype_1b section.
     /// The entity stream indicates that modeler geometry is not inline, but its
-    /// native COMMON_3DSOLID wireframe cache header still remains in the entity.
-    fn write_acis_empty(&mut self, acis: &AcisData) {
-        // R2013+ AcDs-backed records no longer carry the legacy leading
-        // `acis_empty` bit.  Their first modeler-geometry bit is the
-        // wireframe-presence flag.
+    /// native COMMON_3DSOLID wireframe cache still remains in the entity.
+    fn write_acis_empty(
+        &mut self,
+        point: Vector3,
+        acis: &AcisData,
+        wires: &[Wire],
+        silhouettes: &[Silhouette],
+    ) {
+        // R2013+ AcDs-backed records carry neither the legacy leading
+        // `acis_empty` bit nor an inline modeler payload. Their entity stream
+        // is exactly COMMON_3DSOLID's wireframe block, then `acis_empty_bit
+        // (only when the wireframe block is present), then the R2007-era
+        // `unknown` BL and the R2013+ revision block â€” the last two are
+        // written by the caller. Bit-verified against AutoCAD-authored
+        // REGION objects 0x176/0x37D of LibreDWG's example_2018.dwg, whose
+        // wireframe block is present (point, isolines=4, isoline_present,
+        // empty wire/silhouette counts, acis_empty_bit=1) followed by
+        // BL(0) and the revision block, ending one sentinel bit before the
+        // handle stream.
         //
-        // Only the cache header is kept: no reference point, wires or
-        // silhouettes. An application-built point or wire list here makes
-        // the reference application's console engine reject the whole
-        // drawing, and the display cache is rebuilt from the body anyway.
-        self.writer.write_bit(acis.wireframe_data_present);
-        if !acis.wireframe_data_present {
+        // LibreDWG's 3DSOLID spec still expects the legacy leading bit and
+        // therefore misreads real AC1032 records (it consumes
+        // `wireframe_data_present` as `acis_empty` and derails into error
+        // paths). A bit-faithful rewrite keeps the gold decoder's stream
+        // identical to the original, so its (already desynced) decode
+        // values match on both sides of the harness diff.
+        //
+        // Constructed entities (no DWG source) synthesize the authored
+        // genus wireframe cache (the 2026-09-30 entity-form packet): every
+        // measured AutoCAD-authored R2013+ ds-backed record â€” solids of
+        // every primitive family, regions, both AC1027 and AC1032 â€”
+        // carries a PRESENT wireframe block (point_present + the 3BD
+        // bounding-box-centre anchor, isolines=4, isoline_present, zero
+        // wire/silhouette counts) closed by the terminator bit
+        // (acis_empty_bit=1: the record declares its inline stream empty â€”
+        // the model data lives in the AcDs container). A constructed
+        // record without the block carries a wrong-era thin body: the
+        // strict modeler misparses it ("Data stream is empty" â€” the
+        // 2026-09-30 maintainer audit) and gold -v9 overruns the record
+        // (the revision_bytes ERROR). DWG-read documents keep their
+        // captured wire state byte-faithful (the record-identity
+        // censuses); the synthesis never touches them. The wire list is
+        // NOT a gate condition (2026-10-07): the host's wires are
+        // display data, and no authored ds-backed record carries them
+        // (zero wire counts across the whole measured corpus). The gate
+        // once fired only for index-0 stub wires; the upstream Wire
+        // defaults change (no ACIS index, -1) let real display wires
+        // through to the raw wireframe writer, whose block form (no
+        // point anchor, isolines=0, terminator false) no authored file
+        // carries - and both strict loaders refused the whole solid
+        // over it (AutoCAD "drawing file is not valid", BricsCAD
+        // "General modeling failure AcDb3dSolid").
+        let constructed_cache = self.document.dwg_source_version.is_none()
+            && acis.contributes_sab()
+            && !acis.wireframe_data_present
+            && !acis.wireframe_point_present
+            && acis.wireframe_isolines == 0
+            && !acis.wireframe_isoline_present
+            && silhouettes.is_empty();
+        if constructed_cache {
+            let anchor = acis
+                .geometry_centre()
+                .or_else(|| acis.placement_origin())
+                .unwrap_or(point);
+            self.writer.write_bit(true); // wireframe_data_present
+            self.writer.write_bit(true); // point_present
+            self.writer.write_3bit_double(anchor);
+            self.writer.write_bit_long(4); // isolines â€” the authored genus
+            self.writer.write_bit(true); // isoline_present
+            self.writer.write_bit_long(0); // num_wires
+            self.writer.write_bit_long(0); // num_silhouettes
+            self.writer.write_bit(true); // acis_empty_bit
             return;
         }
-        self.writer.write_bit(false); // point_present
-        self.writer.write_bit_long(acis.wireframe_isolines);
-        self.writer.write_bit(acis.wireframe_isoline_present);
-        if acis.wireframe_isoline_present {
-            self.writer.write_bit_long(0); // wires
+        // The degenerate captured genus (2026-10-07, the Cylinder_ocs_new2
+        // resave failure): a ds-backed record whose wireframe block is
+        // present but carries no point anchor, no isolines and no empty
+        // bit â€” a form ZERO authored R2013+ file carries (every fixture
+        // in the measured corpus writes point_present + isolines=4 +
+        // acis_empty_bit, with or without wire caches). The form exists
+        // solely as this crate's pre-gate-fix writer output, and both
+        // strict loaders refuse the whole solid over it (AutoCAD
+        // "drawing file is not valid"). A re-save of such an artifact
+        // lifted the degenerate flags with the captured record, and the
+        // read document (dwg_source_version set) bypassed the
+        // constructed-cache synthesis above â€” so the artifact's
+        // brokenness persisted verbatim through every further save.
+        // Normalize to the authored genus instead: the anchor from the
+        // entity's reference point (the reader synthesizes the geometry
+        // centre for anchor-less wires), the isoline count, the empty
+        // bit â€” the wires and silhouettes pass through as the cache they
+        // are (authored files carry them).
+        // The block this record is about to emit is not in the authored
+        // genus (2026-10-08, the AutoCAD-2027 RECOVER failure on the
+        // Cylinder_PR1671 resave): a properties edit replaces the modeler
+        // data wholesale (`set_sat_document` -> `AcisData::from_sat`),
+        // resetting every captured wireframe flag while the entity keeps
+        // its display wires - so `write_acis_wireframe` emits a block
+        // driven by the wires alone: no anchor, no isolines, no
+        // terminator bit. No authored R2013+ ds-backed record carries
+        // that form (every measured fixture writes point_present +
+        // isolines=4 + acis_empty_bit whenever a block is present,
+        // whatever drives it - the captured flags, the isoline flag,
+        // wires or silhouettes), and the strict loaders refuse the whole
+        // solid over it. Gate on block emission, not on the captured
+        // present flag, so every degenerate mix normalizes.
+        let degenerate_cache = acis.contributes_sab()
+            && !acis.wireframe_point_present
+            && acis.wireframe_isolines == 0
+            && !acis.acis_empty_bit
+            && (acis.wireframe_data_present
+                || acis.wireframe_isoline_present
+                || !wires.is_empty()
+                || !silhouettes.is_empty());
+        if degenerate_cache {
+            let mut normalized = acis.clone();
+            normalized.wireframe_point_present = true;
+            normalized.wireframe_isolines = 4;
+            normalized.wireframe_isoline_present = true;
+            normalized.acis_empty_bit = true;
+            // The authored anchor convention: the geometry centre (what
+            // the synthesis path above and every authored file use),
+            // not the anchor-less captured reference point.
+            let anchor = normalized
+                .geometry_centre()
+                .or_else(|| normalized.placement_origin())
+                .unwrap_or(point);
+            let wireframe_present =
+                self.write_acis_wireframe(anchor, &normalized, wires, silhouettes);
+            if wireframe_present {
+                self.writer.write_bit(normalized.acis_empty_bit);
+            }
+            return;
         }
-        self.writer.write_bit_long(0); // silhouettes
-        // COMMON_3DSOLID has an extra-modeler-data gate only when the
-        // AcDs-backed entity contains a wireframe section.
-        self.writer.write_bit(acis.extra_acis_data.is_none());
-        self.write_extra_acis_data(acis);
+        let wireframe_present = self.write_acis_wireframe(point, acis, wires, silhouettes);
+        if wireframe_present {
+            self.writer.write_bit(acis.acis_empty_bit);
+        }
     }
 
     /// Write the R2013+ modeler-geometry revision block (`COMMON_3DSOLID`).
     ///
-    /// Layout: `B has_guid | BL major | BS minor1 | BS minor2 | RC×8 bytes | BL end_marker`.
+    /// Layout: `B has_guid | BL major | BS minor1 | BS minor2 | RCÃ—8 bytes | BL end_marker`.
     fn write_acis_revision(&mut self, rev: &crate::entities::solid3d::AcisRevision) {
         self.writer.write_bit(rev.has_guid);
         self.writer.write_bit_long(rev.major as i32);
@@ -5465,14 +5961,9 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     fn write_extra_acis_data(&mut self, acis: &AcisData) {
-        if let Some(extra) = &acis.extra_acis_data {
-            self.write_modeler_block(extra);
-        }
-    }
-
-    /// Modeler block: B, then BS 2 and SAB bytes, or BS 1 and the
-    /// encrypted SAT text in length-prefixed blocks ending with 0.
-    fn write_modeler_block(&mut self, extra: &AcisData) {
+        let Some(extra) = &acis.extra_acis_data else {
+            return;
+        };
         self.writer.write_bit(false);
         if extra.is_binary && !extra.sab_data.is_empty() {
             self.writer.write_bit_short(2);
@@ -5497,58 +5988,24 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(0);
     }
 
-    /// Raw R2013+ entity records still depend on the external AcDs section.
-    pub(super) fn queue_raw_entity_sab(&mut self, entity: &EntityType) {
-        if !self.needs_acds_section() {
-            return;
-        }
-        let acis = match entity {
-            EntityType::Solid3D(entity) => &entity.acis_data,
-            EntityType::Region(entity) => &entity.acis_data,
-            EntityType::Body(entity) => &entity.acis_data,
-            EntityType::Surface(entity) => &entity.acis_data,
-            _ => return,
-        };
-        self.queue_sab_entry(acis, entity.common().handle);
-    }
-
-    /// SAT text to SAB. A body whose text carries no save date gets the
-    /// drawing's save date (TDUPDATE), as the reference application stamps
-    /// its save time there.
-    fn sab_from_sat(&self, sat: &crate::entities::acis::SatDocument) -> Vec<u8> {
-        let julian = self.document.header.update_date_julian;
-        if !sat.header.date.is_empty() || julian <= 0.0 {
-            return crate::entities::acis::SabWriter::write(sat);
-        }
-        // Drawing dates count the fraction from midnight, not noon.
-        let (year, month, day, hour, minute, second) = crate::fields::julian_parts(julian - 0.5);
-        const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const MONTHS: [&str; 12] = [
-            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-        ];
-        let weekday = DAYS[crate::fields::weekday(julian - 0.5) as usize % 7];
-        let mut dated = sat.clone();
-        dated.header.date = format!(
-            "{weekday} {} {day:>2} {hour:02}:{minute:02}:{second:02} {year}",
-            MONTHS[(month as usize).clamp(1, 12) - 1]
-        );
-        crate::entities::acis::SabWriter::write(&dated)
-    }
-
     /// Queue SAB data for writing into the AcDsPrototype_1b section.
     ///
-    /// Converts SAT text → SAB binary if needed (mirroring the DXF writer's
+    /// Converts SAT text â†’ SAB binary if needed (mirroring the DXF writer's
     /// `queue_sab_data()` approach).
     fn queue_sab_entry(&mut self, acis: &AcisData, entity_handle: Handle) {
         if acis.is_binary && !acis.sab_data.is_empty() {
             // Already have SAB binary data
             self.sab_entries
-                .push((entity_handle, acis.sab_for_save().into_owned()));
+                .push((entity_handle, acis.sab_data.clone()));
         } else if !acis.sat_data.is_empty() {
-            // Convert SAT text → SAB binary via SatDocument
+            // Convert SAT text â†’ SAB binary via SatDocument. The AcDs
+            // section is the R2013+ domain: the SAB emission carries
+            // the authored era profile of the target version (the
+            // header flavor + the era-coded ints + the coedge form).
             if let Ok(mut sat_doc) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 sat_doc.strip_for_sab();
-                let sab = self.sab_from_sat(&sat_doc);
+                let era = crate::entities::acis::SabEra::for_dxf(self.dxf_version);
+                let sab = crate::entities::acis::SabWriter::write_for_era(&sat_doc, era);
                 self.sab_entries.push((entity_handle, sab));
             }
         }
@@ -5568,32 +6025,6 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_acis_data_impl(point, acis, wires, silhouettes, false)
     }
 
-    /// Modeler data of a B-rep history node. From R2007 on the record ends
-    /// with the SAB stream: no wireframe cache, materials or revision follow.
-    pub(super) fn write_history_acis_data(&mut self, acis: &AcisData) {
-        if !self.version.r2007_plus() {
-            self.write_acis_data(Vector3::ZERO, acis, &[], &[]);
-            return;
-        }
-        let converted;
-        let acis = if acis.is_binary && !acis.sab_data.is_empty() {
-            acis
-        } else if let Ok(sat) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
-            let mut binary = acis.clone();
-            binary.is_binary = true;
-            binary.sab_data = self.sab_from_sat(&sat);
-            converted = binary;
-            &converted
-        } else {
-            self.writer.write_bit(true); // acis_empty
-            return;
-        };
-        self.writer.write_bit(false); // acis_empty
-        self.writer.write_bit(false); // binary payload
-        self.writer.write_bit_short(2_i16);
-        self.writer.write_bytes(&acis.sab_for_save());
-    }
-
     fn write_acis_data_impl(
         &mut self,
         point: Vector3,
@@ -5606,7 +6037,12 @@ impl<'a> DwgObjectWriter<'a> {
             if let Ok(sat) = crate::entities::acis::SatDocument::parse(&acis.sat_data) {
                 let mut binary = acis.clone();
                 binary.is_binary = true;
-                binary.sab_data = self.sab_from_sat(&sat);
+                // The in-entity SAB carries the authored era profile
+                // of the target version (R2007: ACIS|21200 + (0,2,26);
+                // R2010: ACIS|21500 + (0,2,24); the pre-2007 targets
+                // keep the legacy ACIS 7.0 form).
+                let era = crate::entities::acis::SabEra::for_dxf(self.dxf_version);
+                binary.sab_data = crate::entities::acis::SabWriter::write_for_era(&sat, era);
                 return self.write_acis_data_impl(point, &binary, wires, silhouettes, inline);
             }
         }
@@ -5614,14 +6050,14 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit(!has_data); // acis_empty (inverted: true = empty)
 
         if has_data {
-            // Unknown bit — per ODA spec / LibreDWG this B
+            // Unknown bit â€” per ODA spec / LibreDWG this B
             // is always present between acis_empty and the version BS.
             self.writer.write_bit(!acis.is_binary);
 
             if acis.is_binary && !acis.sab_data.is_empty() {
-                // SAB binary (version 2) — write raw bytes directly.
+                // SAB binary (version 2) â€” write raw bytes directly.
                 self.writer.write_bit_short(2_i16);
-                self.writer.write_bytes(&acis.sab_for_save());
+                self.writer.write_bytes(&acis.sab_data);
                 if self.version.r2007_plus() {
                     let wireframe_present =
                         self.write_acis_wireframe(point, acis, wires, silhouettes);
@@ -5635,18 +6071,18 @@ impl<'a> DwgObjectWriter<'a> {
                     }
                     return true;
                 }
-                // R2004–R2006: the payload is self-delimiting; the wireframe
+                // R2004â€“R2006: the payload is self-delimiting; the wireframe
                 // section and trailing fields follow inline like SAT.
             } else {
                 // SAT text (version 1).
                 self.writer.write_bit_short(1_i16);
 
-                // Obtain SAT text — convert from SAB if needed.
+                // Obtain SAT text â€” convert from SAB if needed.
                 let sat_text = if !acis.sat_data.is_empty() {
                     // Already have SAT text
                     acis.sat_data.clone()
                 } else if !acis.sab_data.is_empty() {
-                    // Convert SAB binary → SAT text via SabReader + SatDocument
+                    // Convert SAB binary â†’ SAT text via SabReader + SatDocument
                     match crate::entities::acis::SabReader::read(&acis.sab_data) {
                         Ok(sat_doc) => sat_doc.to_sat_string(),
                         Err(_) => String::new(),
@@ -5655,7 +6091,7 @@ impl<'a> DwgObjectWriter<'a> {
                     String::new()
                 };
 
-                // SAT text — all DWG versions use the same encoding:
+                // SAT text â€” all DWG versions use the same encoding:
                 // BL-sized blocks of encrypted bytes (cipher: 159 - byte)
                 // terminated by BL(0).  Per LibreDWG dwg.spec.
                 let legacy_sat;
@@ -5690,9 +6126,22 @@ impl<'a> DwgObjectWriter<'a> {
                     }
                 }
 
-                // Write as a single block + terminating BL(0)
-                self.writer.write_bit_long(encrypted.len() as i32);
-                self.writer.write_bytes(&encrypted);
+                if !acis.encr_sat_data.is_empty() {
+                    // Retained raw wire blocks (reader-capture packet): echo
+                    // them verbatim â€” byte-identical rewrite (gold's
+                    // encr_sat_data compares raw block bytes; the fresh
+                    // re-encryption is CRLF/strip-normalized, not
+                    // byte-identical). The wireframe/revision tail below
+                    // still runs for the SAT path.
+                    for block in &acis.encr_sat_data {
+                        self.writer.write_bit_long(block.len() as i32);
+                        self.writer.write_bytes(block);
+                    }
+                } else {
+                    // Write as a single block + terminating BL(0)
+                    self.writer.write_bit_long(encrypted.len() as i32);
+                    self.writer.write_bytes(&encrypted);
+                }
                 self.writer.write_bit_long(0); // terminating empty block
             }
         }
@@ -5720,16 +6169,42 @@ impl<'a> DwgObjectWriter<'a> {
         wires: &[Wire],
         silhouettes: &[Silhouette],
     ) -> bool {
+        // Constructed-wireframe guard (2026-09-22 region probe, open-read
+        // verdict): assembly paths stub display wires with the unassigned
+        // acis_index default 0 â€” in a body-first stream record 0 is the
+        // BODY, never a legitimate wire target, and BricsCAD's open read
+        // flags the object "Object improperly read" while the modeler
+        // geometry itself restores clean (audit normalizes silently). A
+        // wire list is a cache; the modeler data carries the truth. Drop
+        // it only for constructed entities (no captured wireframe flags,
+        // no silhouettes) whose every wire index is the unassigned 0, so
+        // captured native caches pass through byte-faithful.
+        let wires: &[Wire] = if !acis.wireframe_data_present
+            && !acis.wireframe_point_present
+            && acis.wireframe_isolines == 0
+            && !acis.wireframe_isoline_present
+            && !wires.is_empty()
+            && silhouettes.is_empty()
+            && wires.iter().all(|wire| wire.acis_index == 0)
+        {
+            &[]
+        } else {
+            wires
+        };
         // ACIS payload presence does not imply an inline wireframe cache.
         // Some valid AcDs-backed solids intentionally carry geometry only
         // (no point, isolines, wires or silhouettes). Synthesizing a cache for
         // those changes COMMON_3DSOLID and ODA rejects the object.
-        // Before R2013 the modeler data is inline and a non-empty body must
-        // announce the cache block, even when it holds nothing: a record
-        // without it is rejected (a DXF-sourced solid never has one).
+        // The wireframe block is WIRE STATE ONLY (the captured flags, the
+        // wires, the silhouettes) â€” never the model's point_of_reference:
+        // the reader synthesizes that field (geometry centre / placement)
+        // for entities whose wire carries no anchor, and treating the
+        // synthesized value as wire presence re-emits a block the original
+        // never had â€” the readâ†’rewrite path then fails the strict loaders
+        // at the file level (the AutoCAD-2027 "Errors found" verdict,
+        // 2026-09-29). A captured anchor arrives with
+        // wireframe_point_present set, so the flag arms carry it.
         let wireframe_present = acis.wireframe_data_present
-            || (acis.has_data() && !self.version.r2013_plus(self.dxf_version))
-            || point != Vector3::ZERO
             || acis.wireframe_isolines != 0
             || !wires.is_empty()
             || !silhouettes.is_empty();
@@ -5739,7 +6214,7 @@ impl<'a> DwgObjectWriter<'a> {
             // Wireframe anchor: the entity's stored reference point (bbox
             // centre in AutoCAD-authored files), falling back to the first
             // wire vertex.
-            let anchor = if acis.wireframe_point_present || point != Vector3::ZERO {
+            let anchor = if acis.wireframe_point_present {
                 point
             } else {
                 wires
@@ -5747,7 +6222,7 @@ impl<'a> DwgObjectWriter<'a> {
                     .and_then(|w| w.points.first().copied())
                     .unwrap_or(Vector3::ZERO)
             };
-            let point_present = acis.wireframe_point_present || point != Vector3::ZERO;
+            let point_present = acis.wireframe_point_present;
             self.writer.write_bit(point_present);
             if point_present {
                 self.writer.write_3bit_double(anchor);
@@ -5786,7 +6261,7 @@ impl<'a> DwgObjectWriter<'a> {
 
     /// Write a single wire struct (shared by wires and silhouette wires).
     /// Field order/types per LibreDWG `Dwg_3DSOLID_wire` (mirrors the reader):
-    /// RC type, BLd selection_marker, BS/BL color, BLd acis_index, BL num_points.
+    /// RC type, BLd selection_marker, BS color, BLd acis_index, BL num_points.
     fn write_wire(&mut self, wire: &Wire) {
         self.writer.write_byte(wire.wire_type as u8);
         self.writer.write_bit_long(wire.selection_marker);
@@ -5796,11 +6271,12 @@ impl<'a> DwgObjectWriter<'a> {
             crate::types::Color::Index(idx) => idx as i16,
             _ => 256,
         };
-        if self.version.r2004_plus() {
-            self.writer.write_bit_long(color_val as i32);
-        } else {
-            self.writer.write_bit_short(color_val);
-        }
+        // The wire color is a BS on every version (gold's WIRESTRUCT
+        // FIELD_CAST reads and writes with the TYPE â€” dec_macros.h:121 /
+        // enc_macros.h:69); write_bit_short(256) emits the '11' code,
+        // gold's own writer's encoding for ByLayer (bit_write_BS:
+        // `value == 256 â†’ bit_write_BB(3)`).
+        self.writer.write_bit_short(color_val);
         self.writer.write_bit_long(wire.acis_index);
         self.writer.write_bit_long(wire.points.len() as i32);
         for pt in &wire.points {

@@ -78,6 +78,11 @@ pub struct AttributeEntity {
     pub attdef_handle: Handle,
     /// Lock position in block
     pub lock_position: bool,
+    /// Retained raw R2000+ dataflags byte from the wire (dwg.spec TEXT
+    /// 491, shared by ATTRIB/ATTDEF): the bits say exactly which optionals
+    /// AutoCAD wrote — echoed verbatim on write; None on constructed
+    /// documents and the R13-R14 layout.
+    pub raw_dataflags: Option<u8>,
 }
 
 impl AttributeEntity {
@@ -106,6 +111,7 @@ impl AttributeEntity {
             embedded_mtext: None,
             attdef_handle: Handle::NULL,
             lock_position: false,
+            raw_dataflags: None,
         }
     }
 
@@ -148,6 +154,7 @@ impl AttributeEntity {
             embedded_mtext: attdef.embedded_mtext.clone(),
             attdef_handle: attdef.common.handle,
             lock_position: attdef.lock_position,
+            raw_dataflags: attdef.raw_dataflags,
         }
     }
 

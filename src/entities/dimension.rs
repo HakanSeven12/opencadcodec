@@ -1,7 +1,7 @@
 //! Dimension entity types
 
 use crate::entities::EntityCommon;
-use crate::types::{Matrix3, Transform, Vector3};
+use crate::types::{Handle, Matrix3, Transform, Vector3};
 
 /// Dimension type flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,6 +78,13 @@ pub struct DimensionBase {
     pub version: u8,
     /// Block name that contains the dimension geometry
     pub block_name: String,
+    /// RAW wire handle to the anonymous dimension-geometry block record
+    /// (gold `block`, FIELD_HANDLE hard pointer in COMMON_ENTITY_DIMENSION's
+    /// handle section). The name-keyed block table uniquifies the many `*D`
+    /// blocks, so the handle cannot be re-derived from `block_name` on
+    /// rewrite; kept raw for wire fidelity.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub block_handle: Handle,
     /// Line spacing factor
     pub line_spacing_factor: f64,
     /// Line spacing style (1 = at least, 2 = exact).
@@ -121,6 +128,7 @@ impl DimensionBase {
             actual_measurement: 0.0,
             version: 0,
             block_name: String::new(),
+            block_handle: Handle::NULL,
             line_spacing_factor: 1.0,
             line_spacing_style: 1,
             insertion_scale: Vector3::new(1.0, 1.0, 1.0),

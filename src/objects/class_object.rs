@@ -15,6 +15,25 @@ pub struct ClassObject {
     pub reactors: Vec<Handle>,
     pub xdictionary_handle: Option<Handle>,
     pub data: ClassObjectData,
+    /// ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 the DATATABLE record-identity packet (the 2026-09-29 era
+    /// census): the verbatim merged-record capture for the classes whose
+    /// typed re-encode drifts from the author's bytes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â DATATABLE (531)
+    /// first: her record is 753 bytes (196 main + a 542-byte handle
+    /// stream of ~192 0x32-coded handles) while the modeled layout
+    /// re-emits 1157 (it loses her handle stream entirely and
+    /// over-emits +404 main bytes); the class has NO authority (gold:
+    /// "Unhandled Class object 531"; the ODA spec documents nothing) so
+    /// the typed layout is an invention. The CsacDocumentOptions
+    /// precedent: a DWG read captures the whole record payload and the
+    /// rewrite re-emits it verbatim (`register_raw_object`); the typed
+    /// model stays the DXF/programmatic fallback and conversions to
+    /// another era fall back to it (the version gate).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_data: Option<Vec<u8>>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_handle_bits: i64,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_dwg_version: Option<crate::types::DxfVersion>,
 }
 
 impl ClassObject {
@@ -127,7 +146,7 @@ impl ClassObjectData {
             Self::PointPath(_) => "ACDBPOINTPATH",
             Self::TvDeviceProperties(_) => "TVDEVICEPROPERTIES",
             Self::PointCloudDefinition(_) => "ACDBPOINTCLOUDDEF",
-            Self::PointCloudDefinitionEx(_) => "ACDBPOINTCLOUDDEF_EX",
+            Self::PointCloudDefinitionEx(_) => "ACDBPOINTCLOUDDEFEX",
             Self::PointCloudDefinitionReactor(_) => "ACDBPOINTCLOUDDEF_REACTOR",
             Self::PointCloudDefinitionReactorEx(_) => "ACDBPOINTCLOUDDEF_REACTOR_EX",
             Self::PointCloudColorMap(_) => "ACDBPOINTCLOUDCOLORMAP",
@@ -179,6 +198,7 @@ impl ClassObjectData {
             | Self::PointCloudDefinitionReactorEx(_)
             | Self::PointCloudColorMap(_)
             | Self::NavisworksModelDefinition(_)
+            | Self::DataTable(_)
             | Self::PersistentSubentityManager(_)
             | Self::GeoMapImage(_)
             | Self::AcMeCommandHistory(_)
@@ -189,18 +209,6 @@ impl ClassObjectData {
             | Self::ViewRepOrientationDefinition
             | Self::ViewRepOrientation(_)
             | Self::ViewRepSectionDefinition(_) => {}
-            Self::DataTable(value) => {
-                for column in &mut value.columns {
-                    if column
-                        .cell_type()
-                        .is_some_and(DataTableCellType::is_object_id)
-                    {
-                        for row in &mut column.rows {
-                            visit(&mut row.handle);
-                        }
-                    }
-                }
-            }
             Self::SpatialIndex(value) => {
                 for handle in &mut value.indexed_objects {
                     visit(handle);
@@ -778,6 +786,33 @@ pub struct MentalRayRenderSettings {
     pub energy_multiplier: f64,
 }
 
+/// LibreDWG (gold) R2013 decode of the RAPIDRT rapid block, retained for
+/// gold-vs-silver harness parity. LibreDWG's `dwg2.spec` RAPIDRTRENDERSETTINGS
+/// at AC1027 reads the base `has_predefined` bit BEFORE the rapid fields
+/// (`AcDbRenderSettings_fields`: VERSION (R_2013) { FIELD_B (has_predefined) })
+/// while the wire carries it AFTER the rapid seven (the block's own
+/// `VERSION (R_2013) {} else FIELD_B` tail). Gold's cursor therefore enters
+/// the rapid block one bit late and every rapid value below is read from the
+/// misaligned stream (VALUE_BL class_version at the base head is also read
+/// and discarded without being stored). Not semantic data: the writer
+/// serializes `RapidRtRenderSettings`'s clean values, never the shadow.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// The BL fields are u32: gold prints every BL through FORMAT_BL ("%"
+/// PRIu32), so desynced reads above 0x7fffffff print as large positives,
+/// not as negatives.
+pub struct RapidRtGoldShadow {
+    pub has_predefined: i32,
+    pub rapidrt_version: u32,
+    pub render_target: u32,
+    pub render_level: u32,
+    pub render_time: u32,
+    pub lighting_model: u32,
+    pub filter_type: u32,
+    pub filter_width: f64,
+    pub filter_height: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RapidRtRenderSettings {
@@ -790,6 +825,8 @@ pub struct RapidRtRenderSettings {
     pub filter_type: i32,
     pub filter_width: f64,
     pub filter_height: f64,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub gold_shadow: Option<RapidRtGoldShadow>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -969,6 +1006,12 @@ pub struct PointCloudDefinition {
 pub struct PointCloudDefinitionReactor {
     pub class_version: i32,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PointCloudRampColor {
+    pub color: i32,
+    pub visible: bool,
+}
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -980,13 +1023,6 @@ pub struct PointCloudColorRamp {
     pub colors: Vec<PointCloudRampColor>,
     /// Display name ("Blues", "LIDAR Classifications", ...).
     pub name: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct PointCloudRampColor {
-    pub color: i32,
-    pub visible: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1069,93 +1105,20 @@ pub struct SunStudy {
     pub text_style: Handle,
 }
 
-/// Native AcDbDataCell types used by DATATABLE columns.
-///
-/// Native codecs currently support Integer, Double, Text, Point, and ObjectId.
-/// Other types read from DWG are preserved as complete opaque records.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i32)]
-pub enum DataTableCellType {
-    Integer = 1,
-    Double = 2,
-    Text = 3,
-    Point = 4,
-    ObjectId = 5,
-    HardOwnerId = 6,
-    SoftOwnerId = 7,
-    HardPointerId = 8,
-    SoftPointerId = 9,
-    Bool = 10,
-    Vector = 11,
-}
-
-impl DataTableCellType {
-    pub fn from_code(code: i32) -> Option<Self> {
-        Some(match code {
-            1 => Self::Integer,
-            2 => Self::Double,
-            3 => Self::Text,
-            4 => Self::Point,
-            5 => Self::ObjectId,
-            6 => Self::HardOwnerId,
-            7 => Self::SoftOwnerId,
-            8 => Self::HardPointerId,
-            9 => Self::SoftPointerId,
-            10 => Self::Bool,
-            11 => Self::Vector,
-            _ => return None,
-        })
-    }
-
-    pub fn is_object_id(self) -> bool {
-        matches!(
-            self,
-            Self::ObjectId
-                | Self::HardOwnerId
-                | Self::SoftOwnerId
-                | Self::HardPointerId
-                | Self::SoftPointerId
-        )
-    }
-
-    pub(crate) fn has_native_codec(self) -> bool {
-        matches!(
-            self,
-            Self::Integer | Self::Double | Self::Text | Self::Point | Self::ObjectId
-        )
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DataTableValue {
-    /// Column type 1, or type 10 as 0 (false) or 1 (true).
     pub integer: i32,
-    /// Column type 2.
     pub real: f64,
-    /// Column type 3.
     pub text: String,
-    /// Column types 4 (3D point) and 11 (3D vector).
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub point: Vector3,
-    /// Column types 5 through 9 (object IDs with different reference semantics).
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub handle: Handle,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DataTableColumn {
-    /// Native cell type code; see [`DataTableCellType`].
     pub value_type: i32,
     pub name: String,
     pub rows: Vec<DataTableValue>,
-}
-
-impl DataTableColumn {
-    pub fn cell_type(&self) -> Option<DataTableCellType> {
-        DataTableCellType::from_code(self.value_type)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1165,37 +1128,6 @@ pub struct DataTable {
     pub name: String,
     pub row_count: i32,
     pub columns: Vec<DataTableColumn>,
-}
-
-impl DataTable {
-    pub(crate) fn validate(&self) -> crate::error::Result<()> {
-        use crate::error::DxfError;
-        if self.row_count < 0 {
-            return Err(DxfError::InvalidFormat(
-                "negative DATATABLE row count".into(),
-            ));
-        }
-        for column in &self.columns {
-            if !column
-                .cell_type()
-                .is_some_and(DataTableCellType::has_native_codec)
-            {
-                return Err(DxfError::NotImplemented(format!(
-                    "DATATABLE cell type {}",
-                    column.value_type
-                )));
-            }
-            if column.rows.len() != self.row_count as usize {
-                return Err(DxfError::InvalidFormat(format!(
-                    "DATATABLE column {:?} has {} rows, expected {}",
-                    column.name,
-                    column.rows.len(),
-                    self.row_count
-                )));
-            }
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1262,19 +1194,6 @@ pub struct ModelDocViewStyle {
     pub modified_for_recompute: bool,
     pub display_name: String,
     pub flags: i32,
-}
-
-impl ModelDocViewStyle {
-    /// The R2018+ display name. Older files carry none; the reference
-    /// application then shows the style name, which the description holds
-    /// (an empty one makes it reject an R2018 DXF).
-    pub fn display_name_or_description(&self) -> &str {
-        if self.display_name.is_empty() {
-            &self.description
-        } else {
-            &self.display_name
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

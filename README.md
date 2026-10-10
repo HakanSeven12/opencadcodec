@@ -1,10 +1,12 @@
-# opencadcodec
+﻿# acadrust
 
+[![Crates.io](https://img.shields.io/crates/v/acadrust.svg)](https://crates.io/crates/acadrust)
+[![Documentation](https://docs.rs/acadrust/badge.svg)](https://docs.rs/acadrust)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 
 **A pure Rust crate for reading, writing, and inspecting CAD files.**
 
-opencadcodec handles ASCII and binary DXF plus native binary DWG without requiring
+acadrust handles ASCII and binary DXF plus native binary DWG without requiring
 an installed CAD application. File support spans DXF R12 through R2018+ and DWG
 R13 through R2018+.
 
@@ -12,7 +14,7 @@ R13 through R2018+.
 
 ```toml
 [dependencies]
-opencadcodec = "0.6.0"
+acadrust = "0.5.5"
 ```
 
 ```rust
@@ -41,43 +43,62 @@ Enable optional features as needed:
 
 ```toml
 [dependencies]
-opencadcodec = { version = "0.6.0", features = ["serde", "import"] }
+acadrust = { version = "0.5.5", features = ["serde", "import"] }
 ```
 
 ## Features
 
-- **DXF I/O** — ASCII and binary formats, R12 through R2018+
-- **DWG I/O** — Native binary formats, R13 through R2018+
-- **Broad entity coverage** — 48 top-level `EntityType` variants covering 2D
+- **DXF I/O** â€” ASCII and binary formats, R12 through R2018+
+- **DWG I/O** â€” Native binary formats, R13 through R2018+
+- **Broad entity coverage** â€” 48 top-level `EntityType` variants covering 2D
   geometry, annotations, dimensions, meshes, underlays, viewports, 3D solids,
   regions, bodies, and native surfaces
-- **ACIS modeling data** — SAT/SAB parsing and writing, B-rep topology, solid
+- **ACIS modeling data** â€” SAT/SAB parsing and writing, B-rep topology, solid
   history, and primitive builders
-- **Tables and objects** — Layers, linetypes, styles, dictionaries, layouts,
+- **Tables and objects** â€” Layers, linetypes, styles, dictionaries, layouts,
   materials, fields, dynamic blocks, and associative data
-- **Resilient reads** — Optional failsafe recovery with bounded, structured
+- **Resilient reads** â€” Optional failsafe recovery with bounded, structured
   diagnostics and read statistics
-- **Encoding support** — Automatic handling of roughly 40 code pages for
+- **Encoding support** â€” Automatic handling of roughly 40 code pages for
   pre-2007 drawings
-- **Optional serialization** — Serde support for document data
-- **Optional 3D imports** — STL, COLLADA, OBJ, glTF/GLB, and FBX converted to
-  opencadcodec documents
+- **Optional serialization** â€” Serde support for document data
+- **Optional 3D imports** â€” STL, COLLADA, OBJ, glTF/GLB, and FBX converted to
+  acadrust documents
 
 ## File Version Support
 
-| File code | Release era | DXF | DWG |
-|-----------|-----------------|-----|-----|
-| AC1009 | R12 | R/W | — |
-| AC1012 | R13 | R/W | R/W |
-| AC1014 | R14 | R/W | R/W |
-| AC1015 | 2000 | R/W | R/W |
-| AC1018 | 2004 | R/W | R/W |
-| AC1021 | 2007 | R/W | R/W |
-| AC1024 | 2010 | R/W | R/W |
-| AC1027 | 2013 | R/W | R/W |
-| AC1032 | 2018+ | R/W | R/W |
+| File code | Release era | DXF | DWG read | DWG write | DWG parity |
+|-----------|-----------------|-----|----------|-----------|-------------|
+| AC1009 | R12 | R/W | â€” | â€” | â€” |
+| AC1012 | R13 | R/W | yes | yes | partial |
+| AC1014 | R14 | R/W | yes | yes | partial |
+| AC1015 | 2000 | R/W | yes | yes | full |
+| AC1018 | 2004 | R/W | yes | yes | full |
+| AC1021 | 2007 | R/W | yes | yes | full |
+| AC1024 | 2010 | R/W | yes | yes | full |
+| AC1027 | 2013 | R/W | yes | yes | full |
+| AC1032 | 2018+ | R/W | yes | yes | full |
 
-`R/W` means read and write support. Entity availability varies by file version.
+**Parity** means the decoded round-trip has been verified against the
+independent `libredwg` reference decoder across all four semantic axes
+(read fidelity, write fidelity, read key-gap, write key-gap) on a curated
+280-file corpus:
+
+- **full** (R2000â€“R2018) â€” all four axes hold zero diffs corpus-wide;
+  byte-level record identity has additionally been verified against the
+  reference on the per-era census specimens.
+- **partial** (R13â€“R14) â€” files parse and round-trip, but the decoded
+  content shows known divergence from the reference decoder (record-count
+  mismatches and era-specific field differences; ~90â€“150 semantic diffs per
+  specimen). The parity details and the path to closing them are documented
+  in `tests/gold_harness/IMPLEMENTATION.md` Â§19.5 (the version-parity
+  matrix).
+
+DWG files older than AC1009 (R11 and earlier) are not supported â€” the
+reference decoder does not decode them either (version identification
+only).
+
+Entity availability varies by file version.
 
 ## Examples
 
@@ -205,6 +226,7 @@ fn main() -> opencadcodec::Result<()> {
 
 ## Documentation
 
+- [API documentation](https://docs.rs/acadrust)
 - [Paper-space viewport example](examples/viewport_layouts.rs)
 
 ## Development
@@ -218,7 +240,7 @@ cargo check --all-targets --all-features
 ---
 
 ## Used By
-- [Open CAD Studio](https://github.com/HakanSeven12/OpenCADStudio) An open-source (GPLv3) CAD application that uses opencadcodec as its core native DWG/DXF engine for read/write operations and 3D modeling.
+- [Open CAD Studio](https://github.com/HakanSeven12/OpenCADStudio) An open-source (GPLv3) CAD application that uses acadrust as its core native DWG/DXF engine for read/write operations and 3D modeling.
 
 ## Support & Sponsorship
 
@@ -231,4 +253,4 @@ Every contribution helps keep this project active and well-maintained. Thank you
 
 ## License
 
-MPL-2.0 — see [LICENSE](LICENSE).
+MPL-2.0 â€” see [LICENSE](LICENSE).

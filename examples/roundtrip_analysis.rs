@@ -1,4 +1,4 @@
-//! Roundtrip analysis for a real-world DWG file.
+﻿//! Roundtrip analysis for a real-world DWG file.
 //!
 //! Reads a DWG file, writes it back out (both DWG and DXF), saves the outputs
 //! to disk next to the source file, then reads them back and reports every
@@ -10,9 +10,9 @@
 //! Defaults to tests/roundtrip/samplekitchen.dwg when no argument is given.
 //!
 //! Output files written next to the source:
-//!   <stem>_rt.dwg   – DWG roundtripped copy
-//!   <stem>_rt.dxf   – DXF roundtripped copy
-//!   <stem>_rt2.dwg  – DWG double-roundtripped copy (stability check)
+//!   <stem>_rt.dwg   â€“ DWG roundtripped copy
+//!   <stem>_rt.dxf   â€“ DXF roundtripped copy
+//!   <stem>_rt2.dwg  â€“ DWG double-roundtripped copy (stability check)
 
 use std::collections::BTreeMap;
 use std::io::Cursor;
@@ -22,9 +22,9 @@ use opencadcodec::entities::EntityType;
 use opencadcodec::types::Handle;
 use opencadcodec::{CadDocument, DwgReader, DwgWriter, DxfReader, DxfWriter};
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  DISK I/O HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Derive a sibling output path: `/dir/<stem><suffix>.<ext>`.
 fn sibling_path(source: &Path, suffix: &str, ext: &str) -> PathBuf {
@@ -39,14 +39,14 @@ fn sibling_path(source: &Path, suffix: &str, ext: &str) -> PathBuf {
 
 fn save_bytes(path: &Path, bytes: &[u8]) {
     match std::fs::write(path, bytes) {
-        Ok(_) => println!("  Saved {} bytes → {}", bytes.len(), path.display()),
+        Ok(_) => println!("  Saved {} bytes â†’ {}", bytes.len(), path.display()),
         Err(e) => eprintln!("  WARNING: could not write {}: {}", path.display(), e),
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn entity_variant_name(entity: &EntityType) -> String {
     let dbg = format!("{:?}", entity);
@@ -187,44 +187,44 @@ fn field_diff(orig: &str, rt: &str) -> Vec<String> {
     diffs
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  DOCUMENT ANALYSIS
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn print_document_summary(label: &str, doc: &CadDocument) {
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║  {}  ║", format!("{:<56}", label));
-    println!("╠══════════════════════════════════════════════════════════════╣");
-    println!("║  Version:    {:?}", doc.version);
-    println!("║  Entities:   {}", doc.entity_count());
-    println!("║  Layers:     {}", doc.layers.len());
-    println!("║  LineTypes:  {}", doc.line_types.len());
-    println!("║  TextStyles: {}", doc.text_styles.len());
-    println!("║  DimStyles:  {}", doc.dim_styles.len());
-    println!("║  BlockRecs:  {}", doc.block_records.len());
-    println!("║  AppIds:     {}", doc.app_ids.len());
-    println!("║  Views:      {}", doc.views.len());
-    println!("║  VPorts:     {}", doc.vports.len());
-    println!("║  UCSs:       {}", doc.ucss.len());
-    println!("║  Objects:    {}", doc.objects.len());
-    println!("║  Classes:    {}", doc.classes.len());
+    println!("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
+    println!("â•‘  {}  â•‘", format!("{:<56}", label));
+    println!("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
+    println!("â•‘  Version:    {:?}", doc.version);
+    println!("â•‘  Entities:   {}", doc.entity_count());
+    println!("â•‘  Layers:     {}", doc.layers.len());
+    println!("â•‘  LineTypes:  {}", doc.line_types.len());
+    println!("â•‘  TextStyles: {}", doc.text_styles.len());
+    println!("â•‘  DimStyles:  {}", doc.dim_styles.len());
+    println!("â•‘  BlockRecs:  {}", doc.block_records.len());
+    println!("â•‘  AppIds:     {}", doc.app_ids.len());
+    println!("â•‘  Views:      {}", doc.views.len());
+    println!("â•‘  VPorts:     {}", doc.vports.len());
+    println!("â•‘  UCSs:       {}", doc.ucss.len());
+    println!("â•‘  Objects:    {}", doc.objects.len());
+    println!("â•‘  Classes:    {}", doc.classes.len());
 
     let counts = entity_type_counts(doc);
-    println!("║  ─── Entity breakdown ───");
+    println!("â•‘  â”€â”€â”€ Entity breakdown â”€â”€â”€");
     for (name, count) in &counts {
-        println!("║    {:<30} {}", name, count);
+        println!("â•‘    {:<30} {}", name, count);
     }
 
     // Notifications
     let notifs: Vec<_> = doc.notifications.iter().collect();
     if !notifs.is_empty() {
-        println!("║  ─── Notifications ({}) ───", notifs.len());
+        println!("â•‘  â”€â”€â”€ Notifications ({}) â”€â”€â”€", notifs.len());
         // Show all Error notifications
         for n in notifs
             .iter()
             .filter(|n| format!("{}", n.notification_type) == "Error")
         {
-            println!("║    [{}] {}", n.notification_type, n.message);
+            println!("â•‘    [{}] {}", n.notification_type, n.message);
         }
         // Show first 5 Warning notifications
         for n in notifs
@@ -233,25 +233,25 @@ fn print_document_summary(label: &str, doc: &CadDocument) {
             .take(5)
         {
             println!(
-                "║    [{}] {}...",
+                "â•‘    [{}] {}...",
                 n.notification_type,
                 &n.message[..n.message.len().min(80)]
             );
         }
         if notifs.len() > 5 {
             println!(
-                "║    ... and {} more notifications",
+                "â•‘    ... and {} more notifications",
                 notifs.len().saturating_sub(5)
             );
         }
     }
-    println!("╚══════════════════════════════════════════════════════════════╝");
+    println!("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
     println!();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  COMPARISON
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 struct LossReport {
     format: String,
@@ -284,51 +284,51 @@ impl LossReport {
 
     fn print(&self) {
         let total = self.total();
-        println!("┌──────────────────────────────────────────────────────────────┐");
+        println!("â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”");
         println!(
-            "│  {} Roundtrip: {} difference(s) found{}│",
+            "â”‚  {} Roundtrip: {} difference(s) found{}â”‚",
             self.format,
             total,
             " ".repeat(38usize.saturating_sub(self.format.len() + format!("{}", total).len()))
         );
-        println!("└──────────────────────────────────────────────────────────────┘");
+        println!("â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜");
 
         if total == 0 {
-            println!("  ✓ PERFECT roundtrip — no data loss detected!\n");
+            println!("  âœ“ PERFECT roundtrip â€” no data loss detected!\n");
             return;
         }
 
         if !self.count_diffs.is_empty() {
-            println!("\n  ── Count Mismatches ──");
+            println!("\n  â”€â”€ Count Mismatches â”€â”€");
             for d in &self.count_diffs {
-                println!("  • {}", d);
+                println!("  â€¢ {}", d);
             }
         }
 
         if !self.table_diffs.is_empty() {
-            println!("\n  ── Table Differences ──");
+            println!("\n  â”€â”€ Table Differences â”€â”€");
             for d in &self.table_diffs {
-                println!("  • {}", d);
+                println!("  â€¢ {}", d);
             }
         }
 
         if !self.header_diffs.is_empty() {
-            println!("\n  ── Header Variable Differences ──");
+            println!("\n  â”€â”€ Header Variable Differences â”€â”€");
             for d in &self.header_diffs {
-                println!("  • {}", d);
+                println!("  â€¢ {}", d);
             }
         }
 
         if !self.object_diffs.is_empty() {
-            println!("\n  ── Object Differences ──");
+            println!("\n  â”€â”€ Object Differences â”€â”€");
             for d in &self.object_diffs {
-                println!("  • {}", d);
+                println!("  â€¢ {}", d);
             }
         }
 
         if !self.entity_diffs.is_empty() {
             println!(
-                "\n  ── Entity Data Differences ({}) ──",
+                "\n  â”€â”€ Entity Data Differences ({}) â”€â”€",
                 self.entity_diffs.len()
             );
             // Show up to 50 diffs, summarize the rest
@@ -340,7 +340,7 @@ impl LossReport {
                     );
                     break;
                 }
-                println!("  • {}", d);
+                println!("  â€¢ {}", d);
             }
         }
         println!();
@@ -350,12 +350,12 @@ impl LossReport {
 fn compare_documents(orig: &CadDocument, rt: &CadDocument, format: &str) -> LossReport {
     let mut report = LossReport::new(format);
 
-    // ── Entity counts ─────────────────────────────────────────────
+    // â”€â”€ Entity counts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let orig_count = orig.entity_count();
     let rt_count = rt.entity_count();
     if orig_count != rt_count {
         report.count_diffs.push(format!(
-            "Total entity count: {} → {} (Δ{})",
+            "Total entity count: {} â†’ {} (Î”{})",
             orig_count,
             rt_count,
             rt_count as isize - orig_count as isize
@@ -368,7 +368,7 @@ fn compare_documents(orig: &CadDocument, rt: &CadDocument, format: &str) -> Loss
         let rt_c = rt_types.get(name).copied().unwrap_or(0);
         if orig_c != rt_c {
             report.count_diffs.push(format!(
-                "  {}: {} → {} (Δ{})",
+                "  {}: {} â†’ {} (Î”{})",
                 name,
                 orig_c,
                 rt_c,
@@ -380,16 +380,16 @@ fn compare_documents(orig: &CadDocument, rt: &CadDocument, format: &str) -> Loss
         if !orig_types.contains_key(name) {
             report
                 .count_diffs
-                .push(format!("  {} appeared in roundtrip: 0 → {}", name, rt_c));
+                .push(format!("  {} appeared in roundtrip: 0 â†’ {}", name, rt_c));
         }
     }
 
-    // ── Tables ────────────────────────────────────────────────────
+    // â”€â”€ Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     macro_rules! cmp_table {
         ($name:expr, $field:ident) => {
             if orig.$field.len() != rt.$field.len() {
                 report.table_diffs.push(format!(
-                    "{}: {} → {}",
+                    "{}: {} â†’ {}",
                     $name,
                     orig.$field.len(),
                     rt.$field.len()
@@ -407,28 +407,28 @@ fn compare_documents(orig: &CadDocument, rt: &CadDocument, format: &str) -> Loss
     cmp_table!("VPorts", vports);
     cmp_table!("UCSs", ucss);
 
-    // ── Objects ───────────────────────────────────────────────────
+    // â”€â”€ Objects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if orig.objects.len() != rt.objects.len() {
         report.object_diffs.push(format!(
-            "Object count: {} → {}",
+            "Object count: {} â†’ {}",
             orig.objects.len(),
             rt.objects.len()
         ));
     }
 
-    // ── Classes ───────────────────────────────────────────────────
+    // â”€â”€ Classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if orig.classes.len() != rt.classes.len() {
         report.object_diffs.push(format!(
-            "Class count: {} → {}",
+            "Class count: {} â†’ {}",
             orig.classes.len(),
             rt.classes.len()
         ));
     }
 
-    // ── Header variables ──────────────────────────────────────────
+    // â”€â”€ Header variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     compare_header(&mut report, &orig.header, &rt.header);
 
-    // ── Per-entity comparison ─────────────────────────────────────
+    // â”€â”€ Per-entity comparison â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     compare_entities(&mut report, orig, rt);
 
     report
@@ -443,7 +443,7 @@ fn compare_header(
         ($field:ident) => {
             if orig.$field != rt.$field {
                 report.header_diffs.push(format!(
-                    "{}: {:?} → {:?}",
+                    "{}: {:?} â†’ {:?}",
                     stringify!($field),
                     orig.$field,
                     rt.$field
@@ -522,37 +522,37 @@ fn compare_entities(report: &mut LossReport, orig: &CadDocument, rt: &CadDocumen
             let mut common_diffs = Vec::new();
             if o_common.layer != r_common.layer {
                 common_diffs.push(format!(
-                    "layer: {:?} → {:?}",
+                    "layer: {:?} â†’ {:?}",
                     o_common.layer, r_common.layer
                 ));
             }
             if o_common.color != r_common.color {
                 common_diffs.push(format!(
-                    "color: {:?} → {:?}",
+                    "color: {:?} â†’ {:?}",
                     o_common.color, r_common.color
                 ));
             }
             if o_common.line_weight != r_common.line_weight {
                 common_diffs.push(format!(
-                    "line_weight: {:?} → {:?}",
+                    "line_weight: {:?} â†’ {:?}",
                     o_common.line_weight, r_common.line_weight
                 ));
             }
             if o_common.linetype != r_common.linetype {
                 common_diffs.push(format!(
-                    "linetype: {:?} → {:?}",
+                    "linetype: {:?} â†’ {:?}",
                     o_common.linetype, r_common.linetype
                 ));
             }
             if (o_common.linetype_scale - r_common.linetype_scale).abs() > 1e-10 {
                 common_diffs.push(format!(
-                    "linetype_scale: {} → {}",
+                    "linetype_scale: {} â†’ {}",
                     o_common.linetype_scale, r_common.linetype_scale
                 ));
             }
             if o_common.invisible != r_common.invisible {
                 common_diffs.push(format!(
-                    "invisible: {} → {}",
+                    "invisible: {} â†’ {}",
                     o_common.invisible, r_common.invisible
                 ));
             }
@@ -600,9 +600,9 @@ fn compare_entities(report: &mut LossReport, orig: &CadDocument, rt: &CadDocumen
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  MAIN
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn main() {
     let input_str = std::env::args()
@@ -614,7 +614,7 @@ fn main() {
     println!("  Roundtrip Analysis: {}", source_path.display());
     println!("=================================================================\n");
 
-    // ── Step 1: Read original DWG ─────────────────────────────────
+    // â”€â”€ Step 1: Read original DWG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     println!("Reading original DWG...");
     let mut reader = match DwgReader::from_file(&source_path) {
         Ok(r) => r,
@@ -633,8 +633,8 @@ fn main() {
 
     print_document_summary("ORIGINAL (from DWG file)", &original);
 
-    // ── Step 2: DWG roundtrip ─────────────────────────────────────
-    println!("Performing DWG roundtrip (write → read → disk)...");
+    // â”€â”€ Step 2: DWG roundtrip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("Performing DWG roundtrip (write â†’ read â†’ disk)...");
     let dwg_out_path = sibling_path(&source_path, "_rt", "dwg");
     let dwg_rt = match DwgWriter::write_to_vec(&original) {
         Ok(bytes) => {
@@ -658,8 +658,8 @@ fn main() {
         print_document_summary("DWG ROUNDTRIPPED", rt);
     }
 
-    // ── Step 3: DXF roundtrip ─────────────────────────────────────
-    println!("Performing DXF roundtrip (write → read → disk)...");
+    // â”€â”€ Step 3: DXF roundtrip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("Performing DXF roundtrip (write â†’ read â†’ disk)...");
     let dxf_out_path = sibling_path(&source_path, "_rt", "dxf");
     let dxf_rt = {
         let writer = DxfWriter::new(&original);
@@ -691,7 +691,7 @@ fn main() {
         print_document_summary("DXF ROUNDTRIPPED", rt);
     }
 
-    // ── Step 4: Data loss analysis ────────────────────────────────
+    // â”€â”€ Step 4: Data loss analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     println!("\n=================================================================");
     println!("  DATA LOSS ANALYSIS");
     println!("=================================================================\n");
@@ -702,7 +702,7 @@ fn main() {
         println!();
         deep_analysis(&original, rt, "DWG");
     } else {
-        println!("DWG roundtrip: FAILED (could not complete write→read cycle)");
+        println!("DWG roundtrip: FAILED (could not complete writeâ†’read cycle)");
     }
 
     if let Some(ref rt) = dxf_rt {
@@ -711,10 +711,10 @@ fn main() {
         println!();
         deep_analysis(&original, rt, "DXF");
     } else {
-        println!("DXF roundtrip: FAILED (could not complete write→read cycle)");
+        println!("DXF roundtrip: FAILED (could not complete writeâ†’read cycle)");
     }
 
-    // ── Step 5: DWG double roundtrip stability ────────────────────
+    // â”€â”€ Step 5: DWG double roundtrip stability â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     println!("=================================================================");
     println!("  DWG DOUBLE-ROUNDTRIP STABILITY");
     println!("=================================================================\n");
@@ -728,7 +728,7 @@ fn main() {
                 let mut r2 = DwgReader::from_stream(Cursor::new(bytes2));
                 match r2.read() {
                     Ok(rt2) => {
-                        let report = compare_documents(rt1, &rt2, "DWG double-roundtrip (RT1→RT2)");
+                        let report = compare_documents(rt1, &rt2, "DWG double-roundtrip (RT1â†’RT2)");
                         report.print();
                         if !report.entity_diffs.is_empty() {
                             deep_analysis(rt1, &rt2, "DWG double-roundtrip");
@@ -753,13 +753,13 @@ fn main() {
     println!("=================================================================");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  DEEP PER-TYPE ANALYSIS
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 fn deep_analysis(orig: &CadDocument, rt: &CadDocument, format: &str) {
     println!(
-        "─── Deep Analysis: {} ───────────────────────────────────────",
+        "â”€â”€â”€ Deep Analysis: {} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€",
         format
     );
 
@@ -772,7 +772,7 @@ fn deep_analysis(orig: &CadDocument, rt: &CadDocument, format: &str) {
     println!();
 }
 
-// ── PolyfaceMesh ──────────────────────────────────────────────────────────
+// â”€â”€ PolyfaceMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn deep_polyface_mesh(orig: &CadDocument, rt: &CadDocument) {
     let orig_meshes: Vec<_> = orig
@@ -808,12 +808,12 @@ fn deep_polyface_mesh(orig: &CadDocument, rt: &CadDocument) {
 
     if rt_meshes.is_empty() {
         println!(
-            "    ALL PolyfaceMesh entities LOST — check if they were re-read as generic Polyline."
+            "    ALL PolyfaceMesh entities LOST â€” check if they were re-read as generic Polyline."
         );
         return;
     }
 
-    // Build a handle→mesh map for rt so we can match by handle when possible.
+    // Build a handleâ†’mesh map for rt so we can match by handle when possible.
     let rt_by_handle: std::collections::HashMap<
         u64,
         &opencadcodec::entities::polyface_mesh::PolyfaceMesh,
@@ -849,7 +849,7 @@ fn deep_polyface_mesh(orig: &CadDocument, rt: &CadDocument) {
 
         if ov != rv || of_ != rf {
             println!(
-                "    [{}] v:{}→{}  f:{}→{}  layer={:?}  handle={:#X}→{:#X}  owner={:#X}→{:#X}",
+                "    [{}] v:{}â†’{}  f:{}â†’{}  layer={:?}  handle={:#X}â†’{:#X}  owner={:#X}â†’{:#X}",
                 i,
                 ov,
                 rv,
@@ -883,7 +883,7 @@ fn deep_polyface_mesh(orig: &CadDocument, rt: &CadDocument) {
     }
 }
 
-// ── Solid3D ───────────────────────────────────────────────────────────────
+// â”€â”€ Solid3D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn deep_solid3d(orig: &CadDocument, rt: &CadDocument) {
     let orig_solids: Vec<_> = orig
@@ -926,17 +926,17 @@ fn deep_solid3d(orig: &CadDocument, rt: &CadDocument) {
         let mut issues = Vec::new();
 
         if o_acis.version != r_acis.version {
-            issues.push(format!("version {:?}→{:?}", o_acis.version, r_acis.version));
+            issues.push(format!("version {:?}â†’{:?}", o_acis.version, r_acis.version));
         }
         if o_acis.is_binary != r_acis.is_binary {
             issues.push(format!(
-                "is_binary {}→{}",
+                "is_binary {}â†’{}",
                 o_acis.is_binary, r_acis.is_binary
             ));
         }
         if !o_acis.sab_data.is_empty() && r_acis.sab_data.is_empty() {
             issues.push(format!(
-                "sab_data {} bytes → 0 bytes",
+                "sab_data {} bytes â†’ 0 bytes",
                 o_acis.sab_data.len()
             ));
         }
@@ -945,7 +945,7 @@ fn deep_solid3d(orig: &CadDocument, rt: &CadDocument) {
             && !r_acis.sab_data.is_empty()
         {
             issues.push(format!(
-                "sab_data {} → {} bytes",
+                "sab_data {} â†’ {} bytes",
                 o_acis.sab_data.len(),
                 r_acis.sab_data.len()
             ));
@@ -953,23 +953,23 @@ fn deep_solid3d(orig: &CadDocument, rt: &CadDocument) {
         if o_acis.sat_data != r_acis.sat_data {
             let o_lines = o_acis.sat_data.lines().count();
             let r_lines = r_acis.sat_data.lines().count();
-            issues.push(format!("sat_data {}-line → {}-line", o_lines, r_lines));
+            issues.push(format!("sat_data {}-line â†’ {}-line", o_lines, r_lines));
         }
         if o.uid != r.uid {
-            issues.push(format!("uid {:?}→{:?}", o.uid, r.uid));
+            issues.push(format!("uid {:?}â†’{:?}", o.uid, r.uid));
         }
         if o.point_of_reference != r.point_of_reference {
             issues.push(format!(
-                "point_of_reference {:?}→{:?}",
+                "point_of_reference {:?}â†’{:?}",
                 o.point_of_reference, r.point_of_reference
             ));
         }
         if o.wires.len() != r.wires.len() {
-            issues.push(format!("wires {} → {}", o.wires.len(), r.wires.len()));
+            issues.push(format!("wires {} â†’ {}", o.wires.len(), r.wires.len()));
         }
         if o.silhouettes.len() != r.silhouettes.len() {
             issues.push(format!(
-                "silhouettes {} → {}",
+                "silhouettes {} â†’ {}",
                 o.silhouettes.len(),
                 r.silhouettes.len()
             ));
@@ -1015,14 +1015,14 @@ fn deep_solid3d(orig: &CadDocument, rt: &CadDocument) {
     if !loss_categories.is_empty() {
         println!("    Loss categories across all {} solids:", count);
         for (cat, n) in &loss_categories {
-            println!("      [{} × {}]", n, cat);
+            println!("      [{} Ã— {}]", n, cat);
         }
     } else if count == orig_solids.len() {
         println!("    All Solid3D ACIS data preserved.");
     }
 }
 
-// ── Dimension ─────────────────────────────────────────────────────────────
+// â”€â”€ Dimension â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn deep_dimension(orig: &CadDocument, rt: &CadDocument) {
     let orig_dims: Vec<_> = orig
@@ -1071,7 +1071,7 @@ fn deep_dimension(orig: &CadDocument, rt: &CadDocument) {
                         .or_insert(0) += 1;
                     if i < 2 {
                         println!(
-                            "    [{}] {}: {:?} → {:?}",
+                            "    [{}] {}: {:?} â†’ {:?}",
                             i,
                             stringify!($field),
                             ob.$field,
@@ -1103,7 +1103,7 @@ fn deep_dimension(orig: &CadDocument, rt: &CadDocument) {
     }
 }
 
-// ── Insert (attribute data) ───────────────────────────────────────────────
+// â”€â”€ Insert (attribute data) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn deep_insert(orig: &CadDocument, rt: &CadDocument) {
     let orig_inserts: Vec<_> = orig
@@ -1172,7 +1172,7 @@ fn deep_insert(orig: &CadDocument, rt: &CadDocument) {
     }
 }
 
-// ── Notifications from re-read document ──────────────────────────────────
+// â”€â”€ Notifications from re-read document â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn deep_notifications(rt: &CadDocument, format: &str) {
     let notifs: Vec<_> = rt.notifications.iter().collect();
@@ -1212,7 +1212,7 @@ fn deep_notifications(rt: &CadDocument, format: &str) {
     );
     for (msg, count) in seen.iter().take(20) {
         if *count > 1 {
-            println!("    [{} ×] {}", count, msg);
+            println!("    [{} Ã—] {}", count, msg);
         } else {
             println!("    {}", msg);
         }

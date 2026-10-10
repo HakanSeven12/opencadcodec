@@ -55,6 +55,13 @@ pub struct BlockRecord {
     pub name: String,
     /// Block flags
     pub flags: BlockFlags,
+    /// The table-entry xref `resolved` value, RAW (TODO B1, 2026-10-01):
+    /// the COMMON_TABLE_FLAGS `is_xref_resolved` BS — gold prints the
+    /// raw bitshort verbatim (the authored xref blocks carry 1, the
+    /// convention 0 or 256). Distinct from `flags.is_xref` (the
+    /// BLOCK_HEADER body bit).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub xref_resolved: i16,
     /// Layout handle (if this block is a layout)
     pub layout: Handle,
     /// Units for block scaling
@@ -88,6 +95,7 @@ impl BlockRecord {
             block_end_handle: Handle::NULL,
             name: name.into(),
             flags: BlockFlags::new(),
+            xref_resolved: 0,
             layout: Handle::NULL,
             units: 0,
             explodable: true,
@@ -110,6 +118,7 @@ impl BlockRecord {
             block_end_handle: Handle::NULL,
             name: "*Model_Space".to_string(),
             flags: BlockFlags::new(),
+            xref_resolved: 0,
             layout: Handle::NULL,
             units: 0,
             explodable: true,
@@ -132,6 +141,7 @@ impl BlockRecord {
             block_end_handle: Handle::NULL,
             name: "*Paper_Space".to_string(),
             flags: BlockFlags::new(),
+            xref_resolved: 0,
             layout: Handle::NULL,
             units: 0,
             explodable: true,

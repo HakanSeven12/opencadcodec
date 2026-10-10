@@ -231,8 +231,12 @@ pub struct Mesh {
     pub faces: Vec<MeshFace>,
     /// Mesh edges with crease information.
     pub edges: Vec<MeshEdge>,
-    /// Trailing mesh override option stored by DWG.
-    pub override_option: i32,
+    /// Trailing raw wire bits (dwg.spec MESH FIELD_B unknown_b1/
+    /// unknown_b2 after the crease vector) — retained from the read and
+    /// echoed verbatim by the writer for gold parity.
+    pub unknown_b1: bool,
+    /// Second trailing raw bit.
+    pub unknown_b2: bool,
 }
 
 impl Mesh {
@@ -241,12 +245,19 @@ impl Mesh {
         Self {
             common: EntityCommon::default(),
             version: 2,
-            blend_crease: true,
+            // Authored-wire population invariants (2004/Surface.dwg's
+            // MESH 0x2D0 and every authored specimen, 2026-09-22
+            // default fix): wire bit 72 — which the model calls
+            // blend_crease and gold decodes as is_watertight — is 0,
+            // and the trailing unknown_b1 is 1. Reads capture the bits
+            // verbatim, so round trips stay byte-faithful.
+            blend_crease: false,
             subdivision_level: 0,
             vertices: Vec::new(),
             faces: Vec::new(),
             edges: Vec::new(),
-            override_option: 0,
+            unknown_b1: true,
+            unknown_b2: false,
         }
     }
 
@@ -323,9 +334,13 @@ impl Mesh {
     /// Computes edges from faces.
     /// This creates an edge for each unique edge in the face list.
     pub fn compute_edges(&mut self) {
-        use std::collections::HashSet;
+        // Ordered set: the wire emits the edge list verbatim, so the
+        // vertex-pair iteration order must be process-stable (a hash
+        // container randomizes the edge order per run and makes the
+        // generated files nondeterministic byte-for-byte).
+        use std::collections::BTreeSet;
 
-        let mut edge_set: HashSet<(usize, usize)> = HashSet::new();
+        let mut edge_set = BTreeSet::new();
 
         for face in &self.faces {
             for &(v1, v2) in &face.edges() {
@@ -813,7 +828,11 @@ mod tests {
         assert_eq!(mesh.face_count(), 0);
         assert_eq!(mesh.edge_count(), 0);
         assert_eq!(mesh.subdivision_level, 0);
-        assert!(mesh.blend_crease);
+        // Authored-wire invariants (2004/Surface.dwg census): wire bit
+        // 72 (blend_crease) is 0 and the trailing unknown_b1 is 1 in
+        // every authored specimen.
+        assert!(!mesh.blend_crease);
+        assert!(mesh.unknown_b1);
     }
 
     #[test]

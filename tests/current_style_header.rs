@@ -1,4 +1,4 @@
-//! DXF round-trip of the current table / multileader style header variables
+﻿//! DXF round-trip of the current table / multileader style header variables
 //! ($CTABLESTYLE / $CMLEADERSTYLE), plus the existing text/dim/mline ones.
 
 use opencadcodec::{CadDocument, DxfReader, DxfWriter};

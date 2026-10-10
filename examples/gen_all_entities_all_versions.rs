@@ -1,4 +1,4 @@
-use opencadcodec::entities::acis::{SatDocument, SatPointer, SatToken, Sense, Sidedness};
+﻿use opencadcodec::entities::acis::{SatDocument, SatPointer, SatToken, Sense, Sidedness};
 use opencadcodec::entities::dimension::DimensionLinear;
 use opencadcodec::entities::hatch::{
     BoundaryEdge, BoundaryPath, BoundaryPathFlags, LineEdge, PolylineEdge,
@@ -7,7 +7,7 @@ use opencadcodec::entities::mesh::Mesh;
 use opencadcodec::entities::mline::MLine;
 use opencadcodec::entities::multileader::MultiLeader;
 use opencadcodec::entities::polyface_mesh::PolyfaceMesh;
-/// Generate DWG files for every supported entity type × every DWG version.
+/// Generate DWG files for every supported entity type Ã— every DWG version.
 ///
 /// Output structure:  target/entities_dwg/<VERSION>/entity_<VERSION>_<TYPE>.dwg
 ///
@@ -46,15 +46,15 @@ fn main() {
         let mut fail = 0u32;
         let mut skip = 0u32;
 
-        println!("\n╔══════════════════════════════════════════════════════╗");
+        println!("\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
         println!(
-            "║  {} ({})                                    ║",
+            "â•‘  {} ({})                                    â•‘",
             ver_str,
             version_label(version)
         );
-        println!("╚══════════════════════════════════════════════════════╝");
+        println!("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
 
-        // ── Simple geometry (all versions) ──────────────────────────
+        // â”€â”€ Simple geometry (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -158,7 +158,7 @@ fn main() {
             },
         );
 
-        // ── Solid / Surface (all versions) ──────────────────────────
+        // â”€â”€ Solid / Surface (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -196,7 +196,7 @@ fn main() {
             },
         );
 
-        // ── Text (all versions) ─────────────────────────────────────
+        // â”€â”€ Text (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -225,7 +225,7 @@ fn main() {
             },
         );
 
-        // ── Polylines (all versions) ────────────────────────────────
+        // â”€â”€ Polylines (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -300,7 +300,7 @@ fn main() {
             },
         );
 
-        // ── Annotations (all versions) ──────────────────────────────
+        // â”€â”€ Annotations (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -376,7 +376,7 @@ fn main() {
             version, ver_str, &dir, "INSERT", &mut ok, &mut fail, &mut skip,
         );
 
-        // ── Hatch (all versions) ────────────────────────────────────
+        // â”€â”€ Hatch (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -431,7 +431,7 @@ fn main() {
             },
         );
 
-        // ── MLine (all versions) ────────────────────────────────────
+        // â”€â”€ MLine (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -450,7 +450,7 @@ fn main() {
             },
         );
 
-        // ── PolyfaceMesh (all versions) ─────────────────────────────
+        // â”€â”€ PolyfaceMesh (all versions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -472,7 +472,7 @@ fn main() {
             },
         );
 
-        // ── MultiLeader (R2000+ / class-based) ─────────────────────
+        // â”€â”€ MultiLeader (R2000+ / class-based) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -491,7 +491,7 @@ fn main() {
             },
         );
 
-        // ── Mesh (R2000+ / class-based) ─────────────────────────────
+        // â”€â”€ Mesh (R2000+ / class-based) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -513,7 +513,7 @@ fn main() {
             },
         );
 
-        // ── ACIS entities (3DSOLID, REGION, BODY) ───────────────────
+        // â”€â”€ ACIS entities (3DSOLID, REGION, BODY) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         gen(
             version,
@@ -583,10 +583,10 @@ fn main() {
             },
         );
 
-        // ── Version summary ─────────────────────────────────────────
+        // â”€â”€ Version summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         println!(
-            "  ── {} summary: {} OK, {} FAIL, {} SKIP",
+            "  â”€â”€ {} summary: {} OK, {} FAIL, {} SKIP",
             ver_str, ok, fail, skip
         );
         total_ok += ok;
@@ -594,14 +594,14 @@ fn main() {
         total_skip += skip;
     }
 
-    // ── Grand total ─────────────────────────────────────────────────
+    // â”€â”€ Grand total â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    println!("\n╔══════════════════════════════════════════════════════╗");
+    println!("\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
     println!(
-        "║  GRAND TOTAL: {} OK, {} FAIL, {} SKIP               ║",
+        "â•‘  GRAND TOTAL: {} OK, {} FAIL, {} SKIP               â•‘",
         total_ok, total_fail, total_skip
     );
-    println!("╚══════════════════════════════════════════════════════╝");
+    println!("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
 
     if total_fail > 0 {
         std::process::exit(1);
@@ -745,8 +745,8 @@ fn build_cylinder_sat() -> SatDocument {
         [0.0, 0.0, 1.0], // axis
         [5.0, 0.0, 0.0], // major-axis (radius = 5)
         1.0,             // ratio (circular)
-        1.0,             // cos(half-angle) = 1 → cylinder
-        0.0,             // sin(half-angle) = 0 → cylinder
+        1.0,             // cos(half-angle) = 1 â†’ cylinder
+        0.0,             // sin(half-angle) = 0 â†’ cylinder
     );
 
     // Curves
@@ -878,7 +878,7 @@ fn build_cylinder_sat() -> SatDocument {
         Sidedness::Single,
     );
 
-    // Shell → Lump → Body
+    // Shell â†’ Lump â†’ Body
     sat.add_shell(ptr(face_base), ptr(lump_idx));
     sat.add_lump(ptr(shell_idx), body_idx);
 

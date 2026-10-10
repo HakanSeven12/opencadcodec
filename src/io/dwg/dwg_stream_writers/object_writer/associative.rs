@@ -119,12 +119,20 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.version);
         self.writer.write_bit_long(value.minor);
         self.writer.write_bit_long(value.dependencies.len() as i32);
-        self.write_assoc_handles(DwgReferenceType::SoftPointer, &value.dependencies);
+        // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-3: the author codes the pab dependency refs 3
+        // (gold census corpus-wide: deps {3: 27}, never 4/5).
+        self.write_assoc_handles(DwgReferenceType::HardOwnership, &value.dependencies);
         self.writer.write_bit_long(value.marker);
         self.writer.write_bit_long(value.values.len() as i32);
         if value.values.is_empty() {
             self.writer.write_bit_long(value.empty_value_marker);
-            self.write_assoc_handle(DwgReferenceType::HardPointer, value.dependency);
+            // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-12: the author codes the empty-values
+            // dependency ref 4 (SoftPointer) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â her h=392 (example_2007,
+            // ACDBASSOCALIGNEDDIMACTIONBODY) writes (4.2.397) where this
+            // emitted 5 (gold's dwg2.spec pab block declares 5; the wire
+            // is the authority ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the same spec-vs-wire split as the
+            // H8h-ext-3 deps census and the H8h-ext-4 edge param).
+            self.write_assoc_handle(DwgReferenceType::SoftPointer, value.dependency);
         }
         self.write_assoc_values(&value.values);
     }
@@ -133,7 +141,17 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_assoc_action_body(&value.action_body);
         self.write_assoc_parameter_body(&value.parameter_body);
         self.writer.write_bit_long(value.surface_body.version);
-        self.write_assoc_handle(DwgReferenceType::HardPointer, value.surface_body.dependency);
+        // A NULL sab.assocdep means no slot was read: the truncated
+        // 2004/Surface ORIG record physically ends one bit into where the
+        // slot's form byte starts, and gold's overflowing bit_read_H prints
+        // the [0,0] null pair. Echo that wire state ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â fabricating an
+        // explicit (5,0) null form would make gold decode a real slot
+        // ([5,0,0,0] handle-tuple print) and diverge from the orig pair.
+        if value.surface_body.dependency.is_valid() {
+            // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-3: the author codes sab.assocdep 4 (SoftPointer)
+            // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â gold census corpus-wide: assocdep {4: 23}, never 5.
+            self.write_assoc_handle(DwgReferenceType::SoftPointer, value.surface_body.dependency);
+        }
         self.writer
             .write_bit(value.surface_body.is_semi_associative);
         self.writer.write_bit_long(value.surface_body.marker);
@@ -168,6 +186,13 @@ impl<'a> DwgObjectWriter<'a> {
                 self.writer.write_bit_short(value.status);
                 self.writer.write_2raw_double(value.first_point);
                 self.writer.write_2raw_double(value.second_point);
+            }
+            // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-3: the author's REVOLVED body carries one
+            // trailing B(0) after class_version (the RevolveM wire: her
+            // main stream one bit longer, the extra '0' at the end; the
+            // only corpus specimen ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â no other Revolve file has the class).
+            AssocSurfaceActionKind::Revolved => {
+                self.writer.write_bit(false);
             }
             _ => {}
         }
@@ -235,11 +260,20 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_short(value.class_version);
         self.writer.write_bit_short(value.status);
         self.writer.write_bit_long(value.parameters.len() as i32);
-        self.write_assoc_handles(DwgReferenceType::SoftPointer, &value.parameters);
+        // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-3: the author codes the compound parameter refs 3
+        // (gold census corpus-wide: params {3: 41}, never 4/5).
+        self.write_assoc_handles(DwgReferenceType::HardOwnership, &value.parameters);
         if let Some(child) = &value.child_parameter {
             self.writer.write_bit_short(child.status);
             self.writer.write_bit_long(child.id);
-            self.write_assoc_handle(DwgReferenceType::HardOwnership, child.parameter);
+            // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-12: the author codes the child parameter ref 4
+            // (SoftPointer) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â her h=393 (example_2007,
+            // ACDBASSOCOSNAPPOINTREFACTIONPARAM, child id=0) writes
+            // (4.0.0) where this emitted 3 (gold's dwg2.spec child_param
+            // block declares 3; the wire is the authority). The
+            // secondary/tertiary refs (child id != 0) have no corpus
+            // specimen ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â they keep gold's declared 3.
+            self.write_assoc_handle(DwgReferenceType::SoftPointer, child.parameter);
             if child.id != 0 {
                 self.write_assoc_handle(DwgReferenceType::HardOwnership, child.secondary_parameter);
                 self.writer.write_bit_long(child.marker);
@@ -253,44 +287,8 @@ impl<'a> DwgObjectWriter<'a> {
         self.write_assoc_parameter_body(&value.parameter_body);
         self.writer.write_bit_long(value.version);
         self.writer.write_variable_text(&value.parameter_block);
-        self.writer.write_bit_long(value.item_list_version);
-        self.writer.write_bit_long(value.items.len() as i32);
-        self.writer.write_variable_text(&value.item_class);
-        for item in &value.items {
-            self.write_assoc_array_item(item);
-        }
         for item in value.transform {
             self.writer.write_bit_double(item);
-        }
-    }
-
-    fn write_assoc_array_item(&mut self, item: &AssocArrayItem) {
-        self.writer.write_bit_long(item.class_version);
-        for location in item.location {
-            self.writer.write_bit_long(location);
-        }
-        self.writer.write_bit_long(item.flags);
-        if item.uses_default_transform {
-            self.writer.write_3bit_double(item.x_direction);
-        } else {
-            for value in item.transform {
-                self.writer.write_bit_double(value);
-            }
-        }
-        if let Some(matrix) = item.relative_transform {
-            for value in matrix {
-                self.writer.write_bit_double(value);
-            }
-        }
-        self.write_assoc_handle(
-            DwgReferenceType::SoftPointer,
-            item.first_handle.unwrap_or(Handle::NULL),
-        );
-        if item.flags & 0x10 != 0 {
-            self.write_assoc_handle(
-                DwgReferenceType::SoftPointer,
-                item.second_handle.unwrap_or(Handle::NULL),
-            );
         }
     }
 
@@ -370,8 +368,15 @@ impl<'a> DwgObjectWriter<'a> {
                 if reference.osnap_type == 6 || reference.osnap_type == 11 {
                     self.writer
                         .write_bit_long(reference.intersection_objects.len() as i32);
+                    // The ref-code lesson (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19; the pab/child_param
+                    // precedent): gold's dwg2.spec declares the DIMASSOC
+                    // intsectobj vector code 5, but the authored wire
+                    // carries code 4 (soft) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â measured on gh44-error's
+                    // C12E/C471 records (the fifth handle 4.2.BA93/BA3F
+                    // where our code-5 emission flipped one bit per
+                    // record). The authored corpus is the oracle.
                     self.write_assoc_handles(
-                        DwgReferenceType::HardPointer,
+                        DwgReferenceType::SoftPointer,
                         &reference.intersection_objects,
                     );
                     self.writer
@@ -394,22 +399,20 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_long(value.marker_two);
         self.writer.write_bit_long(value.associative_step_count);
         self.writer.write_bit_long(value.associative_subent_count);
-        for item in &value.values {
-            self.writer.write_bit_long(*item);
+        self.writer.write_bit_long(value.steps.len() as i32);
+        for step in &value.steps {
+            self.writer.write_bit_long(*step);
         }
-    }
-
-    fn write_constraint_node_common(&mut self, node: &AssocConstraintNode) {
-        self.writer.write_bit_long(node.node_id);
-        if !self.version.r2013_plus(self.dxf_version) {
-            self.writer.write_byte(node.status);
+        if value.associative_subent_count != 0 || !value.subents.is_empty() {
+            self.writer.write_bit_long(value.subents.len() as i32);
+            for subent in &value.subents {
+                self.writer.write_bit_long(*subent);
+            }
         }
-        self.writer.write_bit_long(node.connections.len() as i32);
-        for connection in &node.connections {
-            self.writer.write_bit_long(*connection);
-        }
-        if self.version.r2013_plus(self.dxf_version) {
-            self.writer.write_byte(node.status);
+        // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the captured tail BLs in order (see
+        // PersSubentManager::tail_bls).
+        for bl in &value.tail_bls {
+            self.writer.write_bit_long(*bl);
         }
     }
 
@@ -726,6 +729,31 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
+
+    fn write_constraint_node_common(&mut self, node: &AssocConstraintNode) {
+        self.writer.write_bit_long(node.node_id);
+        if !self.version.r2013_plus(self.dxf_version) {
+            self.writer.write_byte(node.status);
+        }
+        self.writer.write_bit_long(node.connections.len() as i32);
+        for connection in &node.connections {
+            self.writer.write_bit_long(*connection);
+        }
+        if self.version.r2013_plus(self.dxf_version) {
+            self.writer.write_byte(node.status);
+        }
+    }
+
+    /// Write `count` raw bits of `value`, MSB first ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the measured
+    /// NURB3D subcurve constants (TODO A8, 2026-10-02) are not
+    /// whole-bitcode fields: the 12-bit header 0x103 and the 4-bit
+    /// 0x4 straddle the byte/bitcode boundaries.
+    fn write_raw_bits(&mut self, value: u32, count: u32) {
+        for index in (0..count).rev() {
+            self.writer.write_bit((value >> index) & 1 == 1);
+        }
+    }
+
     pub(super) fn write_associative_object(&mut self, object: &AssociativeObject) {
         let canonical = associative_canonical_name(&object.dxf_name);
         let prefixed = format!("ACDB{canonical}");
@@ -753,6 +781,28 @@ impl<'a> DwgObjectWriter<'a> {
                 &object.xdictionary_handle,
             );
         }
+        // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§20 the R2018 record-identity packet (the rewrite-rejection
+        // campaign): a DWG-read body replays its captured wire
+        // verbatim when the class's modeled emission drifts from the
+        // author's bytes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ACDBASSOCALIGNEDDIMACTIONBODY (520) first:
+        // gold has no decoder for the class, the ODA spec documents
+        // nothing, and the modeled emission loses form bits the model
+        // never retained (example_2018 h=392: her bitsize 55, our
+        // rewrite 53). The modeled emission stays the fallback for
+        // DXF-built and programmatic records (no capture) and for
+        // conversions that target another version.
+        if self.write_wire_body(
+            &object.wire_main,
+            object.wire_main_bit_len,
+            &object.wire_text,
+            object.wire_text_bit_len,
+            &object.wire_handles,
+            object.wire_handles_bit_len,
+            object.wire_dxf_version,
+        ) {
+            self.register_object(object.handle);
+            return;
+        }
         match &object.data {
             AssociativeData::Unknown => {}
             AssociativeData::Dependency(value) => self.write_assoc_dependency(value),
@@ -766,16 +816,31 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_assoc_dependency(&value.dependency);
                 self.writer.write_bit_short(value.class_version);
                 self.writer.write_bit(value.enabled);
-                let subent = &value.persistent_subent;
-                self.writer.write_bit(subent.leading_flag);
-                self.writer.write_bit_long(
-                    AssocPersistentSubentId::code_for_class_name(&subent.class_name)
-                        .unwrap_or(subent.class_code),
-                );
-                for item in &subent.values {
-                    self.writer.write_bit_long(*item);
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-15: mirror the author's stream PRESENCE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+                // on a no-stream record (the captured wire_no_text_
+                // stream; her R2013 geomdeps) the classname TU is
+                // skipped so the merge emits has_strings: 0; records
+                // whose author wrote a stream (the AC1021 corpus,
+                // even empty-only) keep the normal TU emission.
+                if !value.persistent_subent.wire_no_text_stream {
+                    self.writer
+                        .write_variable_text(&value.persistent_subent.class_name);
                 }
-                self.writer.write_bit(subent.dependent_on_compound_object);
+                self.writer
+                    .write_bit(value.persistent_subent.dependent_on_compound_object);
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-10: re-emit the captured persubent-id tail
+                // (the undocumented main-stream bits after dependent_on_
+                // compound_object); absent for DXF-built and edited
+                // documents.
+                if let Some(bytes) = &value.persistent_subent.tail_bits {
+                    let bits = (value.persistent_subent.tail_bit_len as usize)
+                        .min(bytes.len() * 8);
+                    for index in 0..bits {
+                        let byte = bytes[index / 8];
+                        let bit = (byte >> (7 - index % 8)) & 1;
+                        self.writer.write_bit(bit == 1);
+                    }
+                }
             }
             AssociativeData::SurfaceActionBody(value) => self.write_assoc_surface(value),
             AssociativeData::Action(value) => self.write_assoc_action(value),
@@ -800,27 +865,177 @@ impl<'a> DwgObjectWriter<'a> {
             }
             AssociativeData::AnnotationActionBody(value) => self.write_assoc_annotation(value),
             AssociativeData::PersSubentManager(value) => {
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the gold dwg2.spec field order ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â see the
+                // reader arm. The subents count is the vector length; the
+                // cv2 tail (unknown_bl3 + B) emits only when captured.
                 self.writer.write_bit_long(value.class_version);
                 for marker in value.markers {
                     self.writer.write_bit_long(marker);
                 }
-                for item in &value.values {
+                self.writer.write_bit_long(value.bl1);
+                self.writer.write_bit_long(value.bl2);
+                self.writer.write_bit_long(value.steps.len() as i32);
+                for step in &value.steps {
+                    self.writer.write_bit_long(*step);
+                }
+                self.writer.write_bit_long(value.subents.len() as i32);
+                for item in &value.subents {
                     self.writer.write_bit_long(*item);
                 }
-                self.writer.write_bit(value.final_flag);
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-6: the captured tail BLs in order, then
+                // the trailing B (see the reader arm).
+                for bl in &value.tail_bls {
+                    self.writer.write_bit_long(*bl);
+                }
+                self.writer.write_bit(value.trailing_b);
             }
             AssociativeData::EdgeActionParam(value) => {
                 self.write_assoc_single_dependency(&value.single_dependency);
-                self.write_assoc_handle(DwgReferenceType::HardOwnership, value.parameter);
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-4: the author codes the param ref 4
+                // (SoftPointer) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the specimens' null params are (4.0.0)
+                // on her wire (gold's spec block declares 3, but the wire
+                // evidence is uniform across all seven records).
+                self.write_assoc_handle(DwgReferenceType::SoftPointer, value.parameter);
                 self.writer.write_bit(value.has_action);
                 self.writer.write_bit_long(value.action_type);
-                for item in &value.curve {
-                    match item {
-                        AssocCurveValue::Bool(value) => self.writer.write_bit(*value),
-                        AssocCurveValue::Int(value) => self.writer.write_bit_long(*value),
-                        AssocCurveValue::Real(value) => self.writer.write_bit_double(*value),
-                        AssocCurveValue::Point(value) => self.writer.write_3bit_double(*value),
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-4 + TODO B2 (2026-10-01): the subcurve
+                // region. The typed kinds emit their measured BD
+                // sequences; ARC (11) and ELLIPSE (17) append the
+                // R2013+ frames' constant two-bit `10` trailing form
+                // (BD 0.0 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the wire cannot name the field, see the
+                // model docs; the pre-B2 writer omitted it, a latent
+                // 2-bit drift on the conventional path). LINESEG3D
+                // (23) closes at its sixth BD on every frame. The
+                // untyped kinds ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â NURB3D (42), the gold-unknown 47 and
+                // any 19/27 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â replay their captured verbatim region on
+                // a same-version write (the H8h-ext-8
+                // `nodes_wire_main` pattern); cross-version conversions
+                // and DXF-built records keep the pre-B2 emission (no
+                // subcurve).
+                if !value.curve.is_empty() {
+                    // Host-authored curve values: the generic stored-value
+                    // sequence (the same order the reader records).
+                    for item in &value.curve {
+                        match item {
+                            AssocCurveValue::Bool(value) => self.writer.write_bit(*value),
+                            AssocCurveValue::Int(value) => self.writer.write_bit_long(*value),
+                            AssocCurveValue::Real(value) => self.writer.write_bit_double(*value),
+                            AssocCurveValue::Point(value) => self.writer.write_3bit_double(*value),
+                        }
                     }
+                } else {
+                let r2013_plus = self.version.r2013_plus(self.dxf_version);
+                match &value.subcurve {
+                    Some(AssocSubcurve::Arc(subcurve)) => {
+                        self.writer.write_3bit_double(subcurve.center);
+                        self.writer.write_3bit_double(subcurve.normal);
+                        self.writer.write_3bit_double(subcurve.x_axis);
+                        self.writer.write_bit_double(subcurve.radius);
+                        self.writer.write_bit_double(subcurve.start_angle);
+                        self.writer.write_bit_double(subcurve.end_angle);
+                        if r2013_plus {
+                            self.writer.write_bit_double(0.0);
+                        }
+                    }
+                    Some(AssocSubcurve::Ellipse(subcurve)) => {
+                        self.writer.write_3bit_double(subcurve.center);
+                        self.writer.write_3bit_double(subcurve.major_axis);
+                        self.writer.write_3bit_double(subcurve.minor_axis);
+                        self.writer.write_bit_double(subcurve.major_radius);
+                        self.writer.write_bit_double(subcurve.minor_radius);
+                        self.writer.write_bit_double(subcurve.start_angle);
+                        self.writer.write_bit_double(subcurve.end_angle);
+                        if r2013_plus {
+                            self.writer.write_bit_double(0.0);
+                        }
+                    }
+                    Some(AssocSubcurve::LineSegment3d(subcurve)) => {
+                        self.writer.write_3bit_double(subcurve.start_point);
+                        self.writer.write_3bit_double(subcurve.end_point);
+                    }
+                    Some(AssocSubcurve::Nurb3d(subcurve)) => {
+                        // TODO A8 (2026-10-02): the measured NURB3D
+                        // grammar (see `AssocNurb3dSubcurve`). The form
+                        // is ERA-STABLE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the 2007 and 2018 regions
+                        // are bit-identical on every specimen ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â so the
+                        // emission is not version-gated (unlike the
+                        // ARC/ELLIPSE trailing form): a cross-version
+                        // conversion re-emits the region correctly.
+                        self.write_raw_bits(0x103, 12);
+                        self.writer.write_bit_double(subcurve.knot_tolerance);
+                        self.write_raw_bits(0x4, 4);
+                        self.write_raw_bits(subcurve.flags as u32, 6);
+                        self.writer
+                            .write_bit_long(subcurve.knots.len() as i32);
+                        self.writer.write_bit_long(8);
+                        for knot in &subcurve.knots {
+                            self.writer.write_bit_double(*knot);
+                        }
+                        self.writer.write_bit_long(0);
+                        self.writer.write_bit_long(0);
+                        self.writer.write_bit_long(8);
+                        self.writer.write_bit_long(
+                            subcurve.control_points.len() as i32,
+                        );
+                        self.writer.write_bit_long(subcurve.gap_b);
+                        self.writer.write_bit_long(8);
+                        for point in &subcurve.control_points {
+                            self.writer.write_3bit_double(*point);
+                        }
+                    }
+                    Some(AssocSubcurve::Composite(subcurve)) => {
+                        // TODO A8 (2026-10-03): the measured composite
+                        // (47) grammar (see `AssocCompositeSubcurve`):
+                        // BL num_segments, then per segment BS kind +
+                        // the kind's own form ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 23: absolute start 3BD
+                        // + delta 3BD; 11: the arc form with the R2013+
+                        // constant two-bit trailing tail (the same
+                        // per-frame rule as the standalone ARC region;
+                        // the line segments close at their sixth BD on
+                        // every frame). The wire region is otherwise
+                        // era-stable, so the emission is ungated beyond
+                        // the arc tail.
+                        self.writer
+                            .write_bit_long(subcurve.segments.len() as i32);
+                        for segment in &subcurve.segments {
+                            match segment {
+                                AssocCompositeSegment::Line { start, delta } => {
+                                    self.writer.write_bit_short(23);
+                                    self.writer.write_3bit_double(*start);
+                                    self.writer.write_3bit_double(*delta);
+                                }
+                                AssocCompositeSegment::Arc(arc) => {
+                                    self.writer.write_bit_short(11);
+                                    self.writer.write_3bit_double(arc.center);
+                                    self.writer.write_3bit_double(arc.normal);
+                                    self.writer.write_3bit_double(arc.x_axis);
+                                    self.writer.write_bit_double(arc.radius);
+                                    self.writer
+                                        .write_bit_double(arc.start_angle);
+                                    self.writer.write_bit_double(arc.end_angle);
+                                    if r2013_plus {
+                                        self.writer.write_bit_double(0.0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        if let Some(bytes) = &value.subcurve_wire {
+                            if value.subcurve_wire_dxf_version
+                                == Some(self.dxf_version)
+                            {
+                                let bits = (value.subcurve_wire_bit_len as usize)
+                                    .min(bytes.len() * 8);
+                                for index in 0..bits {
+                                    let byte = bytes[index / 8];
+                                    let bit = (byte >> (7 - index % 8)) & 1;
+                                    self.writer.write_bit(bit == 1);
+                                }
+                            }
+                        }
+                    }
+                }
                 }
             }
             AssociativeData::ConstraintGroup(value) => {
@@ -833,7 +1048,70 @@ impl<'a> DwgObjectWriter<'a> {
                 self.write_assoc_handle(DwgReferenceType::HardOwnership, value.dependency);
                 self.writer.write_bit_long(value.actions.len() as i32);
                 self.write_assoc_handles(DwgReferenceType::HardOwnership, &value.actions);
-                if let Some(first) = value.nodes.first() {
+                // gold dwg2.spec ASSOC2DCONSTRAINTGROUP: num_nodes BL
+                // then the FLAT per-node REPEAT (nodeid BLd + status RC
+                // era-gated around num_connections + the BL vector) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+                // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-8: DWG-read AC1021 records re-emit their
+                // captured node region verbatim ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the per-node
+                // class-name TUs into the text stream (walk order),
+                // the main bits, then the captured handle tail (the
+                // per-node geometry-dependency reads and her closing
+                // 1s pad). The modeled REPEAT stays the fallback for
+                // DXF-built and programmatic records (no capture).
+                if value.nodes_wire_main.is_some() {
+                    for name in &value.nodes_wire_names {
+                        self.writer.write_variable_text(name);
+                    }
+                    // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-14: the R2010+ raw text-region
+                    // re-emission (the AC1021 path rides the names
+                    // loop above; the R2010+ capture never decoded
+                    // the stream, so its bits replay verbatim).
+                    if let Some(bytes) = &value.nodes_wire_text {
+                        let bits = (value.nodes_wire_text_bit_len as usize)
+                            .min(bytes.len() * 8);
+                        for index in 0..bits {
+                            let byte = bytes[index / 8];
+                            let bit = (byte >> (7 - index % 8)) & 1;
+                            self.writer.write_text_bit(bit == 1);
+                        }
+                    }
+                    if let Some(bytes) = &value.nodes_wire_main {
+                        let bits = (value.nodes_wire_main_bit_len as usize)
+                            .min(bytes.len() * 8);
+                        for index in 0..bits {
+                            let byte = bytes[index / 8];
+                            let bit = (byte >> (7 - index % 8)) & 1;
+                            self.writer.write_bit(bit == 1);
+                        }
+                    }
+                    if let Some(bytes) = &value.nodes_wire_handles {
+                        // ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19 H8h-ext-13: re-create the author's
+                        // closing 1s pad explicitly (the ext-12
+                        // lesson): extend the captured bits to the
+                        // byte boundary with 1s so the merged writer's
+                        // own zero-pad never fires ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the DWG
+                        // final-partial-byte convention (ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§19.4.C),
+                        // bit-continuous for the TwoStream eras and
+                        // the appended-buffer close for AC1021 alike.
+                        // A no-op when the capture is byte-aligned
+                        // (the AC1021 corpus specimens).
+                        let mut bytes = bytes.clone();
+                        let mut bit_len = value.nodes_wire_handles_bit_len;
+                        let rem = bit_len % 8;
+                        if rem != 0 {
+                            let pad = 8 - rem;
+                            if let Some(last) = bytes.last_mut() {
+                                *last |= ((1u16 << pad) - 1) as u8;
+                            }
+                            bit_len += pad;
+                        }
+                        self.writer.write_handle_bits(&bytes, bit_len);
+                    }
+                } else if let Some(first) = value.nodes.first() {
+                    // The typed registry form (mirrors the reader's
+                    // try_read_registry_nodes): num_nodes counts the
+                    // registered nodes; the root carries only its id,
+                    // connections and a single status bit.
                     let registered: Vec<&AssocConstraintNode> = value
                         .nodes
                         .iter()

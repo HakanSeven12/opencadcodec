@@ -90,48 +90,250 @@ const SAB_MAGIC: &[u8] = b"ACIS BinaryFile";
 /// Converts a [`SatDocument`] to SAB binary format.
 pub struct SabWriter;
 
+/// The authored SAB header era profile — the wire flavor a saved file
+/// carries, measured on the specimen corpus (§20: every authored
+/// carrier, all four eras):
+///
+/// - R2007 (AC1021): `ACIS BinaryFile` |21200, header ints (0, 2, 26)
+/// - R2010 (AC1024): `ACIS BinaryFile` |21500, header ints (0, 2, 24)
+/// - R2013 (AC1027): `ACIS BinaryFile` |21800, header ints (0, 2, 12)
+/// - R2018 (AC1032): `ASM BinaryFile`  |22300, header ints (0, 2, 4)
+///
+/// The second int is the CONSTANT 2 across every authored carrier
+/// (even one-body files); the third is era-coded (26/24/12/4). The
+/// product strings stay the writer's own (the author-identity rule) —
+/// the flavor and the ints are format fields, not identity. The
+/// coedge parameter-space slot is era-profiled too: R2007/R2010
+/// carry the legacy 8-field form, R2013+ the `Integer(0), Pointer`
+/// pair (the 55/60-byte width split measured by magic).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SabEra {
+    /// Silver's historical output: `ACIS BinaryFile` |700, the
+    /// body-count declaration, the has_history flag, legacy coedges.
+    Legacy,
+    R2007,
+    R2010,
+    R2013,
+    R2018,
+}
+
+impl SabEra {
+    /// The authored profile for a target DXF version.
+    pub fn for_dxf(version: crate::types::DxfVersion) -> Self {
+        use crate::types::DxfVersion;
+        match version {
+            v if v >= DxfVersion::AC1032 => SabEra::R2018,
+            v if v >= DxfVersion::AC1027 => SabEra::R2013,
+            v if v >= DxfVersion::AC1024 => SabEra::R2010,
+            v if v >= DxfVersion::AC1021 => SabEra::R2007,
+            _ => SabEra::Legacy,
+        }
+    }
+
+    /// The 15-byte magic prefix the version u32 follows: classic
+    /// `ACIS BinaryFile`, or `ASM BinaryFile` + the constant 0x34
+    /// trailing byte (measured: 34/34 authored ASM carriers).
+    fn magic(self) -> &'static [u8] {
+        match self {
+            SabEra::R2018 => b"ASM BinaryFile\x34",
+            _ => b"ACIS BinaryFile",
+        }
+    }
+
+    fn version_number(self, doc_version: u32) -> u32 {
+        match self {
+            SabEra::Legacy => doc_version,
+            SabEra::R2007 => 21200,
+            SabEra::R2010 => 21500,
+            SabEra::R2013 => 21800,
+            SabEra::R2018 => 22300,
+        }
+    }
+
+    /// The second header int: the authored constant 2 (never
+    /// under-declaring a multi-body document).
+    fn bodies_field(self, declared: usize) -> u32 {
+        match self {
+            SabEra::Legacy => declared as u32,
+            _ => declared.max(2) as u32,
+        }
+    }
+
+    /// The third header int: the era code (the authored genus), or
+    /// the legacy has_history flag.
+    fn history_field(self, has_history: bool) -> u32 {
+        match self {
+            SabEra::Legacy => u32::from(has_history),
+            SabEra::R2007 => 26,
+            SabEra::R2010 => 24,
+            SabEra::R2013 => 12,
+            SabEra::R2018 => 4,
+        }
+    }
+
+    /// The End-of-* terminator's full byte form — HER SEGMENTED
+    /// SHAPE (measured 2026-09-30 across the specimen family, all
+    /// four eras): the name as chained SUBTYPE segments "End" +
+    /// "of" + <flavor>, then the ENTITY_TYPE segment "data". The
+    /// flavor word is ERA-CODED, not magic-coded: the 21200/21500
+    /// flavors terminate "End-of-ACIS data", the 21800/22300
+    /// flavors "End-of-ASM data" — R2013's carriers still write
+    /// the `ACIS BinaryFile` magic yet carry the ASM terminator.
+    /// The old single-tag `End-of-ACIS-data` form survived every
+    /// genus invariant (the walker normalizes the name chain) and
+    /// BricsCAD's lenient restorer, but the format author's
+    /// stricter modeler rejects the stream at the final record
+    /// (the 2026-09-30 core-console probe: `Modeling Operation
+    /// Error: Error Code Number is 65010` at open-time model
+    /// regeneration).
+    fn terminator(self) -> &'static [u8] {
+        match self {
+            SabEra::R2013 | SabEra::R2018 => b"\x0e\x03End\x0e\x02of\x0e\x03ASM\x0d\x04data",
+            _ => b"\x0e\x03End\x0e\x02of\x0e\x04ACIS\x0d\x04data",
+        }
+    }
+
+    fn modern_coedge_pcurve(self) -> bool {
+        matches!(self, SabEra::R2013 | SabEra::R2018)
+    }
+}
+
 impl SabWriter {
-    /// Convert a SAT document to SAB binary data.
+    /// Convert a SAT document to SAB binary data (the legacy ACIS 7.0
+    /// form — the 2007/2010 flavors' single-pointer parameter-space
+    /// slot; byte-identical to the historical output).
     pub fn write(doc: &SatDocument) -> Vec<u8> {
-        let completed = doc.completed_for_restore();
-        let doc = completed.as_ref().unwrap_or(doc);
+        Self::write_era(doc, SabEra::Legacy)
+    }
+
+    /// Convert a SAT document to SAB binary data in the authored
+    /// profile of the target era (the header flavor + the era-coded
+    /// header ints + the era-profiled coedge form; the product
+    /// strings stay the writer's own).
+    pub fn write_for_era(doc: &SatDocument, era: SabEra) -> Vec<u8> {
+        Self::write_era(doc, era)
+    }
+
+    fn write_era(doc: &SatDocument, era: SabEra) -> Vec<u8> {
         let mut buf = Vec::with_capacity(8192);
 
+        // The modern coedge form inserts before the reorder machinery
+        // so the emitted stream carries it through the traversal's
+        // pointer remap untouched (the Integer is not a pointer).
+        let modern_doc;
+        let doc = if era.modern_coedge_pcurve() {
+            let mut d = doc.clone();
+            for record in d.records.iter_mut() {
+                if record.entity_type == "coedge"
+                    && matches!(record.tokens.last(), Some(SatToken::Pointer(_)))
+                {
+                    let at = record.tokens.len() - 1;
+                    record.tokens.insert(at, SatToken::Integer(0));
+                }
+            }
+            modern_doc = d;
+            &modern_doc
+        } else {
+            doc
+        };
+
+        // Restore-file record order (2026-09-22 region probe: the
+        // strict restorer takes the leading records as the top-level
+        // entities to restore — cadkernel-assembled documents append
+        // the body last, so the restorer starts from a `point` record
+        // and reports "Data stream is empty" / "Audit Failed" while
+        // the identical inventory, body-first, audits clean). Every
+        // SAT-text document is normalized into the authored
+        // first-appearance genus order (§20: the pinned
+        // order_constraints rank — a verified linearization; body
+        // keeps rank 0 so the leading-top-level contract holds). An
+        // already authored-shaped document is genus-ordered, so the
+        // stable rank sort is the identity on it; builder-ordered and
+        // cadkernel-assembled documents are re-ranked. Documents
+        // carrying raw binary tokens are left untouched, keeping
+        // SAB-captured echo rewrites byte-faithful; an asmheader-
+        // carrying document is authored-shaped (the ASM-era file
+        // order, asmheader first) — never re-rank it.
+        let reordered;
+        let doc = if !doc.records.is_empty()
+            && !doc.records.iter().any(|r| r.entity_type == "asmheader")
+            && !doc
+                .records
+                .iter()
+                .any(|r| r.tokens.iter().any(|t| matches!(t, SatToken::Sab { .. })))
+        {
+            reordered = Self::reorder_restore_file(doc);
+            &reordered
+        } else {
+            doc
+        };
+
+        // The ASM header record (§20 G-A genus, verified live: every
+        // authored specimen SAB across all four eras — 136/136
+        // carriers — opens with `asmheader $-1 $-1 "232.6.0.65535"`
+        // before the body). The SatDocument keeps the DXF-SAT
+        // convention of body at index 0 (`new_body`'s recorded rule),
+        // so the record prepends here at the SAB boundary and shifts
+        // every wire pointer by +1. Captured documents (raw binary
+        // tokens) and documents already carrying an asmheader pass
+        // through untouched.
+        let asm;
+        let doc = if !doc.records.is_empty()
+            && !doc
+                .records
+                .iter()
+                .any(|r| r.tokens.iter().any(|t| matches!(t, SatToken::Sab { .. })))
+            && !doc
+                .records
+                .iter()
+                .any(|r| r.entity_type == "asmheader")
+        {
+            asm = Self::prepend_asmheader(doc);
+            &asm
+        } else {
+            doc
+        };
+
+        // Restore-file body count: the record inventory, passed to the
+        // header writer so the declaration covers what assembled
+        // documents actually carry. Documents built without
+        // `SatDocument::new_body()` (cadkernel's acis::append pushes
+        // records with the header left at its default 0) still declare
+        // the bodies they carry — a strict restorer (BricsCAD
+        // 2026-09-22 region probe: "Modeling operation error: missing
+        // logical in restore file") rejects a zero declaration.
+        let body_count = doc
+            .records
+            .iter()
+            .filter(|record| record.entity_type == "body")
+            .count();
+
         // Header
-        Self::write_header(&mut buf, &doc.header);
+        Self::write_header(&mut buf, &doc.header, body_count, era);
 
         // Entity records
         for record in &doc.records {
             Self::write_record(&mut buf, record);
         }
 
-        // End marker, with no end-of-record tag, written as tagged components
-        // (`End-of-ASM-data` for ShapeManager bodies, `End-of-ACIS-data`
-        // before); the reference application rejects a 22300 body closed with
-        // a single-string marker.
-        let kernel = if Self::is_asm(&doc.header) { "ASM" } else { "ACIS" };
-        for part in ["End", "of", kernel] {
-            Self::write_subtype(&mut buf, part);
-        }
-        Self::write_entity_type(&mut buf, "data");
+        // End marker — HER SEGMENTED FORM, era-flavored (see
+        // `SabEra::terminator`).
+        buf.extend_from_slice(era.terminator());
 
         buf
     }
 
-    /// ShapeManager-era data (ASM 218 and later, as stored in R2013+ AcDs).
-    fn is_asm(header: &SatHeader) -> bool {
-        header.version.sat_version_number() >= 21800
-    }
+    fn write_header(buf: &mut Vec<u8>, header: &SatHeader, body_count: usize, era: SabEra) {
+        // Magic (the era's 15-byte prefix; the version u32 follows)
+        buf.extend_from_slice(era.magic());
 
-    fn write_header(buf: &mut Vec<u8>, header: &SatHeader) {
-        // Magic
-        buf.extend_from_slice(SAB_MAGIC);
-
-        // Version number (4 bytes LE)
-        let ver = header.version.sat_version_number();
+        // Version number (4 bytes LE) — the era's authored flavor;
+        // Legacy keeps the doc's SAT version number (ACIS 7.0 → 700).
+        let ver = era.version_number(header.version.sat_version_number());
         buf.extend_from_slice(&ver.to_le_bytes());
 
         // num_records field (4 bytes LE) — always 0 for ACIS 7.0+
+        // (and 0 in every authored era carrier).
         let num_records: u32 = if header.version.has_explicit_indices() {
             0
         } else {
@@ -139,20 +341,27 @@ impl SabWriter {
         };
         buf.extend_from_slice(&num_records.to_le_bytes());
 
-        // num_bodies (4 bytes LE)
-        buf.extend_from_slice(&(header.num_bodies as u32).to_le_bytes());
+        // num_bodies (4 bytes LE) — the restore-file top-level body
+        // declaration: the maximum of the parsed header and the record
+        // inventory. A strict restorer (BricsCAD 2026-09-22 region
+        // probe: "Modeling operation error: missing logical in
+        // restore file") rejects a zero declaration even when the
+        // records carry bodies; captured role streams may declare MORE
+        // than the inventory (face/transform-only fragments keep their
+        // native 1) — the maximum keeps both constructed and captured
+        // genus restorable. The authored era profiles carry the
+        // CONSTANT 2 here (every authored carrier, even one-body
+        // files) — the max never under-declares a multi-body doc.
+        let declared = header.num_bodies.max(body_count);
+        buf.extend_from_slice(&era.bodies_field(declared).to_le_bytes());
 
-        // Flags (4 bytes LE): bit 0 is history. A ShapeManager body also needs
-        // bits 2 and 3 (12, as the reference application's own 21800 bodies
-        // carry); measured: 21800 bodies are rejected with 0/1/4/8 and
-        // restored with 12, 22300 bodies restore with 12 too.
-        let mut history: u32 = if header.has_history { 1 } else { 0 };
-        if Self::is_asm(header) {
-            history |= 12;
-        }
+        // has_history (4 bytes LE) — the era-coded authored field
+        // (26/24/12/4), or the legacy flag.
+        let history = era.history_field(header.has_history);
         buf.extend_from_slice(&history.to_le_bytes());
 
-        // Product info strings
+        // Product info strings — the writer's own identity (the
+        // author-identity rule: never forge Autodesk stamps).
         Self::write_string(buf, &header.product_id);
         Self::write_string(buf, &header.product_version);
         Self::write_string(buf, &header.date);
@@ -166,6 +375,28 @@ impl SabWriter {
     }
 
     fn write_record(buf: &mut Vec<u8>, record: &SatRecord) {
+        // Class-width completion (2026-09-22 region probe): assembled
+        // records can be short-form — missing the trailing role tokens
+        // natives always emit — and the SAB stream has no record
+        // terminator: every class is read as a fixed-width token list,
+        // so one short `plane-surface`, `straight-curve` or `edge`
+        // shifts every subsequent record and surfaces in strict
+        // restorers (BricsCAD regional audit: "missing logical in
+        // restore file", then "Data stream is empty"). Completion is
+        // gated on the exact assembled width of each class so
+        // captured records — full-width, including role variants
+        // like `reversed_v` — pass through untouched.
+        let completed;
+        let record = match Self::complete_class_width(&record.entity_type, &record.tokens) {
+            Some(tokens) => {
+                let mut full = record.clone();
+                full.tokens = tokens;
+                completed = full;
+                &completed
+            }
+            None => record,
+        };
+
         // Entity type — may be compound with multiple hyphens.
         // In SAB, each level of the class hierarchy is a separate tag:
         //   "plane-surface"               → 0x0E("plane") + 0x0D("surface")
@@ -227,46 +458,15 @@ impl SabWriter {
         // composite position(0x13)/direction(0x14) tags for coordinate triplets.
         let layout = CoordLayout::for_entity(&record.entity_type);
         let ints_as_doubles = Self::integers_are_doubles(&record.entity_type);
-        let mut contextual;
+        let contextual;
         let tokens = if base_entity_type(&record.entity_type) == "face" {
             contextual = Self::encode_face_boolean_roles(&record.tokens);
-            &contextual
-        } else if base_entity_type(&record.entity_type) == "wire" {
-            // The wire side is TRUE for "out", unlike the generic mapping.
-            contextual = record
-                .tokens
-                .iter()
-                .map(|token| match token.as_ident() {
-                    Some("out") => SatToken::True,
-                    Some("in") => SatToken::False,
-                    _ => token.clone(),
-                })
-                .collect();
             &contextual
         } else if matches!(
             record.entity_type.as_str(),
             "intcurve-curve" | "spline-surface" | "pcurve"
         ) {
             contextual = Self::encode_spline_numeric_roles(&record.entity_type, &record.tokens);
-            &contextual
-        } else if record.entity_type == "eye_refinement" {
-            // Labelled fields: the tolerances are doubles even when SAT
-            // writes them as whole numbers; the grid counts stay integers.
-            contextual = record.tokens.clone();
-            for index in 1..contextual.len() {
-                let label = match &contextual[index - 1] {
-                    SatToken::String(label) | SatToken::Ident(label) => label.as_str(),
-                    _ => continue,
-                };
-                if matches!(
-                    label,
-                    "stol" | "ntol" | "dsil" | "flatness" | "pixarea" | "hmax" | "gridar"
-                ) {
-                    if let SatToken::Integer(value) = contextual[index] {
-                        contextual[index] = SatToken::Float(value as f64);
-                    }
-                }
-            }
             &contextual
         } else {
             &record.tokens
@@ -275,6 +475,201 @@ impl SabWriter {
 
         // End of record
         buf.push(tags::END_OF_RECORD);
+    }
+
+    /// Prepend the ASM header record: `asmheader $-1 $-1 "232.6.0.65535"`
+    /// — the authored SAB genus's opening record (era-uniform, byte-
+    /// identical across all 136 specimen carriers). Every wire pointer
+    /// shifts by +1: the SatDocument's indices are DXF-SAT-convention
+    /// (body at 0), the SAB stream's record 0 is the asmheader.
+    fn prepend_asmheader(doc: &SatDocument) -> SatDocument {
+        let shift = |p: SatPointer| {
+            if p.0 >= 0 {
+                SatPointer::new(p.0 + 1)
+            } else {
+                p
+            }
+        };
+        let mut out = doc.clone();
+        out.records = Vec::with_capacity(doc.records.len() + 1);
+        let mut header = SatRecord::new(0, "asmheader");
+        header.attribute = SatPointer::NULL;
+        header.tokens.push(SatToken::String("232.6.0.65535".to_string()));
+        out.records.push(header);
+        for (index, record) in doc.records.iter().enumerate() {
+            let mut record = record.clone();
+            record.index = index as i32 + 1;
+            record.attribute = shift(record.attribute);
+            for token in record.tokens.iter_mut() {
+                if let SatToken::Pointer(p) = token {
+                    *token = SatToken::Pointer(shift(*p));
+                }
+            }
+            out.records.push(record);
+        }
+        out
+    }
+
+    /// Restore-file record order: BFS first-mention traversal — the
+    /// authored genus's own emission rule, verified against the
+    /// authored Box_2018 stream (its full record sequence reproduces
+    /// exactly): seed with every `body` (the strict restorer takes
+    /// the leading records as the top-level entities to restore —
+    /// the 2026-09-22 probe verdict preserved), then walk the graph
+    /// breadth-first, each record emitted once at first mention —
+    /// the attribute pointer mentioned first, then the token
+    /// pointers in token order. Unreachable records follow in
+    /// index order; the `End-of-*` terminator stays last. An
+    /// authored-shaped document is already in BFS order, so the
+    /// traversal is the identity on it. Position-based ids are
+    /// remapped across every pointer token and the attribute field.
+    fn reorder_restore_file(doc: &SatDocument) -> SatDocument {
+        let is_terminator =
+            |record: &SatRecord| record.entity_type.starts_with("End-of");
+        let in_range = |p: SatPointer| p.0 >= 0 && (p.0 as usize) < doc.records.len();
+
+        let mut order: Vec<usize> = Vec::with_capacity(doc.records.len());
+        let mut mentioned = vec![false; doc.records.len()];
+        let mut queue: Vec<usize> = Vec::with_capacity(doc.records.len());
+        let mut head = 0;
+
+        // Seed: every body record, in index order.
+        for (i, record) in doc.records.iter().enumerate() {
+            if record.entity_type == "body" && !mentioned[i] {
+                mentioned[i] = true;
+                queue.push(i);
+            }
+        }
+        // BFS first-mention: attribute pointer first, then the token
+        // pointers in token order (the authored emission rule).
+        while head < queue.len() {
+            let i = queue[head];
+            head += 1;
+            order.push(i);
+            let record = &doc.records[i];
+            let mut targets: Vec<usize> = Vec::new();
+            if in_range(record.attribute) {
+                targets.push(record.attribute.0 as usize);
+            }
+            for token in &record.tokens {
+                if let SatToken::Pointer(p) = token {
+                    if in_range(*p) {
+                        targets.push(p.0 as usize);
+                    }
+                }
+            }
+            for target in targets {
+                if !mentioned[target] {
+                    mentioned[target] = true;
+                    queue.push(target);
+                }
+            }
+        }
+        // Orphans: unreachable non-terminators, in index order.
+        for (i, record) in doc.records.iter().enumerate() {
+            if !mentioned[i] && !is_terminator(record) {
+                mentioned[i] = true;
+                order.push(i);
+            }
+        }
+        // The terminator stays last.
+        for (i, record) in doc.records.iter().enumerate() {
+            if is_terminator(record) {
+                order.push(i);
+            }
+        }
+        let mut old_to_new = vec![0i32; doc.records.len()];
+        for (new_pos, &old) in order.iter().enumerate() {
+            old_to_new[old] = new_pos as i32;
+        }
+        let remap = |p: SatPointer| {
+            if p.0 >= 0 && (p.0 as usize) < old_to_new.len() {
+                SatPointer::new(old_to_new[p.0 as usize])
+            } else {
+                p
+            }
+        };
+        let mut out = doc.clone();
+        out.records = order
+            .iter()
+            .enumerate()
+            .map(|(new_pos, &old)| {
+                let mut record = doc.records[old].clone();
+                record.index = new_pos as i32;
+                record.attribute = remap(record.attribute);
+                for token in record.tokens.iter_mut() {
+                    if let SatToken::Pointer(p) = token {
+                        *token = SatToken::Pointer(remap(*p));
+                    }
+                }
+                record
+            })
+            .collect();
+        out
+    }
+
+    /// Append the native tail tokens of assembled short-form records.
+    /// The width gate is the captured-genus guard: only the exact
+    /// assembled widths complete, mirroring the primitive builders
+    /// (`add_plane_surface` / `add_straight_curve` / `add_edge`).
+    fn complete_class_width(entity_type: &str, tokens: &[SatToken]) -> Option<Vec<SatToken>> {
+        let tail: Vec<SatToken> = match (entity_type, tokens.len()) {
+            // `add_plane_surface` width 15: $-1 + 9 floats + role tail.
+            ("plane-surface", 10) => vec![
+                SatToken::Ident("forward_v".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            // `add_straight_curve` width 9: $-1 + 6 floats + I I.
+            ("straight-curve", 7) => vec![
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            // `add_edge` width 9: ... + sense + the @7 unknown tether.
+            ("edge", 8) => vec![SatToken::String("unknown".to_string())],
+            // The conic/quadric families (the 2026-09-28 cylinder verdict,
+            // re-confirmed from the 2026-09-24 cylinder_2 autopsy):
+            // cadkernel's exporter emits the geometry spine without the
+            // trailing role idents — its ellipse carries no I I, its cone
+            // no `forward I I I I` — while the acadrust primitives (the
+            // BCAD-accepted genus; gen_all's cylinder) always append them.
+            // The fixed-width class reader desyncs from the first short
+            // record ("missing logical in restore file" → "Data stream is
+            // empty"). Each arm is gated on the exact cadkernel-parsed
+            // width (verified live: ellipse 11, cone 16) and completes to
+            // the primitive's form.
+            ("ellipse-curve", 11) => vec![
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            ("cone-surface", 16) => vec![
+                SatToken::Ident("forward".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            ("sphere-surface", 11) => vec![
+                SatToken::Ident("forward_v".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            ("torus-surface", 12) => vec![
+                SatToken::Ident("forward_v".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+                SatToken::Ident("I".to_string()),
+            ],
+            _ => return None,
+        };
+        let mut completed = tokens.to_vec();
+        completed.extend_from_slice(&tail);
+        Some(completed)
     }
 
     /// Write tokens with coordinate grouping based on entity type layout.
@@ -457,9 +852,9 @@ impl SabWriter {
     fn string_to_boolean(s: &str) -> Option<bool> {
         match s {
             "forward_v" | "I" | "forward" | "single" | "in" | "no_rotate" | "no_reflect"
-            | "no_shear" | "surf2" => Some(true),
+            | "no_shear" => Some(true),
             "reverse_v" | "reversed_v" | "reversed" | "double" | "out" | "F" | "rotate"
-            | "reflect" | "shear" | "surf1" => Some(false),
+            | "reflect" | "shear" => Some(false),
             _ => None,
         }
     }
@@ -485,7 +880,7 @@ impl SabWriter {
             return;
         }
         match name {
-            "full" | "open" | "none" | "closed" | "periodic" | "UNEXTENDED" => {
+            "full" | "open" | "none" | "closed" | "periodic" => {
                 let value: i32 = match name {
                     "closed" => 1,
                     "periodic" => 2,
@@ -546,70 +941,27 @@ impl SabWriter {
         let mut doubles = Vec::new();
         let mut enums = Vec::new();
         let mut subtypes = Vec::new();
-        // Per open subtype block: where an interpolated curve's pcurves end.
-        let mut pcurve_ends: Vec<Option<usize>> = Vec::new();
-        let in_int_cur =
-            |subtypes: &[Option<&str>]| matches!(subtypes.last(), Some(Some(name)) if name.ends_with("cur"));
         for (index, token) in tokens.iter().enumerate() {
             match token.as_ident() {
-                Some("{") => {
-                    subtypes.push(tokens.get(index + 1).and_then(SatToken::as_ident));
-                    pcurve_ends.push(None);
-                }
+                Some("{") => subtypes.push(tokens.get(index + 1).and_then(SatToken::as_ident)),
                 Some("}") => {
-                    // The pcurves are followed by two logicals and the
-                    // curve's discontinuity lists.
-                    if let (true, Some(Some(end))) = (in_int_cur(&subtypes), pcurve_ends.last()) {
-                        if tokens.get(*end).is_some_and(Self::is_logical)
-                            && tokens.get(end + 1).is_some_and(Self::is_logical)
-                        {
-                            doubles.extend(Self::discontinuity_doubles(tokens, end + 2, 3));
-                        }
-                    }
                     subtypes.pop();
-                    pcurve_ends.pop();
-                }
-                Some("nullbs") if in_int_cur(&subtypes) => {
-                    if let Some(end) = pcurve_ends.last_mut() {
-                        *end = Some(index + 1);
-                    }
                 }
                 _ => {}
             }
             if matches!(token.as_ident(), Some("nurbs" | "nubs")) {
                 let previous = index.checked_sub(1).and_then(|i| tokens[i].as_ident());
                 let parent = index.checked_sub(2).and_then(|i| tokens[i].as_ident());
-                // ShapeManager curves write `exact_int_cur <version> full`;
-                // the other interpolated curves (`surfintcur`, ...) open with
-                // the same approximating `full nubs` spline.
-                let parent = match subtypes.last() {
-                    Some(Some(name)) if name.ends_with("cur") => Some("exactcur"),
-                    _ => parent,
-                };
-                let pcurve = in_int_cur(&subtypes) && previous != Some("full");
                 let dimensions = match (parent, previous) {
                     (Some("exactcur"), Some("full")) => Some((3, false)),
                     (Some("exactsur"), Some("full")) => Some((3, true)),
                     (_, Some("exppc")) => Some((2, false)),
-                    // A 2D pcurve of an interpolated curve: no fit tolerance.
-                    _ if pcurve => Some((2, false)),
                     _ => None,
                 };
                 if let Some((dimensions, surface)) = dimensions {
                     if let Some(fields) =
-                        Self::nurbs_double_fields(tokens, index, dimensions, surface, !pcurve)
+                        Self::nurbs_double_fields(tokens, index, dimensions, surface)
                     {
-                        let end = fields.iter().max().map(|last| last + 1);
-                        if pcurve {
-                            if let Some(slot) = pcurve_ends.last_mut() {
-                                *slot = end;
-                            }
-                        } else if surface {
-                            // u and v discontinuity lists follow the fit tolerance.
-                            if let Some(end) = end {
-                                doubles.extend(Self::discontinuity_doubles(tokens, end, 6));
-                            }
-                        }
                         doubles.extend(fields);
                         if previous == Some("full") {
                             enums.push(index - 1);
@@ -626,15 +978,12 @@ impl SabWriter {
             }
             if (token.as_ident() == Some("F") || matches!(token, SatToken::False))
                 && index + 1 < tokens.len()
-                && (matches!(
+                && matches!(
                     subtypes.last(),
-                    None | Some(Some("exactcur" | "exact_int_cur" | "exactsur" | "exppc"))
-                ) || in_int_cur(&subtypes))
+                    None | Some(Some("exactcur" | "exactsur" | "exppc"))
+                )
             {
                 doubles.push(index + 1);
-            }
-            if token.as_ident() == Some("UNEXTENDED") && !subtypes.is_empty() {
-                enums.push(index);
             }
             // An explicit pcurve ends with an inline analytic support surface.
             // All numbers in that geometry (including bounded intervals) are doubles.
@@ -649,26 +998,6 @@ impl SabWriter {
                     (index + 1..tokens.len()).take_while(|&i| tokens[i].as_ident() != Some("}")),
                 );
             }
-            // An interpolated curve stores its analytic support surfaces
-            // inline after the spline; their numbers are doubles, while the
-            // trailing fields after the `nullbs` pcurves stay integers.
-            if entity_type == "intcurve-curve"
-                && matches!(subtypes.last(), Some(Some(name)) if name.ends_with("cur"))
-                && matches!(
-                    token.as_ident(),
-                    Some("plane" | "cone" | "sphere" | "torus")
-                )
-            {
-                doubles.extend((index + 1..tokens.len()).take_while(|&i| {
-                    !matches!(
-                        tokens[i].as_ident(),
-                        Some(
-                            "plane" | "cone" | "sphere" | "torus" | "spline" | "nullbs" | "nubs"
-                                | "nurbs" | "{" | "}"
-                        )
-                    )
-                }));
-            }
         }
         if entity_type == "pcurve" && tokens.len() >= 2 {
             doubles.extend(tokens.len() - 2..tokens.len());
@@ -682,7 +1011,7 @@ impl SabWriter {
             if let SatToken::Ident(name) = &result[index] {
                 if matches!(
                     name.as_str(),
-                    "full" | "open" | "closed" | "periodic" | "none" | "UNEXTENDED"
+                    "full" | "open" | "closed" | "periodic" | "none"
                 ) {
                     result[index] = SatToken::Enum(name.clone());
                 }
@@ -696,7 +1025,6 @@ impl SabWriter {
         start: usize,
         dimensions: usize,
         surface: bool,
-        fit_tolerance: bool,
     ) -> Option<Vec<usize>> {
         let integer = |index: usize| usize::try_from(tokens.get(index)?.as_integer()?).ok();
         let rational = tokens.get(start)?.as_ident()? == "nurbs";
@@ -731,45 +1059,13 @@ impl SabWriter {
         }
         let values = controls
             .checked_mul(dimensions + usize::from(rational))?
-            .checked_add(usize::from(fit_tolerance))?;
+            .checked_add(1)?;
         let end = position.checked_add(values)?;
         for (offset, token) in tokens.get(position..end)?.iter().enumerate() {
             token.as_float()?;
             doubles.push(position + offset);
         }
         Some(doubles)
-    }
-
-    /// A logical written as a keyword (`I`, `F`, `T`) or a boolean literal.
-    fn is_logical(token: &SatToken) -> bool {
-        matches!(token, SatToken::True | SatToken::False)
-            || matches!(token.as_ident(), Some("I" | "F" | "T"))
-    }
-
-    /// `groups` discontinuity lists from `start`: each an integer count
-    /// followed by that many parameter values, which are doubles. Nothing
-    /// when the tokens do not have that shape.
-    fn discontinuity_doubles(tokens: &[SatToken], start: usize, groups: usize) -> Vec<usize> {
-        let mut doubles = Vec::new();
-        let mut position = start;
-        for _ in 0..groups {
-            let Some(count) = tokens
-                .get(position)
-                .and_then(SatToken::as_integer)
-                .and_then(|count| usize::try_from(count).ok())
-            else {
-                return Vec::new();
-            };
-            let values = position + 1..position + 1 + count;
-            if tokens.get(values.clone()).map_or(true, |values| {
-                values.iter().any(|value| value.as_float().is_none())
-            }) {
-                return Vec::new();
-            }
-            doubles.extend(values);
-            position += 1 + count;
-        }
-        doubles
     }
 
     /// Determine whether direct geometry integer literals are scalar doubles.
@@ -789,9 +1085,6 @@ impl SabWriter {
                 | "sphere-surface"
                 | "torus-surface"
                 | "edge"
-                // Tolerant edges and coedges keep their parameter range.
-                | "tedge-edge"
-                | "tcoedge-coedge"
         )
     }
 
@@ -1087,8 +1380,6 @@ impl SabReader {
         //   surface: sense (forward_v/reversed_v), bounds (I/F)
         for record in &mut records {
             convert_sab_booleans(&record.entity_type, &mut record.tokens);
-            name_curve_enums(&mut record.tokens);
-            name_spline_keywords(&record.entity_type, &mut record.tokens);
         }
 
         Ok((SatDocument { header, records }, pos))
@@ -1295,182 +1586,6 @@ impl SabReader {
 // SAB boolean → SAT keyword conversion
 // ============================================================================
 
-/// Name the enumeration tags of an exact spline curve the way SAT text
-/// writes them: `exact_int_cur <version> full nubs <degree> open ...
-/// UNEXTENDED UNEXTENDED }` (completeness, closure, then the two end
-/// extensions). Values not seen in reference output stay numeric.
-fn name_curve_enums(tokens: &mut [SatToken]) {
-    let mut depth = 0usize;
-    let mut role = None;
-    let mut parcur = false;
-    for index in 0..tokens.len() {
-        match tokens[index].as_ident() {
-            Some("{") => {
-                depth += 1;
-                if depth == 1 {
-                    parcur = tokens.get(index + 1).and_then(SatToken::as_ident) == Some("parcur");
-                }
-                // Every interpolated curve (`exactcur`, `surfintcur`,
-                // `parcur`, ...) opens with the same `full nubs` spline.
-                if tokens
-                    .get(index + 1)
-                    .and_then(SatToken::as_ident)
-                    .is_some_and(|name| name.ends_with("cur"))
-                    && depth == 1
-                {
-                    role = Some(0);
-                }
-                continue;
-            }
-            Some("}") => {
-                // A `parcur` ends with the logical naming its surface.
-                if depth == 1 && role.is_some() && index > 0 {
-                    let surface = match &tokens[index - 1] {
-                        SatToken::Enum(value) if value == "F" => Some("surf1"),
-                        SatToken::Enum(value) if value == "I" => Some("surf2"),
-                        _ => None,
-                    };
-                    if let (true, Some(surface)) = (parcur, surface) {
-                        tokens[index - 1] = SatToken::Ident(surface.to_string());
-                    }
-                }
-                depth = depth.saturating_sub(1);
-                if depth == 0 {
-                    role = None;
-                }
-                continue;
-            }
-            // The curve spline, then any 2D pcurve spline: closure follows.
-            Some("nubs" | "nurbs") if role.is_some_and(|role| role >= 1) => {
-                role = Some(2);
-                continue;
-            }
-            _ => {}
-        }
-        // Only the curve's own fields; nested subtypes keep their values.
-        if depth != 1 {
-            continue;
-        }
-        let (Some(current), SatToken::Sab { tag: 0x15, data }) = (role, &tokens[index]) else {
-            continue;
-        };
-        let value = data
-            .get(..4)
-            .map(|bytes| i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
-        let name = match (current, value) {
-            (0, Some(0)) => Some("full"),
-            (2, Some(0)) => Some("open"),
-            (2, Some(1)) => Some("closed"),
-            (2, Some(2)) => Some("periodic"),
-            (3.., Some(0)) => Some("UNEXTENDED"),
-            _ => None,
-        };
-        if let Some(name) = name {
-            tokens[index] = SatToken::Enum(name.to_string());
-        }
-        role = Some(current + 1);
-    }
-}
-
-/// Name the senses and enumerations of spline records the way SAT text
-/// writes them: the sense of a spline surface or pcurve and of the support
-/// surfaces stored inline in an interpolated curve (`forward_v` for plane,
-/// sphere and torus, `forward` for cone and spline), and the `exactsur` /
-/// `exppc` spline enumerations (completeness, closures, singularities).
-fn name_spline_keywords(entity_type: &str, tokens: &mut [SatToken]) {
-    if !matches!(entity_type, "intcurve-curve" | "spline-surface" | "pcurve") {
-        return;
-    }
-    let logical = |token: &SatToken| match token {
-        SatToken::True => Some(true),
-        SatToken::False => Some(false),
-        SatToken::Enum(name) => match name.as_str() {
-            "I" | "forward_v" | "forward" => Some(true),
-            "F" | "reverse_v" | "reversed" => Some(false),
-            _ => None,
-        },
-        _ => None,
-    };
-    // (forward name, reversed name, logicals to skip before the sense)
-    let mut sense: Option<(&str, &str, usize)> = (entity_type != "intcurve-curve")
-        .then_some(("forward", "reversed", 0));
-    // Per open block: (subtype, enumeration role).
-    let mut blocks: Vec<(String, usize)> = Vec::new();
-    for index in 0..tokens.len() {
-        match tokens[index].as_ident() {
-            Some("{") => {
-                let name = tokens.get(index + 1).and_then(SatToken::as_ident).unwrap_or("");
-                blocks.push((name.to_string(), 0));
-                continue;
-            }
-            Some("}") => {
-                blocks.pop();
-                continue;
-            }
-            Some("nubs" | "nurbs") => {
-                if let Some((_, role)) = blocks.last_mut() {
-                    *role = 1;
-                }
-                continue;
-            }
-            Some("plane" | "sphere" | "torus") if !blocks.is_empty() => {
-                sense = Some(("forward_v", "reverse_v", 0));
-                continue;
-            }
-            Some("cone") if !blocks.is_empty() => {
-                sense = Some(("forward", "reversed", 2));
-                continue;
-            }
-            Some("spline") if !blocks.is_empty() => {
-                sense = Some(("forward", "reversed", 0));
-                continue;
-            }
-            _ => {}
-        }
-        if let (Some((forward, reversed, skip)), Some(value)) = (sense, logical(&tokens[index])) {
-            if skip > 0 {
-                sense = Some((forward, reversed, skip - 1));
-            } else {
-                tokens[index] = SatToken::Enum(if value { forward } else { reversed }.to_string());
-                sense = None;
-            }
-            continue;
-        }
-        let Some((block, role)) = blocks.last_mut() else { continue };
-        let SatToken::Sab { tag: 0x15, data } = &tokens[index] else { continue };
-        let value = data
-            .get(..4)
-            .map(|bytes| i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
-        let name = match (block.as_str(), *role, value) {
-            ("exactsur", 0, Some(0)) => Some("full"),
-            ("exactsur", 1..=2, Some(0)) | ("exppc", 1, Some(0)) => Some("open"),
-            ("exactsur", 1..=2, Some(1)) | ("exppc", 1, Some(1)) => Some("closed"),
-            ("exactsur", 1..=2, Some(2)) | ("exppc", 1, Some(2)) => Some("periodic"),
-            ("exactsur", 3..=4, Some(0)) => Some("none"),
-            _ => None,
-        };
-        if let Some(name) = name {
-            tokens[index] = SatToken::Enum(name.to_string());
-        }
-        if *role > 0 {
-            *role += 1;
-        }
-    }
-    // The remaining logicals of a pcurve (its inline surface's bounds) are
-    // infinite/finite flags.
-    if entity_type == "pcurve" {
-        for token in tokens.iter_mut() {
-            if let Some(infinite) = match token {
-                SatToken::True => Some(true),
-                SatToken::False => Some(false),
-                _ => None,
-            } {
-                *token = SatToken::Enum(if infinite { "I" } else { "F" }.to_string());
-            }
-        }
-    }
-}
-
 /// Convert SAB TRUE/FALSE tokens to ACIS SAT keywords based on entity context.
 ///
 /// SAB binary uses generic TRUE(0x0B)/FALSE(0x0A) tags for all boolean fields.
@@ -1555,18 +1670,6 @@ fn convert_sab_booleans(entity_type: &str, tokens: &mut Vec<SatToken>) {
                     }
                 };
                 tokens[index] = SatToken::Ident(name.to_string());
-            }
-        }
-        "wire" => {
-            // wire: ... $shell $subshell side #. TRUE is "out", as in the
-            // reference application's SAT text of a polyline profile body.
-            if let Some(token) = tokens
-                .iter_mut()
-                .rev()
-                .find(|token| matches!(token, SatToken::True | SatToken::False))
-            {
-                let out = matches!(token, SatToken::True);
-                *token = SatToken::Enum(if out { "out" } else { "in" }.to_string());
             }
         }
         "coedge" => {
@@ -1790,13 +1893,12 @@ mod tests {
         // Check version
         let ver = u32::from_le_bytes([sab[15], sab[16], sab[17], sab[18]]);
         assert_eq!(ver, 700);
-        // The End-of-ACIS-data marker closes the body as tagged components.
-        let mut end = Vec::new();
-        for part in ["End", "of", "ACIS"] {
-            SabWriter::write_subtype(&mut end, part);
-        }
-        SabWriter::write_entity_type(&mut end, "data");
-        assert!(sab.ends_with(&end));
+        // Check End-of-ACIS-data is present — HER SEGMENTED FORM (the
+        // 2026-09-30 terminator packet: the name as chained SUBTYPE
+        // segments + the ENTITY_TYPE "data"; the legacy era carries
+        // the ACIS flavor word)
+        let end_str = b"\x0e\x03End\x0e\x02of\x0e\x04ACIS\x0d\x04data";
+        assert!(sab.windows(end_str.len()).any(|w| w == end_str));
     }
 
     #[test]
@@ -1816,10 +1918,13 @@ mod tests {
         let roundtrip = SabReader::read(&sab).unwrap();
 
         assert_eq!(roundtrip.header.version, doc.header.version);
-        assert_eq!(roundtrip.records.len(), doc.records.len());
-        assert_eq!(roundtrip.records[0].entity_type, "body");
-        assert_eq!(roundtrip.records[3].entity_type, "face");
-        assert_eq!(roundtrip.records[4].entity_type, "plane-surface");
+        // The SAB stream opens with the asmheader record (the authored
+        // genus), so every parsed record index shifts by one.
+        assert_eq!(roundtrip.records.len(), doc.records.len() + 1);
+        assert_eq!(roundtrip.records[0].entity_type, "asmheader");
+        assert_eq!(roundtrip.records[1].entity_type, "body");
+        assert_eq!(roundtrip.records[4].entity_type, "face");
+        assert_eq!(roundtrip.records[5].entity_type, "plane-surface");
     }
 
     #[test]
@@ -1839,8 +1944,9 @@ mod tests {
 
         // Roundtrip
         let roundtrip = SabReader::read(&sab).unwrap();
-        assert_eq!(roundtrip.records[0].entity_type, "plane-surface");
-        assert_eq!(roundtrip.records[1].entity_type, "straight-curve");
+        assert_eq!(roundtrip.records[0].entity_type, "asmheader");
+        assert_eq!(roundtrip.records[1].entity_type, "plane-surface");
+        assert_eq!(roundtrip.records[2].entity_type, "straight-curve");
     }
 
     #[test]
@@ -1857,13 +1963,13 @@ mod tests {
         let roundtrip = SabReader::read(&sab).unwrap();
 
         // forward/single → Enum("forward"), Enum("single")
-        let face1 = &roundtrip.records[0];
+        let face1 = &roundtrip.records[1];
         let last_two: Vec<_> = face1.tokens.iter().rev().take(2).collect();
         assert_eq!(last_two[0], &SatToken::Enum("single".to_string()));
         assert_eq!(last_two[1], &SatToken::Enum("forward".to_string()));
 
         // reversed/double → Enum("reversed"), Enum("double")
-        let face2 = &roundtrip.records[1];
+        let face2 = &roundtrip.records[2];
         let last_two: Vec<_> = face2.tokens.iter().rev().take(2).collect();
         assert_eq!(last_two[0], &SatToken::Enum("double".to_string()));
         assert_eq!(last_two[1], &SatToken::Enum("reversed".to_string()));
@@ -1877,7 +1983,14 @@ mod tests {
             End-of-ACIS-data\n";
         let document = SatDocument::parse(sat).unwrap();
         let roundtrip = SabReader::read(&SabWriter::write(&document)).unwrap();
-        assert_eq!(roundtrip.records[0].tokens, document.records[0].tokens);
+        // The asmheader record (the authored genus) shifts the stream
+        // by one. This document carries no body, so the BFS
+        // first-mention traversal has no seed and the records keep
+        // their index order (the orphan rule) — the face stays first
+        // and lands at 1 after the asmheader. The transform
+        // roundtrips its matrix as raw tag-20 blobs (the recorded
+        // SAB matrix form); its value arms check below.
+        assert_eq!(roundtrip.records[1].tokens, document.records[0].tokens);
         assert_eq!(roundtrip.placement(), document.placement());
         let transform = roundtrip
             .records
@@ -1892,7 +2005,8 @@ mod tests {
             ["no_rotate", "no_reflect", "no_shear"]
         );
         let text = roundtrip.to_sat_string();
-        assert!(text.starts_with("21200 2 1 1\n"));
+        // The asmheader record counts in the SAT header's record census.
+        assert!(text.starts_with("21200 3 1 1\n"));
         assert!(text.contains(" forward double out #\n"));
         assert!(text.contains(" no_rotate no_reflect no_shear #\n"));
     }
@@ -1985,7 +2099,13 @@ mod tests {
             }
         ));
         assert_eq!(tokens[block + 3].as_ident(), Some("both"));
-        assert_eq!(tokens[block + 4], SatToken::Enum("open".to_string()));
+        assert!(matches!(
+            tokens[block + 4],
+            SatToken::Sab {
+                tag: tags::ENUM,
+                ..
+            }
+        ));
         assert!(matches!(
             tokens[block + 10],
             SatToken::Sab {
@@ -2063,7 +2183,14 @@ mod tests {
                 SatDocument::parse(&doc.to_sat_string()).unwrap(),
                 SabReader::read(&SabWriter::write(&doc)).unwrap(),
             ] {
-                let curve = SatPCurve::from_record(&read.records[index as usize]).unwrap();
+                // The SAB stream's asmheader record shifts indices by
+                // one, so locate the pcurve by class, not by index.
+                let curve_record = read
+                    .records
+                    .iter()
+                    .find(|record| record.entity_type == "pcurve")
+                    .unwrap();
+                let curve = SatPCurve::from_record(curve_record).unwrap();
                 assert_eq!(curve.sense(), sense);
             }
         }
@@ -2140,7 +2267,29 @@ mod tests {
                 let crate::EntityType::Solid3D(solid) = read.entities().next().unwrap() else {
                     panic!("missing solid");
                 };
-                assert_eq!(solid.acis_data.sab_data, expected, "DWG {version:?}");
+                // The DWG target's era profile: the record body is the
+                // legacy bytes; the header prefix (magic + version +
+                // the three ints, 31 bytes) is the era's authored form
+                // (Legacy for pre-2007; ACIS|21200/21500/21800 or
+                // ASM|22300 + the constant-2 + the era code after).
+                let era = SabEra::for_dxf(version);
+                let mut era_expected = expected.clone();
+                era_expected[..15].copy_from_slice(era.magic());
+                let ver = era.version_number(doc.header.version.sat_version_number());
+                era_expected[15..19].copy_from_slice(&ver.to_le_bytes());
+                era_expected[19..23].copy_from_slice(&0u32.to_le_bytes());
+                era_expected[23..27].copy_from_slice(&era.bodies_field(1).to_le_bytes());
+                era_expected[27..31]
+                    .copy_from_slice(&era.history_field(doc.header.has_history).to_le_bytes());
+                // The terminator is era-flavored (the 2026-09-30
+                // terminator packet): the legacy reference ends with
+                // the segmented ACIS form; the R2013/R2018 targets
+                // carry the ASM flavor word (one byte shorter).
+                let legacy_term = SabEra::Legacy.terminator();
+                let base_len = era_expected.len() - legacy_term.len();
+                era_expected.truncate(base_len);
+                era_expected.extend_from_slice(era.terminator());
+                assert_eq!(solid.acis_data.sab_data, era_expected, "DWG {version:?}");
             }
         }
     }

@@ -1,4 +1,4 @@
-//! One spatially separated entity atlas in every supported DWG/DXF encoding.
+﻿//! One spatially separated entity atlas in every supported DWG/DXF encoding.
 //! cargo run --example entity_atlas -- [output directory]
 
 use std::collections::BTreeMap;

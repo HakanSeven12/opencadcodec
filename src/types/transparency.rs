@@ -95,7 +95,11 @@ impl Transparency {
         match self {
             Self::ByLayer => 0,
             Self::ByBlock => (1u32 << 24) as i32,
-            Self::Explicit(alpha) => ((3u32 << 24) | (255 - *alpha) as u32) as i32,
+            // Authored wires (2018/Leader.dwg census: leader 0x2000056,
+            // layers 0x200003a) pack explicit alpha with the type-2 nibble.
+            // The reader accepts both 2 and 3; only the writer form matters
+            // for byte fidelity.
+            Self::Explicit(alpha) => ((2u32 << 24) | (255 - *alpha) as u32) as i32,
         }
     }
 

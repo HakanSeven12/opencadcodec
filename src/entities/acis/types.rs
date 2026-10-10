@@ -1,4 +1,4 @@
-//! ACIS/SAT data types for solid modeler geometry.
+﻿//! ACIS/SAT data types for solid modeler geometry.
 //!
 //! These types represent the parsed structure of ACIS SAT format data,
 //! including the header, entity records, and the B-rep topology/geometry.
@@ -15,9 +15,9 @@ use super::writer::SatWriter;
 /// ACIS SAT version number.
 ///
 /// Common versions:
-/// - `(4, 0, 0)` → SAT version 400 (ACIS 4.0)
-/// - `(7, 0, 0)` → SAT version 700 (ACIS 7.0)
-/// - `(21, 0, 0)` → SAT version 21800 (ACIS 21.0)
+/// - `(4, 0, 0)` â†’ SAT version 400 (ACIS 4.0)
+/// - `(7, 0, 0)` â†’ SAT version 700 (ACIS 7.0)
+/// - `(21, 0, 0)` â†’ SAT version 21800 (ACIS 21.0)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SatVersion {
@@ -39,19 +39,19 @@ impl SatVersion {
         }
     }
 
-    /// ACIS 4.0 — legacy format.
+    /// ACIS 4.0 â€” legacy format.
     pub const V4_0: Self = Self {
         major: 4,
         minor: 0,
         patch: 0,
     };
-    /// ACIS 7.0 — introduced explicit indices and asmheader.
+    /// ACIS 7.0 â€” introduced explicit indices and asmheader.
     pub const V7_0: Self = Self {
         major: 7,
         minor: 0,
         patch: 0,
     };
-    /// ACIS 21.0 — modern format.
+    /// ACIS 21.0 â€” modern format.
     pub const V21_0: Self = Self {
         major: 21,
         minor: 0,
@@ -63,7 +63,7 @@ impl SatVersion {
         self.major * 100 + self.minor * 10 + self.patch
     }
 
-    /// Creates a version from the SAT version number (e.g. 700 → 7.0.0).
+    /// Creates a version from the SAT version number (e.g. 700 â†’ 7.0.0).
     pub fn from_sat_number(num: u32) -> Self {
         Self {
             major: num / 100,
@@ -125,14 +125,12 @@ pub struct SatHeader {
     pub product_version: String,
     /// File creation date string.
     pub date: String,
-    /// First value of the tolerance line: millimetres per model unit (1 for
-    /// millimetres, 25.4 for inches) — not a tolerance, despite the name.
+    /// Spatial resolution (the authored genus is 1.0 everywhere;
+    /// IntelliCAD/AutoCAD native SAB data always uses 1.0).
     pub spatial_resolution: f64,
-    /// Second value: resabs, the absolute (distance) tolerance, typically
-    /// 1e-06. This is the one to fit geometry to.
+    /// Normal tolerance (angular tolerance in radians, typically ~1e-07).
     pub normal_tolerance: f64,
-    /// Third value (ACIS 7.0+): resnor, the normal/angular tolerance,
-    /// typically 1e-10.
+    /// Fit tolerance for approximation (ACIS 7.0+, typically 1e-10).
     pub resfit_tolerance: Option<f64>,
 }
 
@@ -147,7 +145,7 @@ impl SatHeader {
             product_id: "acadrust".to_string(),
             product_version: "ACIS 7.0".to_string(),
             date: "Thu Jan 01 00:00:00 2023".to_string(),
-            spatial_resolution: 10.0,
+            spatial_resolution: 1.0,
             normal_tolerance: 9.9999999999999995e-07,
             resfit_tolerance: Some(1e-10),
         }
@@ -657,8 +655,8 @@ impl SatRecord {
     /// Pointer by ordinal: the `index`-th pointer token, skipping interleaved
     /// scalar tokens. Most accessors use absolute positions (`token_pointer`)
     /// because ACIS keeps parameters in fixed slots, but a few records gained
-    /// an extra scalar field in ASM (ShapeManager, AutoCAD 2013+) — e.g. a
-    /// vertex's tolerance int between its edge and point — where ordinal
+    /// an extra scalar field in ASM (ShapeManager, AutoCAD 2013+) â€” e.g. a
+    /// vertex's tolerance int between its edge and point â€” where ordinal
     /// indexing stays correct for both ACIS and ASM.
     pub fn nth_pointer(&self, index: usize) -> Option<SatPointer> {
         self.tokens.iter().filter_map(|t| t.as_pointer()).nth(index)
@@ -673,7 +671,7 @@ impl SatRecord {
 
     /// Read an edge/coedge sense from token `index`, accepting both the
     /// keyword form (`forward` / `reversed`, ACIS 4.0+) and the numeric form
-    /// pre-4.0 SAT uses (`0` = forward, `1` = reversed) — the latter tokenizes
+    /// pre-4.0 SAT uses (`0` = forward, `1` = reversed) â€” the latter tokenizes
     /// as an Integer, so `token_string` misses it and every coedge defaults to
     /// forward, collapsing reversed-coedge loops to a duplicate vertex.
     pub fn token_sense(&self, index: usize) -> Sense {
@@ -1096,7 +1094,7 @@ impl<'a> SatFace<'a> {
 /// The leading `$<pattern>` pointer is the ACIS pattern-feature reference
 /// (present from the PATTERN save version on, NULL in practice). There is no
 /// outer-vs-hole / loop-type field: ACIS does not record which loop is the
-/// outer boundary and which are holes — the kernel classifies them at runtime
+/// outer boundary and which are holes â€” the kernel classifies them at runtime
 /// from geometry (coedge winding vs the face's outward normal). Consumers must
 /// derive the distinction themselves.
 #[derive(Debug, Clone)]
@@ -1116,7 +1114,7 @@ impl<'a> SatLoop<'a> {
 
     /// Pointer to the next loop in the face's loop list. The first token is the
     /// ACIS pattern-feature pointer (NULL in practice); the next-loop link is
-    /// the second. Loop order is not significant — the outer boundary is not
+    /// the second. Loop order is not significant â€” the outer boundary is not
     /// guaranteed to come first.
     pub fn next_loop(&self) -> SatPointer {
         self.record.token_pointer(1).unwrap_or(SatPointer::NULL)
@@ -1431,6 +1429,28 @@ impl<'a> SatIntCurve<'a> {
         })
     }
 
+    /// Whether the spline definition is periodic or closed.
+    pub fn is_closed_in(&self, document: &SatDocument) -> bool {
+        let tokens = if let Some(reference) = subtype_reference(&self.record.tokens) {
+            match document.subtype_tokens(reference) {
+                Some(tokens) => tokens,
+                None => return false,
+            }
+        } else {
+            &self.record.tokens
+        };
+        let Some(start) = tokens
+            .iter()
+            .position(|token| matches!(token.as_ident(), Some("nubs" | "nurbs")))
+        else {
+            return false;
+        };
+        tokens.get(start + 2).is_some_and(|token| {
+            matches!(token.as_ident(), Some("closed" | "periodic"))
+                || token.as_integer().is_some_and(|value| value != 0)
+        })
+    }
+
     /// The first support surface, the curve's image on it, and how far the
     /// curve stands off it along its normal, for a procedural curve (an
     /// offset or a blend boundary) saved without its own spline. The curve is
@@ -1502,28 +1522,6 @@ impl<'a> SatIntCurve<'a> {
         None
     }
 
-    /// Whether the spline definition is periodic or closed.
-    pub fn is_closed_in(&self, document: &SatDocument) -> bool {
-        let tokens = if let Some(reference) = subtype_reference(&self.record.tokens) {
-            match document.subtype_tokens(reference) {
-                Some(tokens) => tokens,
-                None => return false,
-            }
-        } else {
-            &self.record.tokens
-        };
-        let Some(start) = tokens
-            .iter()
-            .position(|token| matches!(token.as_ident(), Some("nubs" | "nurbs")))
-        else {
-            return false;
-        };
-        tokens.get(start + 2).is_some_and(|token| {
-            matches!(token.as_ident(), Some("closed" | "periodic"))
-                || token.as_integer().is_some_and(|value| value != 0)
-        })
-    }
-
     /// Sample `segs + 1` points evenly along the curve's full valid parameter
     /// range. Empty when the record has no decodable nubs geometry.
     pub fn sample(&self, segs: usize) -> Vec<(f64, f64, f64)> {
@@ -1533,7 +1531,7 @@ impl<'a> SatIntCurve<'a> {
         self.sample_range(knots[degree], knots[knots.len() - degree - 1], segs)
     }
 
-    /// Sample `segs + 1` points evenly along `[t0, t1]` — an edge's own
+    /// Sample `segs + 1` points evenly along `[t0, t1]` â€” an edge's own
     /// parameter span, so only the used arc of the curve is emitted. The range
     /// is clamped to the curve's valid parameter interval. Empty when the record
     /// has no decodable nubs geometry or the span is degenerate.
@@ -1559,16 +1557,9 @@ impl<'a> SatIntCurve<'a> {
 }
 
 fn decode_bspline_curve(t: &[SatToken]) -> Option<(usize, Vec<f64>, Vec<[f64; 4]>)> {
-    // An intcurve saves its spline ahead of its support surfaces and their
-    // pcurves. One saved without it (only a knot summary) would otherwise
-    // hand its first 2-D pcurve over as the 3-D curve.
-    let ni = t.iter().position(|x| {
-        x.as_ident()
-            .is_some_and(|ident| matches!(ident, "nubs" | "nurbs") || is_surface_kind(ident))
-    })?;
-    if !matches!(t[ni].as_ident(), Some("nubs" | "nurbs")) {
-        return None;
-    }
+    let ni = t
+        .iter()
+        .position(|x| matches!(x.as_ident(), Some("nubs" | "nurbs")))?;
     let rational = t.get(ni)?.as_ident() == Some("nurbs");
     let degree = t.get(ni + 1)?.as_integer()? as usize;
     // t[ni + 2] is the curve form/closure flag.
@@ -1969,7 +1960,14 @@ impl<'a> SatSplineSurface<'a> {
 
     /// Decode the final `nubs`/`nurbs` block into a complete control net.
     pub fn bspline(&self, document: &SatDocument) -> Option<SatBSplineSurface> {
-        decode_spline_definition(document, self.definition_tokens(document)?)
+        let tokens = self.definition_tokens(document)?;
+        if tokens
+            .iter()
+            .any(|token| token.as_ident() == Some("sum_spl_sur"))
+        {
+            return decode_linear_sum_surface(tokens);
+        }
+        decode_bspline_surface(tokens)
     }
 
     /// An offset surface saved without its fitted spline: the spline of the
@@ -2167,13 +2165,23 @@ fn decode_extruded_surface(
 
 /// A spline plus a straight curve is an exact tensor-product ruled surface.
 /// ACIS defines S(u,v) = C(u) + line(v) - origin; no fitting is required.
+
+/// A spline plus a straight curve is an exact tensor-product ruled surface.
+/// ACIS defines S(u,v) = C(u) + line(v) - origin; no fitting is required.
 fn decode_linear_sum_surface(source: &[SatToken]) -> Option<SatBSplineSurface> {
-    let tokens: Vec<SatToken> = source.iter().flat_map(|token| {
-        if let Some((values, len)) = token.coordinate_components() {
-            values[..len].iter().copied().map(SatToken::Float).collect()
-        } else { vec![token.clone()] }
-    }).collect();
-    let sum = tokens.iter().position(|t| t.as_ident() == Some("sum_spl_sur"))?;
+    let tokens: Vec<SatToken> = source
+        .iter()
+        .flat_map(|token| {
+            if let Some((values, len)) = token.coordinate_components() {
+                values[..len].iter().copied().map(SatToken::Float).collect()
+            } else {
+                vec![token.clone()]
+            }
+        })
+        .collect();
+    let sum = tokens
+        .iter()
+        .position(|t| t.as_ident() == Some("sum_spl_sur"))?;
     let start = (sum + 1..tokens.len()).find(|&i| tokens[i].as_ident() == Some("intcurve"))?;
     let open = (start + 1..tokens.len()).find(|&i| tokens[i].as_ident() == Some("{"))?;
     let mut depth = 1usize;
@@ -2181,42 +2189,87 @@ fn decode_linear_sum_surface(source: &[SatToken]) -> Option<SatBSplineSurface> {
     while close < tokens.len() {
         match tokens[close].as_ident() {
             Some("{") => depth += 1,
-            Some("}") => { depth -= 1; if depth == 0 { break; } }
+            Some("}") => {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
             _ => {}
         }
         close += 1;
     }
-    if depth != 0 { return None; }
+    if depth != 0 {
+        return None;
+    }
     let (degree_u, u_knots, controls) = decode_bspline_curve(&tokens[open + 1..close])?;
     let straight = (close + 1..tokens.len()).find(|&i| tokens[i].as_ident() == Some("straight"))?;
-    let read3 = |i: usize| -> Option<[f64; 3]> { Some([tokens.get(i)?.as_float()?,tokens.get(i+1)?.as_float()?,tokens.get(i+2)?.as_float()?]) };
+    let read3 = |i: usize| -> Option<[f64; 3]> {
+        Some([
+            tokens.get(i)?.as_float()?,
+            tokens.get(i + 1)?.as_float()?,
+            tokens.get(i + 2)?.as_float()?,
+        ])
+    };
     let root = read3(straight + 1)?;
     let direction = read3(straight + 4)?;
     // Two unbounded line-interval markers precede the sum's reference origin.
-    if tokens.get(straight + 7)?.as_float().is_some() || tokens.get(straight + 8)?.as_float().is_some() { return None; }
+    if tokens.get(straight + 7)?.as_float().is_some()
+        || tokens.get(straight + 8)?.as_float().is_some()
+    {
+        return None;
+    }
     let origin = read3(straight + 9)?;
     let range = straight + 12;
-    if tokens.get(range)?.as_integer()? != 2 { return None; }
+    if tokens.get(range)?.as_integer()? != 2 {
+        return None;
+    }
     let mut bounds = [0.; 4];
     for (index, bound) in bounds.iter_mut().enumerate() {
         let flag = tokens.get(range + 1 + index * 2)?;
-        if flag.as_float().is_some() { return None; }
+        if flag.as_float().is_some() {
+            return None;
+        }
         *bound = tokens.get(range + 2 + index * 2)?.as_float()?;
     }
-    if !bounds.iter().chain(root.iter()).chain(direction.iter()).chain(origin.iter()).all(|v|v.is_finite())
-        || bounds[0] >= bounds[1] || bounds[2] >= bounds[3] { return None; }
+    if !bounds
+        .iter()
+        .chain(root.iter())
+        .chain(direction.iter())
+        .chain(origin.iter())
+        .all(|v| v.is_finite())
+        || bounds[0] >= bounds[1]
+        || bounds[2] >= bounds[3]
+    {
+        return None;
+    }
     let control_count_u = controls.len();
     let mut control_points = Vec::with_capacity(control_count_u * 2);
     for v in [bounds[2], bounds[3]] {
         for p in &controls {
-            control_points.push([p[0] + p[3] * (root[0] + direction[0] * v - origin[0]),
+            control_points.push([
+                p[0] + p[3] * (root[0] + direction[0] * v - origin[0]),
                 p[1] + p[3] * (root[1] + direction[1] * v - origin[1]),
-                p[2] + p[3] * (root[2] + direction[2] * v - origin[2]), p[3]]);
+                p[2] + p[3] * (root[2] + direction[2] * v - origin[2]),
+                p[3],
+            ]);
         }
     }
-    Some(SatBSplineSurface { rational:controls.iter().any(|p|p[3] != 1.), degree_u,degree_v:1,
-        u_closure:Some("open".into()),v_closure:Some("open".into()),u_singularity:None,v_singularity:None,
-        u_knots,v_knots:vec![bounds[2],bounds[2],bounds[3],bounds[3]],control_count_u,control_count_v:2,control_points,fit_tolerance:Some(0.) })
+    Some(SatBSplineSurface {
+        rational: controls.iter().any(|p| p[3] != 1.),
+        degree_u,
+        degree_v: 1,
+        u_closure: Some("open".into()),
+        v_closure: Some("open".into()),
+        u_singularity: None,
+        v_singularity: None,
+        u_knots,
+        v_knots: vec![bounds[2], bounds[2], bounds[3], bounds[3]],
+        control_count_u,
+        control_count_v: 2,
+        control_points,
+        fit_tolerance: Some(0.),
+    })
 }
 
 fn decode_bspline_surface(tokens: &[SatToken]) -> Option<SatBSplineSurface> {
@@ -2438,7 +2491,7 @@ impl<'a> SatPlaneSurface<'a> {
 /// Cone-surface layout (v700):
 /// `cone-surface $<attrib> -1 $-1 <cx> <cy> <cz> <ax_x> <ax_y> <ax_z> <rx> <ry> <rz> <ratio> I I <sin_half_angle> <cos_half_angle> <radius> forward_v I I I I`
 ///
-/// Tokens 11–12 are spline continuation markers (`I`), so sine/cosine
+/// Tokens 11â€“12 are spline continuation markers (`I`), so sine/cosine
 /// sit at positions 13 and 14. For a cylinder, sin=0 and cos=1.
 #[derive(Debug, Clone)]
 pub struct SatConeSurface<'a> {
@@ -2751,9 +2804,9 @@ impl SatDocument {
     }
 
     /// Read the body placement as `(matrix_rowmajor, translation, scale)` in
-    /// the SAT convention `world = scale·(p·M) + T`. Returns identity when the
+    /// the SAT convention `world = scaleÂ·(pÂ·M) + T`. Returns identity when the
     /// document has no `transform` record. The first 13 numeric tokens of the
-    /// transform record carry the 3×3, translation and scale; the leading
+    /// transform record carry the 3Ã—3, translation and scale; the leading
     /// book-keeping pointer and trailing rotate/reflect/shear flags are
     /// skipped by reading float-valued tokens only.
     pub fn placement(&self) -> ([[f64; 3]; 3], [f64; 3], f64) {
@@ -2765,9 +2818,9 @@ impl SatDocument {
         let Some(rec) = self.records.iter().find(|r| r.entity_type == "transform") else {
             return IDENTITY;
         };
-        // SAT text tokenizes the 13-number payload (3×3 matrix, translation,
+        // SAT text tokenizes the 13-number payload (3Ã—3 matrix, translation,
         // scale) as individual floats, but the SAB reader groups the matrix
-        // rows and the translation into `Position` triplets — flatten both.
+        // rows and the translation into `Position` triplets â€” flatten both.
         let mut v: Vec<f64> = Vec::with_capacity(13);
         for tok in &rec.tokens {
             if v.len() >= 13 {
@@ -2804,7 +2857,7 @@ impl SatDocument {
     }
 
     /// Set the body placement, creating the `transform` record (and wiring the
-    /// body's transform pointer) when absent. Encodes the 3×3, translation and
+    /// body's transform pointer) when absent. Encodes the 3Ã—3, translation and
     /// scale in the layout `placement()` reads back.
     pub fn set_placement(&mut self, matrix: [[f64; 3]; 3], translation: [f64; 3], scale: f64) {
         let mut tokens = Vec::with_capacity(17);
@@ -2828,7 +2881,7 @@ impl SatDocument {
             rec.tokens = tokens;
             return;
         }
-        // No transform record yet — append one. Records are position-indexed,
+        // No transform record yet â€” append one. Records are position-indexed,
         // and the `End-of-ACIS-data` / `End-of-ASM-data` terminator must stay
         // last (the parser stops there). Lift any terminator off, push the
         // transform, then restore the terminator so it remains final;
@@ -2865,10 +2918,10 @@ impl SatDocument {
     /// Returns a record by index.
     ///
     /// Records are parsed and appended in index order, so slot `index` almost
-    /// always holds the record whose `.index == index` — an O(1) hit. Only a
+    /// always holds the record whose `.index == index` â€” an O(1) hit. Only a
     /// document whose records were re-ordered or hand-built falls back to the
     /// linear scan. Tessellation resolves O(records) pointers per solid, so the
-    /// old unconditional scan made every solid O(records²) — the dominant cost
+    /// old unconditional scan made every solid O(recordsÂ²) â€” the dominant cost
     /// of meshing an ACIS-heavy drawing.
     pub fn record(&self, index: usize) -> Option<&SatRecord> {
         if let Some(r) = self.records.get(index) {
@@ -3111,6 +3164,14 @@ impl SatDocument {
     /// This method removes all non-core entities and remaps pointer
     /// references in the remaining records.
     pub fn strip_for_sab(&mut self) {
+        // Normalize spatial_resolution to 1.0 for SAB output.
+        // IntelliCAD/AutoCAD always use 1.0 in native SAB data.
+        // Source files from older ACIS versions may use different values
+        // (e.g. 10.0) which can cause compatibility issues.
+        // Runs before the nothing-to-strip early return below: a clean
+        // document skips the strip, and the normalize must still apply.
+        self.header.spatial_resolution = 1.0;
+
         // Determine which records to keep.
         // Core ACIS base types (last segment after hyphen split):
         let keep: Vec<bool> = self
@@ -3124,7 +3185,7 @@ impl SatDocument {
             return; // nothing to strip
         }
 
-        // Build old-index → new-index mapping.
+        // Build old-index â†’ new-index mapping.
         // Removed records map to -1 (null pointer).
         let mut index_map = vec![-1i32; self.records.len()];
         let mut new_idx: i32 = 0;
@@ -3154,7 +3215,7 @@ impl SatDocument {
             let mut rec = record;
             rec.index = index_map[old_idx];
 
-            // Remap attribute pointer — always null since all attribs are stripped
+            // Remap attribute pointer â€” always null since all attribs are stripped
             rec.attribute = SatPointer::new(remap(rec.attribute.0));
 
             // Remap all pointer tokens
@@ -3169,119 +3230,6 @@ impl SatDocument {
 
         self.records = new_records;
         self.header.num_records = self.records.len();
-
-        // Normalize spatial_resolution to 1.0 for SAB output.
-        // IntelliCAD/AutoCAD always use 1.0 in native SAB data.
-        // Source files from older ACIS versions may use different values
-        // (e.g. 10.0) which can cause compatibility issues.
-        self.header.spatial_resolution = 1.0;
-    }
-
-    /// A copy completed to the record forms an ACIS 7.0+ restore requires,
-    /// or `None` when the document already has them.
-    ///
-    /// Minimal builders may leave off what the modeler reads unconditionally:
-    /// the sense and parameter range closing every analytic surface, the
-    /// range closing straight and elliptic curves, and the convexity closing
-    /// every edge. Restore also takes the first `num_bodies` records as the
-    /// saved roots, so a document that never counted its bodies gets them
-    /// moved to the front. Without these the reference application rejects
-    /// the whole drawing (modeling error 75004/75005). Records that already
-    /// carry the fields — everything the reference application writes — are
-    /// left alone.
-    pub fn completed_for_restore(&self) -> Option<SatDocument> {
-        if self.header.version.major < 7 {
-            return None;
-        }
-        let roots_uncounted = self.header.num_bodies == 0
-            && self.records.iter().any(|record| record.entity_type == "body");
-        if !roots_uncounted && !self.records.iter().any(|r| Self::missing_tail(r).is_some()) {
-            return None;
-        }
-        let mut doc = self.clone();
-        for record in &mut doc.records {
-            if let Some(tail) = Self::missing_tail(record) {
-                record.tokens.extend(tail);
-                record.raw_text = None;
-            }
-        }
-        if roots_uncounted {
-            doc.bodies_first();
-        }
-        Some(doc)
-    }
-
-    /// The closing tokens a 7.0+ record of this kind needs and lacks.
-    pub(crate) fn missing_tail(record: &SatRecord) -> Option<Vec<SatToken>> {
-        let ident = |name: &str| SatToken::Ident(name.to_string());
-        // Everything after the leading `$-1` that is neither a pointer nor a
-        // number: senses, range markers, convexity.
-        let keywords = record
-            .tokens
-            .iter()
-            .skip(1)
-            .filter(|token| {
-                token.as_pointer().is_none()
-                    && token.as_float().is_none()
-                    && token.coordinate_components().is_none()
-            })
-            .count();
-        let infinite = |sense: &str, ends: usize| {
-            let mut tail = vec![ident(sense)];
-            tail.extend((0..ends).map(|_| ident("I")));
-            tail
-        };
-        match record.entity_type.as_str() {
-            "plane-surface" | "sphere-surface" | "torus-surface" if keywords == 0 => {
-                Some(infinite("forward_v", 4))
-            }
-            // A cone already carries the two `I` continuation markers before
-            // its half-angle.
-            "cone-surface" if keywords <= 2 => Some(infinite("forward", 4)),
-            "straight-curve" | "ellipse-curve" if keywords == 0 => {
-                Some(vec![ident("I"), ident("I")])
-            }
-            // $-1 $start t0 $end t1 $coedge $curve sense — convexity missing.
-            "edge" if record.tokens.len() == 8 => {
-                Some(vec![SatToken::String("unknown".to_string())])
-            }
-            _ => None,
-        }
-    }
-
-    /// Moves every `body` record to the front, remapping pointers, and
-    /// counts them as the document's roots.
-    fn bodies_first(&mut self) {
-        let mut order: Vec<usize> = (0..self.records.len()).collect();
-        order.sort_by_key(|&at| self.records[at].entity_type != "body");
-        let mut index_map = vec![-1i32; order.len()];
-        for (new, &old) in order.iter().enumerate() {
-            index_map[old] = new as i32;
-        }
-        let remap = |p: &mut SatPointer| {
-            if let Some(at) = p.index().filter(|&at| at < index_map.len()) {
-                p.0 = index_map[at];
-            }
-        };
-        let mut old: Vec<Option<SatRecord>> =
-            std::mem::take(&mut self.records).into_iter().map(Some).collect();
-        for (new, &at) in order.iter().enumerate() {
-            let mut record = old[at].take().expect("each record moves once");
-            record.index = new as i32;
-            record.raw_text = None;
-            remap(&mut record.attribute);
-            for token in &mut record.tokens {
-                if let SatToken::Pointer(p) = token {
-                    remap(p);
-                }
-            }
-            self.records.push(record);
-        }
-        self.header.num_bodies = self
-            .records
-            .iter()
-            .filter(|record| record.entity_type == "body")
-            .count();
     }
 
     /// Check if an entity type is a core ACIS geometry type that should

@@ -830,7 +830,7 @@ pub struct CellStyle {
 
 impl CellStyle {
     /// The properties this style sets: the ones it names, plus its override
-    /// bits — in the binary layout, or the legacy DXF layout a style read
+    /// bits ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â in the binary layout, or the legacy DXF layout a style read
     /// from DXF keeps (whose meaning `property_flags` already holds).
     pub fn overridden(&self) -> CellStylePropertyFlags {
         if self.legacy_override_bits {
@@ -1052,8 +1052,8 @@ impl TableCell {
     /// style (16, 512), and types a content: a value is a string (data type
     /// 4, override bits 1 and 2), an empty content a general value (512).
     ///
-    /// A cell already in the binary layout — read from a binary file, or
-    /// written by this crate — is returned as it is, so saving a drawing
+    /// A cell already in the binary layout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â read from a binary file, or
+    /// written by this crate ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â is returned as it is, so saving a drawing
     /// nobody edited does not rewrite its cells.
     pub fn binary_layout(&self) -> std::borrow::Cow<'_, TableCell> {
         use CellStylePropertyFlags as P;
@@ -1496,6 +1496,75 @@ pub struct Table {
     pub dwg_r2010_unknown_bit: Option<bool>,
     pub dwg_unknown_long2: i32,
     pub dwg_unknown_short: i16,
+    /// Ãƒâ€šÃ‚Â§19 H8h-ext-12: the AC1021 TABLECONTENT wire captures. Gold has
+    /// NO spec block for the class (its decoder prints "Unknown Class
+    /// object 529 TABLECONTENT"), and the ODA spec does not document
+    /// the AcDbLinkedTableData wire; the modeled emission diverges from
+    /// the author's stream structurally (example_2007 h=BF2: her main
+    /// region 17,587 bits vs our modeled 15,963 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a 203-byte,
+    /// near-full divergence while the text region and handle stream
+    /// re-emit bit-identical). A DWG read captures the class body
+    /// verbatim ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the main bits from the body start (after the common
+    /// fields) to the main-data end, the text region bits, and the
+    /// handle bits from the drain position after the record's own
+    /// head reads to the record end minus the author's closing 1s pad
+    /// ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so the conventional rewrite re-emits her bytes. The modeled
+    /// emission stays the DXF/programmatic fallback (`wire_main`
+    /// absent).
+    #[cfg_attr(feature = "serde", serde(skip))]
+        /// Serde-invisible: the capture is internal wire state the DWG reader
+    /// and writer own end to end; the host type-registry tracer follows the
+    /// serde surface and the generic Python model generator cannot express
+    /// the packed Option<Vec<u8>> shape (nor should raw record bytes be
+    /// script-visible).
+pub wire_main: Option<Vec<u8>>,
+    /// Exact bit width of `wire_main`.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_main_bit_len: u32,
+    /// MSB-first packed text-region bits (the cell-text TUs).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_text: Option<Vec<u8>>,
+    /// Exact bit width of `wire_text`.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_text_bit_len: u32,
+    /// MSB-first packed handle-stream tail bits.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_handles: Option<Vec<u8>>,
+    /// Exact bit width of `wire_handles`.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_handles_bit_len: u32,
+    /// Ãƒâ€šÃ‚Â§20 the R2018 record-identity packet: the DxfVersion whose reader
+    /// frame the `wire_*` captures came from. The writer replays the wire
+    /// only when the write targets that same version ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a conversion to
+    /// another era falls back to the modeled emission rather than
+    /// emitting foreign-frame bytes.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_dxf_version: Option<crate::types::DxfVersion>,
+    /// Digest of the modeled state as the DWG reader built it (the capture
+    /// equals the model at that moment). The writer replays the captured
+    /// body only while the modeled state still hashes to this value, so a
+    /// captured record echoes verbatim until something actually edits the
+    /// table, and an edit re-encodes from the model instead of silently
+    /// dropping the change (2026-10-10, the staged-table reedit audit).
+    /// Serde-invisible with the rest of the capture block.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wire_model_digest: Option<u64>,
+}
+
+impl Table {
+    /// Hash of the modeled state (the capture fields are excluded - they
+    /// do not model anything). Any edit to the table content changes it.
+    pub(crate) fn modeled_digest(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut copy = self.clone();
+        copy.wire_main = None;
+        copy.wire_text = None;
+        copy.wire_handles = None;
+        copy.wire_model_digest = None;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        format!("{copy:?}").hash(&mut hasher);
+        hasher.finish()
+    }
 }
 
 fn visit_table_value_handles(value: &mut CellValue, visit: &mut impl FnMut(&mut Handle)) {
@@ -1748,6 +1817,14 @@ impl Table {
             dwg_r2010_unknown_bit: None,
             dwg_unknown_long2: 0,
             dwg_unknown_short: 38,
+            wire_main: None,
+            wire_main_bit_len: 0,
+            wire_text: None,
+            wire_text_bit_len: 0,
+            wire_handles: None,
+            wire_handles_bit_len: 0,
+            wire_dxf_version: None,
+            wire_model_digest: None,
         }
     }
 

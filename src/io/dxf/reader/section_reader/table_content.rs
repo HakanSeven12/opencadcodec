@@ -726,6 +726,8 @@ impl<'a> SectionReader<'a> {
                 _ => {}
             }
         }
+        // The entity record carries merges only as per-cell dimensions.
+        table.sync_merged_ranges_from_cells();
         Ok(Some(table))
     }
 }

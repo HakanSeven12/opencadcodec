@@ -140,6 +140,25 @@ pub struct MText {
     /// "extents height"). 0 when never laid out.
     #[cfg_attr(feature = "serde", serde(default))]
     pub extents_height: f64,
+    /// R2018+ redundant annotative-block header BL
+    /// (`ignore_attachment`, dwg.spec: `FIELD_BL (ignore_attachment, 0);
+    /// // not in DXF, prev as BS`). AutoCAD repeats the absolute attachment
+    /// point here; kept raw for wire round-trip fidelity.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub ignore_attachment: i32,
+    /// §19 the 2026-09-29 record-identity census (the MTEXT packet): the
+    /// VERBATIM pre-2007 wire text, captured before the MIF `\U+XXXX`
+    /// escape decode. The authored wire form of a non-ASCII char is
+    /// AUTHOR DATA, not a convention — example_2004's `108\U+00B0`
+    /// carries the in-band escape while example_2000's identical text
+    /// carries the raw 0xB0 byte — so a DWG-read record that rewrites
+    /// re-emits the captured string verbatim (the dwg_x_direction
+    /// capture's sibling); the decoded `value` stays the semantic text
+    /// for the API, the JSON comparisons, and conversions to the
+    /// R2007+ UTF-16 era (whose authored convention carries the
+    /// decoded char).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_wire_text: Option<String>,
 }
 
 impl MText {
@@ -173,6 +192,16 @@ impl MText {
             column_data: MTextColumnData::new(),
             extents_width: 0.0,
             extents_height: 0.0,
+            // The redundant block's repeated attachment point — the
+            // honest default mirrors the attachment_point default
+            // (TopLeft = 1). A zero here is a corrupt repetition:
+            // AutoCAD's audit repairs it at every open (2026-09-30:
+            // "AcDbMText was repaired / 2 fixed" on the canonical —
+            // the repaired staged copy carried the true repeat). The
+            // output-copy repair (prepare_database_references) still
+            // guards struct-literal constructions.
+            ignore_attachment: AttachmentPoint::TopLeft as i32,
+            dwg_wire_text: None,
         }
     }
 

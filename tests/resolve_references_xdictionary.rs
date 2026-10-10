@@ -1,4 +1,4 @@
-use opencadcodec::entities::Line;
+﻿use opencadcodec::entities::Line;
 use opencadcodec::objects::{Dictionary, ObjectType};
 use opencadcodec::types::{Handle, Vector3};
 use opencadcodec::{CadDocument, EntityType};

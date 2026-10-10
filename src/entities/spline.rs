@@ -77,12 +77,16 @@ pub struct Spline {
     /// Complete R2013+ spline flag word, including flags not otherwise
     /// represented by this API.
     pub dwg_flags1: i32,
-    /// DWG storage scenario: 1 = control points, 2 = fit points. `None` for
-    /// splines not read from DWG. Fit-point records do not state `periodic`;
-    /// before R2013 they do not state `closed` either, so the corresponding
-    /// `flags` values are defaults rather than values read from the file.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub dwg_scenario: Option<i32>,
+    /// The scenario BL exactly as captured on the DWG wire (1 = SPLINE,
+    /// 2 = BEZIER). R2013+ readers re-derive the storage body from
+    /// flags1/knot parameterization, which can legitimately disagree
+    /// with the wire BL (the authored example_2018 splines carry BL=1
+    /// with fit-point storage); the writer re-emits the captured BL so
+    /// a rewrite keeps the author's record (the R2018 census finding:
+    /// the derived value flipped two authored records 1→2). None for
+    /// constructed splines (the derivation then applies, unchanged).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_wire_scenario: Option<i32>,
     /// Complete DXF spline flag word. Geometry, knot parameterization, frame
     /// visibility and creation-method bits are refreshed from typed fields
     /// when written; unrelated bits are retained.
@@ -110,14 +114,14 @@ impl Spline {
             knot_parameterization: 0,
             cv_frame_visible: false,
             dwg_flags1: 0,
-            dwg_scenario: None,
+            dwg_wire_scenario: None,
             dxf_flags: 0,
         }
     }
 
     /// Create a spline from control points
     pub fn from_control_points(degree: i32, control_points: Vec<Vector3>) -> Self {
-        let (degree, knots) = Self::clamped_knots_with_degree(degree, control_points.len());
+        let knots = Self::generate_clamped_knots(degree as usize, control_points.len());
         Spline {
             degree,
             control_points,
@@ -138,40 +142,26 @@ impl Spline {
     /// number of control points.
     ///
     /// The result has `n + p + 1` elements: `p+1` zeros, evenly-spaced
-    /// internal knots, and `p+1` ones, where `p` is the effective degree
-    /// (see [`Spline::clamped_knots_with_degree`]). Degrees larger than the
-    /// control-point count allows are clamped instead of overflowing.
+    /// internal knots, and `p+1` ones.
     pub fn generate_clamped_knots(degree: usize, num_control_points: usize) -> Vec<f64> {
-        let degree = i32::try_from(degree).unwrap_or(i32::MAX);
-        Self::clamped_knots_with_degree(degree, num_control_points).1
-    }
-
-    /// Generate a clamped uniform knot vector together with the degree it
-    /// was generated for.
-    ///
-    /// A curve with `n` control points can have degree at most `n - 1`, so
-    /// the effective degree is `degree` clamped to `1..=n-1`. Writers must
-    /// store the returned degree alongside the returned knots so the record
-    /// stays consistent (`knots.len() == n + degree + 1`).
-    ///
-    /// With fewer than two control points no valid clamped knot vector
-    /// exists (degree 0 is not a valid spline degree); the input degree is
-    /// returned unchanged with an empty knot vector.
-    pub fn clamped_knots_with_degree(degree: i32, num_control_points: usize) -> (i32, Vec<f64>) {
-        let n = num_control_points;
-        if n < 2 {
-            return (degree, Vec::new());
+        if num_control_points == 0 {
+            return Vec::new();
         }
-        let max_degree = (n - 1).min(i32::MAX as usize);
-        let p = usize::try_from(degree).unwrap_or(0).clamp(1, max_degree);
-        let internal = n - p - 1;
-        let mut kv = Vec::with_capacity(n + p + 1);
-        kv.extend(std::iter::repeat(0.0).take(p + 1));
+        let n = num_control_points;
+        let p = degree;
+        let m = n + p + 1;
+        let mut kv = Vec::with_capacity(m);
+        for _ in 0..=p {
+            kv.push(0.0);
+        }
+        let internal = m - 2 * (p + 1);
         for i in 1..=internal {
             kv.push(i as f64 / (internal + 1) as f64);
         }
-        kv.extend(std::iter::repeat(1.0).take(p + 1));
-        (p as i32, kv)
+        for _ in 0..=p {
+            kv.push(1.0);
+        }
+        kv
     }
 
     /// Get the number of control points
@@ -270,63 +260,5 @@ impl Entity for Spline {
 
     fn apply_transform(&mut self, transform: &crate::types::Transform) {
         super::transform::transform_spline(self, transform);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn assert_clamped(p: i32, n: usize, knots: &[f64]) {
-        let p = p as usize;
-        assert_eq!(knots.len(), n + p + 1);
-        assert!(knots[..=p].iter().all(|&k| k == 0.0));
-        assert!(knots[knots.len() - p - 1..].iter().all(|&k| k == 1.0));
-        assert!(knots.windows(2).all(|w| w[0] <= w[1]));
-    }
-
-    #[test]
-    fn clamped_knots_regular_case() {
-        let (p, knots) = Spline::clamped_knots_with_degree(3, 6);
-        assert_eq!(p, 3);
-        assert_clamped(p, 6, &knots);
-        assert_eq!(knots, Spline::generate_clamped_knots(3, 6));
-    }
-
-    #[test]
-    fn clamped_knots_clamp_degree_to_point_count() {
-        for n in 2..=4 {
-            let (p, knots) = Spline::clamped_knots_with_degree(3, n);
-            assert_eq!(p as usize, n.min(4) - 1);
-            assert_clamped(p, n, &knots);
-        }
-        let (p, knots) = Spline::clamped_knots_with_degree(i32::MAX, 3);
-        assert_eq!(p, 2);
-        assert_clamped(p, 3, &knots);
-        assert_eq!(Spline::generate_clamped_knots(usize::MAX, 2).len(), 4);
-    }
-
-    #[test]
-    fn clamped_knots_non_positive_degree_becomes_linear() {
-        for degree in [0, -1, i32::MIN] {
-            let (p, knots) = Spline::clamped_knots_with_degree(degree, 3);
-            assert_eq!(p, 1);
-            assert_clamped(p, 3, &knots);
-        }
-    }
-
-    #[test]
-    fn clamped_knots_single_or_no_point_is_empty() {
-        assert_eq!(Spline::clamped_knots_with_degree(3, 1), (3, Vec::new()));
-        assert_eq!(Spline::clamped_knots_with_degree(3, 0), (3, Vec::new()));
-        assert!(Spline::generate_clamped_knots(3, 1).is_empty());
-    }
-
-    #[test]
-    fn from_control_points_stores_effective_degree() {
-        let spline =
-            Spline::from_control_points(3, vec![Vector3::ZERO, Vector3::new(1.0, 0.0, 0.0)]);
-        assert_eq!(spline.degree, 1);
-        assert_eq!(spline.knots, vec![0.0, 0.0, 1.0, 1.0]);
     }
 }

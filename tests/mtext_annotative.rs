@@ -1,10 +1,10 @@
-//! A plain MTEXT must not come back flagged annotative after a DXF round-trip.
+﻿//! A plain MTEXT must not come back flagged annotative after a DXF round-trip.
 //!
 //! DXF carries MTEXT annotativeness via the annotation context (an
 //! ObjectContextData / XDATA association), not an entity-level flag, so the
 //! reader never sets `is_annotative` on the entity. A freshly-created,
 //! non-annotative MTEXT must therefore read back with `is_annotative == false`
-//! — regressing the old struct default of `true` would mark every imported DXF
+//! â€” regressing the old struct default of `true` would mark every imported DXF
 //! MTEXT annotative and over-scale it in annotation-scaled viewports.
 
 use std::io::Cursor;
@@ -53,7 +53,7 @@ fn plain_mtext_not_annotative_after_dxf_roundtrip() {
 #[test]
 fn multileader_annotation_scale_survives_dxf_roundtrip() {
     // A plain (default) MULTILEADER must stay non-annotative, and an annotative
-    // one must round-trip via DXF group code 293 — the reader previously ignored
+    // one must round-trip via DXF group code 293 â€” the reader previously ignored
     // 293, so every imported MULTILEADER inherited the old `true` default.
     for enabled in [false, true] {
         let mut doc = CadDocument::with_version(DxfVersion::AC1027);

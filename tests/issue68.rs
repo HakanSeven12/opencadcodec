@@ -1,4 +1,4 @@
-//! Repro for issue #68: an AC1009/R12 DXF round-trip writes `$ACADVER` as
+﻿//! Repro for issue #68: an AC1009/R12 DXF round-trip writes `$ACADVER` as
 //! `UNKNOWN` and leaves the default MLEADERSTYLE pointing at a text style
 //! handle the input reassigned to another record.
 

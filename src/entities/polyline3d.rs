@@ -135,6 +135,17 @@ pub struct Vertex3DPolyline {
     pub position: Vector3,
     /// Vertex flags
     pub flags: i32,
+    /// Wire reactor handles of the VERTEX_3D sub-entity record (the
+    /// associative network registers individual vertices as reactors —
+    /// gold prints them on the kid record). Retained verbatim on the DWG
+    /// read path; empty on constructed documents and the DXF path.
+    pub reactor_handles: Vec<Handle>,
+    /// The wire `isbylayerlt` bit of the R13/R14 VERTEX_3D sub-entity
+    /// record (§19 H8h-ext-17): the authored bit is per-record data —
+    /// derived at the attach as `linetype_flags != 3`, None on other
+    /// eras and constructed content.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub wire_isbylayerlt: Option<bool>,
 }
 
 impl Vertex3DPolyline {
@@ -145,6 +156,8 @@ impl Vertex3DPolyline {
             layer: "0".to_string(),
             position,
             flags: 32, // 3D polyline vertex flag
+            reactor_handles: Vec::new(),
+            wire_isbylayerlt: None,
         }
     }
 
@@ -207,6 +220,25 @@ pub struct Polyline3D {
     pub normal: Vector3,
     /// Vertex list
     pub vertices: Vec<Vertex3DPolyline>,
+    /// Handle of the trailing SEQEND record of the wire chain
+    /// (retained from the read; keeps the dump/normalizer and the
+    /// rewrite faithful to gold's record layout).
+    pub seqend_handle: Option<Handle>,
+    /// The chain's wire SEQEND record's own plotstyle_flags (retained from
+    /// the SEQEND entity's common data; gold re-emits it verbatim).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_plotstyle_flags: u8,
+    /// The chain's wire SEQEND record's own shadow_flags (R2007+).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_shadow_flags: u8,
+    /// The chain's wire SEQEND record's own R13/R14 `isbylayerlt` bit
+    /// (§19 H8h-ext-17).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_isbylayerlt: bool,
+    /// The chain's wire SEQEND record's own plotstyle HANDLE (§19
+    /// H8h-ext-17) — the raw value; None when absent.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seqend_plotstyle_handle: Option<u64>,
 }
 
 impl Polyline3D {
@@ -225,6 +257,11 @@ impl Polyline3D {
             elevation: 0.0,
             normal: Vector3::UNIT_Z,
             vertices: Vec::new(),
+            seqend_handle: None,
+            seqend_plotstyle_flags: 0,
+            seqend_shadow_flags: 0,
+            seqend_isbylayerlt: false,
+            seqend_plotstyle_handle: None,
         }
     }
 

@@ -69,6 +69,12 @@ pub struct Ole2Frame {
     pub dwg_mode: i16,
     /// Preserve the OLE object's aspect ratio while resizing.
     pub lock_aspect: u8,
+    /// Raw OLE bytes from the wire (gold prints them verbatim as the
+    /// `data` hex string, dwg.spec OLE2FRAME FIELD_BINARY; and the
+    /// re-encoded payload is not byte-identical). Retained for the
+    /// gold-parity comparison and echoed verbatim on write; empty on
+    /// constructed documents.
+    pub raw_data: Vec<u8>,
 }
 
 impl Ole2Frame {
@@ -86,6 +92,7 @@ impl Ole2Frame {
             envelope: OleFrameEnvelope::None,
             dwg_mode: 0,
             lock_aspect: 0,
+            raw_data: Vec::new(),
         }
     }
 

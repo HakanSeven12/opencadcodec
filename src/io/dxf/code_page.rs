@@ -17,11 +17,19 @@ use encoding_rs::Encoding;
 ///   mapping table.
 pub fn encoding_from_code_page(code_page: &str) -> Option<&'static Encoding> {
     match code_page.to_ascii_lowercase().as_str() {
-        // Asian encodings
+        // Asian encodings. §19 H7g review: the GB2312/ANSI_936 (and the
+        // 932/949/950/1361) byte pairs share a CODEC FAMILY but NOT a
+        // codepage byte — 31 is GB2312-EUC-CN where 39 is CP936-GBK,
+        // 22 is DOS932 where 38 is ANSI_932 (windows-31j), 24 is BIG5
+        // where 41 is ANSI_950, 25 is CP949-"korean" where 40 is
+        // ANSI_949, 26 is JOHAB where 42 is ANSI_1361. The encoders
+        // stay the practical family choice (the families are
+        // byte-compatible on the low half); the name/index tables
+        // below carry the distinction.
         "gb2312" | "ansi_936" => Some(encoding_rs::GBK),
-        "big5" | "ansi_950" => Some(encoding_rs::BIG5),
-        "korean" | "ansi_949" | "johab" => Some(encoding_rs::EUC_KR),
-        "ansi_932" => Some(encoding_rs::SHIFT_JIS),
+        "big5" | "ansi_950" | "dos950" => Some(encoding_rs::BIG5),
+        "korean" | "ansi_949" | "johab" | "ansi_1361" => Some(encoding_rs::EUC_KR),
+        "ansi_932" | "dos932" => Some(encoding_rs::SHIFT_JIS),
 
         // DOS/OEM code pages
         "dos437" => Some(encoding_rs::IBM866), // closest available in encoding_rs
@@ -98,22 +106,30 @@ pub fn dwg_code_page_name(index: u16) -> &'static str {
         19 => "DOS864",
         20 => "DOS865",
         21 => "DOS869",
-        22 | 38 => "ANSI_932",
+        22 => "DOS932",
         23 => "MAC-ROMAN",
-        24 | 41 => "BIG5",
-        25 | 40 => "KOREAN",
-        26 | 42 => "JOHAB",
+        24 => "BIG5",
+        25 => "KOREAN",
+        26 => "JOHAB",
         27 => "DOS866",
         28 => "ANSI_1250",
         29 => "ANSI_1251",
         30 => "ANSI_1252",
-        31 | 39 => "GB2312",
+        31 => "GB2312",
         32 => "ANSI_1253",
         33 => "ANSI_1254",
         34 => "ANSI_1255",
         35 => "ANSI_1256",
         36 => "ANSI_1257",
         37 => "ANSI_874",
+        // The 38..42 windows-of-asia family (§19 H7g review): each pair
+        // shares a codec family with its DOS-era sibling above but is a
+        // distinct codepage byte.
+        38 => "ANSI_932",
+        39 => "ANSI_936",
+        40 => "ANSI_949",
+        41 => "ANSI_950",
+        42 => "ANSI_1361",
         43 => "UTF-8",
         44 => "ANSI_1258",
         _ => "ANSI_1252",
@@ -144,16 +160,26 @@ pub fn dwg_code_page_index(code_page: &str) -> u16 {
         "dos864" => 19,
         "dos865" => 20,
         "dos869" => 21,
-        "ansi_932" | "dos932" => 22,
+        "dos932" => 22,
         "mac-roman" => 23,
-        "big5" | "ansi_950" | "dos950" => 24,
-        "korean" | "ansi_949" => 25,
+        "big5" | "dos950" => 24,
+        "korean" => 25,
         "johab" => 26,
         "dos866" => 27,
         "ansi_1250" | "ansi1250" => 28,
         "ansi_1251" | "ansi1251" => 29,
         "ansi_1252" | "ansi1252" => 30,
-        "gb2312" | "ansi_936" => 31,
+        "gb2312" => 31,
+        // The 38..42 windows-of-asia family (§19 H7g review): distinct
+        // codepage bytes — the historical table conflated them with
+        // their DOS-era siblings and lost the author's byte on every
+        // roundtrip (gh109_1: the author's 39 = ANSI_936 re-emitted as
+        // 31 = GB2312).
+        "ansi_932" => 38,
+        "ansi_936" => 39,
+        "ansi_949" => 40,
+        "ansi_950" => 41,
+        "ansi_1361" => 42,
         "ansi_1253" | "ansi1253" => 32,
         "ansi_1254" | "ansi1254" => 33,
         "ansi_1255" | "ansi1255" => 34,
@@ -172,11 +198,21 @@ pub fn encoding_from_dwg_code_page(index: u16) -> &'static Encoding {
 
 /// Encode a string to a legacy (pre-UTF-16) DWG code page.
 ///
-/// Characters the code page cannot represent are emitted as AutoCAD CIF
+/// Characters the code page cannot represent are emitted as AutoCAD MIF
 /// `\U+XXXX` escapes (astral-plane characters as a surrogate pair of
 /// escapes) instead of `encoding_rs`'s HTML `&#NNNNN;` references, which
-/// no CAD application understands. Well-formed CIF escapes round-trip
-/// through [`decode_cif_escapes`].
+/// no CAD application understands. Well-formed MIF escapes round-trip
+/// through [`decode_mif_escapes`].
+/// Encode text into a legacy (pre-R2007) DWG string using the document's
+/// code page.
+///
+/// Characters the code page cannot represent become MIF `\U+XXXX`
+/// escapes instead of `&#NNNNN;` references. The authored wire form of a
+/// representable non-ASCII char is AUTHOR DATA, not a convention —
+/// example_2004's `108\U+00B0` carries the in-band escape while
+/// example_2000's identical text carries the raw 0xB0 byte — so a
+/// DWG-read record that must re-emit verbatim uses the captured
+/// `dwg_wire_text` (the MText reader), never a derived escape rule.
 pub fn encode_legacy_string(text: &str, encoding: &'static Encoding) -> Vec<u8> {
     let (encoded, _, unmappable) = encoding.encode(text);
     if !unmappable {
@@ -199,14 +235,14 @@ pub fn encode_legacy_string(text: &str, encoding: &'static Encoding) -> Vec<u8> 
     out
 }
 
-/// Decode AutoCAD CIF `\U+XXXX` escapes (exactly four hex digits) into
+/// Decode AutoCAD MIF `\U+XXXX` escapes (exactly four hex digits) into
 /// Unicode characters.
 ///
 /// A high-surrogate escape followed by a low-surrogate escape combines into
 /// a scalar value. Malformed or unterminated escapes are left as literal
 /// text, and invalid code points are dropped — matching the MTEXT
 /// formatter's behavior for the same escapes.
-pub fn decode_cif_escapes(text: &str) -> String {
+pub fn decode_mif_escapes(text: &str) -> String {
     if !text.contains("\\U+") {
         return text.to_string();
     }
@@ -255,60 +291,6 @@ pub fn decode_cif_escapes(text: &str) -> String {
     out
 }
 
-/// Decode AutoCAD MIF `\M+nxxyy` escapes into Unicode characters.
-///
-/// The digit `n` selects the legacy double-byte code page: 1 is Shift-JIS,
-/// 2 is Big5, 3 is EUC-KR, 4 is Johab, and 5 is GB2312/GBK. The following
-/// four hexadecimal digits are decoded as the two bytes in that code page.
-/// Malformed escapes and byte sequences that the selected encoding cannot
-/// decode are left as literal text.
-pub fn decode_mif_escapes(text: &str) -> String {
-    if !text.contains("\\M+") {
-        return text.to_string();
-    }
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len();
-    let mut out = String::with_capacity(text.len());
-    let mut i = 0;
-    while i < len {
-        if i + 8 <= len && chars[i] == '\\' && chars[i + 1] == 'M' && chars[i + 2] == '+' {
-            let encoding = match chars[i + 3] {
-                '1' => Some(encoding_rs::SHIFT_JIS),
-                '2' => Some(encoding_rs::BIG5),
-                '3' => Some(encoding_rs::EUC_KR),
-                // Johab: no decoder here, so the escape stays literal.
-                '5' => Some(encoding_rs::GBK),
-                _ => None,
-            };
-            if let Some(encoding) = encoding {
-                let hex: String = chars[i + 4..i + 8].iter().collect();
-                if let Ok(value) = u16::from_str_radix(&hex, 16) {
-                    let bytes = value.to_be_bytes();
-                    let (decoded, _, had_errors) = encoding.decode(&bytes);
-                    if !had_errors {
-                        out.push_str(&decoded);
-                        i += 8;
-                        continue;
-                    }
-                }
-            }
-        }
-        out.push(chars[i]);
-        i += 1;
-    }
-    out
-}
-
-/// Whether `text` holds a legacy escape (`\U+XXXX` or `\M+nXXXX`).
-pub fn has_legacy_escape(text: &str) -> bool {
-    text.contains("\\U+") || text.contains("\\M+")
-}
-
-/// Decode both legacy AutoCAD escape formats found in pre-Unicode strings.
-pub fn decode_legacy_escapes(text: &str) -> String {
-    decode_cif_escapes(&decode_mif_escapes(text))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,6 +326,34 @@ mod tests {
     }
 
     #[test]
+    fn test_codepage_index_name_roundtrip() {
+        // §19 H7g review: codepage byte → name → byte must round-trip.
+        // The historical tables conflated the DOS-era/Windows asian
+        // pairs (22|38, 24|41, 25|40, 26|42, 31|39) into one name, so
+        // the byte → model-string conversion lost the author's byte on
+        // every same-version roundtrip (gh109_1: the author's 39 =
+        // ANSI_936 re-emitted as 31 = GB2312; gold's enum pins the
+        // distinction, codepages.h: CP_GB2312 = 31, CP_ANSI_936 = 39).
+        for byte in [
+            22u16, 24, 25, 26, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+        ] {
+            let name = dwg_code_page_name(byte);
+            assert_eq!(
+                dwg_code_page_index(name),
+                byte,
+                "roundtrip failed for byte {byte} ({name})"
+            );
+        }
+        // The new names still resolve an encoder (the codec families).
+        for name in ["DOS932", "ANSI_932", "ANSI_950", "ANSI_1361", "ANSI_936"] {
+            assert!(
+                encoding_from_code_page(name).is_some(),
+                "no encoder for {name}"
+            );
+        }
+    }
+
+    #[test]
     fn test_asian_encodings() {
         assert_eq!(encoding_from_code_page("GB2312"), Some(encoding_rs::GBK));
         assert_eq!(encoding_from_code_page("BIG5"), Some(encoding_rs::BIG5));
@@ -355,54 +365,26 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_dwg_pages_use_the_declared_fallback_encoding() {
-        for page in [
-            "KOI8-R",
-            "KOI8-U",
-            "ISO8859-10",
-            "ISO8859-13",
-            "ISO8859-14",
-            "ISO8859-15",
-        ] {
-            let index = dwg_code_page_index(page);
-            assert_eq!(index, 30);
-            assert_eq!(encoding_from_dwg_code_page(index), encoding_rs::WINDOWS_1252);
-        }
-    }
-
-    #[test]
-    fn test_decode_cif_escapes() {
-        assert_eq!(decode_cif_escapes("ab\\U+4E2Dcd"), "ab中cd");
-        assert_eq!(decode_cif_escapes("\\U+0041\\U+0042"), "AB");
-        // Exactly four hex digits: a fifth character stays literal.
-        assert_eq!(decode_cif_escapes("\\U+00412"), "A2");
-        // Malformed escapes stay literal.
-        assert_eq!(decode_cif_escapes("\\U+GGGG"), "\\U+GGGG");
-        assert_eq!(decode_cif_escapes("\\U+4E"), "\\U+4E");
-        assert_eq!(decode_cif_escapes("no escapes here"), "no escapes here");
-        // Invalid code points are dropped.
-        assert_eq!(decode_cif_escapes("\\U+D800"), "");
-        // Surrogate pair combines into a scalar.
-        assert_eq!(decode_cif_escapes("\\U+D83D\\U+DE00"), "😀");
-    }
-
-    #[test]
     fn test_decode_mif_escapes() {
-        assert_eq!(decode_mif_escapes(r"\M+5BCFE\M+5BAC5"), "件号");
-        assert_eq!(decode_legacy_escapes(r"\M+5BCFE\U+0021"), "件!");
-        assert_eq!(decode_mif_escapes(r"\M+9BCFE"), r"\M+9BCFE");
-        assert_eq!(decode_mif_escapes(r"\M+5GGGG"), r"\M+5GGGG");
-        // Shift-JIS as SolidWorks writes it, mixed with literal text.
-        assert_eq!(decode_mif_escapes("\\M+18B5A术\\M+19776\\M+18B81"), "技术要求");
-        // Johab has no decoder: the escape stays literal.
-        assert_eq!(decode_mif_escapes("\\M+4ABCD"), "\\M+4ABCD");
+        assert_eq!(decode_mif_escapes("ab\\U+4E2Dcd"), "ab中cd");
+        assert_eq!(decode_mif_escapes("\\U+0041\\U+0042"), "AB");
+        // Exactly four hex digits: a fifth character stays literal.
+        assert_eq!(decode_mif_escapes("\\U+00412"), "A2");
+        // Malformed escapes stay literal.
+        assert_eq!(decode_mif_escapes("\\U+GGGG"), "\\U+GGGG");
+        assert_eq!(decode_mif_escapes("\\U+4E"), "\\U+4E");
+        assert_eq!(decode_mif_escapes("no escapes here"), "no escapes here");
+        // Invalid code points are dropped.
+        assert_eq!(decode_mif_escapes("\\U+D800"), "");
+        // Surrogate pair combines into a scalar.
+        assert_eq!(decode_mif_escapes("\\U+D83D\\U+DE00"), "😀");
     }
 
     #[test]
-    fn test_encode_legacy_string_cif_escapes() {
+    fn test_encode_legacy_string_mif_escapes() {
         // Mappable chars encode directly.
         assert_eq!(encode_legacy_string("AB", encoding_rs::WINDOWS_1252), b"AB");
-        // Unmappable chars become CIF escapes, not HTML references.
+        // Unmappable chars become MIF escapes, not HTML references.
         let encoded = encode_legacy_string("中", encoding_rs::WINDOWS_1252);
         assert_eq!(String::from_utf8(encoded).unwrap(), "\\U+4E2D");
         // Astral-plane chars become a surrogate pair of escapes.
@@ -413,6 +395,6 @@ mod tests {
         // Round-trip through the decoder.
         let encoded = encode_legacy_string("a中b😀c", encoding_rs::WINDOWS_1252);
         let text = String::from_utf8(encoded).unwrap();
-        assert_eq!(decode_cif_escapes(&text), "a中b😀c");
+        assert_eq!(decode_mif_escapes(&text), "a中b😀c");
     }
 }

@@ -212,6 +212,9 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
         eval,
         major,
         minor,
+        // The on-disk base matrix is row-major (translation at [3,7,11] ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+        // measured on the authored sh_history fixtures); the hosts keep
+        // column-major glam arrays, so the reader transposes back.
         transform: crate::entities::surface::transpose_matrix(transform),
         color: reader.read_cm_color(),
         step_id: reader.read_bit_long(),
@@ -219,97 +222,78 @@ fn read_history_node_base(reader: &mut DwgMergedReader) -> SolidHistoryNodeBase 
     }
 }
 
-/// Embedded construction entity of a history node: type, then (unless the
-/// type is 0) its body length in bits and the body itself. A polyline the
-/// modeler keeps as a wire body carries, as in surface records, a presence
-/// bit (set when there is no body) and a modeler block instead.
-fn read_history_entity(
-    reader: &mut DwgMergedReader,
-    version: DwgVersion,
-    dxf_version: DxfVersion,
-) -> Option<crate::entities::EmbeddedEntity> {
-    let type_code = reader.read_bit_long();
-    if type_code == 0 {
-        return None;
+/// Capture an undocumented SH node-class tail: the bits from the current
+/// position to the record's main-section end, MSB-packed. The declared
+/// splits are attacker-controlled framing (a hostile UMC hdlsize or
+/// pre-R2010 raw-long can lie), so the end is clamped to the physical
+/// record window ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â gold clamps only at the physical record end too. See
+/// `SolidHistorySweep::shsw_raw_tail` for the Phase A rationale.
+/// Capture the record's remaining main-stream bits (from the current
+/// position to min(main_end, record_end)) MSB-packed, for verbatim
+/// re-emission. Shared with the entities reader (the SH-BREP raw-remainder
+/// tail, 2026-10-04).
+pub(crate) fn capture_undocumented_tail(reader: &mut DwgMergedReader) -> (Vec<u8>, u32) {
+    let tail_start = reader.position_in_bits();
+    let tail_end = reader.main_end_bits().min(reader.record_end_bits());
+    let tail_bit_len = (tail_end - tail_start).max(0) as usize;
+    let mut bytes = vec![0u8; (tail_bit_len + 7) / 8];
+    for index in 0..tail_bit_len {
+        if reader.read_bit() {
+            bytes[index / 8] |= 1 << (7 - index % 8);
+        }
     }
-    if crate::io::dwg::embedded_entity::is_body_profile(type_code) {
-        let acis_data = if reader.read_bit() {
-            crate::entities::solid3d::AcisData::default()
-        } else {
-            super::entities::read_extra_acis_data(reader, None).unwrap_or_default()
-        };
-        return Some(crate::entities::EmbeddedEntity::Body { type_code, acis_data });
-    }
-    let bit_length = safe_count(reader.read_bit_long()) as usize;
-    crate::io::dwg::embedded_entity::read_embedded_entity_bits(
-        reader,
-        type_code,
-        bit_length,
-        version,
-        dxf_version,
-    )
+    (bytes, tail_bit_len as u32)
 }
 
-fn read_history_sweep(
-    reader: &mut DwgMergedReader,
-    base: SolidHistoryNodeBase,
-    version: DwgVersion,
-    dxf_version: DxfVersion,
-) -> SolidHistorySweep {
-    // DWG stores the AcDbShSweepBase fields in a different order than DXF:
-    // scalars, flags and a DWG-only vector first, then both matrices,
-    // then the profile and path entities.
+fn read_history_sweep(reader: &mut DwgMergedReader, base: SolidHistoryNodeBase) -> SolidHistorySweep {
     let operation_major = reader.read_bit_long();
     let operation_minor = reader.read_bit_long();
+    // Phase A raw retention: the AcDbShSweepBase/AcDbShSweep tail layout is
+    // undocumented ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â gold compiles the class out (its decoder refuses the
+    // walk with "Unstable Class") and the shsw blob guess of its debug spec
+    // does not match the authored wires (the size fields read 0 while
+    // option/transform/flag content follows, so per-field modeling corrupts
+    // and shrinks the record). Capture the whole tail from here (including
+    // the direction bits, for verbatim re-emission) and write it verbatim
+    // (shsw_raw_tail). The direction below is a semantic peek only.
+    let tail_start = reader.position_in_bits();
     let direction = reader.read_3bit_double();
-    let draft_angle = reader.read_bit_double();
-    let start_draft_distance = reader.read_bit_double();
-    let end_draft_distance = reader.read_bit_double();
-    let twist_angle = reader.read_bit_double();
-    let scale_factor = reader.read_bit_double();
-    let align_angle = reader.read_bit_double();
-    let has_align_start = reader.read_bit();
-    let align_option = reader.read_bit_short().clamp(0, 255) as u8;
-    let miter_option = reader.read_bit_short().clamp(0, 255) as u8;
-    let align_start = reader.read_bit();
-    let bank = reader.read_bit();
-    let flag_294 = reader.read_bit();
-    let flag_295 = reader.read_bit();
-    let dwg_vector = reader.read_3bit_double();
-    let flag_296 = reader.read_bit();
-    let mut sweep_entity_transform = [0.0; 16];
-    let mut path_entity_transform = [0.0; 16];
-    for value in &mut sweep_entity_transform {
-        *value = reader.read_bit_double();
-    }
-    for value in &mut path_entity_transform {
-        *value = reader.read_bit_double();
-    }
-    let sweep_entity = read_history_entity(reader, version, dxf_version);
-    let path_entity = read_history_entity(reader, version, dxf_version);
+    reader.set_position_in_bits(tail_start);
+    let (raw_tail, tail_bit_len) = capture_undocumented_tail(reader);
+    // Phase B blob autopsy: project the pinned anchors of the captured
+    // tail into the typed view (the raw tail stays the write authority).
+    let tail_decode =
+        crate::io::dwg::sh_tail_decode::sweep_tail_view(&raw_tail, tail_bit_len);
     SolidHistorySweep {
         base,
         operation_major,
         operation_minor,
         direction,
-        sweep_entity,
-        path_entity,
-        draft_angle,
-        start_draft_distance,
-        end_draft_distance,
-        scale_factor,
-        twist_angle,
-        align_angle,
-        sweep_entity_transform: crate::entities::surface::transpose_matrix(sweep_entity_transform),
-        path_entity_transform: crate::entities::surface::transpose_matrix(path_entity_transform),
-        align_option,
-        miter_option,
-        has_align_start,
-        align_start,
-        bank,
-        flags_294_296: [flag_294, flag_295, flag_296],
-        dwg_vector,
-        ..SolidHistorySweep::default()
+        shsw_method: 0,
+        shsw_text: Vec::new(),
+        shsw_bl93: 0,
+        shsw_text2: Vec::new(),
+        shsw_raw_tail: raw_tail,
+        shsw_raw_tail_bit_len: tail_bit_len,
+        sweep_entity: None,
+        path_entity: None,
+        draft_angle: 0.0,
+        start_draft_distance: 0.0,
+        end_draft_distance: 0.0,
+        scale_factor: 0.0,
+        twist_angle: 0.0,
+        align_angle: 0.0,
+        sweep_entity_transform: [0.0; 16],
+        path_entity_transform: [0.0; 16],
+        align_option: 0,
+        miter_option: 0,
+        has_align_start: false,
+        align_start: false,
+        bank: false,
+        check_intersections: false,
+        flags_294_296: [false, false, false],
+        reference_point: crate::types::Vector3::ZERO,
+        tail_decode,
     }
 }
 
@@ -452,16 +436,15 @@ pub fn read_solid_history_data(
             for _ in 0..radius_count {
                 radii.push(reader.read_bit_double());
             }
-            // Each setback list directly follows its own count.
             let start_count = safe_count(reader.read_bit_long());
-            let mut start_setbacks = Vec::with_capacity(start_count as usize);
-            for _ in 0..start_count {
-                start_setbacks.push(reader.read_bit_double());
-            }
             let end_count = safe_count(reader.read_bit_long());
             let mut end_setbacks = Vec::with_capacity(end_count as usize);
             for _ in 0..end_count {
                 end_setbacks.push(reader.read_bit_double());
+            }
+            let mut start_setbacks = Vec::with_capacity(start_count as usize);
+            for _ in 0..start_count {
+                start_setbacks.push(reader.read_bit_double());
             }
             SolidHistoryOperation::Fillet(SolidHistoryFillet {
                 base,
@@ -475,10 +458,8 @@ pub fn read_solid_history_data(
             })
         }
         "ACSH_BREP_CLASS" => {
-            // Like the loft record, the DWG record has no operation version
-            // of its own; DXF repeats the node version there.
-            let operation_major = base.major;
-            let operation_minor = base.minor;
+            let operation_major = reader.read_bit_long();
+            let operation_minor = reader.read_bit_long();
             let data = super::entities::read_history_acis_entity(reader, version, dxf_version);
             let mut acis_data = crate::entities::AcisData::new();
             acis_data.sat_data = data.sat_data;
@@ -492,6 +473,17 @@ pub fn read_solid_history_data(
             acis_data.acis_empty_bit = data.acis_empty_bit;
             acis_data.extra_acis_data = data.extra_acis_data.map(Box::new);
             acis_data.wireframe_isolines = data.isolines;
+            // The SAT-v1 SH records (the R13/R2000 mints) keep their raw
+            // wire blocks ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the writer's verbatim block echo (the
+            // reader-capture packet's entity precedent) needs them for a
+            // record-identical conventional rewrite; the lossy 159-cipher
+            // re-encode from sat_data drifts the block framing.
+            acis_data.encr_sat_data = data.encr_sat_data;
+            acis_data.raw_tail = data.raw_tail;
+            acis_data.raw_tail_bit_len = data.raw_tail_bit_len;
+            acis_data.raw_wire_version = data.raw_wire_version;
+            acis_data.raw_wire_unknown = data.raw_wire_unknown;
+            acis_data.raw_wire_acis_empty = data.raw_wire_acis_empty;
             SolidHistoryOperation::Brep(SolidHistoryBrep {
                 base,
                 operation_major,
@@ -500,89 +492,87 @@ pub fn read_solid_history_data(
             })
         }
         "ACSH_SWEEP_CLASS" => {
-            SolidHistoryOperation::Sweep(read_history_sweep(reader, base, version, dxf_version))
+            SolidHistoryOperation::Sweep(read_history_sweep(reader, base))
         }
         "ACSH_EXTRUSION_CLASS" => {
-            SolidHistoryOperation::Extrusion(read_history_sweep(reader, base, version, dxf_version))
+            SolidHistoryOperation::Extrusion(read_history_sweep(reader, base))
         }
         "ACSH_LOFT_CLASS" => {
-            // The DWG record has no operation version of its own; DXF repeats
-            // the node version there.
-            let cross_count = safe_count(reader.read_bit_long());
-            let mut cross_sections = Vec::with_capacity(cross_count as usize);
-            for _ in 0..cross_count {
-                if let Some(entity) = read_history_entity(reader, version, dxf_version) {
-                    cross_sections.push(entity);
-                }
-            }
-            let guide_count = safe_count(reader.read_bit_long());
-            let mut guides = Vec::with_capacity(guide_count as usize);
-            for _ in 0..guide_count {
-                if let Some(entity) = read_history_entity(reader, version, dxf_version) {
-                    guides.push(entity);
-                }
-            }
-            let path_entity = read_history_entity(reader, version, dxf_version);
-            let start_draft_angle = reader.read_bit_double();
-            let end_draft_angle = reader.read_bit_double();
-            let start_magnitude = reader.read_bit_double();
-            let end_magnitude = reader.read_bit_double();
-            let mut flags = [false; 8];
-            for flag in &mut flags {
-                *flag = reader.read_bit();
-            }
-            let surface_option = reader.read_bit_long();
+            let operation_major = reader.read_bit_long();
+            let operation_minor = reader.read_bit_long();
+            // Phase A raw retention: the LOFT tail layout is
+            // gold-undocumented (DEBUGGING_CLASS, no oracle) and the
+            // guessed cross-section/guide walk does not match the
+            // authored wires. Capture verbatim (see shsw_raw_tail).
+            let (raw_tail, raw_tail_bit_len) = capture_undocumented_tail(reader);
+            // Phase B blob autopsy: typed view of the pinned anchors.
+            let tail_decode =
+                crate::io::dwg::sh_tail_decode::loft_tail_view(&raw_tail, raw_tail_bit_len);
             SolidHistoryOperation::Loft(SolidHistoryLoft {
-                operation_major: base.major,
-                operation_minor: base.minor,
                 base,
-                cross_sections,
-                guides,
+                operation_major,
+                operation_minor,
+                cross_sections: Vec::new(),
+                guides: Vec::new(),
                 parameters: None,
-                path_entity,
-                options: crate::objects::SolidHistoryLoftOptions {
-                    surface_option,
-                    start_draft_angle,
-                    end_draft_angle,
-                    start_magnitude,
-                    end_magnitude,
-                    flags,
-                },
+                raw_tail,
+                raw_tail_bit_len,
+                tail_decode,
             })
         }
         "ACSH_REVOLVE_CLASS" => {
             let operation_major = reader.read_bit_long();
             let operation_minor = reader.read_bit_long();
-            let axis_point = reader.read_3bit_double();
-            let direction = reader.read_3bit_double();
-            let revolve_angle = reader.read_bit_double();
-            let start_angle = reader.read_bit_double();
-            let draft_angle = reader.read_bit_double();
-            let field_44 = reader.read_bit_double();
-            let field_45 = reader.read_bit_double();
-            let twist_angle = reader.read_bit_double();
-            let flag_290 = reader.read_bit();
-            let close_to_axis = reader.read_bit();
-            let sweep_entity = read_history_entity(reader, version, dxf_version);
+            // Phase A raw retention: the REVOLVE tail layout is
+            // gold-undocumented and the guessed walk was disproven by
+            // budget alone ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â its fixed 192-bit raw-direction triple
+            // exceeds the entire remaining tail of every Revolve
+            // fixture record. Capture verbatim (see shsw_raw_tail).
+            let (raw_tail, raw_tail_bit_len) = capture_undocumented_tail(reader);
+            // Phase B blob autopsy: typed view of the pinned anchors ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+            // the first raw entry is the revolve sweep angle (3*pi/2 in
+            // every Revolve fixture, see sh_tail_decode).
+            let tail_decode =
+                crate::io::dwg::sh_tail_decode::revolve_tail_view(&raw_tail, raw_tail_bit_len);
             SolidHistoryOperation::Revolve(SolidHistoryRevolve {
                 base,
                 operation_major,
                 operation_minor,
-                axis_point,
-                direction,
-                revolve_angle,
-                start_angle,
-                draft_angle,
-                field_44,
-                field_45,
-                twist_angle,
-                flag_290,
-                close_to_axis,
-                sweep_entity,
+                axis_point: crate::types::Vector3::ZERO,
+                direction: crate::types::Vector3::ZERO,
+                revolve_angle: 0.0,
+                start_angle: 0.0,
+                draft_angle: 0.0,
+                field_44: 0.0,
+                field_45: 0.0,
+                twist_angle: 0.0,
+                flag_290: false,
+                close_to_axis: false,
+                sweep_entity: None,
+                raw_tail,
+                raw_tail_bit_len,
+                tail_decode,
             })
         }
         _ => return None,
     };
+    // Lift the authored node transform into the crate's base-at-origin
+    // frame: on disk the primitive nodes carry their translation at the
+    // solid's world centre (the local body hangs centred on the frame
+    // origin); shift it back so the hosts' grips, parameter edits and
+    // reference points keep their base-at-origin convention. Non-primitive
+    // families answer a zero centre and pass through untouched.
+    // The authored wire carries the solid's world centre in the primitive
+    // nodes' frame translation, while the hosts anchor Cylinder, Cone and
+    // Pyramid frames at the base centre: un-shift the translation so the
+    // hosts' grips, parameter edits and reference points keep their base
+    // anchor. Families whose hosts already anchor at the centre answer a
+    // zero offset and pass through untouched.
+    let mut operation = operation;
+    let center = crate::objects::primitive_center_shift(&operation);
+    if let Some(base) = operation.base_mut() {
+        base.translate_frame(center, -1.0);
+    }
     Some(DynamicBlockData::SolidHistoryNode(operation))
 }
 
@@ -664,6 +654,7 @@ pub fn read_dynamic_block_data(
             index: reader.read_bit_long(),
             lookup_name: reader.read_variable_text(),
             lookup_description: reader.read_variable_text(),
+            unknown_text: reader.read_variable_text(),
         }),
         "BLOCKPOINTPARAMETER" => DynamicBlockData::PointParameter(BlockPointParameter {
             parameter: read_one_point(reader),
@@ -673,13 +664,13 @@ pub fn read_dynamic_block_data(
         }),
         "BLOCKPOLARPARAMETER" => DynamicBlockData::PolarParameter(BlockPolarParameter {
             parameter: read_two_point(reader),
-            distance_name: reader.read_variable_text(),
-            distance_description: reader.read_variable_text(),
             angle_name: reader.read_variable_text(),
             angle_description: reader.read_variable_text(),
+            distance_name: reader.read_variable_text(),
+            distance_description: reader.read_variable_text(),
             offset: reader.read_bit_double(),
-            distance_value_set: read_value_set(reader),
             angle_value_set: read_value_set(reader),
+            distance_value_set: read_value_set(reader),
         }),
         "BLOCKROTATIONPARAMETER" => DynamicBlockData::RotationParameter(BlockRotationParameter {
             parameter: read_two_point(reader),
@@ -691,10 +682,10 @@ pub fn read_dynamic_block_data(
         }),
         "BLOCKXYPARAMETER" => DynamicBlockData::XYParameter(BlockXYParameter {
             parameter: read_two_point(reader),
-            y_label: reader.read_variable_text(),
             x_label: reader.read_variable_text(),
-            y_label_description: reader.read_variable_text(),
             x_label_description: reader.read_variable_text(),
+            y_label: reader.read_variable_text(),
+            y_label_description: reader.read_variable_text(),
             x_value: reader.read_bit_double(),
             y_value: reader.read_bit_double(),
             x_value_set: read_value_set(reader),
@@ -814,8 +805,8 @@ pub fn read_dynamic_block_data(
                 read_connection(reader),
                 read_connection(reader),
             ],
-            row_offset: reader.read_bit_double(),
             column_offset: reader.read_bit_double(),
+            row_offset: reader.read_bit_double(),
         }),
         "BLOCKLOOKUPACTION" => {
             let action = read_action(reader);
@@ -906,42 +897,25 @@ pub fn read_dynamic_block_data(
             for _ in 0..handle_count {
                 handles.push(Handle::from(reader.read_handle()));
             }
-            let binding_count = safe_count(reader.read_bit_long());
-            let mut bindings = Vec::with_capacity(binding_count as usize);
-            for _ in 0..binding_count {
-                let handle = Handle::from(reader.read_handle());
-                let count = safe_count(reader.read_bit_long());
-                let indexes = (0..count).map(|_| reader.read_bit_long()).collect();
-                bindings.push(BlockStretchHandle { handle, indexes });
+            let mut handle_flags = Vec::with_capacity(handle_count as usize);
+            for _ in 0..handle_count {
+                handle_flags.push(reader.read_bit_short());
             }
             let code_count = safe_count(reader.read_bit_long());
             let mut codes = Vec::with_capacity(code_count as usize);
             for _ in 0..code_count {
-                let code = reader.read_bit_long();
-                let count = safe_count(reader.read_bit_long());
-                let indexes = (0..count).map(|_| reader.read_bit_long()).collect();
-                codes.push(BlockStretchCode { code, indexes });
+                codes.push(reader.read_bit_long());
             }
-            let distance_multiplier = reader.read_bit_double();
-            let angle_offset = reader.read_bit_double();
-            let extra_count = safe_count(reader.read_bit_long());
-            let extra = (0..extra_count).map(|_| reader.read_bit_long()).collect();
             DynamicBlockData::PolarStretchAction(BlockPolarStretchAction {
                 action,
                 connections,
                 points,
                 handles,
-                bindings,
+                handle_flags,
                 codes,
-                distance_multiplier,
-                angle_offset,
-                extra,
             })
         }
-        // Preserve the complete native payload as an Unknown object until a
-        // complete properties-table decoder is available. A unit variant would
-        // silently erase the table when another part of the drawing is saved.
-        "BLOCKPROPERTIESTABLE" => return None,
+        "BLOCKPROPERTIESTABLE" => DynamicBlockData::PropertiesTable,
         "EVALUATION_GRAPH" | "ACAD_EVALUATION_GRAPH" => {
             let first_node_id = reader.read_bit_long();
             let first_node_id_copy = reader.read_bit_long();

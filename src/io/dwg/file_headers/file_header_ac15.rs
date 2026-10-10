@@ -15,13 +15,18 @@
 //!   CRC-16 (2 bytes) + end sentinel (16 bytes)
 //! [Header Variables]
 //! [Classes]
-//! [ObjFreeSpace]
 //! [Template]
 //! [AuxHeader]
 //! [AcDbObjects]
 //! [Handles]
+//! [ObjFreeSpace]
 //! [Preview]
 //! ```
+//!
+//! ObjFreeSpace is placed directly after the Handles section: gold's
+//! R13–R2000 reader accepts it only there (the locator address must
+//! equal the post-handles page-CRC position, decode.c's
+//! `section[SECTION_OBJFREESPACE_R13].address == pvz` gate).
 //!
 //! Based on the reference `DwgFileHeaderWriterAC15`.
 
@@ -54,6 +59,12 @@ pub struct DwgFileHeaderWriterAC15 {
     /// Ordered map of section name → (locator record, section data).
     /// Data is `None` until the section is added.
     records: IndexMap<String, (DwgSectionLocatorRecord, Option<Vec<u8>>)>,
+    /// The source file's FILEHEADER version pair (§19 H7f): the
+    /// `dwg_version` (0x11) and `maint_version` (0x12) bytes. "Of app
+    /// which stored it / the actual dwg version" — per-release values
+    /// that vary per author build (the corpus R2000 authors wrote
+    /// 0x23..0x21 × 0..0x1D); `None` keeps the historical fixed pair.
+    source_version_pair: Option<(u8, u8)>,
 }
 
 impl DwgFileHeaderWriterAC15 {
@@ -66,7 +77,13 @@ impl DwgFileHeaderWriterAC15 {
         let mut records = IndexMap::new();
 
         if version >= DxfVersion::AC1015 {
-            // Preserve the established R2000 physical section order.
+            // Preserve the established R2000 physical section order,
+            // except ObjFreeSpace: gold's R13–R2000 reader accepts the
+            // section only when its locator address equals the file
+            // position directly after the handles map (decode.c:
+            // `section[SECTION_OBJFREESPACE_R13].address == pvz`, the
+            // post-CRC position of the last object-map page) — the
+            // author layout runs [.. handles][objfreespace][2ndheader].
             records.insert(
                 names::HEADER.to_string(),
                 (DwgSectionLocatorRecord::new(Some(0)), None),
@@ -74,10 +91,6 @@ impl DwgFileHeaderWriterAC15 {
             records.insert(
                 names::CLASSES.to_string(),
                 (DwgSectionLocatorRecord::new(Some(1)), None),
-            );
-            records.insert(
-                names::OBJ_FREE_SPACE.to_string(),
-                (DwgSectionLocatorRecord::new(Some(3)), None),
             );
             records.insert(
                 names::TEMPLATE.to_string(),
@@ -94,6 +107,10 @@ impl DwgFileHeaderWriterAC15 {
             records.insert(
                 names::HANDLES.to_string(),
                 (DwgSectionLocatorRecord::new(Some(2)), None),
+            );
+            records.insert(
+                names::OBJ_FREE_SPACE.to_string(),
+                (DwgSectionLocatorRecord::new(Some(3)), None),
             );
         } else {
             // R13/R14 have five locator records and no AuxHeader. Their
@@ -133,7 +150,13 @@ impl DwgFileHeaderWriterAC15 {
             maintenance_version: 15,
             code_page: 30,
             records,
+            source_version_pair: None,
         }
+    }
+
+    /// Mirror the source file's FILEHEADER version pair (§19 H7f).
+    pub fn set_source_version_pair(&mut self, dwg_version: u8, maint_version: u8) {
+        self.source_version_pair = Some((dwg_version, maint_version));
     }
 
     /// Preserve the source document's maintenance release version.
@@ -199,9 +222,20 @@ impl DwgFileHeaderWriterAC15 {
     }
 
     /// Calculate absolute file offsets for each section.
+    ///
+    /// A record that was never given data stays at the constructed
+    /// NUL form (seeker 0, size 0) — the author's own absent-section
+    /// convention in the locator table (cf. PolyLine2D's Template
+    /// record nr4: address 0). Gold's R13–R2000 section gates compare
+    /// addresses (the ObjFreeSpace read requires
+    /// `section[3].address == <post-handles position>`), so a never-
+    /// populated record must not point at live bytes.
     fn set_record_seekers(&mut self) {
         let mut curr_offset = self.file_header_size() as i64;
         for (_, (record, data)) in self.records.iter_mut() {
+            if data.is_none() {
+                continue;
+            }
             record.seeker = curr_offset;
             curr_offset += data.as_ref().map_or(0, |d| d.len()) as i64;
         }
@@ -226,9 +260,16 @@ impl DwgFileHeaderWriterAC15 {
             .map_or(0i32, |(r, _)| r.seeker as i32);
         buf.write_i32::<LittleEndian>(preview_seeker)?;
 
-        // 0x11: application/version bytes. The AC15 reader and the known-good
-        // R2000 fixtures use this fixed pair for the whole R13-R2000 family.
-        buf.extend_from_slice(&[0x1B, 0x19]);
+        // 0x11: application/version bytes — the `dwg_version` ("of app
+        // which stored it. eg. SaveAs") + `maint_version` pair. The
+        // historical fixed 0x1B/0x19 stood for the whole R13-R2000
+        // family; §19 H7f re-emits the source author's per-build bytes
+        // on a same-version roundtrip (the corpus R2000 authors wrote
+        // anything in 0x17..0x21 × 0..0x1D here).
+        let (dwg_version, maint_version) = self
+            .source_version_pair
+            .unwrap_or((0x1B, 0x19));
+        buf.extend_from_slice(&[dwg_version, maint_version]);
 
         // 0x13: Compact DWG code-page index.
         buf.write_u16::<LittleEndian>(self.code_page)?;
@@ -330,15 +371,19 @@ mod tests {
     #[test]
     fn test_handle_section_offset() {
         let mut writer = DwgFileHeaderWriterAC15::new(DxfVersion::AC1015);
-        // Add sections before AcDbObjects
+        // Add sections before AcDbObjects. ObjFreeSpace lives after the
+        // handles map in the physical layout, so it never contributes to
+        // the AcDbObjects base.
         writer.add_section(names::HEADER, vec![0; 100]);
         writer.add_section(names::CLASSES, vec![0; 50]);
         writer.add_section(names::OBJ_FREE_SPACE, vec![0; 10]);
         writer.add_section(names::TEMPLATE, vec![0; 20]);
         writer.add_section(names::AUX_HEADER, vec![0; 30]);
+        writer.add_section(names::ACDB_OBJECTS, Vec::new());
+        writer.add_section(names::HANDLES, Vec::new());
 
-        // Offset = FILE_HEADER_SIZE + 100 + 50 + 10 + 20 + 30 = 0x61 + 210 = 307
-        assert_eq!(writer.handle_section_offset(), FILE_HEADER_SIZE + 210);
+        // Offset = FILE_HEADER_SIZE + 100 + 50 + 20 + 30 = 0x61 + 200 = 297
+        assert_eq!(writer.handle_section_offset(), FILE_HEADER_SIZE + 200);
     }
 
     #[test]

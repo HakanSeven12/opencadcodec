@@ -232,6 +232,11 @@ pub struct AttributeDefinition {
     pub embedded_mtext: Option<Box<crate::entities::MText>>,
     /// Lock position in block
     pub lock_position: bool,
+    /// Retained raw R2000+ dataflags byte from the wire (dwg.spec TEXT
+    /// 491, shared by ATTRIB/ATTDEF): the bits say exactly which optionals
+    /// AutoCAD wrote — echoed verbatim on write; None on constructed
+    /// documents and the R13-R14 layout.
+    pub raw_dataflags: Option<u8>,
 }
 
 impl AttributeDefinition {
@@ -260,6 +265,7 @@ impl AttributeDefinition {
             line_count: 1,
             embedded_mtext: None,
             lock_position: false,
+            raw_dataflags: None,
         }
     }
 

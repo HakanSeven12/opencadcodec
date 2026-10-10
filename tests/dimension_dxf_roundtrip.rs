@@ -1,4 +1,4 @@
-//! DXF round-trip of dimension geometry/units: dimension-line rotation
+﻿//! DXF round-trip of dimension geometry/units: dimension-line rotation
 //! (degrees<->radians), radial centre/arc point group codes, and the ordinate
 //! X/Y datum bit. Regression tests for the reader/writer pairing.
 
@@ -45,7 +45,7 @@ fn linear_rotation_survives_dxf_roundtrip() {
 fn block_name_survives_dxf_roundtrip() {
     // The anonymous block holding the baked dimension picture (group code 2)
     // must round-trip. The reader previously ignored code 2, so every DXF
-    // dimension came back with an empty block_name and lost its geometry link —
+    // dimension came back with an empty block_name and lost its geometry link â€”
     // consumers then recomputed the picture and the text drifted.
     let mut doc = CadDocument::new();
     let mut d =

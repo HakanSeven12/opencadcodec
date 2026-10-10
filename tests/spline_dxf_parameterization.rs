@@ -1,4 +1,4 @@
-//! Literal DXF flags and a DWG -> DXF -> DWG chain independently guard
+﻿//! Literal DXF flags and a DWG -> DXF -> DWG chain independently guard
 //! fit-spline parameterization; matching two lossy codec chains is insufficient.
 use std::io::Cursor;
 

@@ -637,43 +637,8 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_subclass("AcDbAssocArrayActionBody")?;
         self.writer.write_i32(90, value.version)?;
         self.writer.write_string(1, &value.parameter_block)?;
-        self.writer.write_i32(90, value.item_list_version)?;
-        self.writer.write_i32(90, value.items.len() as i32)?;
-        self.writer.write_string(1, &value.item_class)?;
-        for item in &value.items {
-            self.writer.write_subclass("AcDbAssocArrayItem")?;
-            self.write_assoc_array_item(item)?;
-        }
         for item in value.transform {
             self.writer.write_double(40, item)?;
-        }
-        Ok(())
-    }
-
-    fn write_assoc_array_item(&mut self, item: &AssocArrayItem) -> Result<()> {
-        self.writer.write_i32(90, item.class_version)?;
-        for location in item.location {
-            self.writer.write_i32(90, location)?;
-        }
-        self.writer.write_i32(90, item.flags)?;
-        if item.uses_default_transform {
-            self.writer.write_point3d(11, item.x_direction)?;
-        } else {
-            for value in item.transform {
-                self.writer.write_double(40, value)?;
-            }
-        }
-        if let Some(matrix) = item.relative_transform {
-            for value in matrix {
-                self.writer.write_double(40, value)?;
-            }
-        }
-        if let Some(first) = item.first_handle {
-            self.writer.write_handle(330, first)?;
-        }
-        if item.flags & 0x10 != 0 {
-            self.writer
-                .write_handle(330, item.second_handle.unwrap_or(Handle::NULL))?;
         }
         Ok(())
     }
@@ -685,7 +650,30 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(90, value.items.len() as i32)?;
         self.writer.write_string(1, &value.class_name)?;
         for item in &value.items {
-            self.write_assoc_array_item(item)?;
+            self.writer.write_i32(90, item.class_version)?;
+            for location in item.location {
+                self.writer.write_i32(90, location)?;
+            }
+            self.writer.write_i32(90, item.flags)?;
+            if item.uses_default_transform {
+                self.writer.write_point3d(11, item.x_direction)?;
+            } else {
+                for matrix_value in item.transform {
+                    self.writer.write_double(40, matrix_value)?;
+                }
+            }
+            if let Some(matrix) = item.relative_transform {
+                for matrix_value in matrix {
+                    self.writer.write_double(40, matrix_value)?;
+                }
+            }
+            if let Some(first) = item.first_handle {
+                self.writer.write_handle(330, first)?;
+            }
+            if item.flags & 0x10 != 0 {
+                self.writer
+                    .write_handle(330, item.second_handle.unwrap_or(Handle::NULL))?;
+            }
         }
         self.writer.write_i32(90, value.item_count)?;
         self.writer.write_i32(90, value.row_count)?;
@@ -754,8 +742,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_i32(90, value.marker_two)?;
         self.writer.write_i32(90, value.associative_step_count)?;
         self.writer.write_i32(90, value.associative_subent_count)?;
-        for item in &value.values {
-            self.writer.write_i32(90, *item)?;
+        self.writer.write_i32(90, value.steps.len() as i32)?;
+        for step in &value.steps {
+            self.writer.write_i32(90, *step)?;
+        }
+        if value.associative_subent_count != 0 || !value.subents.is_empty() {
+            self.writer.write_i32(90, value.subents.len() as i32)?;
+            for subent in &value.subents {
+                self.writer.write_i32(90, *subent)?;
+            }
         }
         Ok(())
     }
@@ -780,19 +775,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 self.writer.write_subclass("AcDbAssocGeomDependency")?;
                 self.writer.write_i16(90, value.class_version)?;
                 self.writer.write_bool(290, value.enabled)?;
-                let subent = &value.persistent_subent;
-                let class_name = if subent.class_name.is_empty() {
-                    AssocPersistentSubentId::class_name_for_code(subent.class_code)
-                        .unwrap_or_default()
-                } else {
-                    subent.class_name.as_str()
-                };
-                self.writer.write_string(1, class_name)?;
-                for item in &subent.values {
-                    self.writer.write_i32(90, *item)?;
-                }
+                self.writer.write_subclass("AcDbAssocPersSubentId")?;
                 self.writer
-                    .write_bool(290, subent.dependent_on_compound_object)?;
+                    .write_string(1, &value.persistent_subent.class_name)?;
+                self.writer
+                    .write_bool(290, value.persistent_subent.dependent_on_compound_object)?;
             }
             AssociativeData::SurfaceActionBody(value) => self.write_assoc_surface(value)?,
             AssociativeData::Action(value) => self.write_assoc_action(value)?,
@@ -819,10 +806,25 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
                 for marker in value.markers {
                     self.writer.write_i32(90, marker)?;
                 }
-                for item in &value.values {
+                // Ãƒâ€šÃ‚Â§19 H8h-ext-6: bl1/bl2 per the gold dwg2.spec field
+                // order; the subents count is the vector length; the cv2
+                // tail emits as 90 + 290.
+                self.writer.write_i32(90, value.bl1)?;
+                self.writer.write_i32(90, value.bl2)?;
+                self.writer.write_i32(90, value.steps.len() as i32)?;
+                for step in &value.steps {
+                    self.writer.write_i32(90, *step)?;
+                }
+                self.writer.write_i32(90, value.subents.len() as i32)?;
+                for item in &value.subents {
                     self.writer.write_i32(90, *item)?;
                 }
-                self.writer.write_bool(290, value.final_flag)?;
+                // Ãƒâ€šÃ‚Â§19 H8h-ext-6: the captured tail BLs as 90 values,
+                // then the trailing B as the 290 code.
+                for bl in &value.tail_bls {
+                    self.writer.write_i32(90, *bl)?;
+                }
+                self.writer.write_bool(290, value.trailing_b)?;
             }
             AssociativeData::EdgeActionParam(value) => {
                 self.write_assoc_single_dependency(

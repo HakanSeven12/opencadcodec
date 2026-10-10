@@ -72,7 +72,12 @@ pub struct LineType {
     pub alignment: char,
     /// Whether this linetype is externally dependent on an xref
     pub xref_dependent: bool,
-    /// Block record of the xref this linetype came from (NULL when local).
+    /// The xref binding's target handle (the COMMON_TABLE_FLAGS xref
+    /// slot; NULL on ordinary records). Retained from the wire so a
+    /// same-version rewrite replays the authored binding (the
+    /// gh44-error LTYPE census, 2026-10-04: the pipe-named
+    /// xref-dependent linetypes carry is_xref_resolved 256 + a real
+    /// (5.2.x) handle).
     pub xref_block_record_handle: Handle,
 }
 
@@ -210,11 +215,11 @@ pub enum LineTypeComplexContent {
 
 /// Complex linetype data for segments that display a shape or text instead of
 /// a dash/dot. Parsed from DXF codes 9, 44-46, 50, 74-75, 340 and DWG segment
-/// text area per OpenDesign spec §20.4.58.
+/// text area per OpenDesign spec Â§20.4.58.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LineTypeComplexData {
-    /// What this segment renders — shape glyph or text string.
+    /// What this segment renders â€” shape glyph or text string.
     pub content: LineTypeComplexContent,
     /// Text style / shape file handle (DXF 340 / DWG shape-file hard pointer).
     pub style_handle: Handle,
@@ -228,6 +233,28 @@ pub struct LineTypeComplexData {
     /// Offset from the element's position on the line (DXF 44, 45):
     /// `[along-line, perpendicular]` in drawing units.
     pub offset: [f64; 2],
+    /// The authored DWG `shape_flag` (BS 74) when this complex data came
+    /// from a DWG read â€” replayed VERBATIM at write (TODO A5 family 4,
+    /// 2026-10-01: the wire flag is the author's own marker, not
+    /// derivable â€” a plain dash carries flag 0 while its scale field
+    /// stores the author's 0.0, and a derived flag would add
+    /// IS_SHAPE(0x4) where the author wrote 0; gold's DWG layout writes
+    /// every dash's 8 fields unconditionally, the flag LAST â€”
+    /// dwg.spec's LTYPE REPEAT else-branch). `None` (the default for
+    /// constructed and deserialized content) derives the flag from
+    /// the model: absolute_rotationâ†’0x01, textâ†’0x02, shapeâ†’0x04.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_shape_flag: Option<i16>,
+    /// The wire `complex_shapecode` BS retained verbatim (the gh44-error
+    /// 16A5 census, 2026-10-04): gold assigns text-dash strings
+    /// SEQUENTIALLY from the strings area â€” the shapecode is the
+    /// author's own value, not the offset gold reads at (well-formed
+    /// files keep them equal; the pathological records carry 4 where
+    /// the sequential position is 8). `None` (constructed/deserialized)
+    /// keeps the derived value: the area cursor for text dashes, the
+    /// shape number for shape dashes.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dwg_shape_number: Option<i16>,
 }
 
 impl Default for LineTypeComplexData {
@@ -239,6 +266,8 @@ impl Default for LineTypeComplexData {
             rotation: 0.0,
             absolute_rotation: false,
             offset: [0.0, 0.0],
+            dwg_shape_flag: None,
+            dwg_shape_number: None,
         }
     }
 }
@@ -369,6 +398,8 @@ mod tests {
             rotation: 45.0,
             absolute_rotation: false,
             offset: [1.0, 2.0],
+            dwg_shape_flag: None,
+            dwg_shape_number: None,
         };
         assert!(c.is_shape());
         assert!(!c.is_text());
@@ -388,6 +419,8 @@ mod tests {
             rotation: 0.0,
             absolute_rotation: false,
             offset: [0.0, 0.5],
+            dwg_shape_flag: None,
+            dwg_shape_number: None,
         };
         assert!(!c.is_shape());
         assert!(c.is_text());
@@ -405,6 +438,8 @@ mod tests {
             rotation: 90.0,
             absolute_rotation: true,
             offset: [0.0, 0.0],
+            dwg_shape_flag: None,
+            dwg_shape_number: None,
         };
         assert!(c.is_shape());
         assert!(c.is_absolute_rotation());

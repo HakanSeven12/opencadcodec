@@ -1,4 +1,4 @@
-//! Integration tests for STL import.
+﻿//! Integration tests for STL import.
 
 #![cfg(feature = "import")]
 
@@ -7,7 +7,7 @@ use opencadcodec::io::import::stl::StlImporter;
 use opencadcodec::io::import::ImportConfig;
 use opencadcodec::types::Vector3;
 
-// ─── ASCII STL tests ─────────────────────────────────────────────────────
+// â”€â”€â”€ ASCII STL tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ASCII_CUBE_STL: &str = r#"solid cube
   facet normal 0 0 -1
@@ -125,7 +125,7 @@ fn test_import_ascii_stl_no_merge() {
     let entities: Vec<_> = doc.entities().collect();
     if let EntityType::Mesh(mesh) = &entities[0] {
         assert_eq!(mesh.faces.len(), 12);
-        // Without merging: 12 triangles × 3 vertices = 36
+        // Without merging: 12 triangles Ã— 3 vertices = 36
         assert_eq!(mesh.vertices.len(), 36);
     } else {
         panic!("Expected Mesh entity");
@@ -152,7 +152,7 @@ fn test_import_stl_with_scale() {
     }
 }
 
-// ─── Binary STL tests ───────────────────────────────────────────────────
+// â”€â”€â”€ Binary STL tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_binary_stl_data(triangles: &[([f32; 3], [[f32; 3]; 3])]) -> Vec<u8> {
     let mut buf = Vec::new();
@@ -213,7 +213,7 @@ fn test_import_empty_stl() {
     assert_eq!(doc.entities().count(), 0);
 }
 
-// ─── Layer naming tests ─────────────────────────────────────────────────
+// â”€â”€â”€ Layer naming tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stl_layer_named_from_solid() {
@@ -234,7 +234,7 @@ fn test_stl_layer_named_from_solid() {
     }
 }
 
-// ─── Roundtrip: STL → DXF → re-read ────────────────────────────────────
+// â”€â”€â”€ Roundtrip: STL â†’ DXF â†’ re-read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stl_roundtrip_through_dxf() {

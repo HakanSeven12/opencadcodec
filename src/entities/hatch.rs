@@ -1,4 +1,4 @@
-//! Hatch entity and boundary path types
+﻿//! Hatch entity and boundary path types
 
 use crate::entities::{Entity, EntityCommon};
 use crate::types::{
@@ -458,12 +458,12 @@ pub struct Hatch {
     pub gradient_color: HatchGradientPattern,
     /// MPOLYGON-only fill colour.
     pub mpolygon_hatch_color: Color,
-    /// MPOLYGON-only offset vector (DXF group code 11). Loop vertices are
-    /// stored relative to it; it is kept as read and not applied to `paths`.
+    /// MPOLYGON-only hatch X direction.
     pub mpolygon_x_direction: Vector2,
+    /// MPOLYGON trailer count retained independently from per-path handles.
+    pub mpolygon_boundary_handle_count: i32,
     /// MPOLYGON-only: loops the producing application flagged as invalid
-    /// (e.g. self-intersecting). Stored as closed polyline paths; they are
-    /// displayed as edges only, never filled.
+    /// (e.g. self-intersecting), as closed polyline paths.
     pub mpolygon_invalid_loops: Vec<BoundaryPath>,
 }
 
@@ -488,8 +488,9 @@ impl Hatch {
             pixel_size: 0.0,
             gradient_color: HatchGradientPattern::new(),
             mpolygon_hatch_color: Color::ByLayer,
-            mpolygon_x_direction: Vector2::ZERO,
+            mpolygon_x_direction: Vector2::new(1.0, 0.0),
             mpolygon_invalid_loops: Vec::new(),
+            mpolygon_boundary_handle_count: 0,
         }
     }
 

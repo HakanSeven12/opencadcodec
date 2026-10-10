@@ -47,6 +47,15 @@ pub struct DictionaryVariable {
 
     /// Name (optional, typically stored as dictionary key).
     pub name: String,
+
+    /// Reactor handles ({ACAD_REACTORS}). Parsed from the object handle
+    /// stream; written back verbatim on DWG save.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub reactors: Vec<Handle>,
+
+    /// Extended dictionary handle ({ACAD_XDICTIONARY}).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub xdictionary_handle: Option<Handle>,
 }
 
 impl DictionaryVariable {
@@ -64,6 +73,8 @@ impl DictionaryVariable {
             schema_number: 0,
             value: value.to_string(),
             name: name.to_string(),
+            reactors: Vec::new(),
+            xdictionary_handle: None,
         }
     }
 
@@ -75,6 +86,8 @@ impl DictionaryVariable {
             schema_number: 0,
             value: value.to_string(),
             name: String::new(),
+            reactors: Vec::new(),
+            xdictionary_handle: None,
         }
     }
 

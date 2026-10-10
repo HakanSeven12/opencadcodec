@@ -197,6 +197,7 @@ mod tests {
             maintenance_version: 0,
             unknown1: 0,
             unknown2: 0,
+            gold_shadow: None,
         }
     }
 

@@ -1,4 +1,4 @@
-//! Writing the same document repeatedly must produce identical bytes.
+﻿//! Writing the same document repeatedly must produce identical bytes.
 
 use opencadcodec::objects::{Dictionary, ObjectType};
 use opencadcodec::{CadDocument, DwgWriter, DxfWriter};

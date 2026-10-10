@@ -160,6 +160,24 @@ impl SortEntitiesTable {
         }
     }
 
+    /// Appends a DWG wire entry verbatim, without the editing-API dedup of
+    /// [`Self::add_entry`]. The SORTENTSTABLE wire legitimately carries the
+    /// same (often null) entity handle in several slots (gold's `ents`
+    /// vector keeps every dead pair in place, `dwg2.spec` HANDLE_VECTOR_N
+    /// over `num_ents`); dedup-by-entity would fold those slots into one,
+    /// re-assign the last duplicate's sort handle to the first slot, and
+    /// shrink the table. Only needed on the DWG read path.
+    pub fn add_wire_entry(&mut self, entity_handle: Handle, sort_handle: Handle) {
+        let idx = self.entries.len();
+        self.entries
+            .push(SortEntsEntry::new(entity_handle, sort_handle));
+        // Keep the lookup map coherent: point at the first occurrence of
+        // each entity (matches add_entry's first-insert semantics).
+        self.entry_map
+            .entry(entity_handle.value())
+            .or_insert(idx);
+    }
+
     /// Removes an entity from the sort table.
     ///
     /// Returns the entry if it was found and removed.

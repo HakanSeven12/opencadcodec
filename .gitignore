@@ -15,6 +15,10 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
+# Python (gold_harness normalizers/drivers)
+__pycache__/
+*.pyc
+
 # Test files
 /test_files/
 /samples/
@@ -26,7 +30,11 @@ Thumbs.db
 *.dwl2
 *.dmp
 /crash_report.txt
+*.ocs.lock
 
+# Authored gold fixtures (in-repo corpus extensions) — see
+# tests/gold_harness/fixtures/README.md
+!tests/gold_harness/fixtures/**/*.dwg
 
 # Documentation
 /docs/site/

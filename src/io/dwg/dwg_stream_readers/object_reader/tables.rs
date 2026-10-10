@@ -12,9 +12,9 @@ use crate::io::dwg::dwg_stream_readers::merged_reader::DwgMergedReader;
 use crate::io::dwg::dwg_version::DwgVersion;
 use crate::types::{Color, DxfVersion, Vector2, Vector3};
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Result structs for each table entry type
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Parsed table control object data.
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ pub struct VxTableRecordData {
     pub legacy_previous_entry_index: i16,
 }
 
-/// Parsed BLOCK_CONTROL data (special — has *Model_Space and *Paper_Space).
+/// Parsed BLOCK_CONTROL data (special â€” has *Model_Space and *Paper_Space).
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockControlData {
@@ -85,7 +85,13 @@ pub struct LayerData {
     pub plotstyle_handle: Option<u64>,
     pub material_handle: Option<u64>,
     pub linetype_handle: u64,
-    pub unknown_handle: Option<u64>,
+    /// Visual style handle (gold `visualstyle`, dwg.spec LAYER: the last
+    /// field of the record's handle stream, SINCE R_2013b). Gold always
+    /// serializes the field on R2013+ layers â€” a null handle when unset.
+    pub visualstyle_handle: Option<u64>,
+    /// Gold's flag0: the raw bitmask from the R2000+ BS read (discarded by the
+    /// decomposed bools above). Stored so the normalizer can emit it.
+    pub flag0: i16,
 }
 
 /// Parsed text STYLE data.
@@ -369,6 +375,14 @@ pub struct DimStyleData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockHeaderData {
     pub name: String,
+    /// The table-entry xref flags (the COMMON_TABLE_FLAGS bits, TODO B1,
+    /// 2026-10-01): `reference` (bit 4), `resolved` (the RAW
+    /// `is_xref_resolved` BS â€” gold prints it verbatim: the authored xref
+    /// blocks carry 1), `dependent` (bit 6). Distinct from the
+    /// BLOCK_HEADER body's `is_xref`/`is_xref_overlay` bits below.
+    pub xref_reference: bool,
+    pub xref_resolved: i16,
+    pub xref_dependent: bool,
     pub anonymous: bool,
     pub has_attributes: bool,
     pub is_xref: bool,
@@ -392,9 +406,9 @@ pub struct BlockHeaderData {
     pub layout_handle: Option<u64>,
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Reader methods
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Read xref-dependant bits for a table entry.
 /// Returns `true` if the entry is xref-dependent.
@@ -403,26 +417,30 @@ pub struct BlockHeaderData {
 #[derive(Debug, Clone, Copy, Default)]
 struct XrefTableFlags {
     reference: bool,
-    resolved: bool,
+    /// The RAW `is_xref_resolved` BS value (TODO B1, 2026-10-01): gold
+    /// prints the raw bitshort verbatim (the convention is 0 or 256, but
+    /// the authored xref blocks carry 1 â€” gold's Xref_2000 trace reads
+    /// `is_xref_resolved: 1 [BS 0]`), so a `== 256` bool test lost it.
+    resolved: i16,
     dependent: bool,
 }
 
 fn read_xref_table_flags(reader: &mut DwgMergedReader, version: DwgVersion) -> XrefTableFlags {
     if version.r2007_plus() {
-        let resolved = reader.read_bit_short() == 256;
+        let raw = reader.read_bit_short();
         XrefTableFlags {
-            // R2007+ no longer stores the "referenced" (64) flag. AutoCAD
-            // writes 0 for it, and a set bit makes AutoCAD reject "*Multiple"
-            // VPORT records in DXF.
-            reference: false,
-            resolved,
-            dependent: resolved,
+            reference: true,
+            resolved: raw,
+            dependent: raw == 256,
         }
     } else {
+        let reference = reader.read_bit();
+        let raw_resolved = reader.read_bit_short();
+        let dependent = reader.read_bit();
         XrefTableFlags {
-            reference: reader.read_bit(),
-            resolved: reader.read_bit_short() == 256,
-            dependent: reader.read_bit(),
+            reference,
+            resolved: raw_resolved,
+            dependent,
         }
     }
 }
@@ -517,9 +535,10 @@ pub fn read_layer(
     let frozen_in_new_vp;
     let locked;
     // R13/R14 records carry no plot flag (it arrived with R2000), so a layer
-    // plots unless the record says otherwise — as a new layer and DXF do.
+    // plots unless the record says otherwise - as a new layer and DXF do.
     let mut plottable = true;
     let mut line_weight: i16 = 0;
+    let mut flag0: i16 = 0;
 
     if version.r2000_plus() {
         let values = reader.read_bit_short();
@@ -530,6 +549,8 @@ pub fn read_layer(
         frozen_in_new_vp = (values & 0b0100) != 0;
         locked = (values & 0b1000) != 0;
         plottable = (values & 0b10000) != 0;
+        // Gold's flag0 is the raw bitmask; store it so the normalizer can emit it.
+        flag0 = values;
     } else {
         frozen = reader.read_bit();
         off = reader.read_bit(); // off flag (0=on, 1=off, same as R2000+)
@@ -559,8 +580,8 @@ pub fn read_layer(
     // Linetype handle
     let linetype_handle = reader.read_handle();
 
-    // R2013+: unknown handle
-    let unknown_handle = if version.r2013_plus(dxf_version) {
+    // R2013+: visualstyle handle (dwg.spec LAYER tail, SINCE R_2013b)
+    let visualstyle_handle = if version.r2013_plus(dxf_version) {
         Some(reader.read_handle())
     } else {
         None
@@ -582,7 +603,8 @@ pub fn read_layer(
         plotstyle_handle,
         material_handle,
         linetype_handle,
-        unknown_handle,
+        visualstyle_handle,
+        flag0,
     }
 }
 
@@ -620,14 +642,20 @@ pub fn read_text_style(reader: &mut DwgMergedReader, version: DwgVersion) -> Tex
 }
 
 /// Extract text from a linetype text area buffer into segments.
-/// For text-type elements (DWG 0x02 bit), shape_number is a byte offset into
-/// the text area pointing at a null-terminated string.
+/// For text-type elements (DWG 0x02 bit) the string is taken from the
+/// area SEQUENTIALLY â€” gold's decoder (dwg.spec's LTYPE DECODER block)
+/// walks `dash_i` forward per text dash: each dash's text is the
+/// string at the running offset, then the cursor advances past its
+/// terminator. The wire `complex_shapecode` is NOT the offset gold
+/// uses â€” on well-formed files the author keeps them equal, but the
+/// pathological records (gh44-error's 16A5: shapecode 4 where the
+/// sequential position is 8) carry the author's own value, which the
+/// model retains for verbatim replay.
 ///
 /// R2004 and earlier: 256-byte area of null-terminated ASCII strings.
 /// R2007+: 512-byte area of null-terminated UTF-16LE strings (2 bytes/char,
-/// terminated by a 0x0000 word). shape_number is still a BYTE offset.
-/// The 512-byte size = 256 chars × 2 bytes matches the R2004 256 ASCII chars.
-/// Per OpenDesign spec §20.4.58.
+/// terminated by a 0x0000 word).
+/// Per OpenDesign spec Â§20.4.58.
 fn extract_text_strings(
     segments: &mut [LinetypeSegment],
     area: &[u8],
@@ -635,10 +663,11 @@ fn extract_text_strings(
     decode_legacy: impl Fn(&[u8]) -> String,
 ) {
     let cap = area.len();
+    let mut dash_i = 0usize;
     for seg in segments.iter_mut() {
         // DWG convention: bit 0x02 = text element (0x04 = shape)
         if seg.dwg_flags & 0x02 != 0 {
-            let start = (seg.shape_number as usize).min(cap.saturating_sub(1));
+            let start = dash_i.min(cap.saturating_sub(1));
             if unicode {
                 // UTF-16LE: read 2-byte code units until the [0x00, 0x00] null.
                 let mut code_units: Vec<u16> = Vec::new();
@@ -653,6 +682,8 @@ fn extract_text_strings(
                     i += 2;
                 }
                 seg.text = String::from_utf16_lossy(&code_units);
+                // Gold's advance: 2 bytes/char + the 0x0000 terminator.
+                dash_i = start + code_units.len() * 2 + 2;
             } else {
                 let end = area[start..]
                     .iter()
@@ -660,6 +691,7 @@ fn extract_text_strings(
                     .map(|i| start + i)
                     .unwrap_or(cap);
                 seg.text = decode_legacy(&area[start..end]);
+                dash_i = end + 1;
             }
         }
     }
@@ -696,7 +728,7 @@ pub fn read_linetype(reader: &mut DwgMergedReader, version: DwgVersion) -> Linet
         });
     }
 
-    // Per spec (OpenDesign §20.4.58):
+    // Per spec (OpenDesign Â§20.4.58):
     //   R2004 and earlier: 256-byte text area (always present).
     //   R2007+: 512-byte text area ONLY if the 0x02 text bit is set on any
     //   ShapeFlag entry. Shape-only elements do not carry this area.
@@ -823,7 +855,7 @@ pub fn read_view(reader: &mut DwgMergedReader, version: DwgVersion) -> ViewData 
     ViewData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         xref_handle,
         height,
@@ -891,7 +923,7 @@ pub fn read_ucs(reader: &mut DwgMergedReader, version: DwgVersion) -> UcsData {
     UcsData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         xref_handle,
         origin,
@@ -1028,7 +1060,7 @@ pub fn read_vport(reader: &mut DwgMergedReader, version: DwgVersion) -> VPortDat
     VPortData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         view_height,
         aspect_ratio_times_height,
@@ -1110,7 +1142,7 @@ pub fn read_dimstyle(
     let mut ds = DimStyleData {
         name,
         xref_reference: xref.reference,
-        xref_resolved: xref.resolved,
+        xref_resolved: xref.resolved != 0,
         xref_dependent: xref.dependent,
         dimpost: String::new(),
         dimapost: String::new(),
@@ -1201,7 +1233,7 @@ pub fn read_dimstyle(
     // R13/R14 only: the older DimStyle field block. Field order/types mirror
     // the writer's r13_14_only block (matches the reference implementation). Without this the
     // whole record was skipped, leaving DIMTAD/DIMASZ/DIMGAP at their defaults
-    // (0 / 0.18 / 0.09) — so a leader that hooks its text via DIMTAD never
+    // (0 / 0.18 / 0.09) â€” so a leader that hooks its text via DIMTAD never
     // drew the underline. dimblk names are strings here (handles only R2000+).
     if version.r13_14_only() {
         ds.dimtol = reader.read_bit();
@@ -1390,7 +1422,10 @@ pub fn read_dimstyle(
 /// Read BLOCK_HEADER (block record) table entry data.
 pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> BlockHeaderData {
     let name = reader.read_variable_text();
-    read_xref_dependant_bits(reader, version);
+    // TODO B1 (2026-10-01): retain the full table-entry xref flags â€”
+    // the resolved bit (gold's `is_xref_resolved`) was read and
+    // discarded here, so an xref block's JSON read 0 against gold's 1.
+    let xref_flags = read_xref_table_flags(reader, version);
 
     let anonymous = reader.read_bit();
     let has_attributes = reader.read_bit();
@@ -1417,7 +1452,7 @@ pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> B
     let mut insert_count_bytes = Vec::new();
     let mut preview_data = Vec::new();
     if version.r2000_plus() {
-        // Insert count bytes — read until 0
+        // Insert count bytes â€” read until 0
         loop {
             let b = reader.read_byte();
             if b == 0 {
@@ -1486,6 +1521,9 @@ pub fn read_block_header(reader: &mut DwgMergedReader, version: DwgVersion) -> B
 
     BlockHeaderData {
         name,
+        xref_reference: xref_flags.reference,
+        xref_resolved: xref_flags.resolved,
+        xref_dependent: xref_flags.dependent,
         anonymous,
         has_attributes,
         is_xref,
@@ -1531,7 +1569,7 @@ pub struct VPortEntityHeaderData {
     pub entity_handle: u64,
 }
 
-/// Read VPORT_ENTITY_CONTROL (type 70) — R13-R14 viewport entity control.
+/// Read VPORT_ENTITY_CONTROL (type 70) â€” R13-R14 viewport entity control.
 /// Same structure as a generic table control.
 pub fn read_vport_entity_control(reader: &mut DwgMergedReader) -> VPortEntityControlData {
     let entry_count = safe_count(reader.read_bit_long());
@@ -1545,7 +1583,7 @@ pub fn read_vport_entity_control(reader: &mut DwgMergedReader) -> VPortEntityCon
     }
 }
 
-/// Read VPORT_ENTITY_HEADER (type 71) — R13-R14 viewport entity header.
+/// Read VPORT_ENTITY_HEADER (type 71) â€” R13-R14 viewport entity header.
 pub fn read_vport_entity_header(
     reader: &mut DwgMergedReader,
     version: DwgVersion,
@@ -1563,9 +1601,9 @@ pub fn read_vport_entity_header(
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Tests
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 #[cfg(test)]
 mod tests {

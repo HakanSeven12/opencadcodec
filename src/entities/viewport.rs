@@ -264,6 +264,13 @@ pub struct Viewport {
     pub height: f64,
     /// Viewport status flags
     pub status: ViewportStatusFlags,
+    /// Raw DWG status_flag (BL 90, SINCE R_2000b) retained verbatim from
+    /// the wire. The typed `status` decomposition models only bits 0-15
+    /// and drops the higher bits (corpus records carry 0xC8060-style
+    /// values); the raw is the wire-true source for the harness and the
+    /// writer echo. None on programmatically constructed viewports (the
+    /// writer then falls back to the typed bits).
+    pub dwg_status_flag: Option<i32>,
     /// Viewport ID (unique within the drawing)
     pub id: i16,
     /// On, but off screen or past the active-viewport limit (DXF status
@@ -351,6 +358,12 @@ pub struct Viewport {
     pub ambient_color: Color,
     /// Custom scale factor
     pub custom_scale: f64,
+    /// Pre-R2004 viewport-entity-header handle (dwg.spec VIEWPORT:
+    /// FIELD_HANDLE (vport_entity_header, 5, 0) in VERSIONS (R_13b1, R_14)
+    /// and (R_2000b, R_2002)) — the VX table record linking this entity,
+    /// with its wire-null form. Retained verbatim on the DWG read path and
+    /// echoed by the writer; NULL on newer eras and constructed documents.
+    pub vport_entity_handle: Handle,
 }
 
 impl Viewport {
@@ -362,6 +375,7 @@ impl Viewport {
             width: 297.0,  // A4 width in mm
             height: 210.0, // A4 height in mm
             status: ViewportStatusFlags::default_on(),
+            dwg_status_flag: None,
             id: 0,
             off_screen: false,
             view_center: Vector3::ZERO,
@@ -404,6 +418,7 @@ impl Viewport {
             contrast: 0.0,
             ambient_color: Color::from_index(0),
             custom_scale: 1.0,
+            vport_entity_handle: Handle::NULL,
         }
     }
 

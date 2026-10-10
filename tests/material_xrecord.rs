@@ -1,4 +1,4 @@
-use opencadcodec::objects::{Dictionary, Material, ObjectType, XRecord, XRecordEntry};
+﻿use opencadcodec::objects::{Dictionary, Material, ObjectType, XRecord, XRecordEntry};
 use opencadcodec::{CadDocument, Handle};
 
 fn checker_record(name: &str, handle: Handle, owner: Handle) -> XRecord {

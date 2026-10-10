@@ -1,4 +1,4 @@
-//! Synthetic DXF round-trip for ACAD_TABLE cell content (fixture-independent).
+﻿//! Synthetic DXF round-trip for ACAD_TABLE cell content (fixture-independent).
 //!
 //! Builds a small table with text cells, column widths and row heights, writes
 //! it to DXF and reads it back, asserting the structure and every cell's text

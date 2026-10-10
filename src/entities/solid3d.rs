@@ -328,6 +328,42 @@ pub struct AcisData {
     /// for round-trip; 0 when the entity carried no wireframe data).
     #[cfg_attr(feature = "serde", serde(default))]
     pub wireframe_isolines: i32,
+    /// Raw pre-2004 SAT blocks, one entry per wire block (dwg.spec
+    /// DECODE_3DSOLID: BL block_size + TFv bytes, terminated by BL 0).
+    /// Gold prints each block's bytes verbatim as `encr_sat_data` hex
+    /// strings (out_json json_3dsolid) — the 159-cipher de-obfuscation
+    /// that yields `sat_data` is lossy — so retain the raw blocks for
+    /// the gold-parity comparison and echo them verbatim on write.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub encr_sat_data: Vec<Vec<u8>>,
+    /// The SH-BREP raw-remainder form (the 2026-10-04 BREP packet):
+    /// AutoCAD-authored `ACSH_BREP_CLASS` records whose modeler-geometry
+    /// head carries a wire version outside {1, 2} (0 on the 2007–2013
+    /// mints, garbage like 38438 on 2018). Gold's unstable-class decode
+    /// reads NO body there and walks the `COMMON_3DSOLID` tail straight
+    /// from the modeler blob's first bits, leaving the record's ~45 KB
+    /// body un-walked between the tail and the handle stream. The
+    /// captured tail (from just after the version BS to the main end) is
+    /// the WRITE AUTHORITY — re-emitted verbatim after the wire head —
+    /// while the typed tail fields below feed only the JSON projection.
+    /// Serde-skipped like `raw_dwg_data`: the dump and the differ never
+    /// see the blob, and the document-state fingerprint excludes it.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_tail: Vec<u8>,
+    /// The captured tail's exact bit length (the record window can end
+    /// mid-byte; the re-emission writes exactly this many bits).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_tail_bit_len: u32,
+    /// Some(wire version) exactly when the raw-remainder form was read
+    /// (the value is outside {1, 2} and has no `AcisVersion` mapping).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_wire_version: Option<i16>,
+    /// The wire head's `unknown` bit, retained for the verbatim echo.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_wire_unknown: bool,
+    /// The wire head's `acis_empty` bit, retained for the verbatim echo.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub raw_wire_acis_empty: bool,
 }
 
 impl AcisData {
@@ -346,6 +382,12 @@ impl AcisData {
             acis_empty_bit: false,
             extra_acis_data: None,
             wireframe_isolines: 0,
+            encr_sat_data: Vec::new(),
+            raw_tail: Vec::new(),
+            raw_tail_bit_len: 0,
+            raw_wire_version: None,
+            raw_wire_unknown: false,
+            raw_wire_acis_empty: false,
         }
     }
 
@@ -367,6 +409,12 @@ impl AcisData {
             acis_empty_bit: false,
             extra_acis_data: None,
             wireframe_isolines: 0,
+            encr_sat_data: Vec::new(),
+            raw_tail: Vec::new(),
+            raw_tail_bit_len: 0,
+            raw_wire_version: None,
+            raw_wire_unknown: false,
+            raw_wire_acis_empty: false,
         }
     }
 
@@ -385,6 +433,12 @@ impl AcisData {
             acis_empty_bit: false,
             extra_acis_data: None,
             wireframe_isolines: 0,
+            encr_sat_data: Vec::new(),
+            raw_tail: Vec::new(),
+            raw_tail_bit_len: 0,
+            raw_wire_version: None,
+            raw_wire_unknown: false,
+            raw_wire_acis_empty: false,
         }
     }
 

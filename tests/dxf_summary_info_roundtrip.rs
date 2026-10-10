@@ -1,4 +1,4 @@
-//! Drawing properties (DWGPROPS) survive a DXF write and read. R2004+ files
+﻿//! Drawing properties (DWGPROPS) survive a DXF write and read. R2004+ files
 //! carry them as header variables: `$TITLE` .. `$REVISIONNUMBER` right after
 //! `$DWGCODEPAGE`, the custom properties as `$CUSTOMPROPERTYTAG` /
 //! `$CUSTOMPROPERTY` pairs after `$LASTSAVEDBY`, and `$HYPERLINKBASE`.

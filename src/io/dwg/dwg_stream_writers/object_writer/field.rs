@@ -6,27 +6,14 @@ use super::DwgObjectWriter;
 impl<'a> DwgObjectWriter<'a> {
     pub(super) fn write_field_object(&mut self, value: &Field) {
         let type_code = self.class_type_code("FIELD", 500);
-        let eed = value
-            .xdata
-            .records()
-            .iter()
-            .filter_map(|rec| self.encode_xdata_record(rec))
-            .collect();
-        self.write_common_non_entity_data_eed(
-            type_code,
-            value.handle,
-            value.owner,
-            &[],
-            &None,
-            eed,
-        );
+        self.write_common_non_entity_data(type_code, value.handle, value.owner, &[], &None);
         self.writer.write_variable_text(&value.evaluator_id);
         self.writer.write_variable_text(&value.code);
         self.writer.write_bit_long(value.child_fields.len() as i32);
         self.writer
             .write_bit_long(value.referenced_objects.len() as i32);
         if self.version.r2007_pre() {
-            self.writer.write_variable_text(value.pre2007_format());
+            self.writer.write_variable_text(&value.format);
         }
         self.writer.write_bit_long(value.evaluation_option);
         self.writer.write_bit_long(value.filing_option);

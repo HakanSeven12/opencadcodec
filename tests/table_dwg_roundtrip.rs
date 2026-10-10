@@ -1,7 +1,7 @@
-//! Synthetic DWG round-trip for ACAD_TABLE (fixture-independent).
+﻿//! Synthetic DWG round-trip for ACAD_TABLE (fixture-independent).
 //!
 //! Writes a table with text cells, column widths and row heights, reads it
-//! back, and checks the structure and every cell's text survive — at both a
+//! back, and checks the structure and every cell's text survive â€” at both a
 //! pre-R2010 version (flat format) and an R2010+ version (inline table
 //! content), exercising both writer and reader paths.
 
@@ -62,14 +62,14 @@ fn assert_table(t: &Table, label: &str) {
 
 #[test]
 fn table_dwg_roundtrip_flat_r2007() {
-    // AC1021 = R2007 → pre-R2010 flat cell format.
+    // AC1021 = R2007 â†’ pre-R2010 flat cell format.
     let t = roundtrip(DxfVersion::AC1021);
     assert_table(&t, "R2007");
 }
 
 #[test]
 fn table_dwg_roundtrip_content_r2018() {
-    // AC1032 = R2018 → R2010+ inline table content.
+    // AC1032 = R2018 â†’ R2010+ inline table content.
     let t = roundtrip(DxfVersion::AC1032);
     assert_table(&t, "R2018");
 }

@@ -96,6 +96,61 @@ pub struct DxfClass {
     pub unknown1: i32,
     /// Second reserved class metadata value (normally zero).
     pub unknown2: i32,
+    /// The values gold's own classes walk reads for this class entry —
+    /// the gold-shadow record (see `classes_reader::gold_shadow_classes`
+    /// and `DwgClassGoldShadow`). Gold reads the class-record tail as
+    /// `BS, BS` for `dwg_version`/`maint_version` where this reader uses
+    /// `BL`, so on class tables whose tail encoding uses a non-byte form
+    /// (the AutoCAD-2027.1-authored fixture set) gold's numeric cursor
+    /// desyncs from the true record layout mid-table and its per-class
+    /// record turns to garbage — `item_class_id` never 0x1F2, so
+    /// entity-class records of such files decode through gold's
+    /// unknown-OBJECT walk. `None` when the shadow walk did not reach
+    /// this index (the fallback is this reader's own parse). Emitted in
+    /// the dump so the structure axis can project gold's CLASSES JSON
+    /// shape exactly (§19 H5b).
+        pub gold_shadow: Option<DwgClassGoldShadow>,
+}
+
+/// One record of gold's classes walk — the per-class values gold
+/// (libredwg) reads and prints in its `CLASSES` JSON (§19 H5b). On
+/// conventionally-authored files every field equals this reader's own
+/// parse; on the desynced tables (the AutoCAD-2027.1 fixture set) the
+/// fields from the first non-byte-tail record onward are gold's garbage.
+///
+/// Print semantics (gold's `json_classes_write`, out_json.c:1988): the
+/// `BS` fields print as UNSIGNED 16-bit (`BITCODE_BS` is uint16_t,
+/// include/dwg.h:120 — number 36108 observed, never −29428),
+/// `num_instances` as unsigned 32-bit (2147673665 observed; its `11`
+/// degenerate BL code returns gold's error-branch 256 — ExtrudeM_2018
+/// records 9/25), and `dwg_version`/`maint_version` — `BS` reads
+/// stored into gold's `BITCODE_BL` (uint32) struct fields —
+/// ZERO-extend (ExtrudeM_2018 record 19: gold 32970, not the
+/// sign-extended 4294934730).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DwgClassGoldShadow {
+    pub number: u16,
+    pub proxyflag: u16,
+    /// 0/1 (gold prints the bit as an int)
+    pub is_zombie: u8,
+    pub item_class_id: u16,
+    pub num_instances: u32,
+    pub dwg_version: u32,
+    pub maint_version: u32,
+    /// Gold's read of the three name strings (TODO B1, 2026-10-01): on
+    /// the pre-R2007 desynced tables the inline TVs advance gold's
+    /// shared cursor, so past the derail its `dxfname`/`cppname`/
+    /// `appname` are garbage too (the 2004 cluster's CLASSES value
+    /// rows). R2007+ strings live in the separate string stream and
+    /// never desync — the shadow carries them only pre-R2007; the
+    /// projection falls back to this reader's own (correct) names.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub dxfname: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub cppname: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub appname: String,
 }
 
 impl DxfClass {
@@ -115,6 +170,7 @@ impl DxfClass {
             maintenance_version: 0,
             unknown1: 0,
             unknown2: 0,
+            gold_shadow: None,
         }
     }
 
@@ -122,10 +178,21 @@ impl DxfClass {
     pub fn new_entity(dxf_name: impl Into<String>, cpp_class_name: impl Into<String>) -> Self {
         let mut class = Self::new(dxf_name, cpp_class_name);
         class.is_an_entity = true;
-        class.item_class_id = 498;
+        class.item_class_id = ENTITY_ITEM_CLASS_ID;
         class
     }
 }
+
+/// The DWG class-table entity marker (`item_class_id`, decimal 498):
+/// classes carrying this value are entity classes, everything else
+/// (including any garbage value a desynced walk produces) is an object
+/// class. This reader's own class walk, the gold-shadow classification,
+/// and the entity constructors key the same rule — use the constant, not
+/// a literal, at every site.
+pub const ENTITY_ITEM_CLASS_ID: i16 = 0x1F2;
+
+/// The DWG class-table object counterpart (decimal 499).
+pub const OBJECT_ITEM_CLASS_ID: i16 = 0x1F3;
 
 /// Collection of DXF class definitions, keyed by DXF name (case-insensitive).
 ///
@@ -203,6 +270,14 @@ impl DxfClassCollection {
     /// Iterate over all class definitions
     pub fn iter(&self) -> impl Iterator<Item = &DxfClass> {
         self.entries.iter()
+    }
+
+    /// Mutably iterate over class definitions.
+    ///
+    /// Only for read-side annotations that never change the class identity
+    /// (dxf/cpp/application names drive `name_index`).
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut DxfClass> {
+        self.entries.iter_mut()
     }
 
     /// Clear all class definitions

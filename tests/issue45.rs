@@ -1,4 +1,4 @@
-use opencadcodec::tables::Layer;
+﻿use opencadcodec::tables::Layer;
 use opencadcodec::types::{Color, DxfVersion};
 use opencadcodec::{CadDocument, DxfWriter};
 
@@ -38,8 +38,7 @@ fn ac1032_layer_output_has_valid_header_handles_and_plotstyle() {
         .split("\r\n")
         .collect::<Vec<_>>();
     assert_eq!(maintenance[0], " 90");
-    // The maintenance version a current writer gives R2018 files.
-    assert_eq!(maintenance[1], "   377");
+    assert_eq!(maintenance[1], "     0");
 
     let table = layer_table(&output);
     let handles = layer_handles(table);

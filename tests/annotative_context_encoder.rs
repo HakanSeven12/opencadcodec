@@ -1,4 +1,4 @@
-//! Semantic round-trip validation of the annotative
+﻿//! Semantic round-trip validation of the annotative
 //! `AcDb*ObjectContextData` encoder.
 //!
 //! Strategy: the golden R2018 file `~/Downloads/0718-mbmdmc.dwg` carries 134
@@ -144,12 +144,12 @@ fn encoder_preserves_context_fields_and_scale_link() {
     assert_eq!(produced, twice, "field encoder is not semantically stable");
 }
 
-// ── Synthesis path (what OCS uses to CREATE contexts from scratch) ──────────
+// â”€â”€ Synthesis path (what OCS uses to CREATE contexts from scratch) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Build a fresh R2018 document carrying one annotative context leaf of `kind`
 /// that references a synthesized SCALE, round-trip it, and return the reloaded
 /// leaf's decoded fields (scale target + kind). Exercises the whole create
-/// path: class registration → object insertion → DWG write → read-back.
+/// path: class registration â†’ object insertion â†’ DWG write â†’ read-back.
 fn synth_roundtrip_leaf(
     class_name: &str,
     kind: ObjectContextKind,
@@ -257,7 +257,7 @@ fn synth_mtext_context_roundtrips() {
 
 #[test]
 fn synth_mtext_columns_roundtrips() {
-    // Dynamic columns with explicit heights — exercises the column branch.
+    // Dynamic columns with explicit heights â€” exercises the column branch.
     let kind = ObjectContextKind::MText(MTextContext {
         attachment: 1,
         x_axis_dir: Vector3::new(0.7071, 0.7071, 0.0),
@@ -360,7 +360,7 @@ fn synth_aligned_dim_context_roundtrips() {
 
 #[test]
 fn synth_ordinate_dim_context_roundtrips() {
-    // Two-point subtype — exercises the multi-3BD path.
+    // Two-point subtype â€” exercises the multi-3BD path.
     let kind = ObjectContextKind::Dim(dim_ctx(DimSubtype::Ordinate {
         feature_location_pt: Vector3::new(4.0, 5.0, 6.0),
         leader_endpt: Vector3::new(7.0, 8.0, 9.0),

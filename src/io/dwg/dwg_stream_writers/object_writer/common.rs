@@ -145,6 +145,32 @@ pub const OBJ_DGNDEFINITION: i16 = 0x89; // 137 (class-based; sentinel fallback)
 
 // ── Methods on DwgObjectWriter ──────────────────────────────────────
 impl<'a> DwgObjectWriter<'a> {
+    /// The authored ownerhandle wire form for a record, when the captured
+    /// form resolves (against the record's own handle, the way the reader
+    /// resolved it) to the same owner target this write intends (TODO A1,
+    /// 2026-10-01). The authored code choice is a writer-genus convention
+    /// — the ODA FileConverter 2018 set always writes the absolute code-4
+    /// form where the AutoCAD genus writes §19 H8d's relative-iff-shorter
+    /// pick — so the writer replays the captured `(code, size, value)`
+    /// verbatim; a stale capture (re-allocated owner), an absent one
+    /// (constructed content), or a non-matching resolution falls back to
+    /// the recomputed choice.
+    fn captured_owner_form(&self, own: Handle, owner: Handle) -> Option<(u8, u8, u64)> {
+        let (code, size, value) = self
+            .document
+            .owner_handle_form_by_handle
+            .get(&own)
+            .copied()?;
+        let resolved = match code {
+            0x6 => own.value().wrapping_add(1),
+            0x8 => own.value().wrapping_sub(1),
+            0xA => own.value().wrapping_add(value),
+            0xC => own.value().wrapping_sub(value),
+            _ => value,
+        };
+        (resolved == owner.value()).then_some((code, size, value))
+    }
+
     // ── register_object ─────────────────────────────────────────────
     /// Finalise the current object record in `self.writer` and append it
     /// to the output stream, recording the handle→offset mapping.
@@ -280,6 +306,73 @@ impl<'a> DwgObjectWriter<'a> {
         // No need to reset writer — we didn't use it
     }
 
+    // ── write_wire_body ──────────────────────────────────────────────
+    /// §19 H8h-ext-12 + §20 the R2018 record-identity packet: replay a
+    /// verbatim class body captured at DWG read. The reader-side twin
+    /// (the builder's `capture_wire_body`) records the main bits from
+    /// the body start (after the common fields) to the main-data end,
+    /// the text-region bits into the text stream, and the handle bits
+    /// from the post-common drain position to the record end minus the
+    /// author's closing 1s pad — this replay re-creates the pad
+    /// explicitly (the merged writer's own handle pad is 0s). Called
+    /// AFTER the caller wrote the record's common part (type code,
+    /// handle, EED, reactors/…, layer/…); returns false (the modeled
+    /// emission is then the caller's fallback) when there is no
+    /// capture or the write targets a version other than the one the
+    /// capture came from — a conversion falls back rather than emit
+    /// foreign-frame bytes.
+    pub fn write_wire_body(
+        &mut self,
+        main: &Option<Vec<u8>>,
+        main_bit_len: u32,
+        text: &Option<Vec<u8>>,
+        text_bit_len: u32,
+        handles: &Option<Vec<u8>>,
+        handles_bit_len: u32,
+        source_dxf_version: Option<crate::types::DxfVersion>,
+    ) -> bool {
+        if source_dxf_version != Some(self.dxf_version) {
+            return false;
+        }
+        let Some(main_bytes) = main else {
+            return false;
+        };
+        // The main bits (MSB-first packed)
+        let bits = (main_bit_len as usize).min(main_bytes.len() * 8);
+        for index in 0..bits {
+            let byte = main_bytes[index / 8];
+            let bit = (byte >> (7 - index % 8)) & 1;
+            self.writer.write_bit(bit == 1);
+        }
+        // The text region (raw bits into the text stream)
+        if let Some(bytes) = text {
+            let bits = (text_bit_len as usize).min(bytes.len() * 8);
+            for index in 0..bits {
+                let byte = bytes[index / 8];
+                let bit = (byte >> (7 - index % 8)) & 1;
+                self.writer.write_text_bit(bit == 1);
+            }
+        }
+        // The handle tail: extend the captured bits to the byte
+        // boundary with 1s — the author's final-partial-byte convention
+        // (the reader's ≤7-bit trim cut exactly her pad: corpus records
+        // end byte-aligned or in a 0 bit, so the trim never over-cuts).
+        if let Some(bytes) = handles {
+            let mut bytes = bytes.clone();
+            let mut bit_len = handles_bit_len;
+            let rem = bit_len % 8;
+            if rem != 0 {
+                let pad = 8 - rem;
+                if let Some(last) = bytes.last_mut() {
+                    *last |= ((1u16 << pad) - 1) as u8;
+                }
+                bit_len += pad;
+            }
+            self.writer.write_handle_bits(&bytes, bit_len);
+        }
+        true
+    }
+
     // ── write_common_data ───────────────────────────────────────────
     /// Object type + handle + extended-data preamble shared by
     /// every object (entities AND non-graphical objects).
@@ -363,7 +456,26 @@ impl<'a> DwgObjectWriter<'a> {
         full_visual_style_handle: &Option<Handle>,
         face_visual_style_handle: &Option<Handle>,
         edge_visual_style_handle: &Option<Handle>,
+        // Pre-R2004 entity chain round-trip fields.
+        entity_prev_entity_handle: &Option<Handle>,
+        entity_next_entity_handle: &Option<Handle>,
+        entity_nolinks: Option<bool>,
     ) {
+        // §19 H8h-ext-17: replay the record's captured TV wire form (the
+        // trailing-NUL convention is per-record author data) for every
+        // TV this record's body emits, and the record's exact close-pad
+        // pattern (the arbitrary-leftover authors have no genus).
+        self.writer.set_tv_plain_form(
+            self.document
+                .tv_plain_form_by_handle
+                .get(&handle)
+                .copied()
+                .unwrap_or(false),
+        );
+        self.writer
+            .set_close_pad_bits(self.document.close_pad_bits_by_handle.get(&handle).copied());
+        self.writer
+            .set_handle_slack(self.document.handle_slack_by_handle.get(&handle).copied());
         // ── MAIN + HANDLE: shared preamble (type + handle + xdata) ──
         self.write_common_data(type_code, handle, xdata);
 
@@ -394,8 +506,36 @@ impl<'a> DwgObjectWriter<'a> {
 
         // ── HANDLE: owner (if entmode == 0) ──
         if entmode == 0 {
-            self.writer
-                .write_handle(DwgReferenceType::SoftPointer, owner_handle.value());
+            // §19 H8d: non-null owners ride the author's ownerhandle
+            // form (relative iff the smaller encoding); nulls keep
+            // the code-4 absolute. Verified 196/196 on circle_2007
+            // (AC1021); §19 H8h-ext-13: the pre-2007 corpus follows
+            // the same convention (the R2000/R2004 specimens' census),
+            // so the gate drops the r2007_plus bound.
+            // TODO A1 (2026-10-01): the code CHOICE itself is a
+            // writer-genus convention — the ODA FileConverter 2018 set
+            // writes absolute code-4 where the AutoCAD genus writes the
+            // relative-iff-shorter pick — so the captured author form
+            // replays verbatim when it resolves to the same owner; the
+            // recomputed §19 H8d rule stays the fallback (constructed
+            // content, edited owners).
+            if !owner_handle.is_null() {
+                match self.captured_owner_form(handle, owner_handle) {
+                    Some((code, size, value)) => {
+                        self.writer.write_handle_form(code, size, value);
+                    }
+                    None => {
+                        self.writer.write_first_ref_handle(
+                            DwgReferenceType::SoftPointer,
+                            handle.value(),
+                            owner_handle.value(),
+                        );
+                    }
+                }
+            } else {
+                self.writer
+                    .write_handle(DwgReferenceType::SoftPointer, owner_handle.value());
+            }
         }
 
         // ── MAIN + HANDLE: reactors + xdic ──
@@ -479,22 +619,51 @@ impl<'a> DwgObjectWriter<'a> {
         // prev = handle-1, next = handle+1) and prev/next handles are omitted.
         // NOLINKS bit = 0 means prev/next handles are written explicitly.
         if !self.version.r2004_plus() {
-            let prev_h = self.prev_handle.unwrap_or(Handle::NULL);
-            let next_h = self.next_handle.unwrap_or(Handle::NULL);
-            let has_links = !prev_h.is_null()
-                && prev_h.value() == handle.value().wrapping_sub(1)
-                && !next_h.is_null()
-                && next_h.value() == handle.value().wrapping_add(1);
+            // Only use the chain state preserved from a DWG read. In-memory
+            // entities keep `nolinks: None`, so we fall back to the sequential
+            // heuristic to avoid changing the bitstream for documents created
+            // programmatically.
+            let (nolinks, prev_h, next_h) = if let Some(stored_nolinks) = entity_nolinks {
+                let prev = entity_prev_entity_handle.unwrap_or(Handle::NULL);
+                let next = entity_next_entity_handle.unwrap_or(Handle::NULL);
+                (stored_nolinks, prev, next)
+            } else {
+                let prev_h = self.prev_handle.unwrap_or(Handle::NULL);
+                let next_h = self.next_handle.unwrap_or(Handle::NULL);
+                // True when surrounding handles form the sequential pattern that
+                // allows the reader to infer prev/next without explicit handles.
+                let computed_nolinks = !prev_h.is_null()
+                    && prev_h.value() == handle.value().wrapping_sub(1)
+                    && !next_h.is_null()
+                    && next_h.value() == handle.value().wrapping_add(1);
+                (computed_nolinks, prev_h, next_h)
+            };
 
             // MAIN: Nolinks bit (true = sequential, reader infers prev/next)
-            self.writer.write_bit(has_links);
+            self.writer.write_bit(nolinks);
 
             // HANDLE: prev + next entity handles only when NOT sequential
-            if !has_links {
-                self.writer
-                    .write_handle(DwgReferenceType::SoftPointer, prev_h.value());
-                self.writer
-                    .write_handle(DwgReferenceType::SoftPointer, next_h.value());
+            if !nolinks {
+                // §19 H8h-ext-15: the chain handles follow the H8d
+                // first-ref form rule — the authored R2000 links use the
+                // relative form at equal length (her CIRCLE h=3DE
+                // prev_entity (12.2.1E0) = own − 0x1E0 where the plain
+                // absolute (4.2.1FE) was written; her LINE h=1FE
+                // next_entity (10.2.1E0) = own + 0x1E0 vs (4.2.3DE)).
+                // The tie-break is the rule's `offset < handle` (the
+                // numerically smaller stored number) — the same rule the
+                // ownerhandle slot rides (§19.4.B; the ext-13 pre-2007
+                // census).
+                self.writer.write_first_ref_handle(
+                    DwgReferenceType::SoftPointer,
+                    handle.value(),
+                    prev_h.value(),
+                );
+                self.writer.write_first_ref_handle(
+                    DwgReferenceType::SoftPointer,
+                    handle.value(),
+                    next_h.value(),
+                );
             }
         }
 
@@ -502,12 +671,44 @@ impl<'a> DwgObjectWriter<'a> {
         if self.version.r2000_plus() {
             let color_book_handle = if self.version.r2004_plus() {
                 color_book_handle
-                    .filter(|handle| !handle.is_null() && self.is_writable_object(handle))
+                    .filter(|h| !h.is_null() && self.is_writable_object(h))
             } else {
                 None
             };
-            self.writer
-                .write_en_color_with_book(color, transparency, color_book_handle.is_some());
+            // §19 H8h-ext-17: replay the authored ENC wire form when it
+            // still decodes to the entity's current color (the A1
+            // same-target gate) and the write targets an era the form
+            // fits. The flags/index BS's ACI slot is author data the
+            // collapsed model cannot derive (HatchG's slot 112 vs the
+            // nearest-ACI 110), so a recomputed ENC loses it; the
+            // captured words replay verbatim. Edited colors, absent
+            // captures, book-flag disagreements and cross-era writes
+            // fall back to the modeled emission.
+            let raw_replay = if self.version.r2004_plus() {
+                self.document
+                    .entity_color_raw_by_handle
+                    .get(&handle)
+                    .filter(|raw| {
+                        raw.decoded_color == *color
+                            && raw.decoded_transparency == *transparency
+                            && ((raw.size & 0x4000) > 0) == color_book_handle.is_some()
+                    })
+                    .cloned()
+            } else {
+                None
+            };
+            if let Some(raw) = raw_replay {
+                self.writer.write_bit_short(raw.size as i16);
+                if let Some(rgb) = raw.rgb {
+                    self.writer.write_bit_long(rgb as i32);
+                }
+                if let Some(value) = raw.transparency {
+                    self.writer.write_bit_long(value);
+                }
+            } else {
+                self.writer
+                    .write_en_color_with_book(color, transparency, color_book_handle.is_some());
+            }
             if let Some(handle) = color_book_handle {
                 self.writer
                     .write_handle(DwgReferenceType::HardPointer, handle.value());
@@ -568,7 +769,14 @@ impl<'a> DwgObjectWriter<'a> {
                 .write_handle(DwgReferenceType::HardPointer, lt_handle.value());
         }
 
-        // ── R2007+: material flags + shadow flags ──
+        // ── R2000+: Plotstyle flag pair — comes IMMEDIATELY after
+        // ltype_flags in the main stream (common_entity_data.spec
+        // 507-511); the HANDLE keeps the last slot of the R2007+ group
+        // (handle-stream order: material, shadow, then plotstyle —
+        // common_entity_handle_data.spec 127-134). ──
+        self.writer.write_2bits(plotstyle_flags);
+
+        // ── R2007+: material pair + shadow flags + shadow handle ──
         if self.version.r2007_plus() {
             let material_handle = material_handle.filter(|handle| self.is_writable_object(handle));
             let material_flags = if material_flags == 0b11 && material_handle.is_none() {
@@ -576,7 +784,7 @@ impl<'a> DwgObjectWriter<'a> {
             } else {
                 material_flags
             };
-            // Material flags BB
+            // Material flags BB + handle (slot 1 of the group)
             self.writer.write_2bits(material_flags);
             if material_flags == 0b11 {
                 if let Some(mh) = material_handle {
@@ -586,12 +794,18 @@ impl<'a> DwgObjectWriter<'a> {
                     self.writer.write_handle(DwgReferenceType::HardPointer, 0);
                 }
             }
-            // Shadow flags RC
+            // Shadow flags RC + shadow handle slot (slot 2; gold pulls a
+            // null [5,0,0,0] ref on flags==3 — SEQENDs on 2007-2010
+            // examples carry exactly that null form)
             self.writer.write_byte(shadow_flags);
+            if shadow_flags == 0b11 {
+                // gold's null shadow ref is [5, 0, 0, 0] — a hard-pointer
+                // code with offset 0.
+                self.writer.write_handle(DwgReferenceType::HardPointer, 0);
+            }
         }
 
-        // ── R2000+: Plotstyle flags ──
-        self.writer.write_2bits(plotstyle_flags);
+        // ── plotstyle handle — LAST slot of the group ──
         if plotstyle_flags == 0b11 {
             if let Some(ph) = plotstyle_handle {
                 self.writer
@@ -622,8 +836,22 @@ impl<'a> DwgObjectWriter<'a> {
         // ── MAIN: Invisibility ──
         self.writer.write_bit_short(if invisible { 1 } else { 0 });
 
-        // ── R2000+: Lineweight (5-bit DWG index) ──
-        self.writer.write_byte(line_weight.to_dwg_index());
+        // ── R2000+: Lineweight (the raw wire code) ──
+        // Gold echoes out-of-table codes verbatim; the table round-trip
+        // would fold them (untabled Value(v) -> index 31 = Default) and
+        // corrupt the rewrite (Dynblocks R2018's invalid code 28).
+        let code = {
+            let idx = line_weight.to_dwg_index();
+            match line_weight {
+                crate::types::LineWeight::Value(v)
+                    if crate::types::LineWeight::from_dwg_index(idx) != *line_weight =>
+                {
+                    *v as u8
+                }
+                _ => idx,
+            }
+        };
+        self.writer.write_byte(code);
     }
 
     // ── write_common_non_entity_data ────────────────────────────────
@@ -716,6 +944,21 @@ impl<'a> DwgObjectWriter<'a> {
         // ── writeCommonData portion ──
 
         self.pending_type_code = Some(type_code);
+        // §19 H8h-ext-17: replay the record's captured TV wire form (the
+        // trailing-NUL convention is per-record author data) for every
+        // TV this record's body emits, and the record's exact close-pad
+        // pattern (the arbitrary-leftover authors have no genus).
+        self.writer.set_tv_plain_form(
+            self.document
+                .tv_plain_form_by_handle
+                .get(&handle)
+                .copied()
+                .unwrap_or(false),
+        );
+        self.writer
+            .set_close_pad_bits(self.document.close_pad_bits_by_handle.get(&handle).copied());
+        self.writer
+            .set_handle_slack(self.document.handle_slack_by_handle.get(&handle).copied());
         // Object type
         self.writer.write_object_type(type_code);
 
@@ -734,18 +977,36 @@ impl<'a> DwgObjectWriter<'a> {
         // Extended data — look up raw EED by handle for round-trip fidelity
         let mut eed = crate::xdata::ExtendedData::default();
         if let Some(raw) = self.document.eed_by_handle.get(&handle) {
+            if std::env::var_os("DWG_EED_TRACE").is_some() {
+                // §19 H8h diagnostics: the retention as the writer sees
+                // it — (handle, [(app, len)]) — before the extra_eed merge.
+                eprintln!(
+                    "[eed-trace fetch] handle {:X} blocks {:02X?}",
+                    handle.value(),
+                    raw.iter().map(|(a, b)| (a, b.len())).collect::<Vec<_>>(),
+                );
+            }
             eed.raw_dwg_eed = raw.clone();
         }
-        // XDATA records (from DXF) are encoded for applications that have no
-        // verbatim block.
-        if let Some(xdata) = self.document.object_xdata.get(&handle) {
-            for record in xdata.records() {
-                eed.add_record(record.clone());
+        for (app, bytes) in extra_eed {
+            // §19 H8h: the author's EED block order is part of the
+            // record's byte identity (her STYLE/DIMSTYLE files carry
+            // the AcadAnnotative block FIRST; a remove-and-push-to-end
+            // reorders the stream) — an existing block for the same app
+            // KEEPS its position. §19 H8h-ext-15: a DWG read's
+            // RETAINED raw block is the wire truth and also keeps its
+            // BYTES — the H8h replace-in-place overwrote the author's
+            // block with the synthesized marker (codepage 0 where her
+            // blocks carry 30; the era census: every STYLE and
+            // DIMSTYLE same-size CRC divergence on R2000/R2004).
+            // The synthesis now only fires for apps with NO retained
+            // block (the DXF-built and programmatic paths).
+            if eed.raw_dwg_eed.iter().any(|(a, _)| *a == app) {
+                continue;
             }
+            eed.raw_dwg_eed.push((app, bytes));
         }
-        eed.raw_dwg_eed
-            .retain(|(a, _)| !extra_eed.iter().any(|(app, _)| app == a));
-        self.write_extended_data_with(&eed, &extra_eed);
+        self.write_extended_data(&eed);
 
         // ── R13-R14 Only: size placeholder (after xdata, before owner) ──
         if self.version.r13_14_only() {
@@ -763,6 +1024,36 @@ impl<'a> DwgObjectWriter<'a> {
         if relative_owner && !effective_owner.is_null() {
             self.writer
                 .write_handle_relative(handle.value(), effective_owner.value());
+        } else if !effective_owner.is_null() {
+            // §19 H8d: the author's ownerhandle form for the internal
+            // non-entity slot (relative iff the smaller encoding; the
+            // explicit relative_owner request paths keep
+            // write_handle_relative, nulls keep code-4). Verified
+            // 196/196 on circle_2007 (AC1021); §19 H8h-ext-13: the
+            // pre-2007 corpus follows the SAME convention (the R2000/
+            // R2004 Constraints specimens' census: the (8.0)/(12.1)/
+            // (4.1)/(4.2) mix is exactly the rule's output — the
+            // relative form when shorter, the tie-break by numeric
+            // value), so the gate drops the r2007_plus bound.
+            // TODO A1 (2026-10-01): the code CHOICE itself is a
+            // writer-genus convention — the ODA FileConverter 2018 set
+            // writes absolute code-4 where the AutoCAD genus writes the
+            // relative-iff-shorter pick — so the captured author form
+            // replays verbatim when it resolves to the same owner; the
+            // recomputed §19 H8d rule stays the fallback (constructed
+            // content, edited owners).
+            match self.captured_owner_form(handle, effective_owner) {
+                Some((code, size, value)) => {
+                    self.writer.write_handle_form(code, size, value);
+                }
+                None => {
+                    self.writer.write_first_ref_handle(
+                        DwgReferenceType::SoftPointer,
+                        handle.value(),
+                        effective_owner.value(),
+                    );
+                }
+            }
         } else {
             self.writer
                 .write_handle(DwgReferenceType::SoftPointer, effective_owner.value());
@@ -842,8 +1133,14 @@ impl<'a> DwgObjectWriter<'a> {
     }
 
     /// 64-group "xref dependant" flag with explicit value.
+    ///
+    /// The pre-R2007 `COMMON_TABLE_FLAGS` reference bit is `xref_ref=1`
+    /// on every ordinary table record (gold spec.h: `FIELD_B (is_xref_ref,
+    /// 0); /* always 1, 70 bit 6 */`; all corpus originals carry it, and the
+    /// R2007+ branch below keeps it off the wire entirely). Writing 0 there
+    /// made gold's re-decode report `is_xref_ref: 0` against the true 1.
     pub fn write_xref_dependant_bit_value(&mut self, xref_dep: bool) {
-        self.write_xref_table_flags(false, false, xref_dep);
+        self.write_xref_table_flags(true, false, xref_dep);
     }
 
     pub fn write_xref_table_flags(
@@ -872,6 +1169,21 @@ impl<'a> DwgObjectWriter<'a> {
         }
     }
 
+    /// The RAW `is_xref_resolved` variant (TODO B1, 2026-10-01): gold
+    /// prints the bitshort verbatim and the authored xref blocks carry 1
+    /// (not the 0/256 convention) — a same-version rewrite replays the
+    /// retained raw value instead of the bool convention so the record
+    /// bytes survive.
+    pub fn write_xref_table_flags_raw(&mut self, xref_reference: bool, resolved_raw: i16, xref_dependent: bool) {
+        if self.version.r2007_plus() {
+            self.writer.write_bit_short(resolved_raw);
+        } else {
+            self.writer.write_bit(xref_reference);
+            self.writer.write_bit_short(resolved_raw);
+            self.writer.write_bit(xref_dependent);
+        }
+    }
+
     // ── write_extended_data ─────────────────────────────────────────
     /// Write registered-application extended data (XDATA) blocks.
     ///
@@ -881,47 +1193,7 @@ impl<'a> DwgObjectWriter<'a> {
     /// are encoded into EED bytes and appended for any application not already
     /// carried verbatim, so they survive a save instead of being dropped.
     /// When neither is present a lone BS 0 terminator is written (no EED).
-    /// Encode one XDATA record as an EED block `(app_handle, bytes)` in this
-    /// version's string encoding. `None` when its application is not in the
-    /// APPID table (the block references it by handle) or the block is too
-    /// large for its BS length.
-    pub fn encode_xdata_record(
-        &self,
-        rec: &crate::xdata::ExtendedDataRecord,
-    ) -> Option<(u64, Vec<u8>)> {
-        let app = self.document.app_ids.get(&rec.application_name)?;
-        let code_page =
-            crate::io::dxf::code_page::dwg_code_page_index(&self.document.header.code_page);
-        // The declared DWG page decides the bytes, including its fallback for
-        // pages without a decoder here.
-        let encoding = crate::io::dxf::code_page::encoding_from_dwg_code_page(code_page);
-        let bytes = crate::io::dwg::eed_codec::encode_values_with_encoding(
-            self.version.r2007_plus(),
-            &rec.values,
-            encoding,
-            code_page,
-            |name| {
-                self.document
-                    .layers
-                    .get(name)
-                    .map(|l| l.handle.value())
-                    .unwrap_or(0)
-            },
-        );
-        (bytes.len() <= i16::MAX as usize).then_some((app.handle.value(), bytes))
-    }
-
     pub fn write_extended_data(&mut self, xdata: &crate::xdata::ExtendedData) {
-        self.write_extended_data_with(xdata, &[]);
-    }
-
-    /// As [`write_extended_data`], plus blocks already encoded for the target
-    /// version (written even on a cross-version save).
-    pub fn write_extended_data_with(
-        &mut self,
-        xdata: &crate::xdata::ExtendedData,
-        extra: &[(u64, Vec<u8>)],
-    ) {
         // EED string entries (code 0) are code-page encoded pre-R2007 and
         // UTF-16 in R2007+, so verbatim `raw_dwg_eed` bytes captured from a
         // different encoding family garble and desync the record. Drop them on
@@ -949,18 +1221,62 @@ impl<'a> DwgObjectWriter<'a> {
         // unregistered app is skipped rather than emitting a dangling handle.
         // An app already present verbatim in `raw_blocks` wins, so a clean DWG
         // round-trip stays byte-for-byte and we never double-write one app.
-        let record_blocks: Vec<(u64, Vec<u8>)> = xdata
-            .records()
-            .iter()
-            .filter_map(|rec| self.encode_xdata_record(rec))
-            .filter(|(app, _)| !raw_blocks.iter().chain(extra).any(|(a, _)| a == app))
-            .chain(extra.iter().cloned())
-            .collect();
+        let wide = self.version.r2007_plus();
+        let mut record_blocks: Vec<(u64, Vec<u8>)> = Vec::new();
+        for rec in xdata.records() {
+            let Some(app) = self.document.app_ids.get(&rec.application_name) else {
+                continue;
+            };
+            let app_handle = app.handle.value();
+            if raw_blocks.iter().any(|(a, _)| *a == app_handle) {
+                continue;
+            }
+            let code_page =
+                crate::io::dxf::code_page::dwg_code_page_index(&self.document.header.code_page);
+            let encoding =
+                crate::io::dxf::code_page::encoding_from_code_page(&self.document.header.code_page)
+                    .unwrap_or(encoding_rs::WINDOWS_1252);
+            let bytes = crate::io::dwg::eed_codec::encode_values_with_encoding(
+                wide,
+                &rec.values,
+                encoding,
+                code_page,
+                |name| {
+                    self.document
+                        .layers
+                        .get(name)
+                        .map(|l| l.handle.value())
+                        .unwrap_or(0)
+                },
+            );
+            // The block length is framed as a BS (i16); skip a pathologically
+            // large record rather than overflow and desync the object stream.
+            if bytes.len() > i16::MAX as usize {
+                continue;
+            }
+            record_blocks.push((app_handle, bytes));
+        }
 
         if raw_blocks.is_empty() && record_blocks.is_empty() {
             // No EED: write BS 0 terminator
             self.writer.write_bit_short(0);
             return;
+        }
+        if std::env::var_os("DWG_EED_TRACE").is_some() {
+            // §19 H8h diagnostics: the block list the writer is about
+            // to emit — (app handle, data len) pairs, raw first then
+            // freshly-encoded records.
+            eprintln!(
+                "[eed-trace] blocks: raw {:02X?} + records {:02X?}",
+                raw_blocks
+                    .iter()
+                    .map(|(a, b)| (a, b.len()))
+                    .collect::<Vec<_>>(),
+                record_blocks
+                    .iter()
+                    .map(|(a, b)| (a, b.len()))
+                    .collect::<Vec<_>>(),
+            );
         }
         for (app_handle, raw_bytes) in raw_blocks.iter().chain(record_blocks.iter()) {
             // BS size of this application's data block

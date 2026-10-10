@@ -1,4 +1,4 @@
-//! An `AcCmColor` true colour written in its unsigned spelling must survive a
+﻿//! An `AcCmColor` true colour written in its unsigned spelling must survive a
 //! DXF read.
 //!
 //! Group codes 420 and 421 carry a packed word, not a quantity: producers set a

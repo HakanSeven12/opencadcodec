@@ -1,4 +1,4 @@
-//! MTEXT format string parser and serializer.
+﻿//! MTEXT format string parser and serializer.
 //!
 //! This module provides utilities for parsing AutoCAD MTEXT formatted strings
 //! into a structured representation of paragraphs and styled text spans, and
@@ -31,7 +31,7 @@
 //! | `\A<n>;` | Line alignment (0=bottom, 1=middle, 2=top) |
 //! | `\f<family>|b0/b1|i0/i1|c<n>|p<n>|...;` | Font with bold/italic/charset/pitch flags |
 //! | `\F<N><name>.shx;` | Font by SHX name |
-//! | `\F<n>;` | Fraction style (0–3) |
+//! | `\F<n>;` | Fraction style (0â€“3) |
 //! | `\S<num>/<den>;` | Stacking (fractions, limits) |
 //! | `\p q<l/r/c/j/d>;` | Paragraph alignment (left/right/center/justified/distributed) |
 //! | `\p i<n>;` | First line indent (inches) |
@@ -45,16 +45,16 @@
 //! | `\p...;` | Paragraph properties (sub-codes comma-separated) |
 //! | `\b<n>;` | Legacy strikethrough (1=on, 0=off) |
 //! | `{...}` | Style group (push/pop context) |
-//! | `%%c` | Diameter symbol (Ø) |
-//! | `%%d` | Degree symbol (°) |
-//! | `%%p` | Plus-minus symbol (±) |
+//! | `%%c` | Diameter symbol (Ã˜) |
+//! | `%%d` | Degree symbol (Â°) |
+//! | `%%p` | Plus-minus symbol (Â±) |
 //! | `%%%%` | Literal percent sign (%) |
 //!
 //! # Escaping
 //!
-//! - `\\` → literal backslash
-//! - `\{` → literal opening brace
-//! - `\}` → literal closing brace
+//! - `\\` â†’ literal backslash
+//! - `\{` â†’ literal opening brace
+//! - `\}` â†’ literal closing brace
 //!
 //! # Example
 //!

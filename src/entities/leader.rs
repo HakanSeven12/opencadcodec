@@ -169,7 +169,13 @@ impl Leader {
             dimension_style: "Standard".to_string(),
             arrow_enabled: true,
             path_type: LeaderPathType::StraightLine,
-            creation_type: LeaderCreationType::WithText,
+            // Default to "no annotation" (annot_type 3): authored wires only
+            // pair a text/tolerance/block-typed leader with a real
+            // associated_annotation slot, and a strict loader rejects the
+            // dangling null association of a defaulted WithText leader
+            // (BricsCAD "Object improperly read: <AcDbLeader>"). Callers must
+            // opt into WithText and attach the MTEXT explicitly.
+            creation_type: LeaderCreationType::NoAnnotation,
             hookline_direction: HooklineDirection::Opposite,
             hookline_enabled: false,
             text_height: 2.5,
@@ -189,7 +195,13 @@ impl Leader {
             dwg_unknown_bit1: false,
             dwg_unknown_bit2: false,
             dwg_unknown_bit3: false,
-            dwg_unknown_bit4: false,
+            // Native-stance bit (2026-09-22 default fix): the dwg.spec
+            // 3041-3045 tail bit the authored census carries set on
+            // every constructed-acceptable leader (the 2018/Leader.dwg
+            // family, byte-verified in 66c1e57; strict-load verified).
+            // Pure wire bit with no modeled semantics; reads capture it
+            // verbatim, so round trips stay byte-faithful.
+            dwg_unknown_bit4: true,
             dwg_unknown_bit5: false,
             dwg_unknown_short1: 0,
         }

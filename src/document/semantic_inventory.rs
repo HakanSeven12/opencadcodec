@@ -192,23 +192,54 @@ impl<'a> SemanticInventoryV1<'a> {
             dgn_ls_definitions: _,
             dgn_ls_components: _,
             eed_by_handle,
-            object_xdata,
             xdic_by_handle,
             reactors_by_handle,
+            unknown_bits_by_handle: _,
             block_entity_handles: _,
             dwg_source_version,
+            dwg_file_header: _,
+            dwg_header_raw: _,
+            dwg_r2004_header: _,
+            dwg_r2007_header: _,
+            dwg_second_header: _,
+            dwg_aux_header: _,
+            dwg_ac18_shape: _,
+            dwg_template: _,
+            dwg_file_dep_list: _,
+            dwg_rev_history: _,
+            dwg_security: _,
+            dwg_obj_free_space: _,
+            dwg_app_info: _,
+            dwg_app_info_history: _,
+            dwg_acds: _,
             preview,
             acis_sab_handles: _,
             raw_acds_data: _,
             raw_acds_fingerprint: _,
-            raw_records: _,
-            original_objects: _,
-            raw_record_owners: _,
+            raw_classes_data: _,
+            raw_classes_fingerprint: _,
+            raw_app_info_data: _,
+            raw_app_info_history_data: _,
+            raw_obj_free_space_data: _,
+            raw_xref_manifest_data: _,
+            raw_acdb_objects_data: _,
+            raw_acdb_objects_handles: _,
+            dwg_state_fingerprint: _,
+            raw_ac21_tail: _,
             dwg_data_store_handles: _,
+            dimstyle_morehandles: _,
+            table_control_entries: _,
             section_view_style: _,
             view_rep_refs: _,
             section_view_reps: _,
             next_handle: _,
+            dwg_ac21_shape: _,
+            owner_handle_form_by_handle: _,
+            entity_color_raw_by_handle: _,
+            tv_plain_form_by_handle: _,
+            close_pad_bits_by_handle: _,
+            handle_slack_by_handle: _,
+            close_pad_zeros: _,
         } = self.document;
 
         visitor(SemanticPartV1::Header(header));
@@ -315,25 +346,6 @@ impl<'a> SemanticInventoryV1<'a> {
                     owner: self.reference(*owner),
                     application,
                     values,
-                });
-            }
-        }
-        // Records without a verbatim EED block (read from DXF).
-        for (owner, xdata) in object_xdata {
-            for record in xdata.records() {
-                let application = app_ids.get(&record.application_name);
-                let has_raw = application.is_some_and(|app| {
-                    eed_by_handle
-                        .get(owner)
-                        .is_some_and(|blocks| blocks.iter().any(|(a, _)| *a == app.handle.value()))
-                });
-                if has_raw {
-                    continue;
-                }
-                visitor(SemanticPartV1::NonEntityExtendedData {
-                    owner: self.reference(*owner),
-                    application,
-                    values: Some(record.values.clone()),
                 });
             }
         }

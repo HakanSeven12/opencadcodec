@@ -949,6 +949,13 @@ pub struct MultiLeader {
     pub text_bottom_attachment: TextAttachmentType,
     /// Text attachment direction.
     pub text_attachment_direction: TextAttachmentDirectionType,
+    /// Raw wire attaches (dwg2.spec 1449-1452, SINCE R_2010b): the BS
+    /// values carry attachment-mode codes outside the typed enums, so the
+    /// raw ints are retained for lossless DWG round-trips and the harness
+    /// (wire order dir 271, top 273, bottom 272).
+    pub dwg_attach_dir: i16,
+    pub dwg_attach_top: i16,
+    pub dwg_attach_bottom: i16,
     /// Text attachment point.
     pub text_attachment_point: TextAttachmentPointType,
     /// Text alignment.
@@ -981,6 +988,19 @@ pub struct MultiLeader {
     pub enable_annotation_scale: bool,
     /// Extend leader to text.
     pub extend_leader_to_text: bool,
+    /// Verbatim R2010+ wire bit-group parked between the walked spec tail
+    /// (is_text_extended) and the string-stream anchor. The group is a
+    /// CONTENT-CLASS convention, not a writer fingerprint: the gold
+    /// tree's Leader drawing family (AutoCAD-2017/2018-saved down-saves
+    /// verified by their SummaryInfo stamps, plus the ODA-FileConverter
+    /// 2018 variant reproducing them) carries 17 bits
+    /// (0b00100101000010010), while fresh simple-content mleaders
+    /// (BricsCAD/AutoCAD "bla" samples and the gold tree's
+    /// gh44-error.dwg) carry the constant 9 bits (0b000010010)
+    /// regardless of writer. Captured on read for byte-faithful
+    /// rewrites; constructed entities take the simple-content default
+    /// (see `new()`, BricsCAD-verified 2026-09-21 round seven).
+        pub dwg_raw_tail_bits: Option<(u64, u8)>,
 }
 
 impl MultiLeader {
@@ -1009,9 +1029,27 @@ impl MultiLeader {
             text_height: 0.18,
             text_left_attachment: TextAttachmentType::MiddleOfText,
             text_right_attachment: TextAttachmentType::MiddleOfText,
-            text_top_attachment: TextAttachmentType::CenterOfText,
-            text_bottom_attachment: TextAttachmentType::CenterOfText,
+            // Typed mirrors of the raw trio take the From<i16> image of
+            // the native raws (32 and 4786 land on the MiddleOfText
+            // fallback), so constructed entities and R2010+ round trips
+            // agree on both representations.
+            text_top_attachment: TextAttachmentType::MiddleOfText,
+            text_bottom_attachment: TextAttachmentType::MiddleOfText,
             text_attachment_direction: TextAttachmentDirectionType::Horizontal,
+            // Native-author stance (2026-09-22 default fix): the
+            // R2010+ wire emits these BS raws verbatim, and the codes
+            // native authors compose for fresh simple-content records
+            // sit outside the typed enums — the gold tree's
+            // AutoCAD-authored gh44-error.dwg carries dir 0 /
+            // bottom 4786 / top 32. The former CenterOfText pair (9/9)
+            // was a round-trip-mirror convenience that no native author
+            // emits, and strict AcDbMLeader parsers reject un-native
+            // code compositions (the 17-bit tail precedent). Reads
+            // overwrite the raws with the captured bits, so round
+            // trips stay byte-faithful.
+            dwg_attach_dir: 0,
+            dwg_attach_top: 32,
+            dwg_attach_bottom: 4786,
             text_attachment_point: TextAttachmentPointType::Center,
             text_alignment: TextAlignmentType::Left,
             text_angle_type: TextAngleType::Horizontal,
@@ -1029,7 +1067,27 @@ impl MultiLeader {
             // from group code 293; a fresh MULTILEADER must not inherit `true`,
             // or a reader that missed the flag would over-scale every instance.
             enable_annotation_scale: false,
-            extend_leader_to_text: false,
+            // Native-author stance alongside the attach trio: the
+            // gh44-error.dwg extended-to-text state (2026-09-22 default
+            // fix). R2000-2007 wires have no such bit; byte-fidelity
+            // rewrites take the captured value.
+            extend_leader_to_text: true,
+            // Authoring default: the hidden post-spec bit-group parked
+            // between is_text_extended and the string-stream anchor. It
+            // is a content-class convention, not a writer fingerprint
+            // (2026-09-22 specimen-stamp census): fresh simple-content
+            // mleaders — BricsCAD and AutoCAD "bla" samples and the gold
+            // tree's gh44-error.dwg — carry the constant 0b000010010
+            // (9 bits) regardless of writer, while the gold tree's
+            // Leader drawing family carries 17 bits whether saved by
+            // AutoCAD 2017/2018 (the 2007/2010/2013 down-saves, per
+            // their SummaryInfo stamps) or by the ODA FileConverter
+            // (the 2018 variant, reproducing them). Constructed
+            // entities take the simple-content default — the genus
+            // BricsCAD and AutoCAD themselves emit for such content
+            // (user-verified 2026-09-21, round seven). The DWG reader
+            // overwrites this with the captured bits on rewrites.
+            dwg_raw_tail_bits: Some((0b000010010, 9)),
         }
     }
 

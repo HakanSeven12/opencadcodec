@@ -48,6 +48,11 @@ pub struct ImageDefinitionReactor {
     pub owner: Handle,
     /// Associated image entity handle
     pub image_handle: Handle,
+    /// Gold `class_version` (dwg.spec IMAGEDEF_REACTOR: FIELD_BL (class_version,
+    /// 90), values 0-2). Stored so the normalizer can emit it and the DWG
+    /// writer can round-trip it.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub class_version: i32,
 }
 
 impl ImageDefinitionReactor {
@@ -60,6 +65,7 @@ impl ImageDefinitionReactor {
             handle: Handle::NULL,
             owner: Handle::NULL,
             image_handle,
+            class_version: 0,
         }
     }
 }
