@@ -4344,6 +4344,11 @@ impl DwgDocumentBuilder {
                         e.wire_handles = handles;
                         e.wire_handles_bit_len = handles_bits;
                         e.wire_dxf_version = Some(self.obj_reader.dxf_version());
+                        // The capture equals the modeled state right
+                        // here; pin the digest so the writer can tell an
+                        // unedited record (verbatim replay) from an edited
+                        // one (modeled re-encode).
+                        e.wire_model_digest = Some(e.modeled_digest());
                     }
                     let _ = document.add_entity(EntityType::Table(Box::new(e)));
                 }

@@ -4076,7 +4076,17 @@ impl<'a> DwgObjectWriter<'a> {
         // emission stays the fallback for DXF-built and programmatic
         // tables (no capture) and for conversions that target another
         // version.
-        if self.write_wire_body(
+        // Replay only while the capture still describes this table: the
+        // digest pins the modeled state as the reader built it, so an edit
+        // (the model no longer hashes to the pinned value) re-encodes from
+        // the model instead of silently dropping the change
+        // (2026-10-10, the staged-table reedit audit). Unedited records
+        // keep the byte-identical rewrite.
+        let wire_matches_model = e
+            .wire_model_digest
+            .is_some_and(|digest| e.modeled_digest() == digest);
+        if wire_matches_model
+            && self.write_wire_body(
             &e.wire_main,
             e.wire_main_bit_len,
             &e.wire_text,
