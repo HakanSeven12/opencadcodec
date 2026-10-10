@@ -1793,6 +1793,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer.write_subclass("AcDbSymbolTableRecord")?;
         self.writer.write_subclass("AcDbBlockTableRecord")?;
         self.writer.write_string(2, block_record.name())?;
+        // Group code 4 is the block description, written only when it has one
+        // (mirrors the reference DXF and the BLOCK entity body write).
+        if !block_record.description.is_empty() {
+            self.writer.write_string(4, &block_record.description)?;
+        }
         self.writer.write_i16(70, block_record.units)?;
         self.writer
             .write_byte(280, if block_record.explodable { 1 } else { 0 })?;
@@ -5024,6 +5029,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         self.writer
             .write_i16(74, attdef.vertical_alignment.to_value())?;
 
+        // R2007+ lock-position flag
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.writer.write_byte(280, u8::from(attdef.lock_position))?;
+        }
+
         // Prompt
         self.writer.write_string(3, &attdef.prompt)?;
 
@@ -5085,6 +5095,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Vertical alignment
         self.writer
             .write_i16(74, attrib.vertical_alignment.to_value())?;
+
+        // R2007+ lock-position flag
+        if self.dxf_version >= DxfVersion::AC1021 {
+            self.writer.write_byte(280, u8::from(attrib.lock_position))?;
+        }
 
         // XDATA precedes the parent INSERT's child SEQEND record.
         self.write_xdata(&attrib.common.extended_data)?;

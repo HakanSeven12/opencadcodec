@@ -4387,7 +4387,23 @@ impl<'a> DwgObjectWriter<'a> {
         let data = if e.raw_data.is_empty() {
             e.encoded_payload()
         } else {
-            e.raw_data.clone()
+            // Echo the retained raw wire bytes only while they still
+            // describe this frame: the payload encodes the corners (and
+            // the storage/envelope), so an edited frame re-encodes or the
+            // edit silently vanishes on reload (2026-10-10, the ole2frame
+            // reedit audit). Unmodified read frames keep the byte-identical
+            // rewrite; the re-encode path serves constructed documents.
+            let (storage, envelope, upper_left, lower_right) =
+                crate::entities::Ole2Frame::decode_payload(&e.raw_data);
+            if storage == e.storage
+                && envelope == e.envelope
+                && upper_left == e.upper_left_corner
+                && lower_right == e.lower_right_corner
+            {
+                e.raw_data.clone()
+            } else {
+                e.encoded_payload()
+            }
         };
         self.writer.write_bit_long(data.len() as i32);
         self.writer.write_bytes(&data);

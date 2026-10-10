@@ -1101,8 +1101,10 @@ impl<'a> DwgObjectWriter<'a> {
         self.writer.write_bit_double(style.width_factor);
         // Oblique angle
         self.writer.write_bit_double(style.oblique_angle);
-        // Generation (mirror flags)
-        self.writer.write_byte(0);
+        // Generation (mirror flags: 2 = backward, 4 = upside down)
+        let generation = (if style.flags.backward { 2u8 } else { 0 })
+            | (if style.flags.upside_down { 4u8 } else { 0 });
+        self.writer.write_byte(generation);
         // Last height (must be > 0; use effective_last_height)
         self.writer.write_bit_double(style.effective_last_height());
         // Font name

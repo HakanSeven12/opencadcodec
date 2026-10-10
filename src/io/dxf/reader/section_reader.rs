@@ -3816,6 +3816,14 @@ impl<'a> SectionReader<'a> {
                             let _ = document.add_entity(EntityType::Ole2Frame(entity));
                         }
                     }
+                    "SECTIONLINE" => {
+                        let entity = self.read_section_symbol_dxf()?;
+                        let _ = document.add_entity(EntityType::SectionSymbol(entity));
+                    }
+                    "DRAWINGVIEW" => {
+                        let entity = self.read_view_border_dxf()?;
+                        let _ = document.add_entity(EntityType::ViewBorder(entity));
+                    }
                     "CAMERA"
                     | "SECTIONOBJECT"
                     | "ARCALIGNEDTEXT"
@@ -9424,6 +9432,7 @@ impl<'a> SectionReader<'a> {
                                 existing.layout = block_record.layout;
                             }
                             existing.units = block_record.units;
+                            existing.description = block_record.description.clone();
                             existing.flags = block_record.flags;
                         }
                     }
@@ -9481,6 +9490,7 @@ impl<'a> SectionReader<'a> {
                     }
                 }
                 2 => block_record.name = pair.value_string.clone(),
+                4 => block_record.description = pair.value_string.clone(),
                 70 => {
                     // AcDbBlockTableRecord code 70 is the block INSERTION UNITS
                     // (0=unitless, 1=in, 4=mm, 6=cm, (elided: encoding-damaged comment)
@@ -19508,7 +19518,8 @@ impl<'a> SectionReader<'a> {
                 }
                 50 => {
                     if let Some(v) = pair.as_double() {
-                        underlay.rotation = v;
+                        // DXF code 50 is degrees; the entity stores radians.
+                        underlay.rotation = v.to_radians();
                     }
                 }
                 280 => {
