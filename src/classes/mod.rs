@@ -109,8 +109,7 @@ pub struct DxfClass {
     /// this index (the fallback is this reader's own parse). Emitted in
     /// the dump so the structure axis can project gold's CLASSES JSON
     /// shape exactly (§19 H5b).
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub gold_shadow: Option<DwgClassGoldShadow>,
+        pub gold_shadow: Option<DwgClassGoldShadow>,
 }
 
 /// One record of gold's classes walk — the per-class values gold

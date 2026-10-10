@@ -1000,11 +1000,7 @@ pub struct MultiLeader {
     /// regardless of writer. Captured on read for byte-faithful
     /// rewrites; constructed entities take the simple-content default
     /// (see `new()`, BricsCAD-verified 2026-09-21 round seven).
-    #[cfg_attr(
-        feature = "serde",
-        serde(skip_serializing_if = "Option::is_none")
-    )]
-    pub dwg_raw_tail_bits: Option<(u64, u8)>,
+        pub dwg_raw_tail_bits: Option<(u64, u8)>,
 }
 
 impl MultiLeader {
