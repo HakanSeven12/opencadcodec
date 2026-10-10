@@ -5169,6 +5169,11 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Annotation offset
         self.writer.write_point3d(213, leader.annotation_offset)?;
 
+        // Associated annotation (text, tolerance or block reference)
+        if !leader.annotation_handle.is_null() {
+            self.writer.write_handle(340, leader.annotation_handle)?;
+        }
+
         Ok(())
     }
 
