@@ -1511,29 +1511,34 @@ pub struct Table {
     /// — so the conventional rewrite re-emits her bytes. The modeled
     /// emission stays the DXF/programmatic fallback (`wire_main`
     /// absent).
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub wire_main: Option<Vec<u8>>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+        /// Serde-invisible: the capture is internal wire state the DWG reader
+    /// and writer own end to end; the host type-registry tracer follows the
+    /// serde surface and the generic Python model generator cannot express
+    /// the packed Option<Vec<u8>> shape (nor should raw record bytes be
+    /// script-visible).
+pub wire_main: Option<Vec<u8>>,
     /// Exact bit width of `wire_main`.
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub wire_main_bit_len: u32,
     /// MSB-first packed text-region bits (the cell-text TUs).
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub wire_text: Option<Vec<u8>>,
     /// Exact bit width of `wire_text`.
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub wire_text_bit_len: u32,
     /// MSB-first packed handle-stream tail bits.
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub wire_handles: Option<Vec<u8>>,
     /// Exact bit width of `wire_handles`.
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub wire_handles_bit_len: u32,
     /// §20 the R2018 record-identity packet: the DxfVersion whose reader
     /// frame the `wire_*` captures came from. The writer replays the wire
     /// only when the write targets that same version — a conversion to
     /// another era falls back to the modeled emission rather than
     /// emitting foreign-frame bytes.
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub wire_dxf_version: Option<crate::types::DxfVersion>,
 }
 
