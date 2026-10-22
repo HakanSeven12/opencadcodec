@@ -2,6 +2,13 @@
 
 ### Unreleased
 
+- **Optional typed storage** - The `typed-storage` feature adds owned document-wide
+  typed record capture, read-only inspection and a strict versioned MessagePack
+  envelope. Capture reports retain exclusions, partial content and decoded EED
+  evidence independently of the live source. Original records and private AcDs
+  storage are excluded. Document reconstruction, selective dependency closure and
+  CAD writeback qualification are separate follow-up work.
+
 - **DWG 2010 REGION tails** - Read an empty silhouette count retained after
   an absent isoline cache when the complete bounded material tail validates.
   Preserve the count-free layout and existing truncated-stream checks.

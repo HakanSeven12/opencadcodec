@@ -23,6 +23,7 @@
 //! | Feature | Description |
 //! |---------|-------------|
 //! | `serde` | Enables `serde::Serialize` and `serde::Deserialize` implementations. |
+//! | `typed-storage` | Owned typed record capture, inspection and versioned bytes; includes `serde`. |
 //! | `import` | Enables STL, COLLADA, OBJ, glTF/GLB, and FBX importers. |
 //!
 //! ```toml
@@ -178,6 +179,8 @@ pub mod notification;
 pub mod objects;
 pub mod plot_style;
 pub mod sheet_set;
+#[cfg(feature = "typed-storage")]
+pub mod storage;
 pub mod tables;
 pub mod types;
 pub mod vba;

@@ -5,6 +5,10 @@
 use crate::types::Handle;
 use std::collections::HashMap;
 
+#[cfg(feature = "typed-storage")]
+#[path = "sort_entities_storage.rs"]
+pub(crate) mod typed_storage;
+
 // ============================================================================
 // SortEntsEntry
 // ============================================================================

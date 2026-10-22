@@ -15,6 +15,7 @@ categories = ["parser-implementations", "encoding"]
 [features]
 default = []
 serde = ["dep:serde", "bitflags/serde", "indexmap/serde"]
+typed-storage = ["serde", "dep:rmp-serde", "dep:serde_ignored"]
 import = ["dep:quick-xml"]
 
 [dependencies]
@@ -39,6 +40,8 @@ oem_cp = "2.1"
 
 # Serialization (optional)
 serde = { version = "1", features = ["derive", "rc"], optional = true }
+rmp-serde = { version = "1.3", optional = true }
+serde_ignored = { version = "0.1", optional = true }
 
 # XML parsing (optional, for COLLADA import)
 quick-xml = { version = "0.36", optional = true }

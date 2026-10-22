@@ -35,6 +35,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check all targets and features
         run: cargo check --all-targets --all-features
+      - name: Test typed storage contract
+        run: cargo test --features typed-storage --test 'typed_storage_*'
+      - name: Test private storage projection and transport
+        run: cargo test --features typed-storage --lib storage::
       - name: Test default features
         run: cargo test
       - name: Test all features

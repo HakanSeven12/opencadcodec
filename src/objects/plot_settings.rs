@@ -571,6 +571,10 @@ pub struct PlotSettings {
     cached_scale: Option<f64>,
 }
 
+#[cfg(feature = "typed-storage")]
+#[path = "plot_settings_storage.rs"]
+pub(crate) mod typed_storage;
+
 impl PlotSettings {
     /// Object type name
     pub const OBJECT_TYPE: &'static str = "PLOTSETTINGS";

@@ -32,6 +32,10 @@ use crate::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "typed-storage")]
+#[path = "document/typed_storage.rs"]
+mod typed_storage;
+
 #[cfg(test)]
 #[path = "document/evaluated_block_tests.rs"]
 mod evaluated_block_tests;

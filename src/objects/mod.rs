@@ -24,6 +24,11 @@ mod stub_objects;
 mod table_style;
 mod xrecord;
 
+#[cfg(feature = "typed-storage")]
+pub(crate) use plot_settings::typed_storage::StoredPlotSettings;
+#[cfg(feature = "typed-storage")]
+pub(crate) use sort_entities_table::typed_storage::StoredSortEntitiesTable;
+
 pub use associative::*;
 pub use block_visibility::{
     BlockEvalValue, BlockParameterConnection, BlockParameterPropertyInfo, BlockVisibilityParameter,

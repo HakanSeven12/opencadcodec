@@ -37,6 +37,7 @@ DXF, use `DxfWriter::new_binary(&doc)`.
 | Feature | Default | Adds |
 |---------|---------|------|
 | `serde` | No | `Serialize` and `Deserialize` implementations for document types |
+| `typed-storage` | No | Owned typed record capture, inspection and versioned storage; includes `serde` |
 | `import` | No | STL, COLLADA, OBJ, glTF/GLB, and FBX importers |
 
 Enable optional features as needed:
@@ -47,6 +48,10 @@ acadrust = { version = "0.6.4", features = ["serde", "import"] }
 ```
 
 ## Features
+
+For source-independent typed record storage, see [typed storage](docs/typed-storage.md).
+This optional API captures available typed content and reports exclusions. It does
+not yet reconstruct a `CadDocument` or qualify records for CAD writeback.
 
 - **DXF I/O** — ASCII and binary formats, R12 through R2018+
 - **DWG I/O** — Native binary formats, R12 through R2018+
