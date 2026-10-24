@@ -1038,6 +1038,10 @@ pub(crate) fn transform_attribute_definition(e: &mut AttributeDefinition, transf
     let scale_factor = transformed_unit.length();
     e.height *= scale_factor;
     rotate_ocs_angle(&mut e.rotation, old_normal, transform);
+    // A multiline attribute draws its embedded MTEXT: transform it too.
+    if let Some(m) = e.embedded_mtext.as_deref_mut() {
+        transform_mtext(m, transform);
+    }
 }
 
 // ── AttributeEntity ──────────────────────────────────────────────────────────
@@ -1057,6 +1061,9 @@ pub(crate) fn transform_attribute_entity(e: &mut AttributeEntity, transform: &Tr
     let scale_factor = transformed_unit.length();
     e.height *= scale_factor;
     rotate_ocs_angle(&mut e.rotation, old_normal, transform);
+    if let Some(m) = e.embedded_mtext.as_deref_mut() {
+        transform_mtext(m, transform);
+    }
 }
 
 // ── Leader ───────────────────────────────────────────────────────────────────
@@ -1515,6 +1522,21 @@ mod tests {
         transform_line(&mut line, &t);
         assert!((line.start.x - 2.0).abs() < 1e-10);
         assert!((line.end.x - 4.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_transform_multiline_attribute_transforms_embedded_mtext() {
+        let mut att = AttributeEntity::new("T".into(), "V".into());
+        let mut m = MText::new();
+        m.insertion_point = Vector3::new(10.0, 0.0, 0.0);
+        m.height = 2.5;
+        att.embedded_mtext = Some(Box::new(m));
+
+        // SCALE 2 about the origin: the drawn MTEXT must scale with the attribute.
+        transform_attribute_entity(&mut att, &Transform::from_scale(2.0));
+        let m = att.embedded_mtext.as_ref().unwrap();
+        assert!((m.insertion_point.x - 20.0).abs() < 1e-10);
+        assert!((m.height - 5.0).abs() < 1e-10);
     }
 
     #[test]
