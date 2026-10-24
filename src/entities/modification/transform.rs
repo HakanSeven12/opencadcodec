@@ -1122,6 +1122,9 @@ pub(crate) fn transform_multileader(e: &mut MultiLeader, transform: &Transform) 
     e.context.arrowhead_size *= scale_factor;
     e.context.text_height *= scale_factor;
     e.context.landing_gap *= scale_factor;
+    e.context.text_width *= scale_factor;
+    e.context.text_boundary_height *= scale_factor;
+    e.context.block_content_scale = e.context.block_content_scale * scale_factor;
     rotate_stored_angle(&mut e.context.text_rotation, transform);
     rotate_stored_angle(&mut e.context.block_rotation, transform);
     rotate_stored_angle(&mut e.block_rotation, transform);
@@ -1796,5 +1799,19 @@ mod tests {
         );
         assert!((b.vertices[0].bulge - 0.5).abs() < 1e-12);
         assert!((b.vertices[1].bulge - (-0.3)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_transform_multileader_scales_text_width_and_block() {
+        let mut ml = MultiLeader::default();
+        ml.context.text_width = 20.0;
+        ml.context.text_boundary_height = 5.0;
+        let t = Transform::from_scale(2.0);
+        transform_multileader(&mut ml, &t);
+        assert!((ml.context.text_width - 40.0).abs() < 1e-10);
+        assert!((ml.context.text_boundary_height - 10.0).abs() < 1e-10);
+        assert_eq!(ml.context.block_content_scale, Vector3::new(2.0, 2.0, 2.0));
+        // AutoCAD keeps the entity-level block scale override.
+        assert_eq!(ml.block_scale, Vector3::new(1.0, 1.0, 1.0));
     }
 }
